@@ -1,0 +1,5 @@
+# Minimal redirects for clean URLs and 404 handling
+
+# Preserve trailing slash behavior from Next.js export
+/*  /index.html  200!
+

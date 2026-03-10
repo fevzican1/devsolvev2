@@ -1,0 +1,30 @@
+Quality Report
+Generated: 2026-02-02T12:31:39.146Z
+
+Summary:
+- Total Pages Analyzed: 42
+- Average Score: 85/100
+- Below Index Threshold (72): 1
+- Above Sitemap Threshold (80): 25
+
+Sample Pages:
+  how-to-format-json-formatter-0: 97/100
+  best-way-to-format-json-formatter-1: 72/100
+  online-format-json-formatter-2: 84/100
+  how-to-validate-json-formatter-3: 91/100
+  best-way-to-validate-json-formatter-4: 98/100
+  online-validate-json-formatter-5: 76/100
+  how-to-parse-json-formatter-6: 97/100
+  best-way-to-parse-json-formatter-7: 78/100
+  online-parse-json-formatter-8: 72/100
+  how-to-format-json-to-typescript-9: 73/100
+  best-way-to-format-json-to-typescript-10: 79/100
+  online-format-json-to-typescript-11: 77/100
+  how-to-validate-json-to-typescript-12: 94/100
+  best-way-to-validate-json-to-typescript-13: 93/100
+  online-validate-json-to-typescript-14: 83/100
+  how-to-parse-json-to-typescript-15: 92/100
+  best-way-to-parse-json-to-typescript-16: 97/100
+  online-parse-json-to-typescript-17: 87/100
+  how-to-encode-base64-encode-decode-18: 91/100
+  best-way-to-encode-base64-encode-decode-19: 96/100

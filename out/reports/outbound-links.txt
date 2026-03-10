@@ -1,0 +1,12 @@
+Outbound Link Audit Report
+Generated: 2026-02-02T12:31:39.204Z
+
+Total URLs found: 3
+Flagged URLs (not in allowed files): 0
+
+No flagged URLs found. All outbound links are properly managed.
+
+
+Allowed files (not flagged):
+  - src/config/site.ts (siteUrl)
+  - src/config/monetization.ts (homepageUrl)

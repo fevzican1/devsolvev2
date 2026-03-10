@@ -1,0 +1,9 @@
+Forbidden Terms Scan Report
+Generated: 2026-02-02T12:31:39.258Z
+
+Status: No terms configured
+
+To configure forbidden terms, set the FORBIDDEN_TERMS environment variable
+with a comma-separated list of terms to scan for.
+
+Example: FORBIDDEN_TERMS="term1,term2,term3" npm run build
