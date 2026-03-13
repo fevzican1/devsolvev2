@@ -1,5 +1,4 @@
-# Minimal redirects for clean URLs and 404 handling
-
-# Preserve trailing slash behavior from Next.js export
-/*  /index.html  200!
+# Intentionally minimal.
+# For Next.js static export on Netlify, avoid SPA-style rewrites that
+# would intercept `/_next/static/*` assets (CSS/JS) and break styling.
 
