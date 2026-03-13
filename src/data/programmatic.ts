@@ -142,7 +142,7 @@ function buildSteps(intent: string, toolSlug: string, taskVariant: string, seed:
   return shuffled.slice(0, 5);
 }
 
-function buildPitfalls(intent: string, clusterKey: ClusterKey, seed: number): string[] {
+function buildPitfalls(clusterKey: ClusterKey, intent: string, seed: number): string[] {
   const genericPitfalls = [
     'Skipping a quick manual sanity check on a small sample before processing a full dataset.',
     'Relying on default options without confirming how they behave on malformed or edge-case input.',
