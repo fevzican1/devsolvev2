@@ -1,4 +1,4 @@
-// File: C:\Users\Lenovo\Desktop\project-bolt-sb1-gan9jswd\project\src\app\k\[slug]\page.tsx
+// File: /opt/build/repo/src/app/k/[slug]/page.tsx
 import * as entry from '../../../../../src/app/k/[slug]/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

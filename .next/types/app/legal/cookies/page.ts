@@ -1,4 +1,4 @@
-// File: C:\Users\Lenovo\Desktop\project-bolt-sb1-gan9jswd\project\src\app\legal\cookies\page.tsx
+// File: /opt/build/repo/src/app/legal/cookies/page.tsx
 import * as entry from '../../../../../src/app/legal/cookies/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
