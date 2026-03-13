@@ -8,7 +8,7 @@ export interface ProgrammaticPage {
   title: string;
   description: string;
   primaryTool: string;
-  clusterKey: string;
+  clusterKey: ClusterKey;
   intent: string;
   audience: string;
   taskVariant: string;
@@ -30,7 +30,7 @@ interface ClusterDefinition {
   taskVariants: string[];
 }
 
-const clusters: ClusterDefinition[] = [
+const clusters = [
   {
     key: 'json',
     tools: ['json-formatter', 'json-to-typescript'],
@@ -66,7 +66,7 @@ const clusters: ClusterDefinition[] = [
     audienceVariants: ['fullstack-developer', 'data-engineer'],
     taskVariants: ['review-database-query', 'prepare-production-build', 'document-api'],
   },
-];
+] as const satisfies ClusterDefinition[];
 
 const modifierPatterns = [
   'without-installing-cli-tools',
