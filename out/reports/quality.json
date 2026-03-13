@@ -1,110 +1,356 @@
 {
-  "generated": "2026-02-02T12:31:39.146Z",
-  "summary": {
-    "totalPages": 42,
-    "averageScore": 85,
-    "belowIndexThreshold": 1,
-    "aboveSitemapThreshold": 25
+  "generated": "2026-03-13T12:37:38.908Z",
+  "thresholds": {
+    "minIndexScore": 78,
+    "minSitemapScore": 85
   },
-  "pages": [
-    {
-      "slug": "how-to-format-json-formatter-0",
-      "score": 97,
-      "issues": []
+  "summary": {
+    "totalGenerated": 400,
+    "indexableCount": 248,
+    "sitemapIncludedCount": 156,
+    "noindexCount": 152,
+    "orphanCandidates": 0,
+    "highSimilarityWarnings": 0,
+    "lowUsefulnessWarnings": 152,
+    "clusterDistribution": [
+      {
+        "key": "json",
+        "count": 400
+      },
+      {
+        "key": "encoding",
+        "count": 0
+      },
+      {
+        "key": "security",
+        "count": 0
+      },
+      {
+        "key": "text",
+        "count": 0
+      },
+      {
+        "key": "formatting",
+        "count": 0
+      }
+    ],
+    "segmentCounts": {
+      "A": 156,
+      "B": 92,
+      "C": 152
     },
+    "rampLevelUsed": "config-driven",
+    "activeExportTotal": "ramp-controlled",
+    "excludedBySitemapThreshold": 92,
+    "excludedByIndexThreshold": 152
+  },
+  "samplePages": [
     {
-      "slug": "best-way-to-format-json-formatter-1",
-      "score": 72,
-      "issues": []
-    },
-    {
-      "slug": "online-format-json-formatter-2",
-      "score": 84,
-      "issues": []
-    },
-    {
-      "slug": "how-to-validate-json-formatter-3",
-      "score": 91,
-      "issues": []
-    },
-    {
-      "slug": "best-way-to-validate-json-formatter-4",
-      "score": 98,
-      "issues": []
-    },
-    {
-      "slug": "online-validate-json-formatter-5",
-      "score": 76,
-      "issues": []
-    },
-    {
-      "slug": "how-to-parse-json-formatter-6",
-      "score": 97,
-      "issues": []
-    },
-    {
-      "slug": "best-way-to-parse-json-formatter-7",
-      "score": 78,
-      "issues": []
-    },
-    {
-      "slug": "online-parse-json-formatter-8",
-      "score": 72,
-      "issues": []
-    },
-    {
-      "slug": "how-to-format-json-to-typescript-9",
-      "score": 73,
-      "issues": []
-    },
-    {
-      "slug": "best-way-to-format-json-to-typescript-10",
-      "score": 79,
-      "issues": []
-    },
-    {
-      "slug": "online-format-json-to-typescript-11",
+      "slug": "json-validate-json-backend-engineer-debug-production-issue-json-formatter-0",
+      "clusterKey": "json",
       "score": 77,
+      "segment": "C",
+      "issues": [
+        "below-index-threshold"
+      ]
+    },
+    {
+      "slug": "json-validate-json-backend-engineer-prepare-api-response-json-formatter-1",
+      "clusterKey": "json",
+      "score": 85,
+      "segment": "A",
       "issues": []
     },
     {
-      "slug": "how-to-validate-json-to-typescript-12",
-      "score": 94,
-      "issues": []
-    },
-    {
-      "slug": "best-way-to-validate-json-to-typescript-13",
-      "score": 93,
-      "issues": []
-    },
-    {
-      "slug": "online-validate-json-to-typescript-14",
-      "score": 83,
-      "issues": []
-    },
-    {
-      "slug": "how-to-parse-json-to-typescript-15",
-      "score": 92,
-      "issues": []
-    },
-    {
-      "slug": "best-way-to-parse-json-to-typescript-16",
-      "score": 97,
-      "issues": []
-    },
-    {
-      "slug": "online-parse-json-to-typescript-17",
-      "score": 87,
-      "issues": []
-    },
-    {
-      "slug": "how-to-encode-base64-encode-decode-18",
-      "score": 91,
-      "issues": []
-    },
-    {
-      "slug": "best-way-to-encode-base64-encode-decode-19",
+      "slug": "json-validate-json-backend-engineer-clean-up-payload-json-formatter-2",
+      "clusterKey": "json",
       "score": 96,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-backend-engineer-sanitize-user-input-json-formatter-3",
+      "clusterKey": "json",
+      "score": 79,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-backend-engineer-prepare-query-parameters-json-formatter-4",
+      "clusterKey": "json",
+      "score": 81,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-backend-engineer-inspect-encoded-payload-json-formatter-5",
+      "clusterKey": "json",
+      "score": 69,
+      "segment": "C",
+      "issues": [
+        "below-index-threshold"
+      ]
+    },
+    {
+      "slug": "json-validate-json-backend-engineer-trace-request-json-formatter-6",
+      "clusterKey": "json",
+      "score": 69,
+      "segment": "C",
+      "issues": [
+        "below-index-threshold"
+      ]
+    },
+    {
+      "slug": "json-validate-json-backend-engineer-validate-auth-token-json-formatter-7",
+      "clusterKey": "json",
+      "score": 94,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-backend-engineer-compare-hash-values-json-formatter-8",
+      "clusterKey": "json",
+      "score": 75,
+      "segment": "C",
+      "issues": [
+        "below-index-threshold"
+      ]
+    },
+    {
+      "slug": "json-validate-json-backend-engineer-prepare-release-notes-json-formatter-9",
+      "clusterKey": "json",
+      "score": 84,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-backend-engineer-review-config-change-json-formatter-10",
+      "clusterKey": "json",
+      "score": 85,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-backend-engineer-clean-up-log-lines-json-formatter-11",
+      "clusterKey": "json",
+      "score": 84,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-backend-engineer-review-database-query-json-formatter-12",
+      "clusterKey": "json",
+      "score": 74,
+      "segment": "C",
+      "issues": [
+        "below-index-threshold"
+      ]
+    },
+    {
+      "slug": "json-validate-json-backend-engineer-prepare-production-build-json-formatter-13",
+      "clusterKey": "json",
+      "score": 80,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-backend-engineer-document-api-json-formatter-14",
+      "clusterKey": "json",
+      "score": 79,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-api-consumer-debug-production-issue-json-formatter-15",
+      "clusterKey": "json",
+      "score": 74,
+      "segment": "C",
+      "issues": [
+        "below-index-threshold"
+      ]
+    },
+    {
+      "slug": "json-validate-json-api-consumer-prepare-api-response-json-formatter-16",
+      "clusterKey": "json",
+      "score": 92,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-api-consumer-clean-up-payload-json-formatter-17",
+      "clusterKey": "json",
+      "score": 81,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-api-consumer-sanitize-user-input-json-formatter-18",
+      "clusterKey": "json",
+      "score": 70,
+      "segment": "C",
+      "issues": [
+        "below-index-threshold"
+      ]
+    },
+    {
+      "slug": "json-validate-json-api-consumer-prepare-query-parameters-json-formatter-19",
+      "clusterKey": "json",
+      "score": 96,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-api-consumer-inspect-encoded-payload-json-formatter-20",
+      "clusterKey": "json",
+      "score": 75,
+      "segment": "C",
+      "issues": [
+        "below-index-threshold"
+      ]
+    },
+    {
+      "slug": "json-validate-json-api-consumer-trace-request-json-formatter-21",
+      "clusterKey": "json",
+      "score": 81,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-api-consumer-validate-auth-token-json-formatter-22",
+      "clusterKey": "json",
+      "score": 86,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-api-consumer-compare-hash-values-json-formatter-23",
+      "clusterKey": "json",
+      "score": 75,
+      "segment": "C",
+      "issues": [
+        "below-index-threshold"
+      ]
+    },
+    {
+      "slug": "json-validate-json-api-consumer-prepare-release-notes-json-formatter-24",
+      "clusterKey": "json",
+      "score": 82,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-api-consumer-review-config-change-json-formatter-25",
+      "clusterKey": "json",
+      "score": 94,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-api-consumer-clean-up-log-lines-json-formatter-26",
+      "clusterKey": "json",
+      "score": 83,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-api-consumer-review-database-query-json-formatter-27",
+      "clusterKey": "json",
+      "score": 93,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-api-consumer-prepare-production-build-json-formatter-28",
+      "clusterKey": "json",
+      "score": 67,
+      "segment": "C",
+      "issues": [
+        "below-index-threshold"
+      ]
+    },
+    {
+      "slug": "json-validate-json-api-consumer-document-api-json-formatter-29",
+      "clusterKey": "json",
+      "score": 74,
+      "segment": "C",
+      "issues": [
+        "below-index-threshold"
+      ]
+    },
+    {
+      "slug": "json-validate-json-frontend-developer-debug-production-issue-json-formatter-30",
+      "clusterKey": "json",
+      "score": 91,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-frontend-developer-prepare-api-response-json-formatter-31",
+      "clusterKey": "json",
+      "score": 93,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-frontend-developer-clean-up-payload-json-formatter-32",
+      "clusterKey": "json",
+      "score": 90,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-frontend-developer-sanitize-user-input-json-formatter-33",
+      "clusterKey": "json",
+      "score": 69,
+      "segment": "C",
+      "issues": [
+        "below-index-threshold"
+      ]
+    },
+    {
+      "slug": "json-validate-json-frontend-developer-prepare-query-parameters-json-formatter-34",
+      "clusterKey": "json",
+      "score": 87,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-frontend-developer-inspect-encoded-payload-json-formatter-35",
+      "clusterKey": "json",
+      "score": 67,
+      "segment": "C",
+      "issues": [
+        "below-index-threshold"
+      ]
+    },
+    {
+      "slug": "json-validate-json-frontend-developer-trace-request-json-formatter-36",
+      "clusterKey": "json",
+      "score": 71,
+      "segment": "C",
+      "issues": [
+        "below-index-threshold"
+      ]
+    },
+    {
+      "slug": "json-validate-json-frontend-developer-validate-auth-token-json-formatter-37",
+      "clusterKey": "json",
+      "score": 96,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-frontend-developer-compare-hash-values-json-formatter-38",
+      "clusterKey": "json",
+      "score": 85,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "json-validate-json-frontend-developer-prepare-release-notes-json-formatter-39",
+      "clusterKey": "json",
+      "score": 86,
+      "segment": "A",
       "issues": []
     }
   ]

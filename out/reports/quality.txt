@@ -1,30 +1,68 @@
 Quality Report
-Generated: 2026-02-02T12:31:39.146Z
+Generated: 2026-03-13T12:37:38.908Z
+
+Thresholds:
+- Min index score: 78
+- Min sitemap score: 85
 
 Summary:
-- Total Pages Analyzed: 42
-- Average Score: 85/100
-- Below Index Threshold (72): 1
-- Above Sitemap Threshold (80): 25
+- Total Generated (sampled): 400
+- Indexable (A+B segments): 248
+- Sitemap Included (A segment): 156
+- Noindex (C segment): 152
+- Orphan Candidates (sampled heuristic): 0
+- Low Usefulness Warnings (C segment): 152
+
+Segment Distribution:
+- Segment A (index + sitemap): 156
+- Segment B (index, no sitemap): 92
+- Segment C (noindex, follow): 152
+
+Cluster Distribution (sampled):
+- json: 400
+- encoding: 0
+- security: 0
+- text: 0
+- formatting: 0
 
 Sample Pages:
-  how-to-format-json-formatter-0: 97/100
-  best-way-to-format-json-formatter-1: 72/100
-  online-format-json-formatter-2: 84/100
-  how-to-validate-json-formatter-3: 91/100
-  best-way-to-validate-json-formatter-4: 98/100
-  online-validate-json-formatter-5: 76/100
-  how-to-parse-json-formatter-6: 97/100
-  best-way-to-parse-json-formatter-7: 78/100
-  online-parse-json-formatter-8: 72/100
-  how-to-format-json-to-typescript-9: 73/100
-  best-way-to-format-json-to-typescript-10: 79/100
-  online-format-json-to-typescript-11: 77/100
-  how-to-validate-json-to-typescript-12: 94/100
-  best-way-to-validate-json-to-typescript-13: 93/100
-  online-validate-json-to-typescript-14: 83/100
-  how-to-parse-json-to-typescript-15: 92/100
-  best-way-to-parse-json-to-typescript-16: 97/100
-  online-parse-json-to-typescript-17: 87/100
-  how-to-encode-base64-encode-decode-18: 91/100
-  best-way-to-encode-base64-encode-decode-19: 96/100
+  json-validate-json-backend-engineer-debug-production-issue-json-formatter-0 — 77/100 [segment C; below-index-threshold]
+  json-validate-json-backend-engineer-prepare-api-response-json-formatter-1 — 85/100 [segment A]
+  json-validate-json-backend-engineer-clean-up-payload-json-formatter-2 — 96/100 [segment A]
+  json-validate-json-backend-engineer-sanitize-user-input-json-formatter-3 — 79/100 [segment B]
+  json-validate-json-backend-engineer-prepare-query-parameters-json-formatter-4 — 81/100 [segment B]
+  json-validate-json-backend-engineer-inspect-encoded-payload-json-formatter-5 — 69/100 [segment C; below-index-threshold]
+  json-validate-json-backend-engineer-trace-request-json-formatter-6 — 69/100 [segment C; below-index-threshold]
+  json-validate-json-backend-engineer-validate-auth-token-json-formatter-7 — 94/100 [segment A]
+  json-validate-json-backend-engineer-compare-hash-values-json-formatter-8 — 75/100 [segment C; below-index-threshold]
+  json-validate-json-backend-engineer-prepare-release-notes-json-formatter-9 — 84/100 [segment B]
+  json-validate-json-backend-engineer-review-config-change-json-formatter-10 — 85/100 [segment A]
+  json-validate-json-backend-engineer-clean-up-log-lines-json-formatter-11 — 84/100 [segment B]
+  json-validate-json-backend-engineer-review-database-query-json-formatter-12 — 74/100 [segment C; below-index-threshold]
+  json-validate-json-backend-engineer-prepare-production-build-json-formatter-13 — 80/100 [segment B]
+  json-validate-json-backend-engineer-document-api-json-formatter-14 — 79/100 [segment B]
+  json-validate-json-api-consumer-debug-production-issue-json-formatter-15 — 74/100 [segment C; below-index-threshold]
+  json-validate-json-api-consumer-prepare-api-response-json-formatter-16 — 92/100 [segment A]
+  json-validate-json-api-consumer-clean-up-payload-json-formatter-17 — 81/100 [segment B]
+  json-validate-json-api-consumer-sanitize-user-input-json-formatter-18 — 70/100 [segment C; below-index-threshold]
+  json-validate-json-api-consumer-prepare-query-parameters-json-formatter-19 — 96/100 [segment A]
+  json-validate-json-api-consumer-inspect-encoded-payload-json-formatter-20 — 75/100 [segment C; below-index-threshold]
+  json-validate-json-api-consumer-trace-request-json-formatter-21 — 81/100 [segment B]
+  json-validate-json-api-consumer-validate-auth-token-json-formatter-22 — 86/100 [segment A]
+  json-validate-json-api-consumer-compare-hash-values-json-formatter-23 — 75/100 [segment C; below-index-threshold]
+  json-validate-json-api-consumer-prepare-release-notes-json-formatter-24 — 82/100 [segment B]
+  json-validate-json-api-consumer-review-config-change-json-formatter-25 — 94/100 [segment A]
+  json-validate-json-api-consumer-clean-up-log-lines-json-formatter-26 — 83/100 [segment B]
+  json-validate-json-api-consumer-review-database-query-json-formatter-27 — 93/100 [segment A]
+  json-validate-json-api-consumer-prepare-production-build-json-formatter-28 — 67/100 [segment C; below-index-threshold]
+  json-validate-json-api-consumer-document-api-json-formatter-29 — 74/100 [segment C; below-index-threshold]
+  json-validate-json-frontend-developer-debug-production-issue-json-formatter-30 — 91/100 [segment A]
+  json-validate-json-frontend-developer-prepare-api-response-json-formatter-31 — 93/100 [segment A]
+  json-validate-json-frontend-developer-clean-up-payload-json-formatter-32 — 90/100 [segment A]
+  json-validate-json-frontend-developer-sanitize-user-input-json-formatter-33 — 69/100 [segment C; below-index-threshold]
+  json-validate-json-frontend-developer-prepare-query-parameters-json-formatter-34 — 87/100 [segment A]
+  json-validate-json-frontend-developer-inspect-encoded-payload-json-formatter-35 — 67/100 [segment C; below-index-threshold]
+  json-validate-json-frontend-developer-trace-request-json-formatter-36 — 71/100 [segment C; below-index-threshold]
+  json-validate-json-frontend-developer-validate-auth-token-json-formatter-37 — 96/100 [segment A]
+  json-validate-json-frontend-developer-compare-hash-values-json-formatter-38 — 85/100 [segment A]
+  json-validate-json-frontend-developer-prepare-release-notes-json-formatter-39 — 86/100 [segment A]
