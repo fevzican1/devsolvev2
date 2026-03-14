@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
 
-const siteUrl = 'https://devsolve.io';
+const siteUrl = 'https://devsolvev2.com';
 const MIN_SITEMAP_SCORE = 85;
 
 const tools = [

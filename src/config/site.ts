@@ -1,7 +1,7 @@
 export const siteConfig = {
   name: 'DevSolve',
   description: 'Browser-based developer tools and guides. All processing happens locally in your browser.',
-  siteUrl: 'https://devsolve.io',
+  siteUrl: 'https://devsolvev2.com',
 
   programmatic: {
     targetTotal: 10000,

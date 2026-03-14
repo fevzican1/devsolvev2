@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://devsolve.io/sitemap.xml
+Sitemap: https://devsolvev2.com/sitemap.xml

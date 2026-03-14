@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap>
-    <loc>https://devsolve.io/sitemaps/sitemap-core.xml</loc>
+    <loc>https://devsolvev2.com/sitemaps/sitemap-core.xml</loc>
   </sitemap>
   <sitemap>
-    <loc>https://devsolve.io/sitemaps/sitemap-tools.xml</loc>
+    <loc>https://devsolvev2.com/sitemaps/sitemap-tools.xml</loc>
   </sitemap>
   <sitemap>
-    <loc>https://devsolve.io/sitemaps/sitemap-guides.xml</loc>
+    <loc>https://devsolvev2.com/sitemaps/sitemap-guides.xml</loc>
   </sitemap>
   <sitemap>
-    <loc>https://devsolve.io/sitemaps/sitemap-pages-1.xml</loc>
+    <loc>https://devsolvev2.com/sitemaps/sitemap-pages-1.xml</loc>
   </sitemap>
   <sitemap>
-    <loc>https://devsolve.io/sitemaps/sitemap-pages-2.xml</loc>
+    <loc>https://devsolvev2.com/sitemaps/sitemap-pages-2.xml</loc>
   </sitemap>
   <sitemap>
-    <loc>https://devsolve.io/sitemaps/sitemap-pages-3.xml</loc>
+    <loc>https://devsolvev2.com/sitemaps/sitemap-pages-3.xml</loc>
   </sitemap>
   <sitemap>
-    <loc>https://devsolve.io/sitemaps/sitemap-pages-4.xml</loc>
+    <loc>https://devsolvev2.com/sitemaps/sitemap-pages-4.xml</loc>
   </sitemap>
 </sitemapindex>
