@@ -5,7 +5,7 @@ import { Shield, ArrowRight, Wrench, AlertTriangle, CheckCircle } from 'lucide-r
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { generateProgrammaticPages, getProgrammaticPageBySlug } from '@/data/programmatic';
+import { getProgrammaticPageBySlug, getPageByIndex } from '@/data/programmatic';
 import { getToolBySlug, toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
 import { calculateQualityScore, shouldIndex } from '@/lib/quality/scoring';
@@ -14,15 +14,23 @@ import { monetizationConfig } from '@/config/monetization';
 import { RecommendedSolutions } from '@/components/monetization/RecommendedSolutions';
 import { ComputedExample } from '@/components/programmatic/ComputedExample';
 
+/* ISR: revalidate every 24 hours; allow any slug not in generateStaticParams */
+export const revalidate = 86400;
+export const dynamicParams = true;
+
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
 export async function generateStaticParams() {
-  const pages = generateProgrammaticPages();
-  return pages.map((page) => ({
-    slug: page.slug,
-  }));
+  /* Pre-render only the first 200 pages at build time.
+     The remaining ~50 k pages are rendered on-demand via ISR. */
+  const params: { slug: string }[] = [];
+  for (let i = 0; i < 200; i++) {
+    const page = getPageByIndex(i);
+    if (page) params.push({ slug: page.slug });
+  }
+  return params;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
