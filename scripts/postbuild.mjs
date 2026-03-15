@@ -19,19 +19,8 @@ try {
   console.log('Reports directory already exists or could not be created');
 }
 
-try {
-  console.log('Generating sitemap index and chunks...');
-  execSync(`node ${join(__dirname, 'generate-sitemap.mjs')}`, { stdio: 'inherit' });
-} catch (error) {
-  console.log('Sitemap generation completed with warnings');
-}
-
-try {
-  console.log('Generating robots.txt...');
-  execSync(`node ${join(__dirname, 'generate-robots.mjs')}`, { stdio: 'inherit' });
-} catch (error) {
-  console.log('Robots.txt generation completed with warnings');
-}
+/* Sitemap and robots.txt are now generated dynamically by Next.js
+   via src/app/sitemap.ts and src/app/robots.ts — no static generation needed. */
 
 try {
   console.log('Generating quality report...');
