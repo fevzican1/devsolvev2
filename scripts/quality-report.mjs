@@ -95,54 +95,66 @@ function estimateScore(slug, clusterKey) {
 
 function generateDeterministicPages(maxCount) {
   const pages = [];
-  let index = 0;
 
-  for (const cluster of clusters) {
+  /* Build per-cluster page pools so we can sample evenly */
+  const clusterPools = clusters.map((cluster) => {
+    const pool = [];
+    let idx = 0;
     for (const tool of cluster.tools) {
       for (const intent of cluster.intents) {
         for (const audience of audienceVariants) {
           for (const task of taskVariants) {
-            if (pages.length >= maxCount) break;
-
             const slugBase = [cluster.key, intent, audience, task, tool]
               .join('-')
               .toLowerCase()
               .replace(/[^a-z0-9]+/g, '-')
               .replace(/^-|-$/g, '');
-            const slug = `${slugBase}-${index}`;
-            const score = estimateScore(slug, cluster.key);
-
-            let segment = 'A';
-            if (score < MIN_INDEX_SCORE) {
-              segment = 'C';
-            } else if (score < MIN_SITEMAP_SCORE) {
-              segment = 'B';
-            }
-
-            const issues = [];
-            if (score < MIN_INDEX_SCORE) {
-              issues.push('below-index-threshold');
-            }
-            if (slug.length > 140) {
-              issues.push('long-slug');
-            }
-
-            pages.push({
-              slug,
-              clusterKey: cluster.key,
-              score,
-              segment,
-              issues,
-            });
-            index++;
+            const slug = `${slugBase}-${idx}`;
+            pool.push({ slug, clusterKey: cluster.key });
+            idx++;
           }
-          if (pages.length >= maxCount) break;
         }
-        if (pages.length >= maxCount) break;
       }
-      if (pages.length >= maxCount) break;
     }
-    if (pages.length >= maxCount) break;
+    return pool;
+  });
+
+  /* Round-robin sample from each cluster to ensure even distribution */
+  const perCluster = Math.floor(maxCount / clusters.length);
+  const remainder = maxCount % clusters.length;
+
+  for (let c = 0; c < clusterPools.length; c++) {
+    const pool = clusterPools[c];
+    const take = perCluster + (c < remainder ? 1 : 0);
+    /* Sample evenly spaced pages from the pool */
+    const step = Math.max(1, Math.floor(pool.length / take));
+    for (let i = 0; i < take && i * step < pool.length; i++) {
+      const entry = pool[i * step];
+      const score = estimateScore(entry.slug, entry.clusterKey);
+
+      let segment = 'A';
+      if (score < MIN_INDEX_SCORE) {
+        segment = 'C';
+      } else if (score < MIN_SITEMAP_SCORE) {
+        segment = 'B';
+      }
+
+      const issues = [];
+      if (score < MIN_INDEX_SCORE) {
+        issues.push('below-index-threshold');
+      }
+      if (entry.slug.length > 140) {
+        issues.push('long-slug');
+      }
+
+      pages.push({
+        slug: entry.slug,
+        clusterKey: entry.clusterKey,
+        score,
+        segment,
+        issues,
+      });
+    }
   }
 
   return pages;
@@ -184,7 +196,18 @@ const report = {
     excludedBySitemapThreshold: segmentB.length,
     excludedByIndexThreshold: segmentC.length,
   },
-  samplePages: pages.slice(0, 40),
+  samplePages: (() => {
+    /* Pick 8 sample pages per cluster for diverse representation */
+    const samples = [];
+    for (const cluster of clusters) {
+      const clusterPages = pages.filter((p) => p.clusterKey === cluster.key);
+      const step = Math.max(1, Math.floor(clusterPages.length / 8));
+      for (let i = 0; i < 8 && i * step < clusterPages.length; i++) {
+        samples.push(clusterPages[i * step]);
+      }
+    }
+    return samples;
+  })(),
 };
 
 const textReport = `Quality Report

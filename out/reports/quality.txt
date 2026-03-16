@@ -1,5 +1,5 @@
 Quality Report
-Generated: 2026-03-15T23:29:27.060Z
+Generated: 2026-03-16T23:17:44.904Z
 
 Thresholds:
 - Min index score: 78
@@ -7,62 +7,62 @@ Thresholds:
 
 Summary:
 - Total Generated (sampled): 400
-- Indexable (A+B segments): 248
-- Sitemap Included (A segment): 156
-- Noindex (C segment): 152
-- Orphan Candidates (sampled heuristic): 0
-- Low Usefulness Warnings (C segment): 152
+- Indexable (A+B segments): 249
+- Sitemap Included (A segment): 140
+- Noindex (C segment): 151
+- Orphan Candidates (sampled heuristic): 80
+- Low Usefulness Warnings (C segment): 151
 
 Segment Distribution:
-- Segment A (index + sitemap): 156
-- Segment B (index, no sitemap): 92
-- Segment C (noindex, follow): 152
+- Segment A (index + sitemap): 140
+- Segment B (index, no sitemap): 109
+- Segment C (noindex, follow): 151
 
 Cluster Distribution (sampled):
-- json: 400
-- encoding: 0
-- security: 0
-- text: 0
-- formatting: 0
+- json: 80
+- encoding: 80
+- security: 80
+- text: 80
+- formatting: 80
 
 Sample Pages:
   json-validate-json-backend-engineer-debug-production-issue-json-formatter-0 — 77/100 [segment C; below-index-threshold]
-  json-validate-json-backend-engineer-prepare-api-response-json-formatter-1 — 85/100 [segment A]
-  json-validate-json-backend-engineer-clean-up-payload-json-formatter-2 — 96/100 [segment A]
-  json-validate-json-backend-engineer-sanitize-user-input-json-formatter-3 — 79/100 [segment B]
-  json-validate-json-backend-engineer-prepare-query-parameters-json-formatter-4 — 81/100 [segment B]
-  json-validate-json-backend-engineer-inspect-encoded-payload-json-formatter-5 — 69/100 [segment C; below-index-threshold]
-  json-validate-json-backend-engineer-trace-request-json-formatter-6 — 69/100 [segment C; below-index-threshold]
-  json-validate-json-backend-engineer-validate-auth-token-json-formatter-7 — 94/100 [segment A]
-  json-validate-json-backend-engineer-compare-hash-values-json-formatter-8 — 75/100 [segment C; below-index-threshold]
-  json-validate-json-backend-engineer-prepare-release-notes-json-formatter-9 — 84/100 [segment B]
-  json-validate-json-backend-engineer-review-config-change-json-formatter-10 — 85/100 [segment A]
-  json-validate-json-backend-engineer-clean-up-log-lines-json-formatter-11 — 84/100 [segment B]
-  json-validate-json-backend-engineer-review-database-query-json-formatter-12 — 74/100 [segment C; below-index-threshold]
-  json-validate-json-backend-engineer-prepare-production-build-json-formatter-13 — 80/100 [segment B]
-  json-validate-json-backend-engineer-document-api-json-formatter-14 — 79/100 [segment B]
-  json-validate-json-api-consumer-debug-production-issue-json-formatter-15 — 74/100 [segment C; below-index-threshold]
-  json-validate-json-api-consumer-prepare-api-response-json-formatter-16 — 92/100 [segment A]
-  json-validate-json-api-consumer-clean-up-payload-json-formatter-17 — 81/100 [segment B]
-  json-validate-json-api-consumer-sanitize-user-input-json-formatter-18 — 70/100 [segment C; below-index-threshold]
-  json-validate-json-api-consumer-prepare-query-parameters-json-formatter-19 — 96/100 [segment A]
-  json-validate-json-api-consumer-inspect-encoded-payload-json-formatter-20 — 75/100 [segment C; below-index-threshold]
-  json-validate-json-api-consumer-trace-request-json-formatter-21 — 81/100 [segment B]
-  json-validate-json-api-consumer-validate-auth-token-json-formatter-22 — 86/100 [segment A]
-  json-validate-json-api-consumer-compare-hash-values-json-formatter-23 — 75/100 [segment C; below-index-threshold]
-  json-validate-json-api-consumer-prepare-release-notes-json-formatter-24 — 82/100 [segment B]
-  json-validate-json-api-consumer-review-config-change-json-formatter-25 — 94/100 [segment A]
-  json-validate-json-api-consumer-clean-up-log-lines-json-formatter-26 — 83/100 [segment B]
-  json-validate-json-api-consumer-review-database-query-json-formatter-27 — 93/100 [segment A]
-  json-validate-json-api-consumer-prepare-production-build-json-formatter-28 — 67/100 [segment C; below-index-threshold]
-  json-validate-json-api-consumer-document-api-json-formatter-29 — 74/100 [segment C; below-index-threshold]
-  json-validate-json-frontend-developer-debug-production-issue-json-formatter-30 — 91/100 [segment A]
-  json-validate-json-frontend-developer-prepare-api-response-json-formatter-31 — 93/100 [segment A]
-  json-validate-json-frontend-developer-clean-up-payload-json-formatter-32 — 90/100 [segment A]
-  json-validate-json-frontend-developer-sanitize-user-input-json-formatter-33 — 69/100 [segment C; below-index-threshold]
-  json-validate-json-frontend-developer-prepare-query-parameters-json-formatter-34 — 87/100 [segment A]
-  json-validate-json-frontend-developer-inspect-encoded-payload-json-formatter-35 — 67/100 [segment C; below-index-threshold]
-  json-validate-json-frontend-developer-trace-request-json-formatter-36 — 71/100 [segment C; below-index-threshold]
-  json-validate-json-frontend-developer-validate-auth-token-json-formatter-37 — 96/100 [segment A]
-  json-validate-json-frontend-developer-compare-hash-values-json-formatter-38 — 85/100 [segment A]
-  json-validate-json-frontend-developer-prepare-release-notes-json-formatter-39 — 86/100 [segment A]
+  json-validate-json-data-engineer-review-config-change-json-formatter-130 — 86/100 [segment A]
+  json-format-json-data-engineer-inspect-encoded-payload-json-formatter-260 — 73/100 [segment C; below-index-threshold]
+  json-inspect-json-structure-data-engineer-debug-production-issue-json-formatter-390 — 83/100 [segment B]
+  json-convert-json-to-types-fullstack-developer-review-config-change-json-formatter-520 — 86/100 [segment A]
+  json-validate-json-fullstack-developer-inspect-encoded-payload-json-to-typescript-650 — 82/100 [segment B]
+  json-format-json-fullstack-developer-debug-production-issue-json-to-typescript-780 — 78/100 [segment B]
+  json-inspect-json-structure-technical-writer-review-config-change-json-to-typescript-910 — 82/100 [segment B]
+  encoding-encode-data-backend-engineer-debug-production-issue-base64-encode-decode-0 — 80/100 [segment B]
+  encoding-decode-data-api-consumer-debug-production-issue-base64-encode-decode-150 — 85/100 [segment A]
+  encoding-fix-encoding-bugs-frontend-developer-debug-production-issue-base64-encode-decode-300 — 70/100 [segment C; below-index-threshold]
+  encoding-encode-data-integration-engineer-debug-production-issue-url-encode-decode-450 — 87/100 [segment A]
+  encoding-decode-data-security-conscious-developer-debug-production-issue-url-encode-decode-600 — 74/100 [segment C; below-index-threshold]
+  encoding-fix-encoding-bugs-ops-engineer-debug-production-issue-url-encode-decode-750 — 70/100 [segment C; below-index-threshold]
+  encoding-encode-data-technical-writer-debug-production-issue-html-entity-encode-decode-900 — 88/100 [segment A]
+  encoding-decode-data-fullstack-developer-debug-production-issue-html-entity-encode-decode-1050 — 72/100 [segment C; below-index-threshold]
+  security-generate-identifiers-backend-engineer-debug-production-issue-hash-generator-0 — 74/100 [segment C; below-index-threshold]
+  security-verify-tokens-api-consumer-debug-production-issue-hash-generator-150 — 77/100 [segment C; below-index-threshold]
+  security-inspect-signatures-frontend-developer-debug-production-issue-hash-generator-300 — 92/100 [segment A]
+  security-generate-identifiers-integration-engineer-debug-production-issue-uuid-generator-450 — 86/100 [segment A]
+  security-verify-tokens-security-conscious-developer-debug-production-issue-uuid-generator-600 — 97/100 [segment A]
+  security-inspect-signatures-ops-engineer-debug-production-issue-uuid-generator-750 — 87/100 [segment A]
+  security-generate-identifiers-technical-writer-debug-production-issue-jwt-decoder-900 — 94/100 [segment A]
+  security-verify-tokens-fullstack-developer-debug-production-issue-jwt-decoder-1050 — 72/100 [segment C; below-index-threshold]
+  text-normalize-text-backend-engineer-debug-production-issue-text-case-converter-0 — 86/100 [segment A]
+  text-compare-versions-api-consumer-debug-production-issue-text-case-converter-150 — 89/100 [segment A]
+  text-test-regex-frontend-developer-debug-production-issue-text-case-converter-300 — 81/100 [segment B]
+  text-normalize-text-integration-engineer-debug-production-issue-diff-checker-450 — 77/100 [segment C; below-index-threshold]
+  text-compare-versions-security-conscious-developer-debug-production-issue-diff-checker-600 — 68/100 [segment C; below-index-threshold]
+  text-test-regex-ops-engineer-debug-production-issue-diff-checker-750 — 75/100 [segment C; below-index-threshold]
+  text-normalize-text-technical-writer-debug-production-issue-regex-tester-900 — 88/100 [segment A]
+  text-compare-versions-fullstack-developer-debug-production-issue-regex-tester-1050 — 78/100 [segment B]
+  formatting-format-sql-backend-engineer-debug-production-issue-sql-formatter-0 — 91/100 [segment A]
+  formatting-minify-assets-api-consumer-debug-production-issue-sql-formatter-150 — 88/100 [segment A]
+  formatting-preview-markdown-frontend-developer-debug-production-issue-sql-formatter-300 — 81/100 [segment B]
+  formatting-format-sql-integration-engineer-debug-production-issue-css-minifier-450 — 74/100 [segment C; below-index-threshold]
+  formatting-minify-assets-security-conscious-developer-debug-production-issue-css-minifier-600 — 89/100 [segment A]
+  formatting-preview-markdown-ops-engineer-debug-production-issue-css-minifier-750 — 67/100 [segment C; below-index-threshold]
+  formatting-format-sql-technical-writer-debug-production-issue-markdown-preview-900 — 80/100 [segment B]
+  formatting-minify-assets-fullstack-developer-debug-production-issue-markdown-preview-1050 — 68/100 [segment C; below-index-threshold]

@@ -1,5 +1,5 @@
 Outbound Link Audit Report
-Generated: 2026-03-15T23:29:27.092Z
+Generated: 2026-03-16T23:17:03.190Z
 
 Total URLs found: 5
 Flagged URLs (not in allowed files): 0

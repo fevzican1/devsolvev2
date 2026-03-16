@@ -23,12 +23,25 @@ interface PageProps {
 }
 
 export async function generateStaticParams() {
-  /* Pre-render only the first 200 pages at build time.
-     The remaining ~50 k pages are rendered on-demand via ISR. */
+  /* Pre-render 200 pages at build time, sampled evenly across all clusters.
+     The remaining ~50 k pages are rendered on-demand via ISR.
+     Cluster layout: json (0-7199), encoding (7200-17999), security (18000-28799),
+     text (28800-39599), formatting (39600-50399). */
+  const clusterStarts = [0, 7200, 18000, 28800, 39600];
+  const clusterSizes  = [7200, 10800, 10800, 10800, 10800];
+  const totalPrerender = 200;
+  const perCluster = Math.floor(totalPrerender / clusterStarts.length); // 40
+
   const params: { slug: string }[] = [];
-  for (let i = 0; i < 200; i++) {
-    const page = getPageByIndex(i);
-    if (page) params.push({ slug: page.slug });
+  for (let c = 0; c < clusterStarts.length; c++) {
+    const start = clusterStarts[c];
+    const size = clusterSizes[c];
+    const step = Math.max(1, Math.floor(size / perCluster));
+    for (let j = 0; j < perCluster; j++) {
+      const idx = start + j * step;
+      const page = getPageByIndex(idx);
+      if (page) params.push({ slug: page.slug });
+    }
   }
   return params;
 }
