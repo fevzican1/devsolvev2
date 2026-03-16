@@ -3,14 +3,14 @@
   "/cmd-center/page": "app/cmd-center/page.js",
   "/page": "app/page.js",
   "/robots.txt/route": "app/robots.txt/route.js",
-  "/legal/cookies/page": "app/legal/cookies/page.js",
   "/guides/page": "app/guides/page.js",
-  "/legal/privacy/page": "app/legal/privacy/page.js",
+  "/legal/cookies/page": "app/legal/cookies/page.js",
   "/guides/[slug]/page": "app/guides/[slug]/page.js",
   "/legal/terms/page": "app/legal/terms/page.js",
+  "/legal/privacy/page": "app/legal/privacy/page.js",
+  "/k/[slug]/page": "app/k/[slug]/page.js",
   "/sitemap.xml/route": "app/sitemap.xml/route.js",
   "/sitemaps/[id]/route": "app/sitemaps/[id]/route.js",
-  "/k/[slug]/page": "app/k/[slug]/page.js",
-  "/tools/[slug]/page": "app/tools/[slug]/page.js",
-  "/tools/page": "app/tools/page.js"
+  "/tools/page": "app/tools/page.js",
+  "/tools/[slug]/page": "app/tools/[slug]/page.js"
 }
