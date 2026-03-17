@@ -3,10 +3,12 @@ import { siteConfig } from '@/config/site';
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: {
-      userAgent: '*',
-      allow: '/',
-    },
+    rules: [
+      {
+        userAgent: '*',
+        allow: ['/', '/k/', '/tools/', '/guides/', '/sitemaps/'],
+      },
+    ],
     sitemap: `${siteConfig.siteUrl}/sitemap.xml`,
   };
 }

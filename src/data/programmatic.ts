@@ -1,6 +1,21 @@
 import { toolRegistry } from '@/tools/registry';
 import { hashString } from '@/lib/utils';
 
+/* Mulberry32-based deterministic shuffle — much better distribution than modular arithmetic */
+function seededShuffle<T>(arr: T[], seed: number): T[] {
+  const result = [...arr];
+  let s = seed;
+  for (let i = result.length - 1; i > 0; i--) {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    const r = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    const j = Math.floor(r * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 export interface ProgrammaticPage {
   slug: string;
   title: string;
@@ -18,6 +33,8 @@ export interface ProgrammaticPage {
   comparison: { item: string; pros: string; cons: string }[];
   proTips: string[];
   faq: { question: string; answer: string }[];
+  technicalAnalysis: string[];
+  expertTips: string[];
 }
 
 type ClusterKey = 'json' | 'encoding' | 'security' | 'text' | 'formatting' | 'api' | 'data' | 'debugging' | 'automation' | 'web';
@@ -435,11 +452,7 @@ function buildSteps(intent: string, tool: string, task: string, audience: string
   ];
 
   const pool = [...baseSteps, ...(clusterSteps[clusterKey] ?? []), ...taskSteps];
-  const shuffled = [...pool];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = (seed + i) % (i + 1);
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
+  const shuffled = seededShuffle(pool, seed);
   return shuffled.slice(0, 6);
 }
 
@@ -543,11 +556,7 @@ function buildPitfalls(clusterKey: ClusterKey, audience: string, task: string, s
     pool.push(audienceSpecific[audience]);
   }
 
-  const shuffled = [...pool];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = (seed + i) % (i + 1);
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
+  const shuffled = seededShuffle(pool, seed);
   return shuffled.slice(0, 5);
 }
 
@@ -622,11 +631,7 @@ function buildComparison(clusterKey: ClusterKey, audience: string, seed: number)
   };
 
   const pool = [...universal, ...(clusterSpecific[clusterKey] ?? [])];
-  const shuffled = [...pool];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = (seed + i) % (i + 1);
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
+  const shuffled = seededShuffle(pool, seed);
   return shuffled.slice(0, 4);
 }
 
@@ -648,12 +653,8 @@ function buildProTips(clusterKey: ClusterKey, audience: string, tool: string, ta
     `Share your validated results with teammates by copying the output directly — no login or account needed.`,
   ];
 
-  const shuffled = [...tips];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = (seed + i * 3) % (i + 1);
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled.slice(0, 3);
+  const shuffled = seededShuffle(tips, seed + 17);
+  return shuffled.slice(0, 4);
 }
 
 /* ------------------------------------------------------------------ */
@@ -674,12 +675,8 @@ function buildFAQ(clusterKey: ClusterKey, tool: string, audience: string, intent
     { question: `Is this tool suitable for ${label(task)}?`, answer: `Yes, particularly for the initial investigation and validation phases. For ${label(task)}, using a browser-based tool lets you quickly test hypotheses without setting up a full development environment.` },
   ];
 
-  const shuffled = [...faqs];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = (seed + i * 7) % (i + 1);
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled.slice(0, 3);
+  const shuffled = seededShuffle(faqs, seed + 31);
+  return shuffled.slice(0, 4);
 }
 
 /* ------------------------------------------------------------------ */
@@ -695,6 +692,160 @@ function buildKeywords(clusterKey: string, tool: string, intent: string, audienc
 /* ------------------------------------------------------------------ */
 /*  O(1) page generation by index                                     */
 /* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ */
+/*  Technical Analysis builder — deep, cluster-specific paragraphs     */
+/* ------------------------------------------------------------------ */
+function buildTechnicalAnalysis(clusterKey: ClusterKey, tool: string, intent: string, audience: string, task: string, seed: number): string[] {
+  const toolName = getToolName(tool);
+  const ac = audienceContext[audience] ?? { focus: 'quality', concern: 'correctness', workflow: 'your workflow' };
+  const cd = clusterDomain[clusterKey];
+  const tc = taskContext[task] ?? { scenario: 'completing a task', urgency: 'important', outcome: 'achieve the result' };
+
+  const analysisPool: Record<ClusterKey, string[]> = {
+    json: [
+      `When working with JSON structures in the context of ${label(intent)}, it is essential to understand how parsers handle edge cases. The JSON specification (RFC 8259) defines a strict grammar where trailing commas, single-quoted strings, and unquoted keys are all invalid. Many developers overlook these subtleties because lenient parsers in development environments silently accept malformed input. ${toolName} helps identify these issues before they propagate to production systems where stricter parsing may cause unexpected failures.`,
+      `JSON key ordering is not guaranteed by the specification, which means that two semantically identical objects can produce different string representations. This has important implications for ${label(audience)} professionals who need to compare, hash, or cache JSON data. When ${tc.scenario}, verifying structural equivalence rather than string equality prevents false negatives in comparison operations. ${toolName} normalizes output to help surface these differences clearly.`,
+      `Numeric precision in JSON deserves special attention from ${label(audience)} teams. JavaScript's Number type follows IEEE 754 double-precision format, which means integers beyond 2^53 lose precision silently. When processing financial data, distributed identifiers, or timestamps with microsecond resolution, this can introduce subtle corruption. Always verify that numeric values survive the parse-stringify roundtrip without modification.`,
+      `Deeply nested JSON structures present both performance and readability challenges. Each level of nesting increases cognitive load during code review and debugging. For ${tc.scenario}, consider using ${toolName} to flatten and re-examine nested structures, identifying opportunities to simplify the schema. This is particularly relevant for ${label(audience)} workflows where ${ac.concern} directly impacts system reliability.`,
+    ],
+    encoding: [
+      `Encoding errors are among the most insidious bugs in software systems because they often produce output that looks correct but contains subtle corruption. When a ${label(audience)} needs to ${label(intent)}, understanding the encoding chain is critical. Data may pass through multiple encoding layers — URL encoding at the HTTP level, HTML entity encoding in the DOM, and Base64 encoding for binary transport. Each layer has its own escape rules, and applying them in the wrong order creates double-encoding or partial-decoding bugs that are notoriously difficult to trace.`,
+      `The distinction between encoding and encryption is frequently confused in practice. Encoding transforms data for safe transport or storage but provides no security guarantees — Base64-encoded data, for instance, can be decoded by anyone. For ${label(audience)} professionals working on ${tc.scenario}, this distinction matters because sensitive data should never rely on encoding alone for protection. ${toolName} processes data locally, ensuring that even when inspecting encoded payloads, the content never leaves your browser.`,
+      `Unicode normalization is a critical consideration that many developers overlook. The same visual character can have multiple valid Unicode representations (NFC, NFD, NFKC, NFKD), which means string comparison may fail even when characters look identical. When ${label(intent)}, verify that your encoding pipeline handles normalization consistently, especially when dealing with user-generated content that may contain combining characters or variant selectors.`,
+      `Base64 encoding increases data size by approximately 33%, which can have significant implications for payload-sensitive applications. For ${label(audience)} teams working on ${tc.scenario}, this overhead should be factored into bandwidth calculations, storage estimates, and API rate limit planning. ${toolName} provides immediate visibility into the size impact of encoding operations, helping you make informed decisions about when encoding is necessary versus when raw binary transport might be more efficient.`,
+    ],
+    security: [
+      `Token-based authentication systems require careful handling at every stage of the lifecycle. For a ${label(audience)} working on ${tc.scenario}, understanding JWT structure is essential: the header specifies the algorithm, the payload carries claims, and the signature ensures integrity. ${toolName} allows safe local inspection of these components without transmitting the token to an external service, which is critical because tokens often contain session identifiers, user roles, and expiration timestamps that should remain confidential.`,
+      `Hash function selection directly impacts the security guarantees of your system. SHA-256 provides collision resistance suitable for data integrity verification, while bcrypt and Argon2 are designed for password hashing with deliberate computational cost. When ${label(intent)} as a ${label(audience)}, choosing the wrong algorithm can create vulnerabilities — using a fast hash like MD5 for passwords, for example, enables brute-force attacks at billions of attempts per second. Always match the hash function to the security requirement.`,
+      `UUID generation appears simple but has important uniqueness considerations. Version 4 UUIDs rely on cryptographic random number generation, providing approximately 122 bits of entropy. The probability of collision is astronomically low but not zero. For ${label(audience)} teams handling ${tc.scenario}, the practical concern is usually not collision probability but rather ensuring the PRNG source is cryptographically secure — browser-based crypto.getRandomValues() satisfies this requirement, while Math.random() does not.`,
+      `Token expiration and refresh strategies significantly affect both security and user experience. Short-lived access tokens (15-60 minutes) limit the window of exploitation if a token is compromised, while refresh tokens with longer lifetimes maintain session continuity. When ${tc.scenario}, inspect token claims carefully to verify that expiration times, issuer fields, and audience restrictions match your security requirements. ${toolName} makes this inspection safe by keeping all processing local.`,
+    ],
+    text: [
+      `Regular expression engines vary significantly across programming languages and environments. JavaScript uses a backtracking NFA engine with specific behaviors around Unicode property escapes, lookbehind assertions, and named capture groups that may differ from Python's re module or Perl's regex engine. For a ${label(audience)} working on ${label(intent)}, testing patterns in ${toolName} ensures they behave correctly in the JavaScript runtime, which is particularly important when patterns will be used in both client-side and server-side contexts.`,
+      `Text case conversion is more complex than it appears, especially for internationalized content. Turkish locale rules where 'i' uppercases to 'İ' rather than 'I' can break authentication systems that compare usernames case-insensitively. When ${tc.scenario}, verify that your case conversion logic handles locale-specific rules correctly, or explicitly use locale-independent conversion when processing identifiers, URLs, or other machine-readable strings.`,
+      `Diff algorithms (Myers, patience, histogram) produce different results for the same input pairs. Myers diff minimizes the edit distance but may produce confusing output when lines are moved rather than changed. Patience diff prioritizes matching unique lines, producing more intuitive results for code and configuration changes. For ${label(audience)} workflows involving ${tc.scenario}, understanding which algorithm your diff tool uses helps you interpret the output correctly and identify the actual semantic changes.`,
+      `Whitespace handling in text processing deserves explicit specification. Tabs versus spaces, trailing whitespace, line ending conventions (LF vs CRLF), and zero-width characters can all produce visually identical text that differs at the byte level. When ${label(intent)}, normalize whitespace conventions early in your pipeline to prevent phantom differences from obscuring real changes. This is particularly important for ${label(audience)} professionals working on ${tc.scenario}.`,
+    ],
+    formatting: [
+      `Code formatting serves a dual purpose: improving human readability and establishing consistency across a codebase. For ${label(audience)} teams, consistent formatting reduces cognitive load during code review and makes it easier to identify meaningful changes in version control diffs. When ${label(intent)} using ${toolName}, the formatted output provides a baseline that your team can evaluate against established style guidelines before adopting it as a standard.`,
+      `SQL formatting deserves special attention because whitespace and line breaks affect both readability and, in some cases, behavior. While most SQL engines treat whitespace as insignificant, the visual structure of a query directly impacts a developer's ability to understand the join logic, filter conditions, and aggregation pipeline. For ${tc.scenario}, properly formatted SQL helps ${label(audience)} professionals identify potential performance issues by making the query structure explicit.`,
+      `CSS minification removes whitespace, comments, and redundant declarations to reduce file size, but it can introduce subtle issues. Shorthand property conflicts, calc() expression spacing, and custom property fallbacks may behave differently when minified. For ${label(audience)} teams working on ${tc.scenario}, always test minified output in the target browsers before deployment. ${toolName} provides an immediate preview of the minification result so you can catch issues early.`,
+      `Markdown rendering varies across implementations, and this inconsistency can affect documentation quality. CommonMark provides a formal specification, but many parsers extend it with features like tables, task lists, and footnotes. When ${label(intent)}, use ${toolName} to verify that your markdown renders correctly and that links, code blocks, and embedded HTML all display as intended in the target rendering environment.`,
+    ],
+    api: [
+      `API schema versioning is a critical practice that prevents breaking changes from disrupting consumers. When a ${label(audience)} needs to ${label(intent)}, understanding the current schema version and any deprecated fields is essential. ${toolName} helps validate that API responses conform to the expected structure, catching field removals, type changes, and new required fields before they cause runtime failures in client applications.`,
+      `HTTP content negotiation determines how request and response bodies are encoded, compressed, and parsed. The Accept and Content-Type headers must align between client and server for successful communication. When ${tc.scenario}, incorrect content type declarations can cause parsers to fail silently or produce garbled output. Use ${toolName} to inspect and validate the actual payload format independently of the declared content type.`,
+      `Rate limiting and pagination strategies significantly impact API integration reliability. For ${label(audience)} professionals, understanding cursor-based versus offset-based pagination, exponential backoff requirements, and rate limit reset headers is essential when building robust integrations. When ${tc.scenario}, test your integration logic with both normal and edge-case responses to ensure it handles pagination boundaries and rate limit responses gracefully.`,
+      `Error response standardization (RFC 7807 Problem Details) helps API consumers handle failures consistently. When ${label(intent)}, verify that error responses include the type, title, status, detail, and instance fields that consumers need for proper error handling. ${toolName} can help validate error response structures alongside success responses, ensuring that your API communicates failures as clearly as it communicates successes.`,
+    ],
+    data: [
+      `Data schema evolution is one of the most challenging aspects of maintaining production data pipelines. When adding new fields, changing types, or removing deprecated columns, backward compatibility must be preserved to prevent downstream failures. For a ${label(audience)} working on ${tc.scenario}, using ${toolName} to compare before-and-after schemas helps identify breaking changes before they reach production. Schema registries and versioned type definitions provide additional safety nets for data-intensive systems.`,
+      `Type inference from JSON samples is inherently approximate — a single sample cannot capture the full range of possible values. Fields that appear as integers in one sample may be floats or nulls in others. For ${label(audience)} teams working on ${label(intent)}, generated types should be treated as a starting point rather than a definitive contract. Cross-reference with API documentation, database schemas, and multiple representative samples to build accurate, complete type definitions.`,
+      `Data fingerprinting through hashing enables efficient change detection without comparing full payloads. However, hash-based comparison requires consistent input normalization — JSON key ordering, whitespace handling, and numeric formatting must all be deterministic for the same logical data to produce the same hash. When ${tc.scenario}, establish clear normalization rules and document them so that all systems in the pipeline produce consistent hashes.`,
+      `Binary-to-text encoding (Base64, hex) is frequently used in data pipelines for transporting binary content through text-based channels like JSON APIs or CSV files. Each encoding scheme has different trade-offs: Base64 is space-efficient but unreadable, hex is readable but doubles the size. For ${label(audience)} professionals, choosing the right encoding depends on whether the priority is debugging visibility, transmission efficiency, or compatibility with downstream systems.`,
+    ],
+    debugging: [
+      `Systematic debugging follows a scientific methodology: observe the symptom, form a hypothesis, design a test, and either confirm or revise. For a ${label(audience)} working on ${tc.scenario}, ${toolName} serves as the testing apparatus — it allows you to isolate variables by processing individual data transformations in a controlled environment. This approach is more efficient than adding log statements to production code and reduces the risk of introducing new bugs during the investigation.`,
+      `Configuration drift is a common source of production issues that is difficult to detect through code review alone. When the same application runs in multiple environments (development, staging, production), subtle differences in configuration values can produce different behavior. For ${label(audience)} teams, comparing configuration files using diff tools reveals these discrepancies before they cause incidents. ${toolName} helps visualize the exact differences between configuration versions.`,
+      `Log analysis patterns can be enhanced by using structured logging (JSON format) rather than unstructured text. Structured logs are machine-parseable, searchable, and aggregatable, making it possible to correlate events across distributed systems. When ${tc.scenario}, use ${toolName} to format and inspect log entries, identify recurring patterns, and build targeted search queries that filter noise and surface the events relevant to the investigation.`,
+      `Root cause analysis often requires examining data transformations at multiple points in the pipeline. A bug in the final output may originate several steps upstream, where a format conversion, encoding change, or type coercion introduced the error. For ${label(audience)} professionals, using ${toolName} at each transformation step creates a traceable chain of evidence that pinpoints exactly where the data diverges from the expected format.`,
+    ],
+    automation: [
+      `Cron expression semantics vary across implementations, which can lead to scheduling surprises. The standard five-field format (minute, hour, day-of-month, month, day-of-week) is widely supported, but extensions like seconds fields, year fields, and named ranges differ between cron daemons, CI/CD platforms, and cloud schedulers. For a ${label(audience)} working on ${tc.scenario}, validating cron expressions with ${toolName} prevents scheduling errors that might go undetected until the task fails to run at the expected time.`,
+      `Idempotency is a critical design principle for automated tasks. When a scheduled job runs multiple times — due to retries, overlapping executions, or scheduler failures — it should produce the same result as a single execution. For ${label(audience)} teams, designing idempotent operations means using unique identifiers (UUIDs) for records, checking for existing results before creating new ones, and separating the side-effect-producing step from the data preparation step.`,
+      `Extraction patterns for log analysis and data processing must balance specificity with resilience. Overly specific regex patterns break when log formats change slightly, while overly broad patterns capture unintended content. For ${label(audience)} professionals working on ${tc.scenario}, test extraction patterns against both current and historical log samples to ensure they handle format variations gracefully. ${toolName} provides a safe environment for iterating on pattern design.`,
+      `Monitoring and alerting for automated tasks should cover both failure detection and correctness verification. A task that completes successfully but produces incorrect output is often more dangerous than one that fails visibly. For ${label(audience)} teams, implement data quality checks alongside execution monitoring — verify record counts, check for null values in required fields, and compare output statistics against expected baselines.`,
+    ],
+    web: [
+      `Cross-site scripting (XSS) prevention requires a defense-in-depth approach. Output encoding (HTML entity encoding for HTML contexts, JavaScript escaping for script contexts, URL encoding for URL contexts) is the primary defense, but Content Security Policy headers, strict input validation, and DOM-based sanitization provide additional layers. For a ${label(audience)} working on ${tc.scenario}, ${toolName} helps verify that encoding transformations produce safe output for the target context.`,
+      `CSS optimization goes beyond simple minification. Removing unused rules (tree-shaking), combining duplicate selectors, shorthand property consolidation, and critical CSS extraction can reduce stylesheet size by 50-80% in large applications. For ${label(audience)} teams, the challenge is ensuring that optimization does not change the visual rendering. ${toolName} provides a quick way to compare the minified output and verify that no semantic CSS changes were introduced during the optimization process.`,
+      `Content rendering performance directly impacts Core Web Vitals scores, which affect search engine rankings. Largest Contentful Paint (LCP), First Input Delay (FID), and Cumulative Layout Shift (CLS) are all influenced by how content is encoded, compressed, and delivered. For ${label(audience)} professionals working on ${tc.scenario}, optimizing web assets is not just about reducing file sizes — it is about ensuring that the most important content renders quickly and remains stable during page load.`,
+      `Form data handling across different content types (application/x-www-form-urlencoded, multipart/form-data, application/json) requires careful attention to encoding rules. URL-encoded form data treats spaces as '+' while URI encoding uses '%20', and multipart boundaries must not appear in the encoded content. When ${label(intent)}, verify that the encoding matches the server's expectations and that special characters survive the encoding roundtrip without corruption.`,
+    ],
+  };
+
+  const pool = analysisPool[clusterKey] ?? analysisPool.json;
+  const shuffled = seededShuffle(pool, seed + 43);
+  return shuffled.slice(0, 3);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Expert Tips builder — deep, actionable, unique per combination     */
+/* ------------------------------------------------------------------ */
+function buildExpertTips(clusterKey: ClusterKey, tool: string, intent: string, audience: string, task: string, seed: number): string[] {
+  const toolName = getToolName(tool);
+  const ac = audienceContext[audience] ?? { focus: 'quality', concern: 'correctness', workflow: 'your workflow' };
+  const cd = clusterDomain[clusterKey];
+  const tc = taskContext[task] ?? { scenario: 'completing a task', urgency: 'important', outcome: 'achieve the result' };
+
+  const tipsPool: Record<ClusterKey, string[]> = {
+    json: [
+      `When debugging complex JSON structures, use a schema validator alongside ${toolName} to catch not just syntax errors but also semantic violations like missing required fields and type mismatches.`,
+      `For large JSON payloads, consider streaming parsers (like JSONStream or clarinet) in production code instead of loading the entire document into memory. Use ${toolName} for initial inspection and validation, then switch to streaming for production workloads.`,
+      `JSON Pointer (RFC 6901) and JSON Patch (RFC 6902) provide standardized ways to reference and modify specific parts of a JSON document. Learning these standards helps ${label(audience)} professionals communicate changes precisely during code review and incident response.`,
+      `When merging JSON configurations from multiple sources, define clear precedence rules and handle array merging explicitly — most deep-merge implementations treat arrays as atomic values and replace rather than concatenate them.`,
+    ],
+    encoding: [
+      `URL-safe Base64 (RFC 4648 §5) replaces '+' with '-' and '/' with '_', eliminating the need for percent-encoding in URLs. When building APIs or sharing encoded data in URLs, prefer URL-safe Base64 to avoid double-encoding issues.`,
+      `Content-Transfer-Encoding headers in email systems use different Base64 line-wrapping rules than web APIs. When debugging encoding issues across email and web systems, verify which Base64 variant each system expects.`,
+      `Percent-encoding in URLs follows specific rules: RFC 3986 defines which characters must be encoded, but form encoding (application/x-www-form-urlencoded) uses '+' for spaces instead of '%20'. This subtle difference causes bugs when switching between URL construction and form data encoding.`,
+      `When working with international domain names (IDN), Punycode encoding converts Unicode domains to ASCII-compatible form. Use ${toolName} to verify that domain encoding roundtrips correctly, especially when domain names contain characters from non-Latin scripts.`,
+    ],
+    security: [
+      `JWT tokens should never be stored in localStorage due to XSS vulnerability exposure. HttpOnly cookies with SameSite attributes provide stronger protection. Use ${toolName} to inspect token contents during development, but ensure production code handles tokens through secure cookie mechanisms.`,
+      `Hash-based message authentication codes (HMAC) combine a hash function with a secret key to verify both data integrity and authentication. Unlike plain hashes, HMAC prevents length extension attacks. When building verification systems as a ${label(audience)}, always prefer HMAC over raw hashing for authentication purposes.`,
+      `Certificate transparency logs provide a public record of all certificates issued for a domain. For ${label(audience)} professionals concerned about ${ac.concern}, monitoring these logs helps detect unauthorized certificate issuance that could enable man-in-the-middle attacks.`,
+      `Timing-safe comparison functions prevent side-channel attacks when comparing hashes or tokens. Regular string comparison short-circuits on the first mismatch, leaking information about the correct value. Use constant-time comparison functions in all security-critical comparisons.`,
+    ],
+    text: [
+      `Named capture groups in regex (?<name>pattern) make patterns self-documenting and the extracted values easier to work with in code. When building complex patterns for ${label(intent)}, use named groups to improve readability and maintainability.`,
+      `Atomic groups (?>...) and possessive quantifiers prevent backtracking in regex engines, which can prevent catastrophic backtracking that causes exponential time complexity. For patterns that will process untrusted input, consider the regex denial-of-service (ReDoS) risk.`,
+      `Unicode-aware text processing requires explicit consideration of grapheme clusters versus code points. A single visible character (like a flag emoji) may consist of multiple Unicode code points. When measuring text length or truncating content, use grapheme-aware methods to avoid splitting characters.`,
+      `Diff output formats (unified, context, side-by-side) serve different review workflows. Unified diff is compact and widely supported in version control, while side-by-side comparison is more intuitive for manual review. Choose the format that best supports your team's review process for ${tc.scenario}.`,
+    ],
+    formatting: [
+      `SQL formatting conventions vary by team and database engine. The Rivers and Holywell SQL style guides provide structured approaches. When standardizing SQL formatting for ${label(audience)} teams, document the chosen convention and configure automated formatting to enforce it consistently.`,
+      `Critical CSS extraction identifies the styles needed for above-the-fold content and inlines them in the HTML document, reducing the render-blocking impact of external stylesheets. This technique can significantly improve Largest Contentful Paint scores for content-heavy pages.`,
+      `Markdown link reference definitions ([link text][id] with [id]: url) separate content from URLs, making documents easier to read and maintain. For ${label(audience)} professionals creating documentation, this pattern reduces visual clutter and makes URL updates easier to manage.`,
+      `Preserving code semantics during formatting requires understanding language-specific rules. Python's significant whitespace, Makefile's required tabs, and YAML's indentation-based structure all constrain how formatting tools can modify these files. Always verify that formatted output preserves the original program behavior.`,
+    ],
+    api: [
+      `GraphQL introspection queries expose the full API schema, which is useful during development but should be disabled in production to prevent information leakage. When using ${toolName} to explore API responses, be aware that introspection results may reveal internal implementation details.`,
+      `HTTP caching headers (ETag, Last-Modified, Cache-Control) significantly affect API performance and behavior. When debugging API integration issues as a ${label(audience)}, verify that caching is not serving stale responses by checking these headers alongside the response body.`,
+      `API pagination cursors should be opaque to consumers — encoding implementation details (like database offsets) in cursors creates tight coupling that breaks when the underlying data store changes. When designing pagination for ${label(intent)}, use encrypted or hashed cursors that consumers cannot parse or manipulate.`,
+      `Webhook delivery reliability requires implementing retry logic with exponential backoff on the provider side and idempotency keys on the consumer side. When ${tc.scenario}, verify that your webhook handler can safely process the same event multiple times without creating duplicate side effects.`,
+    ],
+    data: [
+      `Schema registries (like Confluent Schema Registry for Avro/Protobuf) enforce backward and forward compatibility rules automatically. For ${label(audience)} teams, integrating schema validation into the CI/CD pipeline prevents incompatible schema changes from reaching production.`,
+      `Data lineage tracking records the origin, transformations, and destination of every data element. When debugging data quality issues during ${tc.scenario}, lineage information helps trace the exact point where corruption or loss occurred, significantly reducing investigation time.`,
+      `Bloom filters provide probabilistic set membership testing with guaranteed zero false negatives. For ${label(audience)} professionals working with large datasets, Bloom filters can efficiently pre-filter data before expensive exact lookups, reducing processing time for common operations like deduplication.`,
+      `Data serialization format selection (JSON, Protocol Buffers, Avro, MessagePack) should consider schema evolution needs, human readability, compression ratio, and parsing performance. For ${tc.scenario}, the right format depends on whether the primary consumer is a human debugger or a high-throughput data pipeline.`,
+    ],
+    debugging: [
+      `Binary search debugging (git bisect for code, or manual bisection for data) efficiently identifies the exact change that introduced a bug. For a ${label(audience)} with a large number of potential causes, bisection reduces the search space logarithmically, finding the root cause in O(log n) steps instead of O(n).`,
+      `Memory profiling in browser-based tools is accessible through DevTools' Heap Snapshot and Allocation Timeline features. When ${label(intent)}, understanding memory patterns helps identify leaks caused by retained closures, detached DOM nodes, or accumulating event listeners.`,
+      `Distributed tracing with correlation IDs allows tracking a single request across multiple services. For ${label(audience)} teams debugging cross-service issues during ${tc.scenario}, propagating trace context headers (W3C Trace Context standard) through every service boundary is essential for end-to-end visibility.`,
+      `Canary deployments help isolate whether an issue is caused by a code change or an environmental factor. By routing a small percentage of traffic to the new version and comparing metrics, ${label(audience)} professionals can detect regressions before they affect all users.`,
+    ],
+    automation: [
+      `Dead letter queues capture failed automated task executions for later analysis and replay. For ${label(audience)} teams, implementing DLQ processing ensures that transient failures do not cause permanent data loss, and provides a record of what went wrong for debugging.`,
+      `Infrastructure as Code (IaC) tools like Terraform and Pulumi enable version-controlled, reviewable automation of infrastructure changes. When ${tc.scenario}, treating infrastructure changes like code changes — with pull requests, reviews, and automated testing — prevents configuration errors.`,
+      `Circuit breaker patterns prevent automated tasks from overwhelming failing downstream services. For ${label(audience)} professionals, implementing circuit breakers in automated workflows means that temporary service disruptions do not cascade into system-wide failures.`,
+      `Event sourcing captures every state change as an immutable event, enabling perfect audit trails and the ability to replay history. For automated data processing pipelines, event sourcing provides the ability to rebuild state from scratch if corruption is detected during ${tc.scenario}.`,
+    ],
+    web: [
+      `Subresource Integrity (SRI) attributes on script and link tags ensure that CDN-served files have not been tampered with. For ${label(audience)} teams, adding integrity hashes to third-party resources prevents supply chain attacks where a compromised CDN serves malicious content.`,
+      `Service Workers enable sophisticated caching strategies (cache-first, network-first, stale-while-revalidate) that can significantly improve web application performance. When ${label(intent)}, consider how cached content interacts with your content update strategy to prevent users from seeing stale data.`,
+      `Content Security Policy (CSP) headers provide defense-in-depth against XSS by whitelisting allowed content sources. For ${label(audience)} professionals, implementing CSP in report-only mode first allows you to identify violations without breaking functionality, then gradually tightening the policy.`,
+      `HTTP/2 and HTTP/3 multiplexing changes the optimization calculus for web assets. Techniques like CSS sprite sheets and file concatenation, which were beneficial under HTTP/1.1's connection limits, may actually decrease performance under multiplexed protocols. Verify that your optimization strategy matches your deployment protocol.`,
+    ],
+  };
+
+  const pool = tipsPool[clusterKey] ?? tipsPool.json;
+  const shuffled = seededShuffle(pool, seed + 59);
+  return shuffled.slice(0, 3);
+}
+
 export function getPageByIndex(index: number): ProgrammaticPage | undefined {
   if (index < 0 || index >= TARGET_TOTAL) return undefined;
 
@@ -733,6 +884,8 @@ export function getPageByIndex(index: number): ProgrammaticPage | undefined {
     comparison: buildComparison(pair.cluster.key, audience, seed),
     proTips: buildProTips(pair.cluster.key, audience, pair.tool, task, seed),
     faq: buildFAQ(pair.cluster.key, pair.tool, audience, pair.intent, task, seed),
+    technicalAnalysis: buildTechnicalAnalysis(pair.cluster.key, pair.tool, pair.intent, audience, task, seed),
+    expertTips: buildExpertTips(pair.cluster.key, pair.tool, pair.intent, audience, task, seed),
   };
 }
 

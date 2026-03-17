@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Shield, ArrowRight, Wrench, AlertTriangle, CheckCircle, Lightbulb, HelpCircle } from 'lucide-react';
+import { Shield, ArrowRight, Wrench, AlertTriangle, CheckCircle, Lightbulb, HelpCircle, BookOpen, Zap } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -67,6 +67,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: page.title,
     description: page.description,
     robots: noindex ? { index: false, follow: true } : { index: true, follow: true },
+    alternates: {
+      canonical: `${siteConfig.siteUrl}/k/${slug}/`,
+    },
   };
 }
 
@@ -86,8 +89,25 @@ export default async function ProgrammaticPage({ params }: PageProps) {
     .filter(g => g.clusterKeys.includes(page.clusterKey))
     .slice(0, 2);
 
+  const faqJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: page.faq.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.answer,
+      },
+    })),
+  };
+
   return (
     <div className="container mx-auto px-4 py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
@@ -199,6 +219,43 @@ export default async function ProgrammaticPage({ params }: PageProps) {
               {page.proTips.map((tip, index) => (
                 <li key={index} className="flex items-start gap-2 text-sm">
                   <span className="text-primary font-bold">{index + 1}.</span>
+                  <span>{tip}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <BookOpen className="h-5 w-5" />
+              Technical Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {page.technicalAnalysis.map((paragraph, index) => (
+                <p key={index} className="text-sm text-muted-foreground leading-relaxed">
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-8 border-accent/30 bg-accent/5">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Zap className="h-5 w-5" />
+              Expert Tips
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3">
+              {page.expertTips.map((tip, index) => (
+                <li key={index} className="flex items-start gap-2 text-sm">
+                  <span className="font-bold">{index + 1}.</span>
                   <span>{tip}</span>
                 </li>
               ))}

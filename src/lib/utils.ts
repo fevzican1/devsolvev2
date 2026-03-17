@@ -24,10 +24,15 @@ export function hashString(str: string): number {
 
 export function deterministicShuffle<T>(arr: T[], seed: string): T[] {
   const result = [...arr];
-  const seedHash = hashString(seed);
+  let s = hashString(seed);
 
   for (let i = result.length - 1; i > 0; i--) {
-    const j = (seedHash + i) % (i + 1);
+    // Mulberry32-inspired step for better distribution
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    const r = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    const j = Math.floor(r * (i + 1));
     [result[i], result[j]] = [result[j], result[i]];
   }
 
