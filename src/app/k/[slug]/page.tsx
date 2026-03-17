@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Shield, ArrowRight, Wrench, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Shield, ArrowRight, Wrench, AlertTriangle, CheckCircle, Lightbulb, HelpCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -23,14 +23,23 @@ interface PageProps {
 }
 
 export async function generateStaticParams() {
-  /* Pre-render 200 pages at build time, sampled evenly across all clusters.
-     The remaining ~50 k pages are rendered on-demand via ISR.
-     Cluster layout: json (0-7199), encoding (7200-17999), security (18000-28799),
-     text (28800-39599), formatting (39600-50399). */
-  const clusterStarts = [0, 7200, 18000, 28800, 39600];
-  const clusterSizes  = [7200, 10800, 10800, 10800, 10800];
+  /* Pre-render 200 pages at build time, sampled evenly across all 10 clusters.
+     The remaining ~500k pages are rendered on-demand via ISR.
+     Cluster layout (348 pairs × 1440 per pair = 501120, capped at 500000):
+       json       (0–34559)      = 24 pairs × 1440
+       encoding   (34560–86399)  = 36 pairs × 1440
+       security   (86400–138239) = 36 pairs × 1440
+       text       (138240–190079)= 36 pairs × 1440
+       formatting (190080–241919)= 36 pairs × 1440
+       api        (241920–293759)= 36 pairs × 1440
+       data       (293760–345599)= 36 pairs × 1440
+       debugging  (345600–397439)= 36 pairs × 1440
+       automation (397440–449279)= 36 pairs × 1440
+       web        (449280–500000)= 36 pairs × 1440 (capped) */
+  const clusterStarts = [0, 34560, 86400, 138240, 190080, 241920, 293760, 345600, 397440, 449280];
+  const clusterSizes  = [34560, 51840, 51840, 51840, 51840, 51840, 51840, 51840, 51840, 50720];
   const totalPrerender = 200;
-  const perCluster = Math.floor(totalPrerender / clusterStarts.length); // 40
+  const perCluster = Math.floor(totalPrerender / clusterStarts.length); // 20
 
   const params: { slug: string }[] = [];
   for (let c = 0; c < clusterStarts.length; c++) {
@@ -174,6 +183,45 @@ export default async function ProgrammaticPage({ params }: PageProps) {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-8 border-primary/30 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Lightbulb className="h-5 w-5 text-primary" />
+              Pro Tips
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3">
+              {page.proTips.map((tip, index) => (
+                <li key={index} className="flex items-start gap-2 text-sm">
+                  <span className="text-primary font-bold">{index + 1}.</span>
+                  <span>{tip}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <HelpCircle className="h-5 w-5" />
+              Frequently Asked Questions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {page.faq.map((item, index) => (
+                <div key={index}>
+                  <h3 className="font-medium text-sm mb-1">{item.question}</h3>
+                  <p className="text-sm text-muted-foreground">{item.answer}</p>
+                  {index < page.faq.length - 1 && <Separator className="mt-4" />}
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

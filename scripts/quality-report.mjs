@@ -49,18 +49,49 @@ const clusters = [
     tools: ['sql-formatter', 'css-minifier', 'markdown-preview'],
     intents: ['format-sql', 'minify-assets', 'preview-markdown'],
   },
+  {
+    key: 'api',
+    tools: ['json-formatter', 'jwt-decoder', 'url-encode-decode'],
+    intents: ['design-api-schema', 'validate-api-response', 'authenticate-api-request'],
+  },
+  {
+    key: 'data',
+    tools: ['json-to-typescript', 'base64-encode-decode', 'hash-generator'],
+    intents: ['transform-data-format', 'generate-data-models', 'hash-data-for-storage'],
+  },
+  {
+    key: 'debugging',
+    tools: ['diff-checker', 'regex-tester', 'json-formatter'],
+    intents: ['compare-config-files', 'trace-data-flow', 'isolate-parsing-error'],
+  },
+  {
+    key: 'automation',
+    tools: ['cron-helper', 'regex-tester', 'uuid-generator'],
+    intents: ['schedule-recurring-task', 'extract-log-data', 'generate-batch-ids'],
+  },
+  {
+    key: 'web',
+    tools: ['html-entity-encode-decode', 'css-minifier', 'markdown-preview'],
+    intents: ['sanitize-html-input', 'optimize-css-bundle', 'preview-content-markup'],
+  },
 ];
 
 const audienceVariants = [
   'backend-engineer',
-  'api-consumer',
   'frontend-developer',
+  'fullstack-developer',
+  'api-consumer',
   'integration-engineer',
   'security-conscious-developer',
   'ops-engineer',
+  'devops-engineer',
   'technical-writer',
-  'fullstack-developer',
   'data-engineer',
+  'mobile-developer',
+  'qa-engineer',
+  'site-reliability-engineer',
+  'database-administrator',
+  'cloud-architect',
 ];
 
 const taskVariants = [
@@ -72,13 +103,10 @@ const taskVariants = [
   'inspect-encoded-payload',
   'trace-request',
   'validate-auth-token',
-  'compare-hash-values',
-  'prepare-release-notes',
   'review-config-change',
-  'clean-up-log-lines',
-  'review-database-query',
-  'prepare-production-build',
-  'document-api',
+  'migrate-legacy-system',
+  'prepare-deployment-artifact',
+  'document-api-endpoint',
 ];
 
 function estimateScore(slug, clusterKey) {
@@ -86,9 +114,11 @@ function estimateScore(slug, clusterKey) {
   const clusterBoost =
     clusterKey === 'security'
       ? 3
-      : clusterKey === 'json'
+      : clusterKey === 'json' || clusterKey === 'api'
         ? 2
-        : 0;
+        : clusterKey === 'data' || clusterKey === 'debugging'
+          ? 1
+          : 0;
   const score = Math.min(100, base + clusterBoost);
   return score;
 }
