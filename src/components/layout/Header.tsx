@@ -10,6 +10,7 @@ import { siteConfig } from '@/config/site';
 const navItems = [
   { href: '/tools', label: 'Tools' },
   { href: '/guides', label: 'Guides' },
+  { href: '/about', label: 'About' },
 ];
 
 export function Header() {

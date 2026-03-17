@@ -16,6 +16,7 @@ const footerLinks = {
     { href: '/guides/hashing-integrity', label: 'Hashing Guide' },
   ],
   legal: [
+    { href: '/about', label: 'About Devsolveco' },
     { href: '/legal/privacy', label: 'Privacy Policy' },
     { href: '/legal/terms', label: 'Terms of Service' },
     { href: '/legal/cookies', label: 'Cookie Policy' },
