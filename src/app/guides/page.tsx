@@ -5,11 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { guideRegistry } from '@/content/guides';
 import { getToolBySlug } from '@/tools/registry';
+import { buildMetadata } from '@/lib/seo/metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: 'Developer Guides',
-  description: 'Practical guides for common development workflows. Learn best practices for formatting, encoding, validation, and more.',
-};
+  description:
+    'Technical guides for developer workflows, including best practices, pitfalls, and practical examples.',
+  path: '/guides',
+});
 
 export default function GuidesPage() {
   return (

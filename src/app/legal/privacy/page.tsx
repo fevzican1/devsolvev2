@@ -1,96 +1,101 @@
 import type { Metadata } from 'next';
 import { siteConfig } from '@/config/site';
+import { buildMetadata } from '@/lib/seo/metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: 'Privacy Policy',
-  description: 'Privacy policy for DevSolve - browser-based developer tools.',
-};
+  description:
+    'Read how DevSolve handles browser-side processing, limited analytics, and user privacy rights.',
+  path: '/legal/privacy',
+});
 
 export default function PrivacyPage() {
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="max-w-3xl mx-auto prose prose-neutral dark:prose-invert">
         <h1>Privacy Policy</h1>
-        <p className="text-muted-foreground">Last updated: February 2026</p>
+        <p className="text-muted-foreground">Last updated: March 17, 2026</p>
 
-        <h2>Overview</h2>
+        <h2>1. Scope</h2>
         <p>
-          {siteConfig.name} is committed to protecting your privacy. This policy explains
-          how we handle information when you use our browser-based developer tools.
+          This Privacy Policy explains how {siteConfig.name} collects, uses, discloses, and protects
+          information in connection with the website located at {siteConfig.siteUrl} and related
+          services (collectively, the &quot;Service&quot;).
         </p>
 
-        <h2>Data Processing</h2>
+        <h2>2. Browser-Side Processing</h2>
         <p>
-          <strong>All tool processing happens locally in your browser.</strong> When you use
-          our tools (JSON formatter, hash generator, etc.), your data is processed entirely
-          on your device. We do not transmit your input data to any servers.
+          Core tool functionality is designed to run in the user&apos;s browser. In most use cases,
+          content entered into tools is processed locally and is not transmitted to Service servers.
+          Users remain responsible for the data they choose to process.
         </p>
 
-        <h2>Information We Collect</h2>
-        <h3>Automatically Collected Information</h3>
-        <p>
-          Like most websites, our servers may automatically log standard technical information:
-        </p>
+        <h2>3. Information Collected</h2>
+        <p>The Service may process the following categories of information:</p>
         <ul>
-          <li>IP address (may be anonymized)</li>
-          <li>Browser type and version</li>
-          <li>Pages visited and time spent</li>
-          <li>Referring website</li>
+          <li>Technical log data, such as IP address, user agent, and request metadata</li>
+          <li>Usage data, such as visited pages, timestamps, and referral sources</li>
+          <li>Contact form submissions voluntarily provided by users</li>
+          <li>Cookie or local storage preferences, including theme and consent settings</li>
         </ul>
 
-        <h3>Information We Do Not Collect</h3>
+        <h2>4. Legal Bases and Purposes</h2>
         <p>
-          We do not collect, store, or transmit:
-        </p>
-        <ul>
-          <li>Data you input into our tools</li>
-          <li>Personal identification information</li>
-          <li>Account credentials or passwords</li>
-        </ul>
-
-        <h2>Cookies and Local Storage</h2>
-        <p>
-          We use minimal cookies and local storage for:
-        </p>
-        <ul>
-          <li>Remembering your theme preference (light/dark mode)</li>
-          <li>Basic analytics (if enabled)</li>
-        </ul>
-        <p>
-          You can disable cookies in your browser settings without affecting tool functionality.
+          Information is used to operate and secure the Service, respond to support requests, improve
+          performance, prevent abuse, and comply with applicable legal obligations.
         </p>
 
-        <h2>Third-Party Services</h2>
+        <h2>5. Cookies and Similar Technologies</h2>
         <p>
-          Our site may include links to third-party services. When you click affiliate links,
-          you will be directed to external websites with their own privacy policies. We encourage
-          you to review those policies.
+          The Service uses essential technologies required for functionality and may use limited
+          analytics and affiliate attribution. Users can manage these settings through browser controls.
         </p>
 
-        <h2>Data Security</h2>
+        <h2>6. Third-Party Services and Links</h2>
         <p>
-          Since tool processing happens locally, your sensitive data never leaves your browser.
-          This local-only approach provides inherent security for your data.
+          The Service may include third-party content, affiliate links, or external destinations.
+          Third-party websites and services operate under their own terms and privacy notices.
         </p>
 
-        <h2>Your Rights</h2>
+        <h2>7. Data Retention</h2>
         <p>
-          You have the right to:
-        </p>
-        <ul>
-          <li>Use our tools without creating an account</li>
-          <li>Clear local storage data at any time</li>
-          <li>Disable cookies in your browser</li>
-        </ul>
-
-        <h2>Changes to This Policy</h2>
-        <p>
-          We may update this policy periodically. Significant changes will be noted on this page.
+          Information is retained only as long as reasonably necessary for the purposes outlined in this
+          Policy, including legal, accounting, and security obligations.
         </p>
 
-        <h2>Contact</h2>
+        <h2>8. International Processing</h2>
         <p>
-          For questions about this privacy policy, please contact us through our website.
+          Data may be processed in jurisdictions outside a user&apos;s country of residence, subject to
+          applicable safeguards required by law.
+        </p>
+
+        <h2>9. Security</h2>
+        <p>
+          Reasonable administrative, technical, and organizational safeguards are applied to protect
+          information. No internet transmission or storage system can be guaranteed to be fully secure.
+        </p>
+
+        <h2>10. User Rights</h2>
+        <p>
+          Subject to applicable law, users may request access, correction, deletion, or restriction of
+          processing for personal information. Requests may be submitted through the Contact page.
+        </p>
+
+        <h2>11. Children&apos;s Privacy</h2>
+        <p>
+          The Service is not directed to children under the age required by local law. If unauthorized
+          child data is identified, commercially reasonable efforts will be made to remove it.
+        </p>
+
+        <h2>12. Policy Changes</h2>
+        <p>
+          This Policy may be updated periodically. Material changes will be reflected by revising the
+          &quot;Last updated&quot; date and, where required, by additional notice.
+        </p>
+
+        <h2>13. Contact</h2>
+        <p>
+          Privacy-related inquiries can be submitted at <a href="/contact">Contact Us</a>.
         </p>
       </div>
     </div>

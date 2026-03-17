@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://devsolvev2.com/sitemap.xml
+Sitemap: https://devsolvev2.com/sitemaps/0

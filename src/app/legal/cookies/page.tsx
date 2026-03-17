@@ -1,17 +1,19 @@
 import type { Metadata } from 'next';
 import { siteConfig } from '@/config/site';
+import { buildMetadata } from '@/lib/seo/metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: 'Cookie Policy',
-  description: 'Cookie policy for DevSolve - browser-based developer tools.',
-};
+  description: 'Cookie and local storage policy for DevSolve.',
+  path: '/legal/cookies',
+});
 
 export default function CookiesPage() {
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="max-w-3xl mx-auto prose prose-neutral dark:prose-invert">
         <h1>Cookie Policy</h1>
-        <p className="text-muted-foreground">Last updated: February 2026</p>
+        <p className="text-muted-foreground">Last updated: March 17, 2026</p>
 
         <h2>What Are Cookies</h2>
         <p>

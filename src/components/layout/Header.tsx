@@ -10,6 +10,7 @@ import { siteConfig } from '@/config/site';
 const navItems = [
   { href: '/tools', label: 'Tools' },
   { href: '/guides', label: 'Guides' },
+  { href: '/contact', label: 'Contact' },
   { href: '/about', label: 'About' },
 ];
 

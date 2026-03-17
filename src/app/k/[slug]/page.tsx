@@ -13,6 +13,7 @@ import { siteConfig } from '@/config/site';
 import { monetizationConfig } from '@/config/monetization';
 import { RecommendedSolutions } from '@/components/monetization/RecommendedSolutions';
 import { ComputedExample } from '@/components/programmatic/ComputedExample';
+import { buildMetadata } from '@/lib/seo/metadata';
 
 /* ISR: revalidate every 24 hours; allow any slug not in generateStaticParams */
 export const revalidate = 86400;
@@ -58,19 +59,17 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const page = getProgrammaticPageBySlug(slug);
-  if (!page) return { title: 'Not Found' };
+  if (!page) return buildMetadata({ title: 'Not Found', noindex: true });
 
   const score = calculateQualityScore(page);
   const noindex = !shouldIndex(score.score, siteConfig.programmaticQuality.minIndexScore);
 
-  return {
+  return buildMetadata({
     title: page.title,
     description: page.description,
-    robots: noindex ? { index: false, follow: true } : { index: true, follow: true },
-    alternates: {
-      canonical: `${siteConfig.siteUrl}/k/${slug}/`,
-    },
-  };
+    path: `/k/${slug}`,
+    noindex,
+  });
 }
 
 export default async function ProgrammaticPage({ params }: PageProps) {
