@@ -4,8 +4,8 @@ import { getTotalPageCount } from '@/data/programmatic';
 
 const URLS_PER_SITEMAP = 5000;
 
-/* Always generate on request – this is a tiny index file */
-export const dynamic = 'force-dynamic';
+/* ISR: regenerate every 12 hours. Cached so Google bot never times out. */
+export const revalidate = 43200;
 
 export async function GET() {
   const base = siteConfig.siteUrl;
@@ -23,6 +23,9 @@ ${sitemaps}
 </sitemapindex>`;
 
   return new NextResponse(xml, {
-    headers: { 'Content-Type': 'application/xml' },
+    headers: {
+      'Content-Type': 'application/xml',
+      'Cache-Control': 'public, s-maxage=43200, stale-while-revalidate=86400',
+    },
   });
 }

@@ -10,3 +10,8 @@
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
+/sitemap.xml
+  Cache-Control: public, max-age=43200, stale-while-revalidate=86400
+
+/sitemaps/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=172800
