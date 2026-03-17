@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
 import { Building2, Target } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { buildMetadata } from '@/lib/seo/metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: 'About Devsolveco - Empowering Developers Through Technical Scale',
   description:
     'Devsolveco is a technical editorial platform focused on software engineering, DevOps, and cloud infrastructure guidance.',
-};
+  path: '/about',
+});
 
 export default function AboutPage() {
   return (

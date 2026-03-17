@@ -11,6 +11,7 @@ import { GuideContent } from '@/components/guides/GuideContent';
 import { RecommendedSolutions } from '@/components/monetization/RecommendedSolutions';
 import { monetizationConfig } from '@/config/monetization';
 import { loadGuideContent } from '@/lib/guides/loader';
+import { buildMetadata } from '@/lib/seo/metadata';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -25,12 +26,13 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const guide = getGuideBySlug(slug);
-  if (!guide) return { title: 'Guide Not Found' };
+  if (!guide) return buildMetadata({ title: 'Guide Not Found', noindex: true });
 
-  return {
+  return buildMetadata({
     title: guide.title,
     description: guide.description,
-  };
+    path: `/guides/${slug}`,
+  });
 }
 
 export default async function GuidePage({ params }: PageProps) {

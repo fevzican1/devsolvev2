@@ -17,6 +17,7 @@ const footerLinks = {
   ],
   legal: [
     { href: '/about', label: 'About Devsolveco' },
+    { href: '/contact', label: 'Contact Us' },
     { href: '/legal/privacy', label: 'Privacy Policy' },
     { href: '/legal/terms', label: 'Terms of Service' },
     { href: '/legal/cookies', label: 'Cookie Policy' },

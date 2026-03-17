@@ -28,6 +28,8 @@ export async function GET(
   if (id === 0) {
     /* Core pages: static + tools + guides */
     entries.push(urlEntry(`${base}/`, 'weekly', '1.0'));
+    entries.push(urlEntry(`${base}/about/`, 'monthly', '0.6'));
+    entries.push(urlEntry(`${base}/contact/`, 'monthly', '0.7'));
     entries.push(urlEntry(`${base}/tools/`, 'weekly', '0.9'));
     entries.push(urlEntry(`${base}/guides/`, 'weekly', '0.9'));
     entries.push(urlEntry(`${base}/legal/privacy/`, 'monthly', '0.3'));

@@ -9,6 +9,7 @@ import { toolRegistry, getToolBySlug, getRelatedTools } from '@/tools/registry';
 import { getGuidesForTool } from '@/content/guides';
 import { ToolRenderer } from '@/components/tools/ToolRenderer';
 import { RecommendedSolutions } from '@/components/monetization/RecommendedSolutions';
+import { buildMetadata } from '@/lib/seo/metadata';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -23,12 +24,13 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const tool = getToolBySlug(slug);
-  if (!tool) return { title: 'Tool Not Found' };
+  if (!tool) return buildMetadata({ title: 'Tool Not Found', noindex: true });
 
-  return {
+  return buildMetadata({
     title: tool.name,
     description: tool.description,
-  };
+    path: `/tools/${slug}`,
+  });
 }
 
 export default async function ToolPage({ params }: PageProps) {

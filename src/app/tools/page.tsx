@@ -4,11 +4,14 @@ import { Wrench, Shield } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toolRegistry, type ToolDefinition } from '@/tools/registry';
+import { buildMetadata } from '@/lib/seo/metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: 'Developer Tools',
-  description: 'Browser-based developer tools for formatting, validation, encoding, and more. All processing happens locally.',
-};
+  description:
+    'Browser-based developer tools for formatting, validation, encoding, and debugging workflows.',
+  path: '/tools',
+});
 
 const categories = [
   { key: 'formatting', label: 'Formatting' },
