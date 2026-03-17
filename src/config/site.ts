@@ -4,9 +4,9 @@ export const siteConfig = {
   siteUrl: 'https://devsolvev2.com',
 
   programmatic: {
-    targetTotal: 50000,
-    safeDefaultTotal: 50000,
-    rampSchedule: [800, 1500, 2500, 5000, 10000, 50000] as const,
+    targetTotal: 500000,
+    safeDefaultTotal: 500000,
+    rampSchedule: [800, 2500, 10000, 50000, 150000, 300000, 500000] as const,
     rampMode: 'manual' as const,
   },
 

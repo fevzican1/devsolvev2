@@ -18,27 +18,32 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
   const issues: string[] = [];
 
   const uniquenessFactors = {
-    slugLength: Math.min(page.slug.length / 50, 1) * 20,
-    keywordCount: Math.min(page.keywords.length / 5, 1) * 15,
-    stepsVariation: (hashString(page.steps.join('')) % 100) / 100 * 15,
+    slugLength: Math.min(page.slug.length / 50, 1) * 15,
+    keywordCount: Math.min(page.keywords.length / 7, 1) * 15,
+    stepsVariation: (hashString(page.steps.join('')) % 100) / 100 * 10,
+    introVariation: (hashString(page.intro) % 100) / 100 * 10,
   };
   const uniqueness = Math.round(
     uniquenessFactors.slugLength +
     uniquenessFactors.keywordCount +
-    uniquenessFactors.stepsVariation
+    uniquenessFactors.stepsVariation +
+    uniquenessFactors.introVariation
   );
 
   const usefulnessFactors = {
-    hasSteps: page.steps.length >= 4 ? 22 : page.steps.length >= 3 ? 18 : 10,
-    hasPitfalls: page.pitfalls.length >= 3 ? 18 : page.pitfalls.length >= 2 ? 12 : 6,
-    hasComparison: page.comparison.length >= 3 ? 18 : page.comparison.length >= 2 ? 12 : 6,
+    hasSteps: page.steps.length >= 5 ? 18 : page.steps.length >= 4 ? 15 : 10,
+    hasPitfalls: page.pitfalls.length >= 4 ? 15 : page.pitfalls.length >= 3 ? 12 : 6,
+    hasComparison: page.comparison.length >= 3 ? 12 : page.comparison.length >= 2 ? 8 : 4,
+    hasProTips: page.proTips && page.proTips.length >= 3 ? 8 : page.proTips && page.proTips.length >= 2 ? 5 : 0,
+    hasFAQ: page.faq && page.faq.length >= 3 ? 5 : page.faq && page.faq.length >= 2 ? 3 : 0,
   };
-  const usefulness = usefulnessFactors.hasSteps + usefulnessFactors.hasPitfalls + usefulnessFactors.hasComparison;
+  const usefulness = usefulnessFactors.hasSteps + usefulnessFactors.hasPitfalls +
+    usefulnessFactors.hasComparison + usefulnessFactors.hasProTips + usefulnessFactors.hasFAQ;
 
   const depthFactors = {
-    introLength: Math.min(page.intro.length / 100, 1) * 10,
-    descriptionLength: Math.min(page.description.length / 120, 1) * 10,
-    contentVariety: 12,
+    introLength: Math.min(page.intro.length / 150, 1) * 8,
+    descriptionLength: Math.min(page.description.length / 120, 1) * 7,
+    contentVariety: 10,
   };
   const depth = Math.round(
     depthFactors.introLength +
@@ -47,14 +52,14 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
   );
 
   const footprintFactors = {
-    keywordDensity: Math.max(0, 10 - Math.max(0, page.keywords.length - 8)),
-    slugClarity: page.slug.length <= 120 ? 10 : 4,
+    keywordDensity: Math.max(0, 8 - Math.max(0, page.keywords.length - 12)),
+    slugClarity: page.slug.length <= 140 ? 7 : 3,
   };
   const footprint = footprintFactors.keywordDensity + footprintFactors.slugClarity;
 
   const relevanceFactors = {
-    hasPrimaryTool: page.primaryTool ? 10 : 0,
-    hasClusterKey: page.clusterKey ? 10 : 0,
+    hasPrimaryTool: page.primaryTool ? 8 : 0,
+    hasClusterKey: page.clusterKey ? 7 : 0,
   };
   const relevance = relevanceFactors.hasPrimaryTool + relevanceFactors.hasClusterKey;
 
@@ -69,7 +74,7 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
   if (page.intro.length < 50) {
     issues.push('Intro too short');
   }
-  if (page.slug.length > 140) {
+  if (page.slug.length > 160) {
     issues.push('Slug is overly long or complex');
   }
 
