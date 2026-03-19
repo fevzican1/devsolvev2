@@ -12,6 +12,12 @@ import { RecommendedSolutions } from '@/components/monetization/RecommendedSolut
 import { monetizationConfig } from '@/config/monetization';
 import { loadGuideContent } from '@/lib/guides/loader';
 import { buildMetadata } from '@/lib/seo/metadata';
+import {
+  CommercialOpportunityLinks,
+  EditorialByline,
+  EditorialIntro,
+  OriginalValueCallouts,
+} from '@/components/content/EditorialIdentity';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -64,7 +70,10 @@ export default async function GuidePage({ params }: PageProps) {
           </div>
 
           <h1 className="text-3xl font-bold mb-4">{guide.title}</h1>
+          <EditorialByline />
           <p className="text-lg text-muted-foreground mb-4">{guide.description}</p>
+          <EditorialIntro toolName={primaryTool?.name ?? guide.title} />
+          <CommercialOpportunityLinks />
 
           <div className="flex flex-wrap gap-2 mb-4">
             <Badge variant="secondary" className="flex items-center gap-1">
@@ -85,6 +94,8 @@ export default async function GuidePage({ params }: PageProps) {
         <div className="prose prose-neutral dark:prose-invert max-w-none mb-8">
           <GuideContent content={content} />
         </div>
+
+        <OriginalValueCallouts toolName={primaryTool?.name ?? guide.title} />
 
         <div className="p-4 rounded-lg bg-muted/50 border mb-8">
           <p className="text-sm text-muted-foreground">

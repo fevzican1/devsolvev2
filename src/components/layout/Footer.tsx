@@ -112,6 +112,9 @@ export function Footer() {
             {monetizationConfig.disclosure.shortDisclosure}:{' '}
             {monetizationConfig.disclosure.affiliateText}
           </p>
+          <p className="text-xs text-muted-foreground text-center mt-3">
+            © 2024 Devsolveco - All Rights Reserved
+          </p>
         </div>
       </div>
     </footer>

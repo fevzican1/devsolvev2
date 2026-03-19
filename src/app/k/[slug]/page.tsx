@@ -14,6 +14,13 @@ import { monetizationConfig } from '@/config/monetization';
 import { RecommendedSolutions } from '@/components/monetization/RecommendedSolutions';
 import { ComputedExample } from '@/components/programmatic/ComputedExample';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { linkifyCommercialTerms } from '@/lib/content/commercialLinks';
+import {
+  CommercialOpportunityLinks,
+  EditorialByline,
+  EditorialIntro,
+  OriginalValueCallouts,
+} from '@/components/content/EditorialIdentity';
 
 /* ISR: revalidate every 24 hours; allow any slug not in generateStaticParams */
 export const revalidate = 86400;
@@ -118,7 +125,13 @@ export default async function ProgrammaticPage({ params }: PageProps) {
           </div>
 
           <h1 className="text-3xl font-bold mb-4">{page.h1}</h1>
-          <p className="text-lg text-muted-foreground mb-4">{page.intro}</p>
+          <EditorialByline />
+          <p
+            className="text-lg text-muted-foreground mb-4"
+            dangerouslySetInnerHTML={{ __html: linkifyCommercialTerms(page.intro) }}
+          />
+          <EditorialIntro toolName={primaryTool?.name ?? 'this tool'} />
+          <CommercialOpportunityLinks />
 
           <div className="flex flex-wrap gap-2 mb-4">
             <Badge variant="secondary" className="flex items-center gap-1">
@@ -150,7 +163,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm flex items-center justify-center">
                     {index + 1}
                   </span>
-                  <span>{step}</span>
+                  <span dangerouslySetInnerHTML={{ __html: linkifyCommercialTerms(step) }} />
                 </li>
               ))}
             </ol>
@@ -171,7 +184,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
               {page.pitfalls.map((pitfall, index) => (
                 <li key={index} className="flex items-start gap-2 text-sm">
                   <span className="text-warning">-</span>
-                  {pitfall}
+                  <span dangerouslySetInnerHTML={{ __html: linkifyCommercialTerms(pitfall) }} />
                 </li>
               ))}
             </ul>
@@ -195,9 +208,18 @@ export default async function ProgrammaticPage({ params }: PageProps) {
                 <tbody>
                   {page.comparison.map((row, index) => (
                     <tr key={index} className="border-b last:border-0">
-                      <td className="py-2 pr-4 font-medium">{row.item}</td>
-                      <td className="py-2 pr-4 text-muted-foreground">{row.pros}</td>
-                      <td className="py-2 text-muted-foreground">{row.cons}</td>
+                      <td
+                        className="py-2 pr-4 font-medium"
+                        dangerouslySetInnerHTML={{ __html: linkifyCommercialTerms(row.item) }}
+                      />
+                      <td
+                        className="py-2 pr-4 text-muted-foreground"
+                        dangerouslySetInnerHTML={{ __html: linkifyCommercialTerms(row.pros) }}
+                      />
+                      <td
+                        className="py-2 text-muted-foreground"
+                        dangerouslySetInnerHTML={{ __html: linkifyCommercialTerms(row.cons) }}
+                      />
                     </tr>
                   ))}
                 </tbody>
@@ -218,7 +240,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
               {page.proTips.map((tip, index) => (
                 <li key={index} className="flex items-start gap-2 text-sm">
                   <span className="text-primary font-bold">{index + 1}.</span>
-                  <span>{tip}</span>
+                  <span dangerouslySetInnerHTML={{ __html: linkifyCommercialTerms(tip) }} />
                 </li>
               ))}
             </ul>
@@ -235,9 +257,11 @@ export default async function ProgrammaticPage({ params }: PageProps) {
           <CardContent>
             <div className="space-y-4">
               {page.technicalAnalysis.map((paragraph, index) => (
-                <p key={index} className="text-sm text-muted-foreground leading-relaxed">
-                  {paragraph}
-                </p>
+                <p
+                  key={index}
+                  className="text-sm text-muted-foreground leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: linkifyCommercialTerms(paragraph) }}
+                />
               ))}
             </div>
           </CardContent>
@@ -255,7 +279,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
               {page.expertTips.map((tip, index) => (
                 <li key={index} className="flex items-start gap-2 text-sm">
                   <span className="font-bold">{index + 1}.</span>
-                  <span>{tip}</span>
+                  <span dangerouslySetInnerHTML={{ __html: linkifyCommercialTerms(tip) }} />
                 </li>
               ))}
             </ul>
@@ -273,8 +297,14 @@ export default async function ProgrammaticPage({ params }: PageProps) {
             <div className="space-y-4">
               {page.faq.map((item, index) => (
                 <div key={index}>
-                  <h3 className="font-medium text-sm mb-1">{item.question}</h3>
-                  <p className="text-sm text-muted-foreground">{item.answer}</p>
+                  <h3
+                    className="font-medium text-sm mb-1"
+                    dangerouslySetInnerHTML={{ __html: linkifyCommercialTerms(item.question) }}
+                  />
+                  <p
+                    className="text-sm text-muted-foreground"
+                    dangerouslySetInnerHTML={{ __html: linkifyCommercialTerms(item.answer) }}
+                  />
                   {index < page.faq.length - 1 && <Separator className="mt-4" />}
                 </div>
               ))}
@@ -290,6 +320,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
         </div>
 
         <RecommendedSolutions toolSlug={page.primaryTool} />
+        <OriginalValueCallouts toolName={primaryTool?.name ?? 'this tool'} />
 
         <Separator className="my-8" />
 
