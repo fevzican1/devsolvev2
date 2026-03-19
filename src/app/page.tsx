@@ -188,6 +188,19 @@ export default function HomePage() {
           </Card>
         </div>
       </section>
+
+      <section className="py-6 border-t">
+        <div className="container mx-auto px-4 text-center">
+          <a
+            href="https://sovrn.co/wvnas9j"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2"
+          >
+            Gecici Baglanti
+          </a>
+        </div>
+      </section>
     </div>
   );
 }
