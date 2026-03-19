@@ -10,6 +10,12 @@ import { getGuidesForTool } from '@/content/guides';
 import { ToolRenderer } from '@/components/tools/ToolRenderer';
 import { RecommendedSolutions } from '@/components/monetization/RecommendedSolutions';
 import { buildMetadata } from '@/lib/seo/metadata';
+import {
+  CommercialOpportunityLinks,
+  EditorialByline,
+  EditorialIntro,
+  OriginalValueCallouts,
+} from '@/components/content/EditorialIdentity';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -57,7 +63,10 @@ export default async function ToolPage({ params }: PageProps) {
           </div>
 
           <h1 className="text-3xl font-bold mb-4">{tool.name}</h1>
+          <EditorialByline />
           <p className="text-lg text-muted-foreground mb-4">{tool.description}</p>
+          <EditorialIntro toolName={tool.name} />
+          <CommercialOpportunityLinks />
 
           <div className="flex flex-wrap gap-2 mb-4">
             <Badge variant="secondary" className="flex items-center gap-1">
@@ -94,6 +103,7 @@ export default async function ToolPage({ params }: PageProps) {
         </Card>
 
         <RecommendedSolutions toolSlug={slug} />
+        <OriginalValueCallouts toolName={tool.name} />
 
         <Separator className="my-8" />
 
