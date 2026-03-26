@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Space_Grotesk, IBM_Plex_Mono } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -76,6 +77,13 @@ export default function RootLayout({
             <Footer />
           </div>
         </ThemeProvider>
+        <Script id="infolinks-config" strategy="afterInteractive">
+          {`var infolinks_pid = 3444436; var infolinks_wsid = 0;`}
+        </Script>
+        <Script
+          src="https://resources.infolinks.com/js/infolinks_main.js"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
