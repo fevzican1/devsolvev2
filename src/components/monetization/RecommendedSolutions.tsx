@@ -97,9 +97,9 @@ export function RecommendedSolutions({ toolSlug, clusterKey }: RecommendedSoluti
                 <a
                   href={urlResult.url}
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="sponsored nofollow noopener noreferrer"
                 >
-                  Go to provider
+                  Go to provider (sponsored)
                   <ExternalLink className="ml-2 h-3 w-3" />
                 </a>
               </Button>
