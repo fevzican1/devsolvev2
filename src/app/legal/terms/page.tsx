@@ -50,46 +50,63 @@ export default function TermsPage() {
           The Service may contain links to third-party sites and affiliate offers. {siteConfig.name} is
           not responsible for third-party content, policies, or transactions.
         </p>
+        <p>
+          Promotional links are required to be clearly labeled where monetization applies. The Service
+          prohibits deceptive destination masking, forced click behavior, and misleading commercial claims.
+        </p>
 
-        <h2>6. Disclaimers</h2>
+        <h2>6. Traffic Quality and Publisher Compliance</h2>
+        <p>Use of the Service for monetization must comply with publisher network requirements, including:</p>
+        <ul>
+          <li>No automated clicks, fake transactions, click stuffing, or hidden redirect mechanisms</li>
+          <li>No unauthorized trademark bidding, impersonation, or merchant brand misuse</li>
+          <li>No referrer cloaking or other methods that obscure true traffic origin</li>
+          <li>No distribution of malware, unwanted software, or deceptive promotional software</li>
+        </ul>
+        <p>
+          Compliance expectations are further described in the{' '}
+          <a href="/legal/publisher-ethics">Publisher Ethics Policy</a>.
+        </p>
+
+        <h2>7. Disclaimers</h2>
         <p>
           The Service is provided on an &quot;as is&quot; and &quot;as available&quot; basis without warranties of any
           kind, express or implied, including merchantability, fitness for a particular purpose, and
           non-infringement.
         </p>
 
-        <h2>7. Limitation of Liability</h2>
+        <h2>8. Limitation of Liability</h2>
         <p>
           To the maximum extent permitted by law, {siteConfig.name} and its affiliates will not be
           liable for indirect, incidental, special, consequential, or punitive damages, or any loss of
           data, profits, or goodwill arising from use of the Service.
         </p>
 
-        <h2>8. Indemnification</h2>
+        <h2>9. Indemnification</h2>
         <p>
           Users agree to defend, indemnify, and hold harmless {siteConfig.name} from claims, damages,
           liabilities, and expenses resulting from violations of these Terms or misuse of the Service.
         </p>
 
-        <h2>9. Termination</h2>
+        <h2>10. Termination</h2>
         <p>
           Access to the Service may be suspended or terminated at any time, with or without notice, if
           there is a reasonable belief of Terms violations or security risk.
         </p>
 
-        <h2>10. Changes to Terms</h2>
+        <h2>11. Changes to Terms</h2>
         <p>
           These Terms may be updated periodically. Continued use after updates become effective
           constitutes acceptance of the revised Terms.
         </p>
 
-        <h2>11. Governing Law</h2>
+        <h2>12. Governing Law</h2>
         <p>
           These Terms are governed by applicable laws and dispute resolution requirements in the relevant
           jurisdiction, without regard to conflict-of-law principles.
         </p>
 
-        <h2>12. Contact</h2>
+        <h2>13. Contact</h2>
         <p>
           Legal inquiries can be submitted at <a href="/contact">Contact Us</a>.
         </p>

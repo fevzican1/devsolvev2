@@ -50,11 +50,19 @@ export default function PrivacyPage() {
           The Service uses essential technologies required for functionality and may use limited
           analytics and affiliate attribution. Users can manage these settings through browser controls.
         </p>
+        <p>
+          The Service does not permit hidden cookie stuffing, forced affiliate tagging, or automatic
+          monetization events that are not initiated by explicit user action.
+        </p>
 
         <h2>6. Third-Party Services and Links</h2>
         <p>
           The Service may include third-party content, affiliate links, or external destinations.
           Third-party websites and services operate under their own terms and privacy notices.
+        </p>
+        <p>
+          Where monetized links are presented, the promotional nature is disclosed to users through
+          visible labels and policy notices.
         </p>
 
         <h2>7. Data Retention</h2>

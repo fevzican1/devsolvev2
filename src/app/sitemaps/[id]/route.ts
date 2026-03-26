@@ -35,6 +35,7 @@ export async function GET(
     entries.push(urlEntry(`${base}/legal/privacy/`, 'monthly', '0.3'));
     entries.push(urlEntry(`${base}/legal/terms/`, 'monthly', '0.3'));
     entries.push(urlEntry(`${base}/legal/cookies/`, 'monthly', '0.3'));
+    entries.push(urlEntry(`${base}/legal/publisher-ethics/`, 'monthly', '0.3'));
 
     for (const t of toolRegistry) {
       entries.push(urlEntry(`${base}/tools/${t.slug}/`, 'weekly', '0.8'));
