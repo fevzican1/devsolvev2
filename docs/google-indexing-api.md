@@ -49,3 +49,29 @@ curl -X POST "https://devsolvev2.com/api/google-indexing" \
   -H "x-indexing-key: YOUR_SHARED_KEY" \
   -d '{"url":"https://devsolvev2.com/guides/json-validation-formatting/","type":"URL_UPDATED"}'
 ```
+
+## Hub discovery bridge automation
+
+The project also includes an automated hub-link rotation flow that updates internal links on hub pages and pings Google for those hub URLs:
+
+- `GET/POST /api/hub-discovery-rotate`
+  - Refreshes dynamic link sets for hub pages (`/`, `/guides/`, `/tools/`, `/about/`, `/contact/` by default).
+  - Sends `URL_UPDATED` notification for each refreshed hub URL when credentials are configured.
+  - Scheduled hourly via Netlify Functions schedule.
+  - Manual trigger header: `x-hub-rotation-key: <HUB_DISCOVERY_ROTATION_KEY>` (falls back to `INDEXING_API_SHARED_KEY`).
+
+- `POST /api/hub-discovery-priority-sync`
+  - Accepts Search Console discovered URL batches and stores them in Netlify Blobs so rotation prioritizes these URLs first.
+  - Header: `x-hub-priority-key: <HUB_DISCOVERY_PRIORITY_KEY>` (falls back to `INDEXING_API_SHARED_KEY`).
+  - Body:
+
+```json
+{
+  "mode": "replace",
+  "chunkSize": 5000,
+  "urls": [
+    "https://devsolvev2.com/k/example-page-1/",
+    "https://devsolvev2.com/k/example-page-2/"
+  ]
+}
+```

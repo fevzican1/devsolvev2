@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { Building2, Target } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
 
 export const metadata: Metadata = buildMetadata({
   title: 'About Devsolveco - Empowering Developers Through Technical Scale',
@@ -70,6 +72,10 @@ export default function AboutPage() {
               </p>
             </CardContent>
           </Card>
+
+          <Suspense fallback={null}>
+            <HubDiscoveryLinks hubPath="/about/" heading="İlgili Teknik Rehberler" />
+          </Suspense>
         </div>
       </div>
     </div>

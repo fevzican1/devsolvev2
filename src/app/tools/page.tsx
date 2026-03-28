@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { Wrench, Shield } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toolRegistry, type ToolDefinition } from '@/tools/registry';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
 
 export const metadata: Metadata = buildMetadata({
   title: 'Developer Tools',
@@ -82,6 +84,10 @@ export default function ToolsPage() {
           </section>
         );
       })}
+
+      <Suspense fallback={null}>
+        <HubDiscoveryLinks hubPath="/tools/" heading="İlgili Teknik Rehberler" />
+      </Suspense>
     </div>
   );
 }

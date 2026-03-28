@@ -1,4 +1,8 @@
-import { createSign } from 'node:crypto';
+import {
+  isAllowedUrl,
+  type IndexingType,
+  publishIndexingNotification,
+} from './_lib/google-indexing-client.mjs';
 
 declare const Netlify: {
   env: {
@@ -6,86 +10,9 @@ declare const Netlify: {
   };
 };
 
-const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
-const GOOGLE_INDEXING_ENDPOINT = 'https://indexing.googleapis.com/v3/urlNotifications:publish';
-const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/indexing';
-
 interface IndexingRequest {
   url?: string;
-  type?: 'URL_UPDATED' | 'URL_DELETED';
-}
-
-function b64url(value: string | Buffer): string {
-  const input = typeof value === 'string' ? Buffer.from(value) : value;
-  return input.toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-}
-
-function normalizePrivateKey(value: string): string {
-  return value.includes('\\n') ? value.replace(/\\n/g, '\n') : value;
-}
-
-function buildJwt(serviceAccountEmail: string, privateKey: string): string {
-  const now = Math.floor(Date.now() / 1000);
-  const header = {
-    alg: 'RS256',
-    typ: 'JWT',
-  };
-  const payload = {
-    iss: serviceAccountEmail,
-    scope: GOOGLE_SCOPE,
-    aud: GOOGLE_TOKEN_ENDPOINT,
-    iat: now,
-    exp: now + 3600,
-  };
-
-  const encodedHeader = b64url(JSON.stringify(header));
-  const encodedPayload = b64url(JSON.stringify(payload));
-  const signingInput = `${encodedHeader}.${encodedPayload}`;
-
-  const signer = createSign('RSA-SHA256');
-  signer.update(signingInput);
-  signer.end();
-
-  const signature = signer.sign(normalizePrivateKey(privateKey));
-  return `${signingInput}.${b64url(signature)}`;
-}
-
-async function getAccessToken(serviceAccountEmail: string, privateKey: string): Promise<string> {
-  const assertion = buildJwt(serviceAccountEmail, privateKey);
-  const body = new URLSearchParams({
-    grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-    assertion,
-  });
-
-  const response = await fetch(GOOGLE_TOKEN_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body,
-  });
-
-  if (!response.ok) {
-    throw new Error(`token_request_failed:${response.status}`);
-  }
-
-  const payload = (await response.json()) as { access_token?: string };
-
-  if (!payload.access_token) {
-    throw new Error('token_missing');
-  }
-
-  return payload.access_token;
-}
-
-function isAllowedUrl(url: string, siteUrl: string): boolean {
-  try {
-    const candidate = new URL(url);
-    const canonicalSite = new URL(siteUrl);
-    return candidate.protocol === 'https:' && candidate.hostname === canonicalSite.hostname;
-  } catch {
-    return false;
-  }
+  type?: IndexingType;
 }
 
 function json(status: number, payload: Record<string, unknown>): Response {
@@ -146,24 +73,13 @@ export default async (req: Request): Promise<Response> => {
   }
 
   try {
-    const accessToken = await getAccessToken(serviceAccountEmail, serviceAccountPrivateKey);
-    const response = await fetch(GOOGLE_INDEXING_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ url, type }),
+    const payload = await publishIndexingNotification({
+      serviceAccountEmail,
+      serviceAccountPrivateKey,
+      url,
+      type,
     });
 
-    if (!response.ok) {
-      return json(502, {
-        error: 'google_indexing_failed',
-        status: response.status,
-      });
-    }
-
-    const payload = await response.json();
     return json(200, {
       ok: true,
       url,
