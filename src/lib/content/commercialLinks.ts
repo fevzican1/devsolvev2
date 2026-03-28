@@ -42,7 +42,7 @@ export function linkifyCommercialTerms(text: string): string {
   for (const entry of commercialTerms) {
     const placeholder = `__commercial_link_${placeholders.length}__`;
     const href = escapeHtml(entry.href);
-    const anchor = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">${entry.term}</a>`;
+    const anchor = `<a href="${href}" target="_blank" rel="nofollow noopener noreferrer" class="text-primary hover:underline">${entry.term}</a>`;
     const regex = new RegExp(`\\b${escapeRegExp(entry.term)}\\b`, 'g');
     processed = processed.replace(regex, placeholder);
     placeholders.push(anchor);

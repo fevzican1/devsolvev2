@@ -9,7 +9,7 @@ interface HubDiscoveryLinksProps {
 
 export async function HubDiscoveryLinks({
   hubPath,
-  heading = 'İlgili Teknik Rehberler',
+  heading = 'Related Technical Guides',
 }: HubDiscoveryLinksProps) {
   const snapshot = await getOrRefreshHubLinks({
     hubPath,
@@ -24,7 +24,7 @@ export async function HubDiscoveryLinks({
     <section className="mt-12 rounded-2xl border bg-muted/20 p-6">
       <h2 className="text-2xl font-semibold tracking-tight">{heading}</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Bu sayfa düzenli olarak güncellenir. Aşağıdaki rehberler yeni teknik keşifler için seçilmiştir.
+        This section is refreshed regularly. The links below are selected to help continue technical exploration.
       </p>
       <ul className="mt-6 grid gap-3 md:grid-cols-2">
         {snapshot.links.map((link) => (

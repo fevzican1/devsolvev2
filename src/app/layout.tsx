@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Space_Grotesk, IBM_Plex_Mono } from 'next/font/google';
 import Script from 'next/script';
 import './globals.css';
@@ -19,6 +19,8 @@ const ibmPlexMono = IBM_Plex_Mono({
   weight: ['400', '500', '600'],
 });
 
+const googleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.siteUrl),
   title: {
@@ -26,6 +28,17 @@ export const metadata: Metadata = {
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
+  applicationName: siteConfig.name,
+  keywords: [
+    'developer tools',
+    'json formatter',
+    'jwt decoder',
+    'regex tester',
+    'base64',
+    'browser tools',
+    'privacy-first tools',
+  ],
+  category: 'technology',
   alternates: {
     canonical: '/',
   },
@@ -34,12 +47,18 @@ export const metadata: Metadata = {
     shortcut: '/favicon.svg',
     apple: '/favicon.svg',
   },
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   openGraph: {
     type: 'website',
     url: siteConfig.siteUrl,
     title: siteConfig.name,
     description: siteConfig.description,
     siteName: siteConfig.name,
+    locale: 'en_US',
     images: [
       {
         url: '/opengraph-image',
@@ -58,7 +77,43 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
   },
+  verification: googleSiteVerification
+    ? {
+        google: googleSiteVerification,
+      }
+    : undefined,
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#0f172a',
+};
+
+const websiteJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: siteConfig.name,
+  url: siteConfig.siteUrl,
+  inLanguage: 'en',
+};
+
+const organizationJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: siteConfig.name,
+  url: siteConfig.siteUrl,
+  sameAs: [
+    'https://www.netlify.com/',
+  ],
 };
 
 export default function RootLayout({
@@ -77,6 +132,12 @@ export default function RootLayout({
             <Footer />
           </div>
         </ThemeProvider>
+        <Script id="ld-website" type="application/ld+json" strategy="beforeInteractive">
+          {JSON.stringify(websiteJsonLd)}
+        </Script>
+        <Script id="ld-organization" type="application/ld+json" strategy="beforeInteractive">
+          {JSON.stringify(organizationJsonLd)}
+        </Script>
         <Script id="infolinks-config" strategy="afterInteractive">
           {`var infolinks_pid = 3444436; var infolinks_wsid = 0;`}
         </Script>

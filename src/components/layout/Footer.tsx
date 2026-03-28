@@ -16,7 +16,7 @@ const footerLinks = {
     { href: '/guides/hashing-integrity', label: 'Hashing Guide' },
   ],
   legal: [
-    { href: '/about', label: 'About Devsolveco' },
+    { href: '/about', label: 'About DevSolve' },
     { href: '/contact', label: 'Contact Us' },
     { href: '/legal/publisher-ethics', label: 'Publisher Ethics Policy' },
     { href: '/legal/privacy', label: 'Privacy Policy' },
@@ -26,6 +26,8 @@ const footerLinks = {
 };
 
 export function Footer() {
+  const currentYear = new Date().getFullYear();
+
   return (
     <footer className="border-t bg-muted/50">
       <div className="container mx-auto px-4 py-12">
@@ -114,7 +116,7 @@ export function Footer() {
             {monetizationConfig.disclosure.affiliateText}
           </p>
           <p className="text-xs text-muted-foreground text-center mt-3">
-            © 2024 Devsolveco - All Rights Reserved
+            © {currentYear} DevSolve - All Rights Reserved
           </p>
         </div>
       </div>
