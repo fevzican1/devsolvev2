@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { ArrowRight, Shield, Zap, Globe, Code2, FileText, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
 
 export const metadata: Metadata = buildMetadata({
   description:
@@ -201,6 +203,12 @@ export default function HomePage() {
           </a>
         </div>
       </section>
+
+      <div className="container mx-auto px-4 pb-14">
+        <Suspense fallback={null}>
+          <HubDiscoveryLinks hubPath="/" heading="Kesfetmeye Devam Edin" />
+        </Suspense>
+      </div>
     </div>
   );
 }

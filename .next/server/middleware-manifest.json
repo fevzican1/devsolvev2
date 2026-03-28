@@ -38,9 +38,9 @@
         }
       ],
       "environments": {
-        "previewModeId": "6de6ca2e6e2defad92990779e4dba67d",
-        "previewModeSigningKey": "c492c846a2daa1d0f472c96125bce25c5bb403866c9748fad9c4965f98e13340",
-        "previewModeEncryptionKey": "8abeec9074aae995f5694f82b1647b0cd2a2f374fbcd6f4d3f73f5e815c8736f"
+        "previewModeId": "355d9364f07247228b84e14294f368f3",
+        "previewModeSigningKey": "4d31752208eba138634cc576ce88a17e0cfe38db21692ba9478854ca7c84219e",
+        "previewModeEncryptionKey": "877fbf3017f3e4ef5a8a3a947ac6b4b8170e064cbf7ceae51ac693304c6e2f02"
       }
     },
     "/twitter-image/route": {
@@ -79,9 +79,9 @@
         }
       ],
       "environments": {
-        "previewModeId": "6de6ca2e6e2defad92990779e4dba67d",
-        "previewModeSigningKey": "c492c846a2daa1d0f472c96125bce25c5bb403866c9748fad9c4965f98e13340",
-        "previewModeEncryptionKey": "8abeec9074aae995f5694f82b1647b0cd2a2f374fbcd6f4d3f73f5e815c8736f"
+        "previewModeId": "355d9364f07247228b84e14294f368f3",
+        "previewModeSigningKey": "4d31752208eba138634cc576ce88a17e0cfe38db21692ba9478854ca7c84219e",
+        "previewModeEncryptionKey": "877fbf3017f3e4ef5a8a3a947ac6b4b8170e064cbf7ceae51ac693304c6e2f02"
       }
     }
   },

@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { FileText, BookOpen } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { guideRegistry } from '@/content/guides';
 import { getToolBySlug } from '@/tools/registry';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
 
 export const metadata: Metadata = buildMetadata({
   title: 'Developer Guides',
@@ -55,6 +57,10 @@ export default function GuidesPage() {
           );
         })}
       </div>
+
+      <Suspense fallback={null}>
+        <HubDiscoveryLinks hubPath="/guides/" heading="İlgili Teknik Rehberler" />
+      </Suspense>
     </div>
   );
 }

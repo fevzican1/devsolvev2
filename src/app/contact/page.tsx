@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { Mail, ShieldCheck, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { ContactForm } from '@/components/contact/ContactForm';
+import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
 
 export const metadata: Metadata = buildMetadata({
   title: 'Contact Us',
@@ -71,6 +73,10 @@ export default function ContactPage() {
             <ContactForm />
           </CardContent>
         </Card>
+
+        <Suspense fallback={null}>
+          <HubDiscoveryLinks hubPath="/contact/" heading="Kesfetmeye Devam Edin" />
+        </Suspense>
       </div>
     </div>
   );
