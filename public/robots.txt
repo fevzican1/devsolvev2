@@ -1,5 +1,8 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /.netlify/
 
 Sitemap: https://devsolvev2.com/sitemap.xml
 Sitemap: https://devsolvev2.com/sitemaps/0
+Host: devsolvev2.com

@@ -192,21 +192,22 @@ export default function HomePage() {
       </section>
 
       <section className="py-6 border-t">
-        <div className="container mx-auto px-4 text-center">
+        <div className="container mx-auto px-4 text-center space-y-2">
+          <p className="text-xs text-muted-foreground">Sponsored link disclosure</p>
           <a
             href="https://sovrn.co/wvnas9j"
             target="_blank"
-            rel="noopener noreferrer"
+            rel="sponsored nofollow noopener noreferrer"
             className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2"
           >
-            Gecici Baglanti
+            Visit partner offer (sponsored)
           </a>
         </div>
       </section>
 
       <div className="container mx-auto px-4 pb-14">
         <Suspense fallback={null}>
-          <HubDiscoveryLinks hubPath="/" heading="Kesfetmeye Devam Edin" />
+          <HubDiscoveryLinks hubPath="/" heading="Explore More" />
         </Suspense>
       </div>
     </div>

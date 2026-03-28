@@ -59,7 +59,7 @@ export default function GuidesPage() {
       </div>
 
       <Suspense fallback={null}>
-        <HubDiscoveryLinks hubPath="/guides/" heading="İlgili Teknik Rehberler" />
+        <HubDiscoveryLinks hubPath="/guides/" heading="Related Technical Guides" />
       </Suspense>
     </div>
   );

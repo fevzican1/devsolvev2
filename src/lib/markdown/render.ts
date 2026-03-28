@@ -22,7 +22,7 @@ marked.use({
         return text;
       }
       const titleAttr = title ? ` title="${title}"` : '';
-      const relAttr = href.startsWith('/') || href.startsWith('#') ? '' : ' rel="noopener noreferrer" target="_blank"';
+      const relAttr = href.startsWith('/') || href.startsWith('#') ? '' : ' rel="nofollow noopener noreferrer" target="_blank"';
       return `<a href="${href}"${titleAttr}${relAttr}>${text}</a>`;
     },
   },

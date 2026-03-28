@@ -10,7 +10,7 @@ const commercialPlatforms = [
   { name: 'GitHub', href: 'https://github.com/' },
 ];
 
-export const editorialTeamName = 'Devsolveco Editorial Team';
+export const editorialTeamName = 'DevSolve Editorial Team';
 export const editorialLastUpdated = 'March 19, 2026';
 
 export function EditorialByline() {
@@ -44,7 +44,7 @@ export function CommercialOpportunityLinks() {
           <a
             href={platform.href}
             target="_blank"
-            rel="noopener noreferrer"
+            rel="nofollow noopener noreferrer"
             className="text-primary hover:underline"
           >
             {platform.name}
