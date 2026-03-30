@@ -1,5 +1,5 @@
 Forbidden Terms Scan Report
-Generated: 2026-03-17T13:03:36.255Z
+Generated: 2026-03-30T20:33:03.367Z
 
 Status: No terms configured
 

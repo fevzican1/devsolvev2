@@ -1,14 +1,8 @@
+import { commercialPlatforms } from '@/config/monetization';
+
 interface EditorialIntroProps {
   toolName: string;
 }
-
-const commercialPlatforms = [
-  { name: 'Cloudflare', href: 'https://www.cloudflare.com/' },
-  { name: 'AWS', href: 'https://aws.amazon.com/' },
-  { name: 'DigitalOcean', href: 'https://www.digitalocean.com/' },
-  { name: 'MongoDB', href: 'https://www.mongodb.com/' },
-  { name: 'GitHub', href: 'https://github.com/' },
-];
 
 export const editorialTeamName = 'DevSolve Editorial Team';
 export const editorialLastUpdated = 'March 19, 2026';

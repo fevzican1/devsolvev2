@@ -9,6 +9,7 @@ import { toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
+import { platformExternalUrls } from '@/config/monetization';
 
 export const metadata: Metadata = buildMetadata({
   description:
@@ -195,7 +196,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4 text-center space-y-2">
           <p className="text-xs text-muted-foreground">Sponsored link disclosure</p>
           <a
-            href="https://sovrn.co/wvnas9j"
+            href={platformExternalUrls.sponsoredOffer}
             target="_blank"
             rel="sponsored nofollow noopener noreferrer"
             className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2"

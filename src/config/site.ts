@@ -25,4 +25,8 @@ export const siteConfig = {
   },
 } as const;
 
+export const externalUrls = {
+  schemaOrg: 'https://schema.org',
+} as const;
+
 export type SiteConfig = typeof siteConfig;
