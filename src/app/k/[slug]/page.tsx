@@ -9,7 +9,7 @@ import { getProgrammaticPageBySlug, getPageByIndex } from '@/data/programmatic';
 import { getToolBySlug, toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
 import { calculateQualityScore, shouldIndex } from '@/lib/quality/scoring';
-import { siteConfig } from '@/config/site';
+import { siteConfig, externalUrls } from '@/config/site';
 import { monetizationConfig } from '@/config/monetization';
 import { RecommendedSolutions } from '@/components/monetization/RecommendedSolutions';
 import { ComputedExample } from '@/components/programmatic/ComputedExample';
@@ -96,7 +96,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
     .slice(0, 2);
 
   const faqJsonLd = {
-    '@context': 'https://schema.org',
+    '@context': externalUrls.schemaOrg,
     '@type': 'FAQPage',
     mainEntity: page.faq.map((item) => ({
       '@type': 'Question',

@@ -83,6 +83,16 @@ export interface MonetizationConfig {
   opsFlags: OpsFlags;
 }
 
+export interface NamedExternalLink {
+  name: string;
+  href: string;
+}
+
+export interface CommercialTermLink {
+  term: string;
+  href: string;
+}
+
 /**
  * ============================================================================
  * CEO: EDIT THE VALUES BELOW
@@ -176,3 +186,34 @@ export function getOffersForCluster(clusterKey: string): OfferCatalogItem[] {
     offer => offer.relevantClusters.includes(clusterKey)
   );
 }
+
+export const platformExternalUrls = {
+  netlify: 'https://www.netlify.com/',
+  infolinksScript: 'https://resources.infolinks.com/js/infolinks_main.js',
+  sponsoredOffer: 'https://sovrn.co/wvnas9j',
+} as const;
+
+export const commercialPlatforms: NamedExternalLink[] = [
+  { name: 'Cloudflare', href: 'https://www.cloudflare.com/' },
+  { name: 'AWS', href: 'https://aws.amazon.com/' },
+  { name: 'DigitalOcean', href: 'https://www.digitalocean.com/' },
+  { name: 'MongoDB', href: 'https://www.mongodb.com/' },
+  { name: 'GitHub', href: 'https://github.com/' },
+];
+
+export const commercialTermLinks: CommercialTermLink[] = [
+  { term: 'AWS EventBridge', href: 'https://aws.amazon.com/eventbridge/' },
+  { term: 'Amazon Web Services', href: 'https://aws.amazon.com/' },
+  { term: 'GitHub Actions', href: 'https://github.com/features/actions' },
+  { term: 'GitLab CI', href: 'https://about.gitlab.com/stages-devops-lifecycle/continuous-integration/' },
+  { term: 'Cloud Scheduler', href: 'https://cloud.google.com/scheduler' },
+  { term: 'DigitalOcean', href: 'https://www.digitalocean.com/' },
+  { term: 'Cloudflare', href: 'https://www.cloudflare.com/' },
+  { term: 'MongoDB', href: 'https://www.mongodb.com/' },
+  { term: 'Postman', href: 'https://www.postman.com/' },
+  { term: 'Insomnia', href: 'https://insomnia.rest/' },
+  { term: 'GitHub', href: 'https://github.com/' },
+  { term: 'Vercel', href: 'https://vercel.com/' },
+  { term: 'Netlify', href: 'https://www.netlify.com/' },
+  { term: 'AWS', href: 'https://aws.amazon.com/' },
+];

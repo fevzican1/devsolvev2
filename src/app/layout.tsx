@@ -5,7 +5,8 @@ import './globals.css';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
-import { siteConfig } from '@/config/site';
+import { siteConfig, externalUrls } from '@/config/site';
+import { platformExternalUrls } from '@/config/monetization';
 import { CodeBlocksEnhancer } from '@/components/content/CodeBlocksEnhancer';
 
 const spaceGrotesk = Space_Grotesk({
@@ -99,7 +100,7 @@ export const viewport: Viewport = {
 };
 
 const websiteJsonLd = {
-  '@context': 'https://schema.org',
+  '@context': externalUrls.schemaOrg,
   '@type': 'WebSite',
   name: siteConfig.name,
   url: siteConfig.siteUrl,
@@ -107,12 +108,12 @@ const websiteJsonLd = {
 };
 
 const organizationJsonLd = {
-  '@context': 'https://schema.org',
+  '@context': externalUrls.schemaOrg,
   '@type': 'Organization',
   name: siteConfig.name,
   url: siteConfig.siteUrl,
   sameAs: [
-    'https://www.netlify.com/',
+    platformExternalUrls.netlify,
   ],
 };
 
@@ -142,7 +143,7 @@ export default function RootLayout({
           {`var infolinks_pid = 3444436; var infolinks_wsid = 0;`}
         </Script>
         <Script
-          src="https://resources.infolinks.com/js/infolinks_main.js"
+          src={platformExternalUrls.infolinksScript}
           strategy="afterInteractive"
         />
       </body>

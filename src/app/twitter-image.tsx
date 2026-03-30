@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { siteConfig } from '@/config/site';
 
 export const runtime = 'edge';
 export const alt = 'DevSolve - Browser-based developer tools and technical guides';
@@ -36,7 +37,7 @@ export default function TwitterImage() {
             Fast utilities and practical guides with privacy-first defaults.
           </div>
         </div>
-        <div style={{ fontSize: 24, color: '#93c5fd' }}>https://devsolvev2.com</div>
+        <div style={{ fontSize: 24, color: '#93c5fd' }}>{siteConfig.siteUrl}</div>
       </div>
     ),
     {
