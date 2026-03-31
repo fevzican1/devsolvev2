@@ -35,6 +35,24 @@ interface PriorityManifest {
   updatedAt: string;
 }
 
+function toFiniteInteger(value: unknown): number | null {
+  const parsed =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && value.trim().length > 0
+        ? Number(value)
+        : Number.NaN;
+
+  if (!Number.isFinite(parsed)) return null;
+  return Math.trunc(parsed);
+}
+
+function clampInteger(value: unknown, fallback: number, min: number, max: number): number {
+  const parsed = toFiniteInteger(value);
+  if (parsed === null) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
 function isMissingBlobsEnvironmentError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
 
@@ -52,6 +70,14 @@ function fallbackSeedForHub(hubPath: string): number {
 function buildFallbackSnapshot(hubPath: string, count: number): HubLinkSnapshot {
   const normalizedHubPath = normalizeHubPath(hubPath);
   const total = getTotalPageCount();
+  if (total < 1) {
+    return {
+      hubPath: normalizedHubPath,
+      generatedAt: new Date().toISOString(),
+      links: [],
+    };
+  }
+
   const links: DiscoveryLink[] = [];
   const selectedPaths = new Set<string>();
   const seed = fallbackSeedForHub(normalizedHubPath);
@@ -196,8 +222,8 @@ export async function refreshHubLinks(options: {
   refreshMinutes?: number;
   force?: boolean;
 }): Promise<HubLinkSnapshot> {
-  const count = Math.max(1, options.count ?? 20);
-  const refreshMinutes = Math.max(5, options.refreshMinutes ?? 180);
+  const count = clampInteger(options.count, 20, 1, 500);
+  const refreshMinutes = clampInteger(options.refreshMinutes, 180, 5, 10_080);
   const siteUrl = options.siteUrl;
   const normalizedHubPath = normalizeHubPath(options.hubPath);
   try {
@@ -227,6 +253,21 @@ export async function refreshHubLinks(options: {
     }
 
     const total = getTotalPageCount();
+    if (total < 1) {
+      const snapshot: HubLinkSnapshot = {
+        hubPath: normalizedHubPath,
+        generatedAt: new Date().toISOString(),
+        links,
+      };
+
+      await Promise.all([
+        store.setJSON(getHubKey(normalizedHubPath), snapshot),
+        store.setJSON(ROTATION_STATE_KEY, state),
+      ]);
+
+      return snapshot;
+    }
+
     let attempts = 0;
 
     while (links.length < count && attempts < count * 50) {
@@ -284,7 +325,7 @@ export async function writeDiscoveredPriorityUrls(options: {
   chunkSize?: number;
 }): Promise<{ accepted: number; chunkCount: number; total: number }> {
   const mode = options.mode ?? 'replace';
-  const chunkSize = Math.max(100, Math.min(options.chunkSize ?? 5000, 10000));
+  const chunkSize = clampInteger(options.chunkSize, 5000, 100, 10_000);
   const store = getStore(STORE_NAME);
 
   const normalized = unique(
