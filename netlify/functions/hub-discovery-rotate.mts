@@ -45,6 +45,13 @@ function parseHubPaths(raw: string | undefined): string[] {
   return paths.length > 0 ? paths : [...DEFAULT_HUB_PATHS];
 }
 
+function parseFiniteInt(raw: string | undefined, fallback: number, min: number, max: number): number {
+  const parsed = raw ? Number(raw) : Number.NaN;
+  if (!Number.isFinite(parsed)) return fallback;
+  const int = Math.trunc(parsed);
+  return Math.min(max, Math.max(min, int));
+}
+
 function pingIsDue(lastPingAt: string | undefined, minIntervalMinutes: number): boolean {
   if (!lastPingAt) return true;
   const lastMs = Date.parse(lastPingAt);
@@ -69,9 +76,9 @@ export default async (req: Request): Promise<Response> => {
 
   const siteUrl = Netlify.env.get('SITE_URL') || Netlify.env.get('URL') || 'https://devsolvev2.com';
   const hubPaths = parseHubPaths(Netlify.env.get('HUB_DISCOVERY_HUB_PATHS'));
-  const linksPerHub = Math.max(1, Number(Netlify.env.get('HUB_DISCOVERY_LINKS_PER_HUB') || '20'));
-  const refreshMinutes = Math.max(5, Number(Netlify.env.get('HUB_DISCOVERY_REFRESH_MINUTES') || '180'));
-  const minPingMinutes = Math.max(10, Number(Netlify.env.get('HUB_DISCOVERY_MIN_PING_MINUTES') || '180'));
+  const linksPerHub = parseFiniteInt(Netlify.env.get('HUB_DISCOVERY_LINKS_PER_HUB'), 20, 1, 500);
+  const refreshMinutes = parseFiniteInt(Netlify.env.get('HUB_DISCOVERY_REFRESH_MINUTES'), 180, 5, 10_080);
+  const minPingMinutes = parseFiniteInt(Netlify.env.get('HUB_DISCOVERY_MIN_PING_MINUTES'), 180, 10, 10_080);
 
   const serviceAccountEmail = Netlify.env.get('GOOGLE_SERVICE_ACCOUNT_EMAIL');
   const serviceAccountPrivateKey = Netlify.env.get('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY');
