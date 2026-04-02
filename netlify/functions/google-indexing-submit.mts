@@ -44,10 +44,10 @@ export default async (req: Request): Promise<Response> => {
   const serviceAccountPrivateKey = Netlify.env.get('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY');
   const siteUrl = Netlify.env.get('SITE_URL') || Netlify.env.get('URL') || 'https://devsolvev2.com';
 
-  const missing = [] as string[];
-  if (!serviceAccountEmail) missing.push('GOOGLE_SERVICE_ACCOUNT_EMAIL');
-  if (!serviceAccountPrivateKey) missing.push('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY');
-  if (missing.length > 0) {
+  if (!serviceAccountEmail || !serviceAccountPrivateKey) {
+    const missing = [] as string[];
+    if (!serviceAccountEmail) missing.push('GOOGLE_SERVICE_ACCOUNT_EMAIL');
+    if (!serviceAccountPrivateKey) missing.push('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY');
     return json(500, { error: 'server_not_configured', missing });
   }
 
