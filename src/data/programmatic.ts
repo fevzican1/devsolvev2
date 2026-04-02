@@ -1,5 +1,6 @@
 import { toolRegistry } from '@/tools/registry';
 import { hashString } from '@/lib/utils';
+import { siteConfig } from '@/config/site';
 
 /* Mulberry32-based deterministic shuffle — much better distribution than modular arithmetic */
 function seededShuffle<T>(arr: T[], seed: number): T[] {
@@ -212,7 +213,24 @@ const TASKS_COUNT = tasks.length;                // 12
 const MODIFIERS_COUNT = modifierPatterns.length; // 64
 const PER_PAIR = AUDIENCES_COUNT * TASKS_COUNT * MODIFIERS_COUNT; // 11520
 const TOTAL_POSSIBLE = toolIntentPairs.length * PER_PAIR;          // 348 × 11520 = 4008960
-const TARGET_TOTAL = Math.min(4_000_000, TOTAL_POSSIBLE);
+const MIN_PROGRAMMATIC_TOTAL = 1000;
+
+function parseEnvPositiveInteger(value: string | undefined): number | null {
+  if (!value) return null;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function clampProgrammaticTotal(value: number): number {
+  return Math.min(TOTAL_POSSIBLE, Math.max(MIN_PROGRAMMATIC_TOTAL, value));
+}
+
+const configuredDefaultTotal = clampProgrammaticTotal(siteConfig.programmatic.safeDefaultTotal);
+const envRequestedTotal = parseEnvPositiveInteger(
+  process.env.PROGRAMMATIC_PAGE_LIMIT ?? process.env.NEXT_PUBLIC_PROGRAMMATIC_PAGE_LIMIT,
+);
+const TARGET_TOTAL = clampProgrammaticTotal(envRequestedTotal ?? configuredDefaultTotal);
 
 /* ------------------------------------------------------------------ */
 /*  Slug builder                                                      */

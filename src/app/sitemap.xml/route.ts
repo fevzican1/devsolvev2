@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { siteConfig } from '@/config/site';
 import { getTotalPageCount } from '@/data/programmatic';
 
-const URLS_PER_SITEMAP = 40000;
+const URLS_PER_SITEMAP = 10000;
 
 /* ISR: regenerate every 12 hours. Cached so Google bot never times out. */
 export const revalidate = 43200;
@@ -32,7 +32,11 @@ function formatProgrammaticSitemapName(partIndex: number): string {
 export async function GET() {
   const now = new Date();
   const base = siteConfig.siteUrl;
-  const programmaticChunks = Math.ceil(getTotalPageCount() / URLS_PER_SITEMAP);
+  const programmaticWindow = Math.min(
+    getTotalPageCount(),
+    siteConfig.programmaticQuality.maxSitemapUrls,
+  );
+  const programmaticChunks = Math.ceil(programmaticWindow / URLS_PER_SITEMAP);
 
   const coreLastmod = safeLastModifiedAt(
     [

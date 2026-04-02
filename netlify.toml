@@ -8,6 +8,11 @@
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
     X-XSS-Protection = "0"
 
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow, noarchive"
+
 [build]
   command = "npm run build"
   publish = ".next"
