@@ -4,6 +4,7 @@ import { hashString } from '@/lib/utils';
 export interface QualityScore {
   slug: string;
   score: number;
+  wordCount: number;
   breakdown: {
     uniqueness: number;
     usefulness: number;
@@ -12,6 +13,27 @@ export interface QualityScore {
     footprint: number;
   };
   issues: string[];
+}
+
+export function estimateProgrammaticWordCount(page: ProgrammaticPage): number {
+  const corpus = [
+    page.title,
+    page.description,
+    page.h1,
+    page.intro,
+    ...page.steps,
+    ...page.pitfalls,
+    ...page.proTips,
+    ...page.technicalAnalysis,
+    ...page.expertTips,
+    ...page.faq.map((item) => `${item.question} ${item.answer}`),
+    ...page.comparison.flatMap((row) => [row.item, row.pros, row.cons]),
+  ].join(' ');
+
+  return corpus
+    .replace(/<[^>]+>/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean).length;
 }
 
 export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
@@ -27,7 +49,7 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
     uniquenessFactors.slugLength +
     uniquenessFactors.keywordCount +
     uniquenessFactors.stepsVariation +
-    uniquenessFactors.introVariation
+    uniquenessFactors.introVariation,
   );
 
   const usefulnessFactors = {
@@ -37,18 +59,26 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
     hasProTips: page.proTips && page.proTips.length >= 3 ? 8 : page.proTips && page.proTips.length >= 2 ? 5 : 0,
     hasFAQ: page.faq && page.faq.length >= 3 ? 5 : page.faq && page.faq.length >= 2 ? 3 : 0,
   };
-  const usefulness = usefulnessFactors.hasSteps + usefulnessFactors.hasPitfalls +
-    usefulnessFactors.hasComparison + usefulnessFactors.hasProTips + usefulnessFactors.hasFAQ;
+  const usefulness =
+    usefulnessFactors.hasSteps +
+    usefulnessFactors.hasPitfalls +
+    usefulnessFactors.hasComparison +
+    usefulnessFactors.hasProTips +
+    usefulnessFactors.hasFAQ;
+
+  const wordCount = estimateProgrammaticWordCount(page);
 
   const depthFactors = {
     introLength: Math.min(page.intro.length / 150, 1) * 8,
     descriptionLength: Math.min(page.description.length / 120, 1) * 7,
     contentVariety: 10,
+    contentLength: Math.min(wordCount / 500, 1) * 10,
   };
   const depth = Math.round(
     depthFactors.introLength +
     depthFactors.descriptionLength +
-    depthFactors.contentVariety
+    depthFactors.contentVariety +
+    depthFactors.contentLength,
   );
 
   const footprintFactors = {
@@ -77,10 +107,14 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
   if (page.slug.length > 160) {
     issues.push('Slug is overly long or complex');
   }
+  if (wordCount < 350) {
+    issues.push('Estimated content length is below the 350-word indexability floor');
+  }
 
   return {
     slug: page.slug,
     score: totalScore,
+    wordCount,
     breakdown: {
       uniqueness,
       usefulness,
@@ -92,10 +126,12 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
   };
 }
 
-export function shouldIndex(score: number, minScore: number): boolean {
+export function shouldIndex(score: number, minScore: number, wordCount?: number): boolean {
+  if (typeof wordCount === 'number' && wordCount < 350) return false;
   return score >= minScore;
 }
 
-export function shouldIncludeInSitemap(score: number, minScore: number): boolean {
+export function shouldIncludeInSitemap(score: number, minScore: number, wordCount?: number): boolean {
+  if (typeof wordCount === 'number' && wordCount < 350) return false;
   return score >= minScore;
 }

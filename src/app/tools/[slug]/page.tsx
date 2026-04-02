@@ -17,6 +17,7 @@ import {
   OriginalValueCallouts,
 } from '@/components/content/EditorialIdentity';
 import { buildToolPageContent } from '@/lib/seo/toolPageContent';
+import { externalUrls } from '@/config/site';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -51,12 +52,44 @@ export default async function ToolPage({ params }: PageProps) {
   const relatedTools = getRelatedTools(slug);
   const relatedGuides = getGuidesForTool(slug);
   const dynamicContent = buildToolPageContent(tool);
+  const softwareApplicationJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'SoftwareApplication',
+    name: tool.name,
+    applicationCategory: 'DeveloperApplication',
+    operatingSystem: 'Web Browser',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+    },
+  };
+  const howToJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'HowTo',
+    name: `How to use ${tool.name}`,
+    description: tool.description,
+    step: dynamicContent.howTo.map((step, index) => ({
+      '@type': 'HowToStep',
+      position: index + 1,
+      name: `Step ${index + 1}`,
+      text: step,
+    })),
+  };
 
   return (
     <div className="container mx-auto px-4 py-12">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(dynamicContent.faqJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(howToJsonLd) }}
       />
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">

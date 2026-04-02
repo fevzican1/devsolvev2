@@ -8,10 +8,33 @@ type MetadataInput = {
   noindex?: boolean;
 };
 
+const TURKISH_CHAR_MAP: Record<string, string> = {
+  'ç': 'c',
+  'ğ': 'g',
+  'ı': 'i',
+  'i': 'i',
+  'ö': 'o',
+  'ş': 's',
+  'ü': 'u',
+  'Ç': 'c',
+  'Ğ': 'g',
+  'İ': 'i',
+  'I': 'i',
+  'Ö': 'o',
+  'Ş': 's',
+  'Ü': 'u',
+};
+
+function transliterateTurkish(value: string): string {
+  return value.replace(/[çğıiöşüÇĞİIÖŞÜ]/g, (char) => TURKISH_CHAR_MAP[char] ?? char);
+}
+
 function normalizePath(path = '/'): string {
-  const withLeadingSlash = path.startsWith('/') ? path : `/${path}`;
+  const rawPath = path.split('?')[0]?.split('#')[0] ?? '/';
+  const withLeadingSlash = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
   const singleSlashes = withLeadingSlash.replace(/\/{2,}/g, '/');
-  const lowerCased = singleSlashes.toLowerCase();
+  const transliterated = transliterateTurkish(singleSlashes);
+  const lowerCased = transliterated.toLowerCase();
 
   if (lowerCased === '/') return '/';
   return lowerCased.endsWith('/') ? lowerCased.slice(0, -1) : lowerCased;
