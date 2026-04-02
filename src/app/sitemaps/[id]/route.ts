@@ -8,7 +8,7 @@ import { getTotalPageCount, getPageByIndex } from '@/data/programmatic';
 import { calculateQualityScore, shouldIncludeInSitemap, shouldIndex } from '@/lib/quality/scoring';
 import { hashString } from '@/lib/utils';
 
-const URLS_PER_SITEMAP = 40000;
+const URLS_PER_SITEMAP = 10000;
 
 /* ISR: regenerate every 24 hours, but never at build time */
 export const revalidate = 86400;
@@ -197,7 +197,10 @@ export async function GET(
     }
   } else {
     const partIndex = parsed.partIndex ?? 1;
-    const total = getTotalPageCount();
+    const total = Math.min(
+      getTotalPageCount(),
+      siteConfig.programmaticQuality.maxSitemapUrls,
+    );
     const start = (partIndex - 1) * URLS_PER_SITEMAP;
     if (start >= total) {
       return new NextResponse('Not Found', { status: 404 });

@@ -31,6 +31,17 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
+function isProgrammaticPageIndexable(slug: string): boolean {
+  const candidate = getProgrammaticPageBySlug(slug);
+  if (!candidate) return false;
+  const quality = calculateQualityScore(candidate);
+  return shouldIndex(
+    quality.score,
+    siteConfig.programmaticQuality.minIndexScore,
+    quality.wordCount,
+  );
+}
+
 function getProgrammaticDiscoveryLinks(currentSlug: string, clusterKey: string, count = 12) {
   const total = getTotalPageCount();
   if (total < 2) return [];
@@ -82,9 +93,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const page = getProgrammaticPageBySlug(slug);
   if (!page) return buildMetadata({ title: 'Not Found', noindex: true });
-
-  const score = calculateQualityScore(page);
-  const noindex = !shouldIndex(score.score, siteConfig.programmaticQuality.minIndexScore, score.wordCount);
+  const noindex = !isProgrammaticPageIndexable(slug);
 
   return buildMetadata({
     title: page.title,
@@ -98,7 +107,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
   const { slug } = await params;
   const page = getProgrammaticPageBySlug(slug);
 
-  if (!page) {
+  if (!page || !isProgrammaticPageIndexable(slug)) {
     notFound();
   }
 

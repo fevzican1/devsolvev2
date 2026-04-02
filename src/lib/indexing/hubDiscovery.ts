@@ -1,5 +1,7 @@
 import { getStore } from '@netlify/blobs';
-import { getSlugByIndex, getTotalPageCount } from '../../data/programmatic';
+import { getProgrammaticPageBySlug, getSlugByIndex, getTotalPageCount } from '../../data/programmatic';
+import { calculateQualityScore, shouldIndex } from '../quality/scoring';
+import { siteConfig } from '../../config/site';
 
 const STORE_NAME = 'hub-discovery-links';
 const HUB_LINK_KEY_PREFIX = 'hub-links:';
@@ -8,6 +10,7 @@ const PRIORITY_MANIFEST_KEY = 'priority:discovered:manifest';
 const PRIORITY_CHUNK_KEY_PREFIX = 'priority:discovered:chunk:';
 
 const ROTATION_STEP = 7919;
+const indexableSlugCache = new Map<string, boolean>();
 
 export const DEFAULT_HUB_PATHS = ['/', '/guides', '/tools', '/about', '/contact'] as const;
 
@@ -92,6 +95,7 @@ function buildFallbackSnapshot(hubPath: string, count: number): HubLinkSnapshot 
 
     const path = `/k/${slug}`;
     if (path === normalizedHubPath || selectedPaths.has(path)) continue;
+    if (!isIndexableProgrammaticPath(path)) continue;
 
     selectedPaths.add(path);
     links.push({
@@ -168,6 +172,35 @@ function programmaticLabelFromPath(path: string): string {
   return words.length > 0 ? words.join(' ') : 'Teknik Rehber';
 }
 
+function slugFromProgrammaticPath(path: string): string | null {
+  if (!path.startsWith('/k/')) return null;
+  const slug = path.replace(/^\/k\//, '').replace(/\/$/, '');
+  return slug.length > 0 ? slug : null;
+}
+
+function isIndexableProgrammaticPath(path: string): boolean {
+  const slug = slugFromProgrammaticPath(path);
+  if (!slug) return false;
+
+  const cached = indexableSlugCache.get(slug);
+  if (typeof cached === 'boolean') return cached;
+
+  const page = getProgrammaticPageBySlug(slug);
+  if (!page) {
+    indexableSlugCache.set(slug, false);
+    return false;
+  }
+
+  const quality = calculateQualityScore(page);
+  const indexable = shouldIndex(
+    quality.score,
+    siteConfig.programmaticQuality.minIndexScore,
+    quality.wordCount,
+  );
+  indexableSlugCache.set(slug, indexable);
+  return indexable;
+}
+
 async function getRotationState(store: ReturnType<typeof getStore>): Promise<RotationState> {
   const existing = await store.get(ROTATION_STATE_KEY, { type: 'json' }) as RotationState | null;
   return {
@@ -194,7 +227,7 @@ async function getPriorityCandidates(
     if (Array.isArray(chunk)) {
       for (const item of chunk) {
         const normalized = sanitizeProgrammaticPath(item, siteUrl);
-        if (normalized) results.push(normalized);
+        if (normalized && isIndexableProgrammaticPath(normalized)) results.push(normalized);
         if (results.length >= count) break;
       }
     }
@@ -245,6 +278,7 @@ export async function refreshHubLinks(options: {
     for (const path of priorityCandidates) {
       if (links.length >= count) break;
       if (path === normalizedHubPath || selectedPaths.has(path)) continue;
+      if (!isIndexableProgrammaticPath(path)) continue;
       selectedPaths.add(path);
       links.push({
         href: path,
@@ -279,6 +313,7 @@ export async function refreshHubLinks(options: {
 
       const path = `/k/${slug}`;
       if (path === normalizedHubPath || selectedPaths.has(path)) continue;
+      if (!isIndexableProgrammaticPath(path)) continue;
 
       selectedPaths.add(path);
       links.push({
@@ -334,6 +369,7 @@ export async function writeDiscoveredPriorityUrls(options: {
       .map((url) => sanitizeProgrammaticPath(url, options.siteUrl))
       .filter((v): v is string => Boolean(v)),
   );
+  const indexable = normalized.filter((path) => isIndexableProgrammaticPath(path));
 
   if (mode === 'replace') {
     const listing = await store.list({ prefix: PRIORITY_CHUNK_KEY_PREFIX });
@@ -344,8 +380,8 @@ export async function writeDiscoveredPriorityUrls(options: {
   const startIndex = mode === 'append' && currentManifest ? currentManifest.chunkCount : 0;
   const chunks: string[][] = [];
 
-  for (let i = 0; i < normalized.length; i += chunkSize) {
-    chunks.push(normalized.slice(i, i + chunkSize));
+  for (let i = 0; i < indexable.length; i += chunkSize) {
+    chunks.push(indexable.slice(i, i + chunkSize));
   }
 
   await Promise.all(
@@ -355,14 +391,14 @@ export async function writeDiscoveredPriorityUrls(options: {
   const newManifest: PriorityManifest = {
     chunkCount: startIndex + chunks.length,
     chunkSize,
-    total: mode === 'append' && currentManifest ? currentManifest.total + normalized.length : normalized.length,
+    total: mode === 'append' && currentManifest ? currentManifest.total + indexable.length : indexable.length,
     updatedAt: new Date().toISOString(),
   };
 
   await store.setJSON(PRIORITY_MANIFEST_KEY, newManifest);
 
   return {
-    accepted: normalized.length,
+    accepted: indexable.length,
     chunkCount: newManifest.chunkCount,
     total: newManifest.total,
   };
