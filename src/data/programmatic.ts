@@ -158,8 +158,8 @@ const tasks = [
   'migrate-legacy-system', 'prepare-deployment-artifact', 'document-api-endpoint',
 ];
 
-/* Content modifier patterns (8) – contextual variation for descriptions / intros */
-const modifierPatterns = [
+/* Content modifier patterns (64) – derived from execution style x delivery context */
+const modifierExecutionStyles = [
   'without-installing-cli-tools',
   'directly-in-your-browser',
   'with-step-by-step-instructions',
@@ -169,6 +169,21 @@ const modifierPatterns = [
   'during-code-review',
   'as-part-of-ci-cd-pipeline',
 ];
+
+const modifierDeliveryContexts = [
+  'for-time-sensitive-incidents',
+  'for-team-onboarding',
+  'for-audit-readiness',
+  'for-cross-region-teams',
+  'for-legacy-system-migrations',
+  'for-large-enterprise-workflows',
+  'for-api-contract-validation',
+  'for-weekly-ops-routines',
+];
+
+const modifierPatterns = modifierExecutionStyles.flatMap((style) =>
+  modifierDeliveryContexts.map((context) => `${style}-${context}`),
+);
 
 /* ------------------------------------------------------------------ */
 /*  Pre-compute tool×intent pairs for O(1) index lookup               */
@@ -192,12 +207,12 @@ for (const cluster of clusters) {
   }
 }
 
-const AUDIENCES_COUNT = audiences.length;       // 15
-const TASKS_COUNT = tasks.length;               // 12
-const MODIFIERS_COUNT = modifierPatterns.length; // 8
-const PER_PAIR = AUDIENCES_COUNT * TASKS_COUNT * MODIFIERS_COUNT; // 1440
-const TOTAL_POSSIBLE = toolIntentPairs.length * PER_PAIR;          // 348 × 1440 = 501120
-const TARGET_TOTAL = Math.min(500_000, TOTAL_POSSIBLE);
+const AUDIENCES_COUNT = audiences.length;        // 15
+const TASKS_COUNT = tasks.length;                // 12
+const MODIFIERS_COUNT = modifierPatterns.length; // 64
+const PER_PAIR = AUDIENCES_COUNT * TASKS_COUNT * MODIFIERS_COUNT; // 11520
+const TOTAL_POSSIBLE = toolIntentPairs.length * PER_PAIR;          // 348 × 11520 = 4008960
+const TARGET_TOTAL = Math.min(4_000_000, TOTAL_POSSIBLE);
 
 /* ------------------------------------------------------------------ */
 /*  Slug builder                                                      */

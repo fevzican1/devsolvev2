@@ -4,7 +4,7 @@ import { toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
 import { getTotalPageCount, getPageByIndex } from '@/data/programmatic';
 
-const URLS_PER_SITEMAP = 5000;
+const URLS_PER_SITEMAP = 40000;
 
 /* ISR: regenerate every 24 hours, but never at build time */
 export const revalidate = 86400;

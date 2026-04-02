@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { siteConfig } from '@/config/site';
 import { getTotalPageCount } from '@/data/programmatic';
 
-const URLS_PER_SITEMAP = 5000;
+const URLS_PER_SITEMAP = 40000;
 
 /* ISR: regenerate every 12 hours. Cached so Google bot never times out. */
 export const revalidate = 43200;

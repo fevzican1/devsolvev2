@@ -5,7 +5,7 @@ import { Shield, ArrowRight, Wrench, AlertTriangle, CheckCircle, Lightbulb, Help
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { getProgrammaticPageBySlug, getPageByIndex } from '@/data/programmatic';
+import { getProgrammaticPageBySlug, getPageByIndex, getTotalPageCount } from '@/data/programmatic';
 import { getToolBySlug, toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
 import { calculateQualityScore, shouldIndex } from '@/lib/quality/scoring';
@@ -31,33 +31,20 @@ interface PageProps {
 }
 
 export async function generateStaticParams() {
-  /* Pre-render 200 pages at build time, sampled evenly across all 10 clusters.
-     The remaining ~500k pages are rendered on-demand via ISR.
-     Cluster layout (348 pairs × 1440 per pair = 501120, capped at 500000):
-       json       (0–34559)      = 24 pairs × 1440
-       encoding   (34560–86399)  = 36 pairs × 1440
-       security   (86400–138239) = 36 pairs × 1440
-       text       (138240–190079)= 36 pairs × 1440
-       formatting (190080–241919)= 36 pairs × 1440
-       api        (241920–293759)= 36 pairs × 1440
-       data       (293760–345599)= 36 pairs × 1440
-       debugging  (345600–397439)= 36 pairs × 1440
-       automation (397440–449279)= 36 pairs × 1440
-       web        (449280–500000)= 36 pairs × 1440 (capped) */
-  const clusterStarts = [0, 34560, 86400, 138240, 190080, 241920, 293760, 345600, 397440, 449280];
-  const clusterSizes  = [34560, 51840, 51840, 51840, 51840, 51840, 51840, 51840, 51840, 50720];
+  /* Pre-render a small, evenly distributed sample and render the rest via ISR. */
   const totalPrerender = 200;
-  const perCluster = Math.floor(totalPrerender / clusterStarts.length); // 20
+  const totalPages = getTotalPageCount();
+  if (totalPages < 1) return [];
+  const step = Math.max(1, Math.floor(totalPages / totalPrerender));
 
+  const seen = new Set<string>();
   const params: { slug: string }[] = [];
-  for (let c = 0; c < clusterStarts.length; c++) {
-    const start = clusterStarts[c];
-    const size = clusterSizes[c];
-    const step = Math.max(1, Math.floor(size / perCluster));
-    for (let j = 0; j < perCluster; j++) {
-      const idx = start + j * step;
-      const page = getPageByIndex(idx);
-      if (page) params.push({ slug: page.slug });
+  for (let i = 0; i < totalPrerender; i++) {
+    const idx = Math.min(i * step, totalPages - 1);
+    const page = getPageByIndex(idx);
+    if (page && !seen.has(page.slug)) {
+      seen.add(page.slug);
+      params.push({ slug: page.slug });
     }
   }
   return params;
