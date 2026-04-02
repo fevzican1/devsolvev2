@@ -75,7 +75,7 @@ export default function ContactPage() {
         </Card>
 
         <Suspense fallback={null}>
-          <HubDiscoveryLinks hubPath="/contact/" heading="Keep Exploring" />
+          <HubDiscoveryLinks hubPath="/contact" heading="Keep Exploring" />
         </Suspense>
       </div>
     </div>

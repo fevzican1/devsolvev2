@@ -28,20 +28,20 @@ export async function GET(
   if (id === 0) {
     /* Core pages: static + tools + guides */
     entries.push(urlEntry(`${base}/`, 'weekly', '1.0'));
-    entries.push(urlEntry(`${base}/about/`, 'monthly', '0.6'));
-    entries.push(urlEntry(`${base}/contact/`, 'monthly', '0.7'));
-    entries.push(urlEntry(`${base}/tools/`, 'weekly', '0.9'));
-    entries.push(urlEntry(`${base}/guides/`, 'weekly', '0.9'));
-    entries.push(urlEntry(`${base}/legal/privacy/`, 'monthly', '0.3'));
-    entries.push(urlEntry(`${base}/legal/terms/`, 'monthly', '0.3'));
-    entries.push(urlEntry(`${base}/legal/cookies/`, 'monthly', '0.3'));
-    entries.push(urlEntry(`${base}/legal/publisher-ethics/`, 'monthly', '0.3'));
+    entries.push(urlEntry(`${base}/about`, 'monthly', '0.6'));
+    entries.push(urlEntry(`${base}/contact`, 'monthly', '0.7'));
+    entries.push(urlEntry(`${base}/tools`, 'weekly', '0.9'));
+    entries.push(urlEntry(`${base}/guides`, 'weekly', '0.9'));
+    entries.push(urlEntry(`${base}/legal/privacy`, 'monthly', '0.3'));
+    entries.push(urlEntry(`${base}/legal/terms`, 'monthly', '0.3'));
+    entries.push(urlEntry(`${base}/legal/cookies`, 'monthly', '0.3'));
+    entries.push(urlEntry(`${base}/legal/publisher-ethics`, 'monthly', '0.3'));
 
     for (const t of toolRegistry) {
-      entries.push(urlEntry(`${base}/tools/${t.slug}/`, 'weekly', '0.8'));
+      entries.push(urlEntry(`${base}/tools/${t.slug}`, 'weekly', '0.8'));
     }
     for (const g of guideRegistry) {
-      entries.push(urlEntry(`${base}/guides/${g.slug}/`, 'weekly', '0.8'));
+      entries.push(urlEntry(`${base}/guides/${g.slug}`, 'weekly', '0.8'));
     }
   } else {
     /* Programmatic page chunk */
@@ -55,7 +55,7 @@ export async function GET(
     for (let i = start; i < end; i++) {
       const page = getPageByIndex(i);
       if (page) {
-        entries.push(urlEntry(`${base}/k/${page.slug}/`, 'weekly', '0.5'));
+        entries.push(urlEntry(`${base}/k/${page.slug}`, 'weekly', '0.5'));
       }
     }
   }

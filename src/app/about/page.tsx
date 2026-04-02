@@ -70,7 +70,7 @@ export default function AboutPage() {
           </Card>
 
           <Suspense fallback={null}>
-            <HubDiscoveryLinks hubPath="/about/" heading="Related Technical Guides" />
+            <HubDiscoveryLinks hubPath="/about" heading="Related Technical Guides" />
           </Suspense>
         </div>
       </div>

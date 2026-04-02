@@ -9,7 +9,7 @@ const PRIORITY_CHUNK_KEY_PREFIX = 'priority:discovered:chunk:';
 
 const ROTATION_STEP = 7919;
 
-export const DEFAULT_HUB_PATHS = ['/', '/guides/', '/tools/', '/about/', '/contact/'] as const;
+export const DEFAULT_HUB_PATHS = ['/', '/guides', '/tools', '/about', '/contact'] as const;
 
 export interface DiscoveryLink {
   href: string;
@@ -90,7 +90,7 @@ function buildFallbackSnapshot(hubPath: string, count: number): HubLinkSnapshot 
     const slug = getSlugByIndex(index);
     if (!slug) continue;
 
-    const path = `/k/${slug}/`;
+    const path = `/k/${slug}`;
     if (path === normalizedHubPath || selectedPaths.has(path)) continue;
 
     selectedPaths.add(path);
@@ -111,8 +111,9 @@ function buildFallbackSnapshot(hubPath: string, count: number): HubLinkSnapshot 
 function normalizeHubPath(path: string): string {
   if (!path) return '/';
   const withLead = path.startsWith('/') ? path : `/${path}`;
-  if (withLead === '/') return '/';
-  return withLead.endsWith('/') ? withLead : `${withLead}/`;
+  const singleSlashes = withLead.replace(/\/{2,}/g, '/');
+  if (singleSlashes === '/') return '/';
+  return singleSlashes.endsWith('/') ? singleSlashes.slice(0, -1) : singleSlashes;
 }
 
 function getHubKey(hubPath: string): string {
@@ -276,7 +277,7 @@ export async function refreshHubLinks(options: {
       attempts += 1;
       if (!slug) continue;
 
-      const path = `/k/${slug}/`;
+      const path = `/k/${slug}`;
       if (path === normalizedHubPath || selectedPaths.has(path)) continue;
 
       selectedPaths.add(path);
