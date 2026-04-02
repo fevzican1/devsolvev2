@@ -15,6 +15,7 @@ import { RecommendedSolutions } from '@/components/monetization/RecommendedSolut
 import { ComputedExample } from '@/components/programmatic/ComputedExample';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { linkifyCommercialTerms } from '@/lib/content/commercialLinks';
+import { hashString } from '@/lib/utils';
 import {
   CommercialOpportunityLinks,
   EditorialByline,
@@ -28,6 +29,33 @@ export const dynamicParams = true;
 
 interface PageProps {
   params: Promise<{ slug: string }>;
+}
+
+function getProgrammaticDiscoveryLinks(currentSlug: string, clusterKey: string, count = 12) {
+  const total = getTotalPageCount();
+  if (total < 2) return [];
+
+  const seed = Math.abs(hashString(currentSlug));
+  const links: Array<{ slug: string; title: string }> = [];
+  const seen = new Set<string>();
+  const step = 7919;
+  const preferredClusterFloor = Math.floor(count * 0.7);
+  let attempts = 0;
+
+  while (links.length < count && attempts < count * 120) {
+    const idx = (seed + attempts * step) % total;
+    attempts += 1;
+
+    const candidate = getPageByIndex(idx);
+    if (!candidate || candidate.slug === currentSlug || seen.has(candidate.slug)) continue;
+
+    if (links.length < preferredClusterFloor && candidate.clusterKey !== clusterKey) continue;
+
+    seen.add(candidate.slug);
+    links.push({ slug: candidate.slug, title: candidate.title });
+  }
+
+  return links;
 }
 
 export async function generateStaticParams() {
@@ -56,7 +84,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!page) return buildMetadata({ title: 'Not Found', noindex: true });
 
   const score = calculateQualityScore(page);
-  const noindex = !shouldIndex(score.score, siteConfig.programmaticQuality.minIndexScore);
+  const noindex = !shouldIndex(score.score, siteConfig.programmaticQuality.minIndexScore, score.wordCount);
 
   return buildMetadata({
     title: page.title,
@@ -81,6 +109,16 @@ export default async function ProgrammaticPage({ params }: PageProps) {
   const relatedGuides = guideRegistry
     .filter(g => g.clusterKeys.includes(page.clusterKey))
     .slice(0, 2);
+  const semanticProgrammaticLinks = getProgrammaticDiscoveryLinks(page.slug, page.clusterKey, 12);
+  const popularTools = toolRegistry.slice(0, 6);
+  const categoryExplorationLinks = [
+    { href: '/tools', label: 'Developer tools directory' },
+    { href: '/guides', label: 'Developer guides hub' },
+    { href: '/about', label: 'About editorial standards' },
+    { href: '/contact', label: 'Contact the editorial team' },
+    { href: '/legal/privacy', label: 'Privacy policy' },
+    { href: '/legal/publisher-ethics', label: 'Publisher ethics policy' },
+  ];
 
   const faqJsonLd = {
     '@context': externalUrls.schemaOrg,
@@ -94,12 +132,44 @@ export default async function ProgrammaticPage({ params }: PageProps) {
       },
     })),
   };
+  const howToJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'HowTo',
+    name: page.h1,
+    description: page.description,
+    step: page.steps.map((step, index) => ({
+      '@type': 'HowToStep',
+      position: index + 1,
+      name: `Step ${index + 1}`,
+      text: step,
+    })),
+  };
+  const softwareApplicationJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'SoftwareApplication',
+    name: primaryTool?.name ?? 'Developer utility',
+    applicationCategory: 'DeveloperApplication',
+    operatingSystem: 'Web Browser',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+    },
+  };
 
   return (
     <div className="container mx-auto px-4 py-12">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(howToJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationJsonLd) }}
       />
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
@@ -159,11 +229,29 @@ export default async function ProgrammaticPage({ params }: PageProps) {
 
         <ComputedExample toolSlug={page.primaryTool} />
 
+        <Card className="mb-8 border-primary/25 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-lg">Neden Kullanmalisiniz?</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>
+              Bu sayfa, <strong>{primaryTool?.name ?? 'ilgili aracin'}</strong> ile{' '}
+              <strong>{page.intent.replace(/-/g, ' ')}</strong> gorevini gercek proje senaryolarinda
+              nasil yoneteceginizi adim adim aciklar.
+            </p>
+            <p>
+              Icerik teknik derinlik, hata noktasi analizi ve alternatif cozumleri bir arada sundugu
+              icin sadece trafik almak icin uretilmis yonlendirme sayfasi degil, karar alinabilir bir
+              nihai landing page olarak tasarlandi.
+            </p>
+          </CardContent>
+        </Card>
+
         <Card className="mb-8 border-warning/50 bg-warning/5">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-warning" />
-              Common Pitfalls to Avoid
+              Hata Giderme Rehberi
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -180,7 +268,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
 
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle className="text-lg">Comparison of Approaches</CardTitle>
+            <CardTitle className="text-lg">Alternatif Cozumler</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -238,7 +326,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <BookOpen className="h-5 w-5" />
-              Technical Analysis
+              Teknik Detaylar
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -310,6 +398,45 @@ export default async function ProgrammaticPage({ params }: PageProps) {
         <OriginalValueCallouts toolName={primaryTool?.name ?? 'this tool'} />
 
         <Separator className="my-8" />
+
+        <div className="grid gap-8 md:grid-cols-3 mb-8">
+          <div>
+            <h2 className="text-lg font-semibold mb-3">Benzer Araclar</h2>
+            <ul className="space-y-2 text-sm">
+              {semanticProgrammaticLinks.slice(0, 6).map((item) => (
+                <li key={item.slug}>
+                  <Link href={`/k/${item.slug}`} className="text-muted-foreground hover:text-foreground">
+                    {item.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold mb-3">En Cok Kullanilanlar</h2>
+            <ul className="space-y-2 text-sm">
+              {popularTools.map((tool) => (
+                <li key={tool.slug}>
+                  <Link href={`/tools/${tool.slug}`} className="text-muted-foreground hover:text-foreground">
+                    {tool.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold mb-3">Kategori Bazli Kesif</h2>
+            <ul className="space-y-2 text-sm">
+              {categoryExplorationLinks.map((item) => (
+                <li key={item.href}>
+                  <Link href={item.href} className="text-muted-foreground hover:text-foreground">
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
 
         <div className="grid md:grid-cols-2 gap-8">
           <div>
