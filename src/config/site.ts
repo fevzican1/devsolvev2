@@ -4,16 +4,16 @@ export const siteConfig = {
   siteUrl: 'https://devsolvev2.com',
 
   programmatic: {
-    targetTotal: 120000,
-    safeDefaultTotal: 120000,
-    rampSchedule: [5000, 15000, 30000, 60000, 90000, 120000] as const,
+    targetTotal: 4008960,
+    safeDefaultTotal: 4008960,
+    rampSchedule: [250000, 800000, 1600000, 2400000, 3200000, 4008960] as const,
     rampMode: 'manual' as const,
   },
 
   programmaticQuality: {
     minIndexScore: 82,
     minSitemapScore: 90,
-    maxSitemapUrls: 50000,
+    maxSitemapUrls: 4008960,
   },
 
   toolPackaging: {

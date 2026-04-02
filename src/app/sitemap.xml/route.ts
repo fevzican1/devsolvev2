@@ -32,10 +32,7 @@ function formatProgrammaticSitemapName(partIndex: number): string {
 export async function GET() {
   const now = new Date();
   const base = siteConfig.siteUrl;
-  const programmaticWindow = Math.min(
-    getTotalPageCount(),
-    siteConfig.programmaticQuality.maxSitemapUrls,
-  );
+  const programmaticWindow = getTotalPageCount();
   const programmaticChunks = Math.ceil(programmaticWindow / URLS_PER_SITEMAP);
 
   const coreLastmod = safeLastModifiedAt(

@@ -5,7 +5,6 @@ import { siteConfig } from '@/config/site';
 import { toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
 import { getTotalPageCount, getPageByIndex } from '@/data/programmatic';
-import { calculateQualityScore, shouldIncludeInSitemap, shouldIndex } from '@/lib/quality/scoring';
 import { hashString } from '@/lib/utils';
 
 const URLS_PER_SITEMAP = 10000;
@@ -197,10 +196,7 @@ export async function GET(
     }
   } else {
     const partIndex = parsed.partIndex ?? 1;
-    const total = Math.min(
-      getTotalPageCount(),
-      siteConfig.programmaticQuality.maxSitemapUrls,
-    );
+    const total = getTotalPageCount();
     const start = (partIndex - 1) * URLS_PER_SITEMAP;
     if (start >= total) {
       return new NextResponse('Not Found', { status: 404 });
@@ -210,16 +206,6 @@ export async function GET(
     for (let i = start; i < end; i++) {
       const page = getPageByIndex(i);
       if (!page) continue;
-
-      const quality = calculateQualityScore(page);
-      const indexable = shouldIndex(quality.score, siteConfig.programmaticQuality.minIndexScore, quality.wordCount);
-      const sitemapEligible = shouldIncludeInSitemap(
-        quality.score,
-        siteConfig.programmaticQuality.minSitemapScore,
-        quality.wordCount,
-      );
-
-      if (!indexable || !sitemapEligible) continue;
 
       const freshness = calculateFreshnessScore({
         lastmod: programmaticLastmod,

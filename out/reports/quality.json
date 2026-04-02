@@ -1,687 +1,710 @@
 {
-  "generated": "2026-03-31T17:41:08.213Z",
+  "generated": "2026-04-02T16:09:53.214Z",
   "thresholds": {
-    "minIndexScore": 78,
-    "minSitemapScore": 85
+    "minIndexScore": 82,
+    "minSitemapScore": 90,
+    "minWordCount": 400
   },
   "summary": {
-    "totalGenerated": 400,
-    "indexableCount": 238,
-    "sitemapIncludedCount": 149,
-    "noindexCount": 162,
-    "orphanCandidates": 14,
-    "highSimilarityWarnings": 0,
-    "lowUsefulnessWarnings": 162,
+    "totalGenerated": 4008960,
+    "indexableCount": 4008960,
+    "sitemapIncludedCount": 2320180,
+    "noindexCount": 0,
+    "belowWordFloor": 0,
+    "allPassedQualityGate": true,
+    "minObservedWordCount": 420,
     "clusterDistribution": [
       {
         "key": "json",
-        "count": 40
+        "count": 276480
       },
       {
         "key": "encoding",
-        "count": 40
+        "count": 414720
       },
       {
         "key": "security",
-        "count": 40
+        "count": 414720
       },
       {
         "key": "text",
-        "count": 40
+        "count": 414720
       },
       {
         "key": "formatting",
-        "count": 40
+        "count": 414720
       },
       {
         "key": "api",
-        "count": 40
+        "count": 414720
       },
       {
         "key": "data",
-        "count": 40
+        "count": 414720
       },
       {
         "key": "debugging",
-        "count": 40
+        "count": 414720
       },
       {
         "key": "automation",
-        "count": 40
+        "count": 414720
       },
       {
         "key": "web",
-        "count": 40
+        "count": 414720
       }
     ],
     "segmentCounts": {
-      "A": 149,
-      "B": 89,
-      "C": 162
+      "A": 2320180,
+      "B": 1688780,
+      "C": 0
     },
-    "rampLevelUsed": "config-driven",
-    "activeExportTotal": "ramp-controlled",
-    "excludedBySitemapThreshold": 89,
-    "excludedByIndexThreshold": 162
+    "rampLevelUsed": "full-capacity",
+    "activeExportTotal": 4008960,
+    "excludedBySitemapThreshold": 1688780,
+    "excludedByIndexThreshold": 0
   },
   "samplePages": [
     {
       "slug": "json-validate-json-backend-engineer-debug-production-issue-json-formatter-0",
       "clusterKey": "json",
-      "score": 77,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
+      "score": 94,
+      "wordCount": 529,
+      "segment": "A",
+      "issues": []
     },
     {
-      "slug": "json-format-json-backend-engineer-debug-production-issue-json-formatter-180",
+      "slug": "json-compare-json-objects-security-conscious-developer-sanitize-user-input-json-formatter-50112",
       "clusterKey": "json",
-      "score": 71,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
+      "score": 88,
+      "wordCount": 493,
+      "segment": "B",
+      "issues": []
     },
     {
-      "slug": "json-inspect-json-structure-backend-engineer-debug-production-issue-json-formatter-360",
+      "slug": "json-flatten-nested-json-mobile-developer-trace-request-json-formatter-100224",
+      "clusterKey": "json",
+      "score": 83,
+      "wordCount": 479,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "json-format-json-backend-engineer-migrate-legacy-system-json-to-typescript-150336",
       "clusterKey": "json",
       "score": 86,
+      "wordCount": 533,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "json-transform-json-keys-ops-engineer-debug-production-issue-json-to-typescript-200448",
+      "clusterKey": "json",
+      "score": 92,
+      "wordCount": 471,
       "segment": "A",
       "issues": []
     },
     {
-      "slug": "json-convert-json-to-types-backend-engineer-debug-production-issue-json-formatter-540",
+      "slug": "json-detect-json-syntax-errors-qa-engineer-sanitize-user-input-json-to-typescript-250560",
       "clusterKey": "json",
-      "score": 67,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
+      "score": 99,
+      "wordCount": 440,
+      "segment": "A",
+      "issues": []
     },
     {
-      "slug": "json-validate-json-backend-engineer-debug-production-issue-json-to-typescript-720",
-      "clusterKey": "json",
+      "slug": "encoding-fix-encoding-bugs-frontend-developer-trace-request-base64-encode-decode-300672",
+      "clusterKey": "encoding",
+      "score": 100,
+      "wordCount": 493,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "encoding-troubleshoot-encoding-mismatch-ops-engineer-migrate-legacy-system-base64-encode-decode-350784",
+      "clusterKey": "encoding",
       "score": 95,
+      "wordCount": 489,
       "segment": "A",
       "issues": []
     },
     {
-      "slug": "json-format-json-backend-engineer-debug-production-issue-json-to-typescript-900",
-      "clusterKey": "json",
+      "slug": "encoding-convert-binary-to-text-site-reliability-engineer-debug-production-issue-base64-encode-decode-400896",
+      "clusterKey": "encoding",
+      "score": 92,
+      "wordCount": 449,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "encoding-convert-character-sets-fullstack-developer-sanitize-user-input-url-encode-decode-451008",
+      "clusterKey": "encoding",
+      "score": 86,
+      "wordCount": 495,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "encoding-batch-encode-values-devops-engineer-trace-request-url-encode-decode-501120",
+      "clusterKey": "encoding",
+      "score": 82,
+      "wordCount": 449,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "encoding-normalize-encoded-output-site-reliability-engineer-migrate-legacy-system-url-encode-decode-551232",
+      "clusterKey": "encoding",
       "score": 94,
+      "wordCount": 471,
       "segment": "A",
       "issues": []
     },
     {
-      "slug": "json-inspect-json-structure-backend-engineer-debug-production-issue-json-to-typescript-1080",
-      "clusterKey": "json",
-      "score": 75,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "json-convert-json-to-types-backend-engineer-debug-production-issue-json-to-typescript-1260",
-      "clusterKey": "json",
-      "score": 74,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "encoding-encode-data-backend-engineer-debug-production-issue-base64-encode-decode-0",
+      "slug": "encoding-handle-unicode-text-api-consumer-debug-production-issue-html-entity-encode-decode-601344",
       "clusterKey": "encoding",
-      "score": 80,
-      "segment": "B",
-      "issues": []
-    },
-    {
-      "slug": "encoding-decode-data-frontend-developer-review-config-change-base64-encode-decode-200",
-      "clusterKey": "encoding",
-      "score": 78,
-      "segment": "B",
-      "issues": []
-    },
-    {
-      "slug": "encoding-fix-encoding-bugs-api-consumer-prepare-query-parameters-base64-encode-decode-400",
-      "clusterKey": "encoding",
-      "score": 87,
+      "score": 91,
+      "wordCount": 496,
       "segment": "A",
       "issues": []
     },
     {
-      "slug": "encoding-encode-data-security-conscious-developer-debug-production-issue-url-encode-decode-600",
-      "clusterKey": "encoding",
-      "score": 78,
-      "segment": "B",
-      "issues": []
-    },
-    {
-      "slug": "encoding-decode-data-ops-engineer-review-config-change-url-encode-decode-800",
-      "clusterKey": "encoding",
-      "score": 73,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "encoding-fix-encoding-bugs-technical-writer-prepare-query-parameters-url-encode-decode-1000",
+      "slug": "encoding-decode-nested-encodings-technical-writer-sanitize-user-input-html-entity-encode-decode-651456",
       "clusterKey": "encoding",
       "score": 84,
+      "wordCount": 483,
       "segment": "B",
       "issues": []
     },
     {
-      "slug": "encoding-encode-data-mobile-developer-debug-production-issue-html-entity-encode-decode-1200",
-      "clusterKey": "encoding",
-      "score": 92,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "encoding-decode-data-qa-engineer-review-config-change-html-entity-encode-decode-1400",
-      "clusterKey": "encoding",
-      "score": 94,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "security-generate-identifiers-backend-engineer-debug-production-issue-hash-generator-0",
+      "slug": "security-generate-identifiers-database-administrator-trace-request-hash-generator-701568",
       "clusterKey": "security",
-      "score": 74,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "security-verify-tokens-frontend-developer-review-config-change-hash-generator-200",
-      "clusterKey": "security",
-      "score": 94,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "security-inspect-signatures-api-consumer-prepare-query-parameters-hash-generator-400",
-      "clusterKey": "security",
-      "score": 81,
-      "segment": "B",
-      "issues": []
-    },
-    {
-      "slug": "security-generate-identifiers-security-conscious-developer-debug-production-issue-uuid-generator-600",
-      "clusterKey": "security",
-      "score": 87,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "security-verify-tokens-ops-engineer-review-config-change-uuid-generator-800",
-      "clusterKey": "security",
-      "score": 94,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "security-inspect-signatures-technical-writer-prepare-query-parameters-uuid-generator-1000",
-      "clusterKey": "security",
-      "score": 95,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "security-generate-identifiers-mobile-developer-debug-production-issue-jwt-decoder-1200",
-      "clusterKey": "security",
-      "score": 78,
-      "segment": "B",
-      "issues": []
-    },
-    {
-      "slug": "security-verify-tokens-qa-engineer-review-config-change-jwt-decoder-1400",
-      "clusterKey": "security",
-      "score": 80,
-      "segment": "B",
-      "issues": []
-    },
-    {
-      "slug": "text-normalize-text-backend-engineer-debug-production-issue-text-case-converter-0",
-      "clusterKey": "text",
-      "score": 86,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "text-compare-versions-frontend-developer-review-config-change-text-case-converter-200",
-      "clusterKey": "text",
-      "score": 80,
-      "segment": "B",
-      "issues": []
-    },
-    {
-      "slug": "text-test-regex-api-consumer-prepare-query-parameters-text-case-converter-400",
-      "clusterKey": "text",
-      "score": 94,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "text-normalize-text-security-conscious-developer-debug-production-issue-diff-checker-600",
-      "clusterKey": "text",
-      "score": 82,
-      "segment": "B",
-      "issues": []
-    },
-    {
-      "slug": "text-compare-versions-ops-engineer-review-config-change-diff-checker-800",
-      "clusterKey": "text",
-      "score": 93,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "text-test-regex-technical-writer-prepare-query-parameters-diff-checker-1000",
-      "clusterKey": "text",
-      "score": 67,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "text-normalize-text-mobile-developer-debug-production-issue-regex-tester-1200",
-      "clusterKey": "text",
-      "score": 80,
-      "segment": "B",
-      "issues": []
-    },
-    {
-      "slug": "text-compare-versions-qa-engineer-review-config-change-regex-tester-1400",
-      "clusterKey": "text",
-      "score": 70,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "formatting-format-sql-backend-engineer-debug-production-issue-sql-formatter-0",
-      "clusterKey": "formatting",
-      "score": 91,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "formatting-minify-assets-frontend-developer-review-config-change-sql-formatter-200",
-      "clusterKey": "formatting",
-      "score": 87,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "formatting-preview-markdown-api-consumer-prepare-query-parameters-sql-formatter-400",
-      "clusterKey": "formatting",
-      "score": 92,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "formatting-format-sql-security-conscious-developer-debug-production-issue-css-minifier-600",
-      "clusterKey": "formatting",
-      "score": 71,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "formatting-minify-assets-ops-engineer-review-config-change-css-minifier-800",
-      "clusterKey": "formatting",
-      "score": 70,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "formatting-preview-markdown-technical-writer-prepare-query-parameters-css-minifier-1000",
-      "clusterKey": "formatting",
-      "score": 71,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "formatting-format-sql-mobile-developer-debug-production-issue-markdown-preview-1200",
-      "clusterKey": "formatting",
-      "score": 70,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "formatting-minify-assets-qa-engineer-review-config-change-markdown-preview-1400",
-      "clusterKey": "formatting",
-      "score": 76,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "api-design-api-schema-backend-engineer-debug-production-issue-json-formatter-0",
-      "clusterKey": "api",
       "score": 83,
+      "wordCount": 469,
       "segment": "B",
       "issues": []
     },
     {
-      "slug": "api-validate-api-response-frontend-developer-review-config-change-json-formatter-200",
-      "clusterKey": "api",
-      "score": 93,
+      "slug": "security-generate-secure-keys-api-consumer-migrate-legacy-system-hash-generator-751680",
+      "clusterKey": "security",
+      "score": 100,
+      "wordCount": 519,
       "segment": "A",
       "issues": []
     },
     {
-      "slug": "api-authenticate-api-request-api-consumer-prepare-query-parameters-json-formatter-400",
-      "clusterKey": "api",
+      "slug": "security-rotate-unique-identifiers-data-engineer-debug-production-issue-hash-generator-801792",
+      "clusterKey": "security",
+      "score": 87,
+      "wordCount": 468,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "security-verify-tokens-cloud-architect-sanitize-user-input-uuid-generator-851904",
+      "clusterKey": "security",
+      "score": 90,
+      "wordCount": 533,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "security-validate-jwt-claims-integration-engineer-trace-request-uuid-generator-902016",
+      "clusterKey": "security",
+      "score": 89,
+      "wordCount": 510,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "security-analyze-token-payload-data-engineer-migrate-legacy-system-uuid-generator-952128",
+      "clusterKey": "security",
+      "score": 98,
+      "wordCount": 510,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "security-audit-token-expiry-backend-engineer-debug-production-issue-jwt-decoder-1002240",
+      "clusterKey": "security",
+      "score": 84,
+      "wordCount": 451,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "security-compare-security-hashes-security-conscious-developer-sanitize-user-input-jwt-decoder-1052352",
+      "clusterKey": "security",
+      "score": 99,
+      "wordCount": 459,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "security-verify-data-integrity-mobile-developer-trace-request-jwt-decoder-1102464",
+      "clusterKey": "security",
+      "score": 92,
+      "wordCount": 502,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "text-extract-text-segments-backend-engineer-migrate-legacy-system-text-case-converter-1152576",
+      "clusterKey": "text",
+      "score": 89,
+      "wordCount": 510,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "text-validate-input-format-ops-engineer-debug-production-issue-text-case-converter-1202688",
+      "clusterKey": "text",
+      "score": 94,
+      "wordCount": 471,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "text-normalize-text-qa-engineer-sanitize-user-input-diff-checker-1252800",
+      "clusterKey": "text",
+      "score": 87,
+      "wordCount": 511,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "text-convert-text-case-frontend-developer-trace-request-diff-checker-1302912",
+      "clusterKey": "text",
       "score": 95,
+      "wordCount": 528,
       "segment": "A",
       "issues": []
     },
     {
-      "slug": "api-design-api-schema-security-conscious-developer-debug-production-issue-jwt-decoder-600",
-      "clusterKey": "api",
+      "slug": "text-clean-up-whitespace-ops-engineer-migrate-legacy-system-diff-checker-1353024",
+      "clusterKey": "text",
+      "score": 93,
+      "wordCount": 492,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "text-compare-versions-site-reliability-engineer-debug-production-issue-regex-tester-1403136",
+      "clusterKey": "text",
       "score": 88,
+      "wordCount": 534,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "text-analyze-text-differences-fullstack-developer-sanitize-user-input-regex-tester-1453248",
+      "clusterKey": "text",
+      "score": 88,
+      "wordCount": 504,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "text-split-text-by-delimiter-devops-engineer-trace-request-regex-tester-1503360",
+      "clusterKey": "text",
+      "score": 100,
+      "wordCount": 430,
       "segment": "A",
       "issues": []
     },
     {
-      "slug": "api-validate-api-response-ops-engineer-review-config-change-jwt-decoder-800",
-      "clusterKey": "api",
+      "slug": "formatting-preview-markdown-site-reliability-engineer-migrate-legacy-system-sql-formatter-1553472",
+      "clusterKey": "formatting",
+      "score": 99,
+      "wordCount": 438,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "formatting-restructure-code-blocks-api-consumer-debug-production-issue-sql-formatter-1603584",
+      "clusterKey": "formatting",
+      "score": 96,
+      "wordCount": 486,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "formatting-align-code-formatting-technical-writer-sanitize-user-input-sql-formatter-1653696",
+      "clusterKey": "formatting",
       "score": 93,
+      "wordCount": 512,
       "segment": "A",
       "issues": []
     },
     {
-      "slug": "api-authenticate-api-request-technical-writer-prepare-query-parameters-jwt-decoder-1000",
+      "slug": "formatting-indent-nested-code-database-administrator-trace-request-css-minifier-1703808",
+      "clusterKey": "formatting",
+      "score": 88,
+      "wordCount": 477,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "formatting-standardize-sql-style-api-consumer-migrate-legacy-system-css-minifier-1753920",
+      "clusterKey": "formatting",
+      "score": 100,
+      "wordCount": 461,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "formatting-format-sql-data-engineer-debug-production-issue-markdown-preview-1804032",
+      "clusterKey": "formatting",
+      "score": 95,
+      "wordCount": 420,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "formatting-optimize-css-output-cloud-architect-sanitize-user-input-markdown-preview-1854144",
+      "clusterKey": "formatting",
+      "score": 89,
+      "wordCount": 528,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "formatting-compress-stylesheet-integration-engineer-trace-request-markdown-preview-1904256",
+      "clusterKey": "formatting",
+      "score": 98,
+      "wordCount": 528,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "api-validate-api-response-data-engineer-migrate-legacy-system-json-formatter-1954368",
+      "clusterKey": "api",
+      "score": 100,
+      "wordCount": 457,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "api-format-api-documentation-backend-engineer-debug-production-issue-json-formatter-2004480",
+      "clusterKey": "api",
+      "score": 87,
+      "wordCount": 439,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "api-version-api-response-security-conscious-developer-sanitize-user-input-json-formatter-2054592",
+      "clusterKey": "api",
+      "score": 99,
+      "wordCount": 467,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "api-construct-query-string-mobile-developer-trace-request-jwt-decoder-2104704",
       "clusterKey": "api",
       "score": 91,
+      "wordCount": 424,
       "segment": "A",
       "issues": []
     },
     {
-      "slug": "api-design-api-schema-mobile-developer-debug-production-issue-url-encode-decode-1200",
+      "slug": "api-test-api-endpoint-backend-engineer-migrate-legacy-system-jwt-decoder-2154816",
       "clusterKey": "api",
-      "score": 81,
-      "segment": "B",
+      "score": 99,
+      "wordCount": 479,
+      "segment": "A",
       "issues": []
     },
     {
-      "slug": "api-validate-api-response-qa-engineer-review-config-change-url-encode-decode-1400",
+      "slug": "api-secure-api-communication-ops-engineer-debug-production-issue-jwt-decoder-2204928",
       "clusterKey": "api",
-      "score": 71,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "data-transform-data-format-backend-engineer-debug-production-issue-json-to-typescript-0",
-      "clusterKey": "data",
-      "score": 89,
+      "score": 94,
+      "wordCount": 489,
       "segment": "A",
       "issues": []
     },
     {
-      "slug": "data-generate-data-models-frontend-developer-review-config-change-json-to-typescript-200",
-      "clusterKey": "data",
-      "score": 95,
+      "slug": "api-authenticate-api-request-qa-engineer-sanitize-user-input-url-encode-decode-2255040",
+      "clusterKey": "api",
+      "score": 92,
+      "wordCount": 509,
       "segment": "A",
       "issues": []
     },
     {
-      "slug": "data-hash-data-for-storage-api-consumer-prepare-query-parameters-json-to-typescript-400",
-      "clusterKey": "data",
-      "score": 68,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "data-transform-data-format-security-conscious-developer-debug-production-issue-base64-encode-decode-600",
-      "clusterKey": "data",
-      "score": 72,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "data-generate-data-models-ops-engineer-review-config-change-base64-encode-decode-800",
-      "clusterKey": "data",
-      "score": 95,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "data-hash-data-for-storage-technical-writer-prepare-query-parameters-base64-encode-decode-1000",
-      "clusterKey": "data",
-      "score": 82,
-      "segment": "B",
-      "issues": []
-    },
-    {
-      "slug": "data-transform-data-format-mobile-developer-debug-production-issue-hash-generator-1200",
-      "clusterKey": "data",
-      "score": 89,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "data-generate-data-models-qa-engineer-review-config-change-hash-generator-1400",
-      "clusterKey": "data",
-      "score": 87,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "debugging-compare-config-files-backend-engineer-debug-production-issue-diff-checker-0",
-      "clusterKey": "debugging",
-      "score": 77,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "debugging-trace-data-flow-frontend-developer-review-config-change-diff-checker-200",
-      "clusterKey": "debugging",
-      "score": 72,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "debugging-isolate-parsing-error-api-consumer-prepare-query-parameters-diff-checker-400",
-      "clusterKey": "debugging",
-      "score": 69,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "debugging-compare-config-files-security-conscious-developer-debug-production-issue-regex-tester-600",
-      "clusterKey": "debugging",
+      "slug": "api-normalize-api-data-frontend-developer-trace-request-url-encode-decode-2305152",
+      "clusterKey": "api",
       "score": 91,
+      "wordCount": 528,
       "segment": "A",
       "issues": []
     },
     {
-      "slug": "debugging-trace-data-flow-ops-engineer-review-config-change-regex-tester-800",
-      "clusterKey": "debugging",
-      "score": 95,
+      "slug": "data-transform-data-format-ops-engineer-migrate-legacy-system-json-to-typescript-2355264",
+      "clusterKey": "data",
+      "score": 91,
+      "wordCount": 521,
       "segment": "A",
       "issues": []
     },
     {
-      "slug": "debugging-isolate-parsing-error-technical-writer-prepare-query-parameters-regex-tester-1000",
-      "clusterKey": "debugging",
-      "score": 70,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "debugging-compare-config-files-mobile-developer-debug-production-issue-json-formatter-1200",
-      "clusterKey": "debugging",
-      "score": 87,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "debugging-trace-data-flow-qa-engineer-review-config-change-json-formatter-1400",
-      "clusterKey": "debugging",
-      "score": 92,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "automation-schedule-recurring-task-backend-engineer-debug-production-issue-cron-helper-0",
-      "clusterKey": "automation",
-      "score": 92,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "automation-extract-log-data-frontend-developer-review-config-change-cron-helper-200",
-      "clusterKey": "automation",
-      "score": 68,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "automation-generate-batch-ids-api-consumer-prepare-query-parameters-cron-helper-400",
-      "clusterKey": "automation",
-      "score": 67,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "automation-schedule-recurring-task-security-conscious-developer-debug-production-issue-regex-tester-600",
-      "clusterKey": "automation",
-      "score": 80,
+      "slug": "data-create-data-fingerprint-site-reliability-engineer-debug-production-issue-json-to-typescript-2405376",
+      "clusterKey": "data",
+      "score": 85,
+      "wordCount": 536,
       "segment": "B",
       "issues": []
     },
     {
-      "slug": "automation-extract-log-data-ops-engineer-review-config-change-regex-tester-800",
-      "clusterKey": "automation",
-      "score": 75,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
+      "slug": "data-aggregate-data-records-fullstack-developer-sanitize-user-input-json-to-typescript-2455488",
+      "clusterKey": "data",
+      "score": 96,
+      "wordCount": 527,
+      "segment": "A",
+      "issues": []
     },
     {
-      "slug": "automation-generate-batch-ids-technical-writer-prepare-query-parameters-regex-tester-1000",
+      "slug": "data-generate-data-models-devops-engineer-trace-request-base64-encode-decode-2505600",
+      "clusterKey": "data",
+      "score": 96,
+      "wordCount": 478,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "data-validate-data-integrity-site-reliability-engineer-migrate-legacy-system-base64-encode-decode-2555712",
+      "clusterKey": "data",
+      "score": 84,
+      "wordCount": 492,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "data-generate-unique-identifiers-api-consumer-debug-production-issue-base64-encode-decode-2605824",
+      "clusterKey": "data",
+      "score": 94,
+      "wordCount": 452,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "data-hash-data-for-storage-technical-writer-sanitize-user-input-hash-generator-2655936",
+      "clusterKey": "data",
+      "score": 86,
+      "wordCount": 466,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "data-serialize-complex-objects-database-administrator-trace-request-hash-generator-2706048",
+      "clusterKey": "data",
+      "score": 98,
+      "wordCount": 497,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "data-normalize-data-structure-api-consumer-migrate-legacy-system-hash-generator-2756160",
+      "clusterKey": "data",
+      "score": 99,
+      "wordCount": 481,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "debugging-identify-format-change-data-engineer-debug-production-issue-diff-checker-2806272",
+      "clusterKey": "debugging",
+      "score": 89,
+      "wordCount": 512,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "debugging-pinpoint-encoding-issue-cloud-architect-sanitize-user-input-diff-checker-2856384",
+      "clusterKey": "debugging",
+      "score": 97,
+      "wordCount": 489,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "debugging-compare-config-files-integration-engineer-trace-request-regex-tester-2906496",
+      "clusterKey": "debugging",
+      "score": 97,
+      "wordCount": 534,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "debugging-debug-regex-match-data-engineer-migrate-legacy-system-regex-tester-2956608",
+      "clusterKey": "debugging",
+      "score": 89,
+      "wordCount": 487,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "debugging-validate-transform-output-backend-engineer-debug-production-issue-regex-tester-3006720",
+      "clusterKey": "debugging",
+      "score": 84,
+      "wordCount": 539,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "debugging-trace-data-flow-security-conscious-developer-sanitize-user-input-json-formatter-3056832",
+      "clusterKey": "debugging",
+      "score": 97,
+      "wordCount": 459,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "debugging-verify-output-format-mobile-developer-trace-request-json-formatter-3106944",
+      "clusterKey": "debugging",
+      "score": 97,
+      "wordCount": 537,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "debugging-reproduce-formatting-bug-backend-engineer-migrate-legacy-system-json-formatter-3157056",
+      "clusterKey": "debugging",
+      "score": 100,
+      "wordCount": 469,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "automation-generate-batch-ids-ops-engineer-debug-production-issue-cron-helper-3207168",
+      "clusterKey": "automation",
+      "score": 100,
+      "wordCount": 453,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "automation-create-unique-job-ids-qa-engineer-sanitize-user-input-cron-helper-3257280",
+      "clusterKey": "automation",
+      "score": 89,
+      "wordCount": 450,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "automation-configure-periodic-cleanup-frontend-developer-trace-request-cron-helper-3307392",
+      "clusterKey": "automation",
+      "score": 96,
+      "wordCount": 516,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "automation-parse-automation-output-ops-engineer-migrate-legacy-system-regex-tester-3357504",
+      "clusterKey": "automation",
+      "score": 95,
+      "wordCount": 539,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "automation-monitor-scheduled-tasks-site-reliability-engineer-debug-production-issue-regex-tester-3407616",
+      "clusterKey": "automation",
+      "score": 94,
+      "wordCount": 535,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "automation-schedule-recurring-task-fullstack-developer-sanitize-user-input-uuid-generator-3457728",
       "clusterKey": "automation",
       "score": 90,
+      "wordCount": 517,
       "segment": "A",
       "issues": []
     },
     {
-      "slug": "automation-schedule-recurring-task-mobile-developer-debug-production-issue-uuid-generator-1200",
+      "slug": "automation-validate-cron-schedule-devops-engineer-trace-request-uuid-generator-3507840",
       "clusterKey": "automation",
-      "score": 94,
-      "segment": "A",
+      "score": 83,
+      "wordCount": 536,
+      "segment": "B",
       "issues": []
     },
     {
-      "slug": "automation-extract-log-data-qa-engineer-review-config-change-uuid-generator-1400",
+      "slug": "automation-automate-data-extraction-site-reliability-engineer-migrate-legacy-system-uuid-generator-3557952",
       "clusterKey": "automation",
-      "score": 94,
+      "score": 97,
+      "wordCount": 450,
       "segment": "A",
       "issues": []
     },
     {
-      "slug": "web-sanitize-html-input-backend-engineer-debug-production-issue-html-entity-encode-decode-0",
-      "clusterKey": "web",
-      "score": 72,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "web-optimize-css-bundle-frontend-developer-review-config-change-html-entity-encode-decode-200",
-      "clusterKey": "web",
-      "score": 86,
-      "segment": "A",
-      "issues": []
-    },
-    {
-      "slug": "web-preview-content-markup-api-consumer-prepare-query-parameters-html-entity-encode-decode-400",
+      "slug": "web-optimize-css-bundle-api-consumer-debug-production-issue-html-entity-encode-decode-3608064",
       "clusterKey": "web",
       "score": 82,
+      "wordCount": 492,
       "segment": "B",
       "issues": []
     },
     {
-      "slug": "web-sanitize-html-input-security-conscious-developer-debug-production-issue-css-minifier-600",
+      "slug": "web-minify-stylesheet-technical-writer-sanitize-user-input-html-entity-encode-decode-3658176",
       "clusterKey": "web",
-      "score": 74,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
+      "score": 90,
+      "wordCount": 465,
+      "segment": "A",
+      "issues": []
     },
     {
-      "slug": "web-optimize-css-bundle-ops-engineer-review-config-change-css-minifier-800",
+      "slug": "web-validate-markup-output-database-administrator-trace-request-html-entity-encode-decode-3708288",
       "clusterKey": "web",
-      "score": 67,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
-    },
-    {
-      "slug": "web-preview-content-markup-technical-writer-prepare-query-parameters-css-minifier-1000",
-      "clusterKey": "web",
-      "score": 81,
+      "score": 85,
+      "wordCount": 456,
       "segment": "B",
       "issues": []
     },
     {
-      "slug": "web-sanitize-html-input-mobile-developer-debug-production-issue-markdown-preview-1200",
+      "slug": "web-preview-content-markup-api-consumer-migrate-legacy-system-css-minifier-3758400",
       "clusterKey": "web",
-      "score": 67,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
+      "score": 95,
+      "wordCount": 507,
+      "segment": "A",
+      "issues": []
     },
     {
-      "slug": "web-optimize-css-bundle-qa-engineer-review-config-change-markdown-preview-1400",
+      "slug": "web-render-dynamic-content-data-engineer-debug-production-issue-css-minifier-3808512",
       "clusterKey": "web",
-      "score": 69,
-      "segment": "C",
-      "issues": [
-        "below-index-threshold"
-      ]
+      "score": 96,
+      "wordCount": 499,
+      "segment": "A",
+      "issues": []
+    },
+    {
+      "slug": "web-format-rich-text-cloud-architect-sanitize-user-input-css-minifier-3858624",
+      "clusterKey": "web",
+      "score": 84,
+      "wordCount": 446,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "web-encode-url-parameters-integration-engineer-trace-request-markdown-preview-3908736",
+      "clusterKey": "web",
+      "score": 84,
+      "wordCount": 438,
+      "segment": "B",
+      "issues": []
+    },
+    {
+      "slug": "web-escape-template-variables-data-engineer-migrate-legacy-system-markdown-preview-3958848",
+      "clusterKey": "web",
+      "score": 83,
+      "wordCount": 522,
+      "segment": "B",
+      "issues": []
     }
   ]
 }

@@ -135,6 +135,65 @@ export default async function ToolPage({ params }: PageProps) {
           </CardContent>
         </Card>
 
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg">Tool History</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {dynamicContent.history.map((paragraph, index) => (
+              <p key={index} className="text-sm leading-7 text-muted-foreground">
+                {paragraph}
+              </p>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg">Global Usage Examples</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {dynamicContent.globalUseCases.map((paragraph, index) => (
+              <p key={index} className="text-sm leading-7 text-muted-foreground">
+                {paragraph}
+              </p>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg">Technical Terms Glossary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="space-y-3">
+              {dynamicContent.glossary.map((item) => (
+                <div key={item.term}>
+                  <dt className="text-sm font-medium">{item.term}</dt>
+                  <dd className="text-sm text-muted-foreground">{item.definition}</dd>
+                </div>
+              ))}
+            </dl>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg">Simulated User Reviews</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {dynamicContent.simulatedReviews.map((review, index) => (
+                <div key={`${review.role}-${index}`} className="rounded-md border p-3">
+                  <p className="text-sm font-medium">{review.role}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{review.summary}</p>
+                  <p className="text-xs text-muted-foreground mt-2">Rating: {review.rating}/5</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="mb-8 border-primary/25 bg-primary/5">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
