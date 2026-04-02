@@ -8,8 +8,17 @@ type MetadataInput = {
   noindex?: boolean;
 };
 
+function normalizePath(path = '/'): string {
+  const withLeadingSlash = path.startsWith('/') ? path : `/${path}`;
+  const singleSlashes = withLeadingSlash.replace(/\/{2,}/g, '/');
+  const lowerCased = singleSlashes.toLowerCase();
+
+  if (lowerCased === '/') return '/';
+  return lowerCased.endsWith('/') ? lowerCased.slice(0, -1) : lowerCased;
+}
+
 function absoluteUrl(path = '/') {
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const normalizedPath = normalizePath(path);
   return new URL(normalizedPath, siteConfig.siteUrl).toString();
 }
 

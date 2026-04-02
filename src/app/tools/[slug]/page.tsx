@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Shield, AlertTriangle, ArrowRight, FileText, Wrench } from 'lucide-react';
+import { Shield, AlertTriangle, ArrowRight, FileText, Wrench, HelpCircle, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -16,6 +16,7 @@ import {
   EditorialIntro,
   OriginalValueCallouts,
 } from '@/components/content/EditorialIdentity';
+import { buildToolPageContent } from '@/lib/seo/toolPageContent';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -49,9 +50,14 @@ export default async function ToolPage({ params }: PageProps) {
 
   const relatedTools = getRelatedTools(slug);
   const relatedGuides = getGuidesForTool(slug);
+  const dynamicContent = buildToolPageContent(tool);
 
   return (
     <div className="container mx-auto px-4 py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(dynamicContent.faqJsonLd) }}
+      />
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
@@ -83,6 +89,40 @@ export default async function ToolPage({ params }: PageProps) {
           </CardContent>
         </Card>
 
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg">About This Tool</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {dynamicContent.overview.map((paragraph, index) => (
+              <p key={index} className="text-sm leading-7 text-muted-foreground">
+                {paragraph}
+              </p>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="mb-8 border-primary/25 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+              How to Use
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ol className="space-y-3">
+              {dynamicContent.howTo.map((step, index) => (
+                <li key={index} className="flex items-start gap-3 text-sm">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                    {index + 1}
+                  </span>
+                  <span className="text-muted-foreground">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+
         <Card className="mb-8 border-warning/50 bg-warning/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -99,6 +139,26 @@ export default async function ToolPage({ params }: PageProps) {
                 </li>
               ))}
             </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <HelpCircle className="h-5 w-5" />
+              Frequently Asked Questions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {dynamicContent.faq.map((item, index) => (
+                <div key={index}>
+                  <h3 className="font-medium text-sm mb-1">{item.question}</h3>
+                  <p className="text-sm text-muted-foreground">{item.answer}</p>
+                  {index < dynamicContent.faq.length - 1 && <Separator className="mt-4" />}
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
 

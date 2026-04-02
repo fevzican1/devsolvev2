@@ -86,7 +86,7 @@ export default function ToolsPage() {
       })}
 
       <Suspense fallback={null}>
-        <HubDiscoveryLinks hubPath="/tools/" heading="Related Technical Guides" />
+        <HubDiscoveryLinks hubPath="/tools" heading="Related Technical Guides" />
       </Suspense>
     </div>
   );
