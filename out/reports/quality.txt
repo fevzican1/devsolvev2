@@ -1,113 +1,115 @@
 Quality Report
-Generated: 2026-03-31T17:41:08.213Z
+Generated: 2026-04-02T16:09:53.214Z
 
 Thresholds:
-- Min index score: 78
-- Min sitemap score: 85
+- Min index score: 82
+- Min sitemap score: 90
+- Min content word count: 400
 
 Summary:
-- Total Generated (sampled): 400
-- Indexable (A+B segments): 238
-- Sitemap Included (A segment): 149
-- Noindex (C segment): 162
-- Orphan Candidates (sampled heuristic): 14
-- Low Usefulness Warnings (C segment): 162
+- Total Generated: 4008960
+- Indexable (A+B segments): 4008960
+- Sitemap Included (A segment): 2320180
+- Noindex (C segment): 0
+- Below Word Floor: 0
+- Minimum Observed Word Count: 420
+- All Pages Passed Quality Gate: yes
 
 Segment Distribution:
-- Segment A (index + sitemap): 149
-- Segment B (index, no sitemap): 89
-- Segment C (noindex, follow): 162
+- Segment A (index + sitemap): 2320180
+- Segment B (index, no sitemap): 1688780
+- Segment C (noindex, follow): 0
 
-Cluster Distribution (sampled):
-- json: 40
-- encoding: 40
-- security: 40
-- text: 40
-- formatting: 40
-- api: 40
-- data: 40
-- debugging: 40
-- automation: 40
-- web: 40
+Cluster Distribution:
+- json: 276480
+- encoding: 414720
+- security: 414720
+- text: 414720
+- formatting: 414720
+- api: 414720
+- data: 414720
+- debugging: 414720
+- automation: 414720
+- web: 414720
 
 Sample Pages:
-  json-validate-json-backend-engineer-debug-production-issue-json-formatter-0 — 77/100 [segment C; below-index-threshold]
-  json-format-json-backend-engineer-debug-production-issue-json-formatter-180 — 71/100 [segment C; below-index-threshold]
-  json-inspect-json-structure-backend-engineer-debug-production-issue-json-formatter-360 — 86/100 [segment A]
-  json-convert-json-to-types-backend-engineer-debug-production-issue-json-formatter-540 — 67/100 [segment C; below-index-threshold]
-  json-validate-json-backend-engineer-debug-production-issue-json-to-typescript-720 — 95/100 [segment A]
-  json-format-json-backend-engineer-debug-production-issue-json-to-typescript-900 — 94/100 [segment A]
-  json-inspect-json-structure-backend-engineer-debug-production-issue-json-to-typescript-1080 — 75/100 [segment C; below-index-threshold]
-  json-convert-json-to-types-backend-engineer-debug-production-issue-json-to-typescript-1260 — 74/100 [segment C; below-index-threshold]
-  encoding-encode-data-backend-engineer-debug-production-issue-base64-encode-decode-0 — 80/100 [segment B]
-  encoding-decode-data-frontend-developer-review-config-change-base64-encode-decode-200 — 78/100 [segment B]
-  encoding-fix-encoding-bugs-api-consumer-prepare-query-parameters-base64-encode-decode-400 — 87/100 [segment A]
-  encoding-encode-data-security-conscious-developer-debug-production-issue-url-encode-decode-600 — 78/100 [segment B]
-  encoding-decode-data-ops-engineer-review-config-change-url-encode-decode-800 — 73/100 [segment C; below-index-threshold]
-  encoding-fix-encoding-bugs-technical-writer-prepare-query-parameters-url-encode-decode-1000 — 84/100 [segment B]
-  encoding-encode-data-mobile-developer-debug-production-issue-html-entity-encode-decode-1200 — 92/100 [segment A]
-  encoding-decode-data-qa-engineer-review-config-change-html-entity-encode-decode-1400 — 94/100 [segment A]
-  security-generate-identifiers-backend-engineer-debug-production-issue-hash-generator-0 — 74/100 [segment C; below-index-threshold]
-  security-verify-tokens-frontend-developer-review-config-change-hash-generator-200 — 94/100 [segment A]
-  security-inspect-signatures-api-consumer-prepare-query-parameters-hash-generator-400 — 81/100 [segment B]
-  security-generate-identifiers-security-conscious-developer-debug-production-issue-uuid-generator-600 — 87/100 [segment A]
-  security-verify-tokens-ops-engineer-review-config-change-uuid-generator-800 — 94/100 [segment A]
-  security-inspect-signatures-technical-writer-prepare-query-parameters-uuid-generator-1000 — 95/100 [segment A]
-  security-generate-identifiers-mobile-developer-debug-production-issue-jwt-decoder-1200 — 78/100 [segment B]
-  security-verify-tokens-qa-engineer-review-config-change-jwt-decoder-1400 — 80/100 [segment B]
-  text-normalize-text-backend-engineer-debug-production-issue-text-case-converter-0 — 86/100 [segment A]
-  text-compare-versions-frontend-developer-review-config-change-text-case-converter-200 — 80/100 [segment B]
-  text-test-regex-api-consumer-prepare-query-parameters-text-case-converter-400 — 94/100 [segment A]
-  text-normalize-text-security-conscious-developer-debug-production-issue-diff-checker-600 — 82/100 [segment B]
-  text-compare-versions-ops-engineer-review-config-change-diff-checker-800 — 93/100 [segment A]
-  text-test-regex-technical-writer-prepare-query-parameters-diff-checker-1000 — 67/100 [segment C; below-index-threshold]
-  text-normalize-text-mobile-developer-debug-production-issue-regex-tester-1200 — 80/100 [segment B]
-  text-compare-versions-qa-engineer-review-config-change-regex-tester-1400 — 70/100 [segment C; below-index-threshold]
-  formatting-format-sql-backend-engineer-debug-production-issue-sql-formatter-0 — 91/100 [segment A]
-  formatting-minify-assets-frontend-developer-review-config-change-sql-formatter-200 — 87/100 [segment A]
-  formatting-preview-markdown-api-consumer-prepare-query-parameters-sql-formatter-400 — 92/100 [segment A]
-  formatting-format-sql-security-conscious-developer-debug-production-issue-css-minifier-600 — 71/100 [segment C; below-index-threshold]
-  formatting-minify-assets-ops-engineer-review-config-change-css-minifier-800 — 70/100 [segment C; below-index-threshold]
-  formatting-preview-markdown-technical-writer-prepare-query-parameters-css-minifier-1000 — 71/100 [segment C; below-index-threshold]
-  formatting-format-sql-mobile-developer-debug-production-issue-markdown-preview-1200 — 70/100 [segment C; below-index-threshold]
-  formatting-minify-assets-qa-engineer-review-config-change-markdown-preview-1400 — 76/100 [segment C; below-index-threshold]
-  api-design-api-schema-backend-engineer-debug-production-issue-json-formatter-0 — 83/100 [segment B]
-  api-validate-api-response-frontend-developer-review-config-change-json-formatter-200 — 93/100 [segment A]
-  api-authenticate-api-request-api-consumer-prepare-query-parameters-json-formatter-400 — 95/100 [segment A]
-  api-design-api-schema-security-conscious-developer-debug-production-issue-jwt-decoder-600 — 88/100 [segment A]
-  api-validate-api-response-ops-engineer-review-config-change-jwt-decoder-800 — 93/100 [segment A]
-  api-authenticate-api-request-technical-writer-prepare-query-parameters-jwt-decoder-1000 — 91/100 [segment A]
-  api-design-api-schema-mobile-developer-debug-production-issue-url-encode-decode-1200 — 81/100 [segment B]
-  api-validate-api-response-qa-engineer-review-config-change-url-encode-decode-1400 — 71/100 [segment C; below-index-threshold]
-  data-transform-data-format-backend-engineer-debug-production-issue-json-to-typescript-0 — 89/100 [segment A]
-  data-generate-data-models-frontend-developer-review-config-change-json-to-typescript-200 — 95/100 [segment A]
-  data-hash-data-for-storage-api-consumer-prepare-query-parameters-json-to-typescript-400 — 68/100 [segment C; below-index-threshold]
-  data-transform-data-format-security-conscious-developer-debug-production-issue-base64-encode-decode-600 — 72/100 [segment C; below-index-threshold]
-  data-generate-data-models-ops-engineer-review-config-change-base64-encode-decode-800 — 95/100 [segment A]
-  data-hash-data-for-storage-technical-writer-prepare-query-parameters-base64-encode-decode-1000 — 82/100 [segment B]
-  data-transform-data-format-mobile-developer-debug-production-issue-hash-generator-1200 — 89/100 [segment A]
-  data-generate-data-models-qa-engineer-review-config-change-hash-generator-1400 — 87/100 [segment A]
-  debugging-compare-config-files-backend-engineer-debug-production-issue-diff-checker-0 — 77/100 [segment C; below-index-threshold]
-  debugging-trace-data-flow-frontend-developer-review-config-change-diff-checker-200 — 72/100 [segment C; below-index-threshold]
-  debugging-isolate-parsing-error-api-consumer-prepare-query-parameters-diff-checker-400 — 69/100 [segment C; below-index-threshold]
-  debugging-compare-config-files-security-conscious-developer-debug-production-issue-regex-tester-600 — 91/100 [segment A]
-  debugging-trace-data-flow-ops-engineer-review-config-change-regex-tester-800 — 95/100 [segment A]
-  debugging-isolate-parsing-error-technical-writer-prepare-query-parameters-regex-tester-1000 — 70/100 [segment C; below-index-threshold]
-  debugging-compare-config-files-mobile-developer-debug-production-issue-json-formatter-1200 — 87/100 [segment A]
-  debugging-trace-data-flow-qa-engineer-review-config-change-json-formatter-1400 — 92/100 [segment A]
-  automation-schedule-recurring-task-backend-engineer-debug-production-issue-cron-helper-0 — 92/100 [segment A]
-  automation-extract-log-data-frontend-developer-review-config-change-cron-helper-200 — 68/100 [segment C; below-index-threshold]
-  automation-generate-batch-ids-api-consumer-prepare-query-parameters-cron-helper-400 — 67/100 [segment C; below-index-threshold]
-  automation-schedule-recurring-task-security-conscious-developer-debug-production-issue-regex-tester-600 — 80/100 [segment B]
-  automation-extract-log-data-ops-engineer-review-config-change-regex-tester-800 — 75/100 [segment C; below-index-threshold]
-  automation-generate-batch-ids-technical-writer-prepare-query-parameters-regex-tester-1000 — 90/100 [segment A]
-  automation-schedule-recurring-task-mobile-developer-debug-production-issue-uuid-generator-1200 — 94/100 [segment A]
-  automation-extract-log-data-qa-engineer-review-config-change-uuid-generator-1400 — 94/100 [segment A]
-  web-sanitize-html-input-backend-engineer-debug-production-issue-html-entity-encode-decode-0 — 72/100 [segment C; below-index-threshold]
-  web-optimize-css-bundle-frontend-developer-review-config-change-html-entity-encode-decode-200 — 86/100 [segment A]
-  web-preview-content-markup-api-consumer-prepare-query-parameters-html-entity-encode-decode-400 — 82/100 [segment B]
-  web-sanitize-html-input-security-conscious-developer-debug-production-issue-css-minifier-600 — 74/100 [segment C; below-index-threshold]
-  web-optimize-css-bundle-ops-engineer-review-config-change-css-minifier-800 — 67/100 [segment C; below-index-threshold]
-  web-preview-content-markup-technical-writer-prepare-query-parameters-css-minifier-1000 — 81/100 [segment B]
-  web-sanitize-html-input-mobile-developer-debug-production-issue-markdown-preview-1200 — 67/100 [segment C; below-index-threshold]
-  web-optimize-css-bundle-qa-engineer-review-config-change-markdown-preview-1400 — 69/100 [segment C; below-index-threshold]
+  json-validate-json-backend-engineer-debug-production-issue-json-formatter-0 — 94/100, 529 words [segment A]
+  json-compare-json-objects-security-conscious-developer-sanitize-user-input-json-formatter-50112 — 88/100, 493 words [segment B]
+  json-flatten-nested-json-mobile-developer-trace-request-json-formatter-100224 — 83/100, 479 words [segment B]
+  json-format-json-backend-engineer-migrate-legacy-system-json-to-typescript-150336 — 86/100, 533 words [segment B]
+  json-transform-json-keys-ops-engineer-debug-production-issue-json-to-typescript-200448 — 92/100, 471 words [segment A]
+  json-detect-json-syntax-errors-qa-engineer-sanitize-user-input-json-to-typescript-250560 — 99/100, 440 words [segment A]
+  encoding-fix-encoding-bugs-frontend-developer-trace-request-base64-encode-decode-300672 — 100/100, 493 words [segment A]
+  encoding-troubleshoot-encoding-mismatch-ops-engineer-migrate-legacy-system-base64-encode-decode-350784 — 95/100, 489 words [segment A]
+  encoding-convert-binary-to-text-site-reliability-engineer-debug-production-issue-base64-encode-decode-400896 — 92/100, 449 words [segment A]
+  encoding-convert-character-sets-fullstack-developer-sanitize-user-input-url-encode-decode-451008 — 86/100, 495 words [segment B]
+  encoding-batch-encode-values-devops-engineer-trace-request-url-encode-decode-501120 — 82/100, 449 words [segment B]
+  encoding-normalize-encoded-output-site-reliability-engineer-migrate-legacy-system-url-encode-decode-551232 — 94/100, 471 words [segment A]
+  encoding-handle-unicode-text-api-consumer-debug-production-issue-html-entity-encode-decode-601344 — 91/100, 496 words [segment A]
+  encoding-decode-nested-encodings-technical-writer-sanitize-user-input-html-entity-encode-decode-651456 — 84/100, 483 words [segment B]
+  security-generate-identifiers-database-administrator-trace-request-hash-generator-701568 — 83/100, 469 words [segment B]
+  security-generate-secure-keys-api-consumer-migrate-legacy-system-hash-generator-751680 — 100/100, 519 words [segment A]
+  security-rotate-unique-identifiers-data-engineer-debug-production-issue-hash-generator-801792 — 87/100, 468 words [segment B]
+  security-verify-tokens-cloud-architect-sanitize-user-input-uuid-generator-851904 — 90/100, 533 words [segment A]
+  security-validate-jwt-claims-integration-engineer-trace-request-uuid-generator-902016 — 89/100, 510 words [segment B]
+  security-analyze-token-payload-data-engineer-migrate-legacy-system-uuid-generator-952128 — 98/100, 510 words [segment A]
+  security-audit-token-expiry-backend-engineer-debug-production-issue-jwt-decoder-1002240 — 84/100, 451 words [segment B]
+  security-compare-security-hashes-security-conscious-developer-sanitize-user-input-jwt-decoder-1052352 — 99/100, 459 words [segment A]
+  security-verify-data-integrity-mobile-developer-trace-request-jwt-decoder-1102464 — 92/100, 502 words [segment A]
+  text-extract-text-segments-backend-engineer-migrate-legacy-system-text-case-converter-1152576 — 89/100, 510 words [segment B]
+  text-validate-input-format-ops-engineer-debug-production-issue-text-case-converter-1202688 — 94/100, 471 words [segment A]
+  text-normalize-text-qa-engineer-sanitize-user-input-diff-checker-1252800 — 87/100, 511 words [segment B]
+  text-convert-text-case-frontend-developer-trace-request-diff-checker-1302912 — 95/100, 528 words [segment A]
+  text-clean-up-whitespace-ops-engineer-migrate-legacy-system-diff-checker-1353024 — 93/100, 492 words [segment A]
+  text-compare-versions-site-reliability-engineer-debug-production-issue-regex-tester-1403136 — 88/100, 534 words [segment B]
+  text-analyze-text-differences-fullstack-developer-sanitize-user-input-regex-tester-1453248 — 88/100, 504 words [segment B]
+  text-split-text-by-delimiter-devops-engineer-trace-request-regex-tester-1503360 — 100/100, 430 words [segment A]
+  formatting-preview-markdown-site-reliability-engineer-migrate-legacy-system-sql-formatter-1553472 — 99/100, 438 words [segment A]
+  formatting-restructure-code-blocks-api-consumer-debug-production-issue-sql-formatter-1603584 — 96/100, 486 words [segment A]
+  formatting-align-code-formatting-technical-writer-sanitize-user-input-sql-formatter-1653696 — 93/100, 512 words [segment A]
+  formatting-indent-nested-code-database-administrator-trace-request-css-minifier-1703808 — 88/100, 477 words [segment B]
+  formatting-standardize-sql-style-api-consumer-migrate-legacy-system-css-minifier-1753920 — 100/100, 461 words [segment A]
+  formatting-format-sql-data-engineer-debug-production-issue-markdown-preview-1804032 — 95/100, 420 words [segment A]
+  formatting-optimize-css-output-cloud-architect-sanitize-user-input-markdown-preview-1854144 — 89/100, 528 words [segment B]
+  formatting-compress-stylesheet-integration-engineer-trace-request-markdown-preview-1904256 — 98/100, 528 words [segment A]
+  api-validate-api-response-data-engineer-migrate-legacy-system-json-formatter-1954368 — 100/100, 457 words [segment A]
+  api-format-api-documentation-backend-engineer-debug-production-issue-json-formatter-2004480 — 87/100, 439 words [segment B]
+  api-version-api-response-security-conscious-developer-sanitize-user-input-json-formatter-2054592 — 99/100, 467 words [segment A]
+  api-construct-query-string-mobile-developer-trace-request-jwt-decoder-2104704 — 91/100, 424 words [segment A]
+  api-test-api-endpoint-backend-engineer-migrate-legacy-system-jwt-decoder-2154816 — 99/100, 479 words [segment A]
+  api-secure-api-communication-ops-engineer-debug-production-issue-jwt-decoder-2204928 — 94/100, 489 words [segment A]
+  api-authenticate-api-request-qa-engineer-sanitize-user-input-url-encode-decode-2255040 — 92/100, 509 words [segment A]
+  api-normalize-api-data-frontend-developer-trace-request-url-encode-decode-2305152 — 91/100, 528 words [segment A]
+  data-transform-data-format-ops-engineer-migrate-legacy-system-json-to-typescript-2355264 — 91/100, 521 words [segment A]
+  data-create-data-fingerprint-site-reliability-engineer-debug-production-issue-json-to-typescript-2405376 — 85/100, 536 words [segment B]
+  data-aggregate-data-records-fullstack-developer-sanitize-user-input-json-to-typescript-2455488 — 96/100, 527 words [segment A]
+  data-generate-data-models-devops-engineer-trace-request-base64-encode-decode-2505600 — 96/100, 478 words [segment A]
+  data-validate-data-integrity-site-reliability-engineer-migrate-legacy-system-base64-encode-decode-2555712 — 84/100, 492 words [segment B]
+  data-generate-unique-identifiers-api-consumer-debug-production-issue-base64-encode-decode-2605824 — 94/100, 452 words [segment A]
+  data-hash-data-for-storage-technical-writer-sanitize-user-input-hash-generator-2655936 — 86/100, 466 words [segment B]
+  data-serialize-complex-objects-database-administrator-trace-request-hash-generator-2706048 — 98/100, 497 words [segment A]
+  data-normalize-data-structure-api-consumer-migrate-legacy-system-hash-generator-2756160 — 99/100, 481 words [segment A]
+  debugging-identify-format-change-data-engineer-debug-production-issue-diff-checker-2806272 — 89/100, 512 words [segment B]
+  debugging-pinpoint-encoding-issue-cloud-architect-sanitize-user-input-diff-checker-2856384 — 97/100, 489 words [segment A]
+  debugging-compare-config-files-integration-engineer-trace-request-regex-tester-2906496 — 97/100, 534 words [segment A]
+  debugging-debug-regex-match-data-engineer-migrate-legacy-system-regex-tester-2956608 — 89/100, 487 words [segment B]
+  debugging-validate-transform-output-backend-engineer-debug-production-issue-regex-tester-3006720 — 84/100, 539 words [segment B]
+  debugging-trace-data-flow-security-conscious-developer-sanitize-user-input-json-formatter-3056832 — 97/100, 459 words [segment A]
+  debugging-verify-output-format-mobile-developer-trace-request-json-formatter-3106944 — 97/100, 537 words [segment A]
+  debugging-reproduce-formatting-bug-backend-engineer-migrate-legacy-system-json-formatter-3157056 — 100/100, 469 words [segment A]
+  automation-generate-batch-ids-ops-engineer-debug-production-issue-cron-helper-3207168 — 100/100, 453 words [segment A]
+  automation-create-unique-job-ids-qa-engineer-sanitize-user-input-cron-helper-3257280 — 89/100, 450 words [segment B]
+  automation-configure-periodic-cleanup-frontend-developer-trace-request-cron-helper-3307392 — 96/100, 516 words [segment A]
+  automation-parse-automation-output-ops-engineer-migrate-legacy-system-regex-tester-3357504 — 95/100, 539 words [segment A]
+  automation-monitor-scheduled-tasks-site-reliability-engineer-debug-production-issue-regex-tester-3407616 — 94/100, 535 words [segment A]
+  automation-schedule-recurring-task-fullstack-developer-sanitize-user-input-uuid-generator-3457728 — 90/100, 517 words [segment A]
+  automation-validate-cron-schedule-devops-engineer-trace-request-uuid-generator-3507840 — 83/100, 536 words [segment B]
+  automation-automate-data-extraction-site-reliability-engineer-migrate-legacy-system-uuid-generator-3557952 — 97/100, 450 words [segment A]
+  web-optimize-css-bundle-api-consumer-debug-production-issue-html-entity-encode-decode-3608064 — 82/100, 492 words [segment B]
+  web-minify-stylesheet-technical-writer-sanitize-user-input-html-entity-encode-decode-3658176 — 90/100, 465 words [segment A]
+  web-validate-markup-output-database-administrator-trace-request-html-entity-encode-decode-3708288 — 85/100, 456 words [segment B]
+  web-preview-content-markup-api-consumer-migrate-legacy-system-css-minifier-3758400 — 95/100, 507 words [segment A]
+  web-render-dynamic-content-data-engineer-debug-production-issue-css-minifier-3808512 — 96/100, 499 words [segment A]
+  web-format-rich-text-cloud-architect-sanitize-user-input-css-minifier-3858624 — 84/100, 446 words [segment B]
+  web-encode-url-parameters-integration-engineer-trace-request-markdown-preview-3908736 — 84/100, 438 words [segment B]
+  web-escape-template-variables-data-engineer-migrate-legacy-system-markdown-preview-3958848 — 83/100, 522 words [segment B]

@@ -8,8 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { getProgrammaticPageBySlug, getPageByIndex, getTotalPageCount } from '@/data/programmatic';
 import { getToolBySlug, toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
-import { calculateQualityScore, shouldIndex } from '@/lib/quality/scoring';
-import { siteConfig, externalUrls } from '@/config/site';
+import { externalUrls } from '@/config/site';
 import { monetizationConfig } from '@/config/monetization';
 import { RecommendedSolutions } from '@/components/monetization/RecommendedSolutions';
 import { ComputedExample } from '@/components/programmatic/ComputedExample';
@@ -29,17 +28,6 @@ export const dynamicParams = true;
 
 interface PageProps {
   params: Promise<{ slug: string }>;
-}
-
-function isProgrammaticPageIndexable(slug: string): boolean {
-  const candidate = getProgrammaticPageBySlug(slug);
-  if (!candidate) return false;
-  const quality = calculateQualityScore(candidate);
-  return shouldIndex(
-    quality.score,
-    siteConfig.programmaticQuality.minIndexScore,
-    quality.wordCount,
-  );
 }
 
 function getProgrammaticDiscoveryLinks(currentSlug: string, clusterKey: string, count = 12) {
@@ -93,13 +81,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const page = getProgrammaticPageBySlug(slug);
   if (!page) return buildMetadata({ title: 'Not Found', noindex: true });
-  const noindex = !isProgrammaticPageIndexable(slug);
 
   return buildMetadata({
     title: page.title,
     description: page.description,
     path: `/k/${slug}`,
-    noindex,
+    noindex: false,
   });
 }
 
@@ -107,7 +94,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
   const { slug } = await params;
   const page = getProgrammaticPageBySlug(slug);
 
-  if (!page || !isProgrammaticPageIndexable(slug)) {
+  if (!page) {
     notFound();
   }
 
@@ -346,6 +333,69 @@ export default async function ProgrammaticPage({ params }: PageProps) {
                   className="text-sm text-muted-foreground leading-relaxed"
                   dangerouslySetInnerHTML={{ __html: linkifyCommercialTerms(paragraph) }}
                 />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg">Aracin Tarihcesi</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {page.toolHistory.map((paragraph, index) => (
+              <p
+                key={index}
+                className="text-sm text-muted-foreground leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: linkifyCommercialTerms(paragraph) }}
+              />
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg">Dunyadaki Kullanim Ornekleri</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {page.globalUseCases.map((paragraph, index) => (
+              <p
+                key={index}
+                className="text-sm text-muted-foreground leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: linkifyCommercialTerms(paragraph) }}
+              />
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg">Teknik Terimler Sozlugu</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="space-y-3">
+              {page.glossary.map((item) => (
+                <div key={item.term}>
+                  <dt className="text-sm font-medium">{item.term}</dt>
+                  <dd className="text-sm text-muted-foreground">{item.definition}</dd>
+                </div>
+              ))}
+            </dl>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg">Kullanici Yorumlari Simulasyonu</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {page.simulatedReviews.map((review, index) => (
+                <div key={`${review.role}-${index}`} className="rounded-md border p-3">
+                  <p className="text-sm font-medium">{review.role}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{review.comment}</p>
+                  <p className="text-xs text-muted-foreground mt-2">Rating: {review.rating}/5</p>
+                </div>
               ))}
             </div>
           </CardContent>

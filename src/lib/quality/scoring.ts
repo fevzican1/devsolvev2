@@ -26,8 +26,12 @@ export function estimateProgrammaticWordCount(page: ProgrammaticPage): number {
     ...page.proTips,
     ...page.technicalAnalysis,
     ...page.expertTips,
+    ...page.toolHistory,
+    ...page.globalUseCases,
     ...page.faq.map((item) => `${item.question} ${item.answer}`),
     ...page.comparison.flatMap((row) => [row.item, row.pros, row.cons]),
+    ...page.glossary.map((item) => `${item.term} ${item.definition}`),
+    ...page.simulatedReviews.map((item) => `${item.role} ${item.comment}`),
   ].join(' ');
 
   return corpus
@@ -107,8 +111,8 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
   if (page.slug.length > 160) {
     issues.push('Slug is overly long or complex');
   }
-  if (wordCount < 350) {
-    issues.push('Estimated content length is below the 350-word indexability floor');
+  if (wordCount < 400) {
+    issues.push('Estimated content length is below the 400-word quality floor');
   }
 
   return {
@@ -127,11 +131,11 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
 }
 
 export function shouldIndex(score: number, minScore: number, wordCount?: number): boolean {
-  if (typeof wordCount === 'number' && wordCount < 350) return false;
+  if (typeof wordCount === 'number' && wordCount < 400) return false;
   return score >= minScore;
 }
 
 export function shouldIncludeInSitemap(score: number, minScore: number, wordCount?: number): boolean {
-  if (typeof wordCount === 'number' && wordCount < 350) return false;
+  if (typeof wordCount === 'number' && wordCount < 400) return false;
   return score >= minScore;
 }
