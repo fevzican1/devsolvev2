@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck:app": "tsc --noEmit",
+    "typecheck:functions": "tsc --project tsconfig.functions.json --noEmit",
+    "typecheck": "npm run typecheck:app && npm run typecheck:functions"
   },
   "dependencies": {
     "@netlify/blobs": "^10.7.4",
