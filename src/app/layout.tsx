@@ -105,6 +105,14 @@ const websiteJsonLd = {
   name: siteConfig.name,
   url: siteConfig.siteUrl,
   inLanguage: 'en',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: `${siteConfig.siteUrl}/tools`,
+    },
+    'query-input': 'required name=search_term_string',
+  },
 };
 
 const organizationJsonLd = {

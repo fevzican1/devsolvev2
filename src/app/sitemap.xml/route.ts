@@ -6,8 +6,8 @@ import { getTotalPageCount } from '@/data/programmatic';
 
 const URLS_PER_SITEMAP = 10000;
 
-/* ISR: regenerate every 12 hours. Cached so Google bot never times out. */
-export const revalidate = 43200;
+/* ISR: regenerate every 6 hours. Cached so Google bot never times out. */
+export const revalidate = 21600;
 
 function safeLastModifiedAt(paths: string[], fallback: Date): Date {
   let latest = fallback.getTime();
@@ -81,7 +81,7 @@ ${sitemaps}
   return new NextResponse(xml, {
     headers: {
       'Content-Type': 'application/xml',
-      'Cache-Control': 'public, s-maxage=43200, stale-while-revalidate=86400',
+      'Cache-Control': 'public, s-maxage=21600, stale-while-revalidate=43200',
     },
   });
 }

@@ -20,6 +20,7 @@ import {
   EditorialByline,
   EditorialIntro,
   OriginalValueCallouts,
+  TransparencyBadge,
 } from '@/components/content/EditorialIdentity';
 
 /* ISR: revalidate every 24 hours; allow any slug not in generateStaticParams */
@@ -59,7 +60,7 @@ function getProgrammaticDiscoveryLinks(currentSlug: string, clusterKey: string, 
 
 export async function generateStaticParams() {
   /* Pre-render a small, evenly distributed sample and render the rest via ISR. */
-  const totalPrerender = 200;
+  const totalPrerender = 500;
   const totalPages = getTotalPageCount();
   if (totalPages < 1) return [];
   const step = Math.max(1, Math.floor(totalPages / totalPrerender));
@@ -87,6 +88,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     description: page.description,
     path: `/k/${slug}`,
     noindex: false,
+    keywords: page.keywords,
+    datePublished: '2026-01-15T00:00:00Z',
+    dateModified: new Date().toISOString(),
+    articleSection: page.clusterKey,
   });
 }
 
@@ -178,6 +183,43 @@ export default async function ProgrammaticPage({ params }: PageProps) {
     ],
   };
 
+  const articleJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'TechArticle',
+    headline: page.h1,
+    description: page.description,
+    url: `${siteConfig.siteUrl}/k/${slug}`,
+    datePublished: '2026-01-15T00:00:00Z',
+    dateModified: new Date().toISOString(),
+    author: {
+      '@type': 'Organization',
+      name: 'DevSolve Editorial Team',
+      url: `${siteConfig.siteUrl}/about`,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: siteConfig.name,
+      url: siteConfig.siteUrl,
+      logo: {
+        '@type': 'ImageObject',
+        url: `${siteConfig.siteUrl}/favicon.svg`,
+      },
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${siteConfig.siteUrl}/k/${slug}`,
+    },
+    about: {
+      '@type': 'Thing',
+      name: page.intent.replace(/-/g, ' '),
+    },
+    proficiencyLevel: 'Beginner',
+    dependencies: `Web browser with JavaScript enabled`,
+    inLanguage: 'en',
+    isAccessibleForFree: true,
+    keywords: page.keywords.join(', '),
+  };
+
   return (
     <div className="container mx-auto px-4 py-12">
       <script
@@ -196,6 +238,10 @@ export default async function ProgrammaticPage({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
@@ -207,6 +253,9 @@ export default async function ProgrammaticPage({ params }: PageProps) {
           </div>
 
           <h1 className="text-3xl font-bold mb-4">{page.h1}</h1>
+          <div className="flex items-center gap-3 mb-3">
+            <TransparencyBadge />
+          </div>
           <EditorialByline />
           <p
             className="text-lg text-muted-foreground mb-4"
