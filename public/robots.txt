@@ -2,6 +2,6 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /.netlify/
+Disallow: /cmd-center
 
 Sitemap: https://devsolvev2.com/sitemap.xml
-Sitemap: https://devsolvev2.com/sitemaps/sitemap-core.xml

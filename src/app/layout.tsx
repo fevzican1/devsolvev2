@@ -112,6 +112,12 @@ const organizationJsonLd = {
   '@type': 'Organization',
   name: siteConfig.name,
   url: siteConfig.siteUrl,
+  logo: `${siteConfig.siteUrl}/favicon.svg`,
+  contactPoint: {
+    '@type': 'ContactPoint',
+    contactType: 'customer support',
+    url: `${siteConfig.siteUrl}/contact`,
+  },
   sameAs: [
     platformExternalUrls.netlify,
   ],

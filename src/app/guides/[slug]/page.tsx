@@ -12,6 +12,7 @@ import { RecommendedSolutions } from '@/components/monetization/RecommendedSolut
 import { monetizationConfig } from '@/config/monetization';
 import { loadGuideContent } from '@/lib/guides/loader';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { siteConfig, externalUrls } from '@/config/site';
 import {
   CommercialOpportunityLinks,
   EditorialByline,
@@ -57,8 +58,37 @@ export default async function GuidePage({ params }: PageProps) {
     .map(getToolBySlug)
     .filter((t): t is NonNullable<typeof t> => t !== undefined);
 
+  const breadcrumbJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: siteConfig.siteUrl,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Guides',
+        item: `${siteConfig.siteUrl}/guides`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: guide.title,
+        item: `${siteConfig.siteUrl}/guides/${slug}`,
+      },
+    ],
+  };
+
   return (
     <div className="container mx-auto px-4 py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">

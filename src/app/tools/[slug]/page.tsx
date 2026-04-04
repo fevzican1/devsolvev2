@@ -17,7 +17,7 @@ import {
   OriginalValueCallouts,
 } from '@/components/content/EditorialIdentity';
 import { buildToolPageContent } from '@/lib/seo/toolPageContent';
-import { externalUrls } from '@/config/site';
+import { siteConfig, externalUrls } from '@/config/site';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -77,6 +77,31 @@ export default async function ToolPage({ params }: PageProps) {
     })),
   };
 
+  const breadcrumbJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: siteConfig.siteUrl,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Tools',
+        item: `${siteConfig.siteUrl}/tools`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: tool.name,
+        item: `${siteConfig.siteUrl}/tools/${tool.slug}`,
+      },
+    ],
+  };
+
   return (
     <div className="container mx-auto px-4 py-12">
       <script
@@ -90,6 +115,10 @@ export default async function ToolPage({ params }: PageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(howToJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">
@@ -179,7 +208,8 @@ export default async function ToolPage({ params }: PageProps) {
 
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle className="text-lg">Simulated User Reviews</CardTitle>
+            <CardTitle className="text-lg">Community Feedback</CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">These are illustrative examples representing common user experiences, not verified reviews.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
