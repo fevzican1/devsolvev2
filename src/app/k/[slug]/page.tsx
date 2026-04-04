@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { getProgrammaticPageBySlug, getPageByIndex, getTotalPageCount } from '@/data/programmatic';
 import { getToolBySlug, toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
-import { externalUrls } from '@/config/site';
+import { siteConfig, externalUrls } from '@/config/site';
 import { monetizationConfig } from '@/config/monetization';
 import { RecommendedSolutions } from '@/components/monetization/RecommendedSolutions';
 import { ComputedExample } from '@/components/programmatic/ComputedExample';
@@ -153,6 +153,31 @@ export default async function ProgrammaticPage({ params }: PageProps) {
     },
   };
 
+  const breadcrumbJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: siteConfig.siteUrl,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Tools',
+        item: `${siteConfig.siteUrl}/tools`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: page.title,
+        item: `${siteConfig.siteUrl}/k/${slug}`,
+      },
+    ],
+  };
+
   return (
     <div className="container mx-auto px-4 py-12">
       <script
@@ -166,6 +191,10 @@ export default async function ProgrammaticPage({ params }: PageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
@@ -227,18 +256,18 @@ export default async function ProgrammaticPage({ params }: PageProps) {
 
         <Card className="mb-8 border-primary/25 bg-primary/5">
           <CardHeader>
-            <CardTitle className="text-lg">Neden Kullanmalisiniz?</CardTitle>
+            <CardTitle className="text-lg">Why Use This?</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>
-              Bu sayfa, <strong>{primaryTool?.name ?? 'ilgili aracin'}</strong> ile{' '}
-              <strong>{page.intent.replace(/-/g, ' ')}</strong> gorevini gercek proje senaryolarinda
-              nasil yoneteceginizi adim adim aciklar.
+              This page explains step by step how to handle the{' '}
+              <strong>{page.intent.replace(/-/g, ' ')}</strong> task in real project scenarios
+              using <strong>{primaryTool?.name ?? 'the relevant tool'}</strong>.
             </p>
             <p>
-              Icerik teknik derinlik, hata noktasi analizi ve alternatif cozumleri bir arada sundugu
-              icin sadece trafik almak icin uretilmis yonlendirme sayfasi degil, karar alinabilir bir
-              nihai landing page olarak tasarlandi.
+              The content combines technical depth, error-point analysis, and alternative solutions,
+              making it a definitive landing page where you can make informed decisions — not just a
+              redirect page built for traffic.
             </p>
           </CardContent>
         </Card>
@@ -247,7 +276,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-warning" />
-              Hata Giderme Rehberi
+              Troubleshooting Guide
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -264,7 +293,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
 
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle className="text-lg">Alternatif Cozumler</CardTitle>
+            <CardTitle className="text-lg">Alternative Solutions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -322,7 +351,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <BookOpen className="h-5 w-5" />
-              Teknik Detaylar
+              Technical Details
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -340,7 +369,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
 
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle className="text-lg">Aracin Tarihcesi</CardTitle>
+            <CardTitle className="text-lg">Tool History</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {page.toolHistory.map((paragraph, index) => (
@@ -355,7 +384,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
 
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle className="text-lg">Dunyadaki Kullanim Ornekleri</CardTitle>
+            <CardTitle className="text-lg">Real-World Usage Examples</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {page.globalUseCases.map((paragraph, index) => (
@@ -370,7 +399,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
 
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle className="text-lg">Teknik Terimler Sozlugu</CardTitle>
+            <CardTitle className="text-lg">Technical Glossary</CardTitle>
           </CardHeader>
           <CardContent>
             <dl className="space-y-3">
@@ -386,7 +415,8 @@ export default async function ProgrammaticPage({ params }: PageProps) {
 
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle className="text-lg">Kullanici Yorumlari Simulasyonu</CardTitle>
+            <CardTitle className="text-lg">Community Feedback</CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">These are illustrative examples representing common user experiences, not verified reviews.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -460,7 +490,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
 
         <div className="grid gap-8 md:grid-cols-3 mb-8">
           <div>
-            <h2 className="text-lg font-semibold mb-3">Benzer Araclar</h2>
+            <h2 className="text-lg font-semibold mb-3">Similar Tools</h2>
             <ul className="space-y-2 text-sm">
               {semanticProgrammaticLinks.slice(0, 6).map((item) => (
                 <li key={item.slug}>
@@ -472,7 +502,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
             </ul>
           </div>
           <div>
-            <h2 className="text-lg font-semibold mb-3">En Cok Kullanilanlar</h2>
+            <h2 className="text-lg font-semibold mb-3">Most Popular</h2>
             <ul className="space-y-2 text-sm">
               {popularTools.map((tool) => (
                 <li key={tool.slug}>
@@ -484,7 +514,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
             </ul>
           </div>
           <div>
-            <h2 className="text-lg font-semibold mb-3">Kategori Bazli Kesif</h2>
+            <h2 className="text-lg font-semibold mb-3">Explore by Category</h2>
             <ul className="space-y-2 text-sm">
               {categoryExplorationLinks.map((item) => (
                 <li key={item.href}>
