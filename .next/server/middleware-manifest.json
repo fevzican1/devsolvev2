@@ -1,6 +1,29 @@
 {
   "version": 3,
-  "middleware": {},
+  "middleware": {
+    "/": {
+      "files": [
+        "prerender-manifest.js",
+        "server/edge-runtime-webpack.js",
+        "server/src/middleware.js"
+      ],
+      "name": "src/middleware",
+      "page": "/",
+      "matchers": [
+        {
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?(?:\\/((?!_next\\/static|_next\\/image|.*\\..*).*))(.json)?[\\/#\\?]?$",
+          "originalSource": "/((?!_next/static|_next/image|.*\\..*).*)"
+        }
+      ],
+      "wasm": [],
+      "assets": [],
+      "environments": {
+        "previewModeId": "1e36eed01a224d86ffd340e81845d1c6",
+        "previewModeSigningKey": "dc6fa2d0b104b3caa033a6fad09be4cbb297f58b630eb55d6f5405043228099f",
+        "previewModeEncryptionKey": "d336a6ac340bcd58b46fcc0618dd6ec02935c2ca6a9fb06041076a0f7641b1bc"
+      }
+    }
+  },
   "functions": {
     "/opengraph-image/route": {
       "files": [
@@ -38,9 +61,9 @@
         }
       ],
       "environments": {
-        "previewModeId": "355d9364f07247228b84e14294f368f3",
-        "previewModeSigningKey": "4d31752208eba138634cc576ce88a17e0cfe38db21692ba9478854ca7c84219e",
-        "previewModeEncryptionKey": "877fbf3017f3e4ef5a8a3a947ac6b4b8170e064cbf7ceae51ac693304c6e2f02"
+        "previewModeId": "1e36eed01a224d86ffd340e81845d1c6",
+        "previewModeSigningKey": "dc6fa2d0b104b3caa033a6fad09be4cbb297f58b630eb55d6f5405043228099f",
+        "previewModeEncryptionKey": "d336a6ac340bcd58b46fcc0618dd6ec02935c2ca6a9fb06041076a0f7641b1bc"
       }
     },
     "/twitter-image/route": {
@@ -79,11 +102,13 @@
         }
       ],
       "environments": {
-        "previewModeId": "355d9364f07247228b84e14294f368f3",
-        "previewModeSigningKey": "4d31752208eba138634cc576ce88a17e0cfe38db21692ba9478854ca7c84219e",
-        "previewModeEncryptionKey": "877fbf3017f3e4ef5a8a3a947ac6b4b8170e064cbf7ceae51ac693304c6e2f02"
+        "previewModeId": "1e36eed01a224d86ffd340e81845d1c6",
+        "previewModeSigningKey": "dc6fa2d0b104b3caa033a6fad09be4cbb297f58b630eb55d6f5405043228099f",
+        "previewModeEncryptionKey": "d336a6ac340bcd58b46fcc0618dd6ec02935c2ca6a9fb06041076a0f7641b1bc"
       }
     }
   },
-  "sortedMiddleware": []
+  "sortedMiddleware": [
+    "/"
+  ]
 }
