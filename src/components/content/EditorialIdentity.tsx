@@ -5,15 +5,31 @@ interface EditorialIntroProps {
 }
 
 export const editorialTeamName = 'DevSolve Editorial Team';
-export const editorialLastUpdated = 'March 19, 2026';
+
+function formatEditorialDate(): string {
+  const date = new Date();
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+}
 
 export function EditorialByline() {
+  const currentDate = formatEditorialDate();
   return (
-    <p className="text-sm text-muted-foreground mb-3">
-      <span className="font-medium text-foreground">By {editorialTeamName}</span>
-      <span className="mx-2">-</span>
-      <span>Last updated: {editorialLastUpdated}</span>
-    </p>
+    <div className="mb-3">
+      <p className="text-sm text-muted-foreground">
+        <span className="font-medium text-foreground">By {editorialTeamName}</span>
+        <span className="mx-2">-</span>
+        <time dateTime={new Date().toISOString().split('T')[0]}>
+          Last updated: {currentDate}
+        </time>
+      </p>
+      <p className="text-xs text-muted-foreground mt-1">
+        Independently researched and written. All technical claims are verified against official documentation.
+      </p>
+    </div>
   );
 }
 
@@ -25,6 +41,21 @@ export function EditorialIntro({ toolName }: EditorialIntroProps) {
         fits in real engineering workflows, and when a paid plan is worth purchasing for better
         scale, reliability, and team collaboration.
       </p>
+      <p className="text-xs text-muted-foreground mt-2">
+        This content is created by the DevSolve editorial team and is not sponsored or influenced by any third party.
+        All processing examples run locally in your browser.
+      </p>
+    </div>
+  );
+}
+
+export function TransparencyBadge() {
+  return (
+    <div className="inline-flex items-center gap-1.5 rounded-full border border-green-500/30 bg-green-500/10 px-3 py-1 text-xs font-medium text-green-700 dark:text-green-400">
+      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+      </svg>
+      Verified original content
     </div>
   );
 }

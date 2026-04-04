@@ -6,6 +6,10 @@ type MetadataInput = {
   description?: string;
   path?: string;
   noindex?: boolean;
+  keywords?: string[];
+  datePublished?: string;
+  dateModified?: string;
+  articleSection?: string;
 };
 
 const TURKISH_CHAR_MAP: Record<string, string> = {
@@ -50,6 +54,10 @@ export function buildMetadata({
   description = siteConfig.description,
   path = '/',
   noindex = false,
+  keywords,
+  datePublished,
+  dateModified,
+  articleSection,
 }: MetadataInput): Metadata {
   const url = absoluteUrl(path);
 
@@ -59,18 +67,23 @@ export function buildMetadata({
     alternates: {
       canonical: url,
     },
+    ...(keywords && keywords.length > 0 ? { keywords } : {}),
     openGraph: {
-      type: 'website',
+      type: articleSection ? 'article' : 'website',
       url,
       title: title ?? siteConfig.name,
       description,
       siteName: siteConfig.name,
+      locale: 'en_US',
+      ...(datePublished ? { publishedTime: datePublished } : {}),
+      ...(dateModified ? { modifiedTime: dateModified } : {}),
+      ...(articleSection ? { section: articleSection } : {}),
       images: [
         {
           url: absoluteUrl('/opengraph-image'),
           width: 1200,
           height: 630,
-          alt: `${siteConfig.name} social preview`,
+          alt: title ? `${title} — ${siteConfig.name}` : `${siteConfig.name} social preview`,
         },
       ],
     },
@@ -80,6 +93,18 @@ export function buildMetadata({
       description,
       images: [absoluteUrl('/twitter-image')],
     },
-    robots: noindex ? { index: false, follow: true } : { index: true, follow: true },
+    robots: noindex
+      ? { index: false, follow: true }
+      : {
+          index: true,
+          follow: true,
+          googleBot: {
+            index: true,
+            follow: true,
+            'max-image-preview': 'large' as const,
+            'max-snippet': -1,
+            'max-video-preview': -1,
+          },
+        },
   };
 }

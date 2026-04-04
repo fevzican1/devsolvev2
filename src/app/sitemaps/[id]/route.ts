@@ -166,22 +166,22 @@ export async function GET(
   const entries: UrlCandidate[] = [];
 
   if (parsed.type === 'core') {
-    entries.push({ loc: `${base}/`, lastmod: coreLastmod, changefreq: 'weekly', priority: '1.0', freshness: 1 });
+    entries.push({ loc: `${base}/`, lastmod: coreLastmod, changefreq: 'daily', priority: '1.0', freshness: 1 });
     entries.push({ loc: `${base}/about`, lastmod: coreLastmod, changefreq: 'monthly', priority: '0.6', freshness: 0.6 });
     entries.push({ loc: `${base}/contact`, lastmod: coreLastmod, changefreq: 'monthly', priority: '0.7', freshness: 0.7 });
-    entries.push({ loc: `${base}/tools`, lastmod: coreLastmod, changefreq: 'weekly', priority: '0.9', freshness: 0.9 });
-    entries.push({ loc: `${base}/guides`, lastmod: coreLastmod, changefreq: 'weekly', priority: '0.9', freshness: 0.9 });
+    entries.push({ loc: `${base}/tools`, lastmod: coreLastmod, changefreq: 'daily', priority: '0.9', freshness: 0.9 });
+    entries.push({ loc: `${base}/guides`, lastmod: coreLastmod, changefreq: 'daily', priority: '0.9', freshness: 0.9 });
     entries.push({ loc: `${base}/legal/privacy`, lastmod: coreLastmod, changefreq: 'monthly', priority: '0.3', freshness: 0.3 });
     entries.push({ loc: `${base}/legal/terms`, lastmod: coreLastmod, changefreq: 'monthly', priority: '0.3', freshness: 0.3 });
     entries.push({ loc: `${base}/legal/cookies`, lastmod: coreLastmod, changefreq: 'monthly', priority: '0.3', freshness: 0.3 });
-    entries.push({ loc: `${base}/legal/publisher-ethics`, lastmod: coreLastmod, changefreq: 'monthly', priority: '0.3', freshness: 0.3 });
+    entries.push({ loc: `${base}/legal/publisher-ethics`, lastmod: coreLastmod, changefreq: 'monthly', priority: '0.4', freshness: 0.4 });
 
     for (const t of toolRegistry) {
       entries.push({
         loc: `${base}/tools/${t.slug}`,
         lastmod: coreLastmod,
         changefreq: 'weekly',
-        priority: '0.8',
+        priority: '0.85',
         freshness: estimateConversionSignal(t.slug),
       });
     }
@@ -190,7 +190,7 @@ export async function GET(
         loc: `${base}/guides/${g.slug}`,
         lastmod: coreLastmod,
         changefreq: 'weekly',
-        priority: '0.8',
+        priority: '0.85',
         freshness: estimateOrganicDemandScore(g.clusterKeys.length, g.slug),
       });
     }
@@ -215,11 +215,13 @@ export async function GET(
         primaryTool: page.primaryTool,
       });
 
+      const priorityValue = Math.max(0.4, Math.min(0.8, 0.4 + freshness * 0.4)).toFixed(1);
+
       entries.push({
         loc: `${base}/k/${page.slug}`,
         lastmod: programmaticLastmod,
         changefreq: 'weekly',
-        priority: '0.5',
+        priority: priorityValue,
         freshness,
       });
     }

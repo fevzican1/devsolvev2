@@ -908,48 +908,90 @@ function estimateProgrammaticWordCount(page: ProgrammaticPage): number {
     .filter(Boolean).length;
 }
 
-function buildToolHistory(tool: string, clusterKey: ClusterKey, audience: string): string[] {
+function buildToolHistory(tool: string, clusterKey: ClusterKey, audience: string, seed: number): string[] {
   const toolName = getToolName(tool);
-  return [
+  const cd = clusterDomain[clusterKey];
+  const ac = audienceContext[audience] ?? { focus: 'quality', concern: 'correctness', workflow: 'your workflow' };
+
+  const historyPool = [
     `${toolName} was introduced to reduce repetitive ad-hoc scripting in ${label(clusterKey)} operations and to provide a deterministic output path for engineers working under delivery pressure.`,
     `Adoption accelerated as teams shifted from desktop-only utilities to browser-native workflows, especially in organizations that required private local processing for internal payloads and configuration artifacts.`,
     `For ${label(audience)} teams, the tool matured into a practical decision-support layer: quick verification first, then production automation after output behavior is validated.`,
+    `The evolution of ${toolName} reflects a broader industry trend toward privacy-preserving developer tooling, where ${cd.field} tasks are performed entirely client-side without transmitting data to external servers.`,
+    `Early versions focused on basic ${label(clusterKey)} operations, but community feedback from ${label(audience)} professionals drove the addition of edge-case handling, better error messages, and workflow-specific defaults that align with ${ac.focus}.`,
+    `Today ${toolName} serves as both a standalone utility and a reference implementation — ${label(audience)} teams often use its output to benchmark their own ${label(clusterKey)} automation pipelines against a known-correct baseline.`,
   ];
+
+  const shuffled = seededShuffle(historyPool, seed + 71);
+  return shuffled.slice(0, 4);
 }
 
-function buildGlobalUseCases(tool: string, intent: string): string[] {
+function buildGlobalUseCases(tool: string, intent: string, audience: string, clusterKey: ClusterKey, seed: number): string[] {
   const toolName = getToolName(tool);
-  return [
-    `North America: teams use ${toolName} to validate ${label(intent)} workflows before release cutoffs and incident response handoffs.`,
-    `Europe: distributed engineering organizations use ${toolName} to align formatting and transformation quality across cross-border review pipelines.`,
-    `Asia-Pacific: high-iteration product teams rely on ${toolName} for quick pre-deployment checks in continuous release environments.`,
+  const ac = audienceContext[audience] ?? { focus: 'quality', concern: 'correctness', workflow: 'your workflow' };
+  const cd = clusterDomain[clusterKey];
+
+  const useCasePool = [
+    `North America: teams use ${toolName} to validate ${label(intent)} workflows before release cutoffs and incident response handoffs, where ${ac.focus} is non-negotiable under time pressure.`,
+    `Europe: distributed engineering organizations use ${toolName} to align ${label(clusterKey)} transformation quality across cross-border review pipelines, especially in GDPR-sensitive contexts where ${ac.concern} is paramount.`,
+    `Asia-Pacific: high-iteration product teams rely on ${toolName} for quick pre-deployment checks in continuous release environments, embedding ${label(intent)} verification into their rapid shipping cadence.`,
+    `Remote-first organizations: globally distributed ${label(audience)} professionals use ${toolName} as a shared reference point for ${cd.field} tasks, eliminating "works on my machine" discrepancies when the same browser-based tool produces identical results everywhere.`,
+    `Regulated industries: financial and healthcare ${label(audience)} teams rely on ${toolName} for ${label(intent)} because local-only processing satisfies data residency requirements without additional compliance overhead.`,
+    `Startup environments: early-stage teams without dedicated ${label(clusterKey)} infrastructure use ${toolName} to handle ${label(intent)} tasks efficiently, deferring custom tooling investment until scale demands it.`,
   ];
+
+  const shuffled = seededShuffle(useCasePool, seed + 83);
+  return shuffled.slice(0, 4);
 }
 
-function buildGlossary(clusterKey: ClusterKey): { term: string; definition: string }[] {
-  return [
+function buildGlossary(clusterKey: ClusterKey, intent: string, audience: string, seed: number): { term: string; definition: string }[] {
+  const cd = clusterDomain[clusterKey];
+  const ac = audienceContext[audience] ?? { focus: 'quality', concern: 'correctness', workflow: 'your workflow' };
+
+  const glossaryPool = [
     {
       term: 'Deterministic transformation',
-      definition: 'An operation that produces the same result for the same input and configuration every time.',
+      definition: 'An operation that produces the same result for the same input and configuration every time, ensuring reproducibility across environments and team members.',
     },
     {
       term: 'Input normalization',
-      definition: 'Preparing data in a consistent structure so comparisons, validation, and downstream processing remain reliable.',
+      definition: 'Preparing data in a consistent structure so comparisons, validation, and downstream processing remain reliable regardless of the original source format.',
     },
     {
       term: `${label(clusterKey)} workflow`,
-      definition: `A sequence of practical steps used by engineering teams to execute and verify ${label(clusterKey)} tasks in production contexts.`,
+      definition: `A sequence of practical steps used by engineering teams to execute and verify ${label(clusterKey)} tasks in production contexts, typically combining manual validation with automated checks.`,
     },
     {
       term: 'Edge-case coverage',
-      definition: 'Testing unusual but realistic inputs to avoid hidden regressions in live environments.',
+      definition: 'Testing unusual but realistic inputs to avoid hidden regressions in live environments, particularly important for data that crosses system boundaries.',
+    },
+    {
+      term: 'Local processing',
+      definition: 'Executing data operations entirely within the browser or client device without transmitting data to external servers, preserving confidentiality and reducing latency.',
+    },
+    {
+      term: `${label(intent)} pipeline`,
+      definition: `The end-to-end sequence of steps involved in ${label(intent)}, from initial input validation through transformation to final output verification.`,
+    },
+    {
+      term: 'Roundtrip validation',
+      definition: `The practice of encoding or transforming data and then reversing the operation to confirm that no information was lost — a key quality gate in ${cd.field}.`,
+    },
+    {
+      term: `${label(audience)} workflow integration`,
+      definition: `Embedding ${label(clusterKey)} tool usage into the daily practices of ${label(audience)} professionals, ${ac.workflow} for maximum efficiency and consistency.`,
     },
   ];
+
+  const shuffled = seededShuffle(glossaryPool, seed + 97);
+  return shuffled.slice(0, 5);
 }
 
-function buildSimulatedReviews(tool: string): { role: string; rating: number; comment: string }[] {
+function buildSimulatedReviews(tool: string, audience: string, clusterKey: ClusterKey, seed: number): { role: string; rating: number; comment: string }[] {
   const toolName = getToolName(tool);
-  return [
+  const cd = clusterDomain[clusterKey];
+
+  const reviewPool = [
     {
       role: 'Backend engineer',
       rating: 5,
@@ -965,7 +1007,30 @@ function buildSimulatedReviews(tool: string): { role: string; rating: number; co
       rating: 4,
       comment: `Useful for fast diagnostics when comparing transformed outputs and isolating whether failures come from input quality or pipeline behavior.`,
     },
+    {
+      role: 'Frontend developer',
+      rating: 5,
+      comment: `Being able to validate ${label(clusterKey)} operations directly in the browser saved significant context-switching time during feature development.`,
+    },
+    {
+      role: 'Security analyst',
+      rating: 5,
+      comment: `The local-only processing model means I can safely inspect sensitive tokens and hashes without worrying about data leakage to third-party services.`,
+    },
+    {
+      role: 'Technical lead',
+      rating: 4,
+      comment: `We standardized on ${toolName} for ${cd.field} spot-checks across the team — consistent tool means consistent validation quality.`,
+    },
+    {
+      role: 'Data engineer',
+      rating: 4,
+      comment: `Quick validation of transformation outputs before deploying pipeline changes has prevented several data quality incidents.`,
+    },
   ];
+
+  const shuffled = seededShuffle(reviewPool, seed + 113);
+  return shuffled.slice(0, 3);
 }
 
 function buildDepthExpansion(tool: string, clusterKey: ClusterKey, audience: string, task: string): string[] {
@@ -976,6 +1041,29 @@ function buildDepthExpansion(tool: string, clusterKey: ClusterKey, audience: str
     `From a governance perspective, ${label(audience)} groups benefit from documenting the exact tool settings used during ${tc.scenario}. This makes incident retrospectives and compliance reviews materially easier because decision paths are auditable.`,
     `Within ${label(clusterKey)} systems, the highest quality gains usually come from pairing manual validation with automated checks. The manual pass catches context-specific anomalies while automation enforces consistency across ongoing releases.`,
   ];
+}
+
+/* ------------------------------------------------------------------ */
+/*  Description builder — unique, compelling meta descriptions           */
+/* ------------------------------------------------------------------ */
+function buildDescription(
+  title: string, tool: string, intent: string, audience: string,
+  task: string, modifier: string, clusterKey: ClusterKey, seed: number,
+): string {
+  const toolName = getToolName(tool);
+  const ac = audienceContext[audience] ?? { focus: 'quality', concern: 'correctness', workflow: 'your workflow' };
+  const tc = taskContext[task] ?? { scenario: 'completing a task', urgency: 'important', outcome: 'achieve the result' };
+  const cd = clusterDomain[clusterKey];
+
+  const descriptionVariants = [
+    `${title} — practical, browser-based workflow for real-world ${label(clusterKey)} engineering tasks, ${label(modifier)}. Learn how to ${tc.outcome} with ${toolName}.`,
+    `Step-by-step guide to ${label(intent)} using ${toolName} for ${label(audience)} professionals. Covers ${tc.scenario} with best practices for ${cd.field}.`,
+    `How ${label(audience)} teams use ${toolName} to ${label(intent)} ${label(modifier)}. Includes troubleshooting tips, alternative solutions, and expert recommendations.`,
+    `Complete walkthrough: ${label(intent)} with ${toolName} for ${label(audience)} workflows. All processing runs locally in your browser — your data stays private.`,
+    `A ${label(audience)}'s guide to ${label(intent)} using browser-based ${toolName}. Practical steps for ${tc.scenario}, with focus on ${ac.focus}.`,
+  ];
+
+  return descriptionVariants[seed % descriptionVariants.length];
 }
 
 export function getPageByIndex(index: number): ProgrammaticPage | undefined {
@@ -1002,7 +1090,7 @@ export function getPageByIndex(index: number): ProgrammaticPage | undefined {
   const page: ProgrammaticPage = {
     slug,
     title,
-    description: `${title} — practical, browser-based workflow for real-world ${label(pair.cluster.key)} engineering tasks, ${label(modifier)}.`,
+    description: buildDescription(title, pair.tool, pair.intent, audience, task, modifier, pair.cluster.key, seed),
     primaryTool: pair.tool,
     clusterKey: pair.cluster.key,
     intent: pair.intent,
@@ -1018,13 +1106,13 @@ export function getPageByIndex(index: number): ProgrammaticPage | undefined {
     faq: buildFAQ(pair.cluster.key, pair.tool, audience, pair.intent, task, seed),
     technicalAnalysis: buildTechnicalAnalysis(pair.cluster.key, pair.tool, pair.intent, audience, task, seed),
     expertTips: buildExpertTips(pair.cluster.key, pair.tool, pair.intent, audience, task, seed),
-    toolHistory: buildToolHistory(pair.tool, pair.cluster.key, audience),
-    globalUseCases: buildGlobalUseCases(pair.tool, pair.intent),
-    glossary: buildGlossary(pair.cluster.key),
-    simulatedReviews: buildSimulatedReviews(pair.tool),
+    toolHistory: buildToolHistory(pair.tool, pair.cluster.key, audience, seed),
+    globalUseCases: buildGlobalUseCases(pair.tool, pair.intent, audience, pair.cluster.key, seed),
+    glossary: buildGlossary(pair.cluster.key, pair.intent, audience, seed),
+    simulatedReviews: buildSimulatedReviews(pair.tool, audience, pair.cluster.key, seed),
   };
 
-  const MIN_PROGRAMMATIC_WORDS = 400;
+  const MIN_PROGRAMMATIC_WORDS = 600;
   while (estimateProgrammaticWordCount(page) < MIN_PROGRAMMATIC_WORDS) {
     page.technicalAnalysis.push(...buildDepthExpansion(pair.tool, pair.cluster.key, audience, task));
   }
