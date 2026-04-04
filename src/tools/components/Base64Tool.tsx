@@ -22,7 +22,8 @@ export function Base64Tool() {
       return;
     }
     try {
-      const encoded = btoa(unescape(encodeURIComponent(encodeInput)));
+      const bytes = new TextEncoder().encode(encodeInput);
+      const encoded = btoa(Array.from(bytes, b => String.fromCharCode(b)).join(''));
       setEncodeOutput(encoded);
       setError(null);
     } catch (e) {
@@ -37,7 +38,9 @@ export function Base64Tool() {
       return;
     }
     try {
-      const decoded = decodeURIComponent(escape(atob(decodeInput.trim())));
+      const binaryStr = atob(decodeInput.trim());
+      const bytes = Uint8Array.from(binaryStr, c => c.charCodeAt(0));
+      const decoded = new TextDecoder().decode(bytes);
       setDecodeOutput(decoded);
       setError(null);
     } catch (e) {
