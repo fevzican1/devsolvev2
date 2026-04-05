@@ -9,7 +9,10 @@ export const metadata: Metadata = {
   description: 'The page you are looking for could not be found. Browse our developer tools and guides.',
   robots: {
     index: false,
-    follow: true,
+    follow: false,
+  },
+  alternates: {
+    canonical: undefined,
   },
 };
 

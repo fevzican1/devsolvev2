@@ -30,12 +30,20 @@ const TURKISH_CHAR_MAP: Record<string, string> = {
 };
 
 function shouldSkipPath(pathname: string): boolean {
-  return (
+  if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
-    pathname.startsWith('/favicon') ||
-    pathname.includes('.')
-  );
+    pathname.startsWith('/favicon')
+  ) {
+    return true;
+  }
+  // Skip paths that look like files (have extension) but not clean URL paths
+  // e.g. skip /image.png but not /k/some-slug
+  const lastSegment = pathname.split('/').pop() ?? '';
+  if (lastSegment.includes('.') && /\.\w{1,10}$/.test(lastSegment)) {
+    return true;
+  }
+  return false;
 }
 
 function transliterateTurkish(value: string): string {
@@ -43,12 +51,24 @@ function transliterateTurkish(value: string): string {
 }
 
 function normalizePathname(pathname: string): string {
-  const singleSlashes = pathname.replace(/\/{2,}/g, '/');
-  const transliterated = transliterateTurkish(singleSlashes);
-  const lowerCased = transliterated.toLowerCase();
+  // Collapse multiple slashes
+  let normalized = pathname.replace(/\/{2,}/g, '/');
+  // Transliterate Turkish characters
+  normalized = transliterateTurkish(normalized);
+  // Lowercase
+  normalized = normalized.toLowerCase();
+  // Remove trailing slash (but keep root /)
+  if (normalized !== '/' && normalized.endsWith('/')) {
+    normalized = normalized.slice(0, -1);
+  }
+  // Remove URL-encoded spaces and replace with hyphens
+  normalized = normalized.replace(/%20/g, '-');
+  // Collapse multiple hyphens
+  normalized = normalized.replace(/-{2,}/g, '-');
+  // Remove trailing hyphens from path segments
+  normalized = normalized.replace(/-\//g, '/').replace(/-$/, '');
 
-  if (lowerCased === '/') return '/';
-  return lowerCased.endsWith('/') ? lowerCased.slice(0, -1) : lowerCased;
+  return normalized;
 }
 
 function removeTrackingParams(params: URLSearchParams): URLSearchParams {
@@ -77,7 +97,7 @@ export function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   url.pathname = normalizedPathname;
   url.search = normalizedSearch;
-  return NextResponse.redirect(url, 308);
+  return NextResponse.redirect(url, 301);
 }
 
 export const config = {
