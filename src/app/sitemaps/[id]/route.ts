@@ -1,11 +1,11 @@
 import { statSync } from 'node:fs';
 import { join } from 'node:path';
 import { NextResponse } from 'next/server';
-import { siteConfig } from '@/config/site';
 import { toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
 import { getTotalPageCount, getPageByIndex } from '@/data/programmatic';
 import { hashString } from '@/lib/utils';
+import { absoluteUrl } from '@/lib/seo/url';
 
 const URLS_PER_SITEMAP = 10000;
 
@@ -146,7 +146,6 @@ export async function GET(
     return new NextResponse('Not Found', { status: 404 });
   }
 
-  const base = siteConfig.siteUrl;
   const fallbackDate = new Date();
   const coreLastmod = safeLastModifiedAt(
     [
@@ -166,19 +165,19 @@ export async function GET(
   const entries: UrlCandidate[] = [];
 
   if (parsed.type === 'core') {
-    entries.push({ loc: `${base}/`, lastmod: coreLastmod, changefreq: 'daily', priority: '1.0', freshness: 1 });
-    entries.push({ loc: `${base}/about`, lastmod: coreLastmod, changefreq: 'monthly', priority: '0.6', freshness: 0.6 });
-    entries.push({ loc: `${base}/contact`, lastmod: coreLastmod, changefreq: 'monthly', priority: '0.7', freshness: 0.7 });
-    entries.push({ loc: `${base}/tools`, lastmod: coreLastmod, changefreq: 'daily', priority: '0.9', freshness: 0.9 });
-    entries.push({ loc: `${base}/guides`, lastmod: coreLastmod, changefreq: 'daily', priority: '0.9', freshness: 0.9 });
-    entries.push({ loc: `${base}/legal/privacy`, lastmod: coreLastmod, changefreq: 'monthly', priority: '0.3', freshness: 0.3 });
-    entries.push({ loc: `${base}/legal/terms`, lastmod: coreLastmod, changefreq: 'monthly', priority: '0.3', freshness: 0.3 });
-    entries.push({ loc: `${base}/legal/cookies`, lastmod: coreLastmod, changefreq: 'monthly', priority: '0.3', freshness: 0.3 });
-    entries.push({ loc: `${base}/legal/publisher-ethics`, lastmod: coreLastmod, changefreq: 'monthly', priority: '0.4', freshness: 0.4 });
+    entries.push({ loc: absoluteUrl('/'), lastmod: coreLastmod, changefreq: 'daily', priority: '1.0', freshness: 1 });
+    entries.push({ loc: absoluteUrl('/about'), lastmod: coreLastmod, changefreq: 'monthly', priority: '0.6', freshness: 0.6 });
+    entries.push({ loc: absoluteUrl('/contact'), lastmod: coreLastmod, changefreq: 'monthly', priority: '0.7', freshness: 0.7 });
+    entries.push({ loc: absoluteUrl('/tools'), lastmod: coreLastmod, changefreq: 'daily', priority: '0.9', freshness: 0.9 });
+    entries.push({ loc: absoluteUrl('/guides'), lastmod: coreLastmod, changefreq: 'daily', priority: '0.9', freshness: 0.9 });
+    entries.push({ loc: absoluteUrl('/legal/privacy'), lastmod: coreLastmod, changefreq: 'monthly', priority: '0.3', freshness: 0.3 });
+    entries.push({ loc: absoluteUrl('/legal/terms'), lastmod: coreLastmod, changefreq: 'monthly', priority: '0.3', freshness: 0.3 });
+    entries.push({ loc: absoluteUrl('/legal/cookies'), lastmod: coreLastmod, changefreq: 'monthly', priority: '0.3', freshness: 0.3 });
+    entries.push({ loc: absoluteUrl('/legal/publisher-ethics'), lastmod: coreLastmod, changefreq: 'monthly', priority: '0.4', freshness: 0.4 });
 
     for (const t of toolRegistry) {
       entries.push({
-        loc: `${base}/tools/${t.slug}`,
+        loc: absoluteUrl(`/tools/${t.slug}`),
         lastmod: coreLastmod,
         changefreq: 'weekly',
         priority: '0.85',
@@ -187,7 +186,7 @@ export async function GET(
     }
     for (const g of guideRegistry) {
       entries.push({
-        loc: `${base}/guides/${g.slug}`,
+        loc: absoluteUrl(`/guides/${g.slug}`),
         lastmod: coreLastmod,
         changefreq: 'weekly',
         priority: '0.85',
@@ -218,7 +217,7 @@ export async function GET(
       const priorityValue = Math.max(0.4, Math.min(0.8, 0.4 + freshness * 0.4)).toFixed(1);
 
       entries.push({
-        loc: `${base}/k/${page.slug}`,
+        loc: absoluteUrl(`/k/${page.slug}`),
         lastmod: programmaticLastmod,
         changefreq: 'weekly',
         priority: priorityValue,

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { siteConfig } from '@/config/site';
+import { absoluteUrl } from '@/lib/seo/url';
 
 type MetadataInput = {
   title?: string;
@@ -11,43 +12,6 @@ type MetadataInput = {
   dateModified?: string;
   articleSection?: string;
 };
-
-const TURKISH_CHAR_MAP: Record<string, string> = {
-  'ç': 'c',
-  'ğ': 'g',
-  'ı': 'i',
-  'i': 'i',
-  'ö': 'o',
-  'ş': 's',
-  'ü': 'u',
-  'Ç': 'c',
-  'Ğ': 'g',
-  'İ': 'i',
-  'I': 'i',
-  'Ö': 'o',
-  'Ş': 's',
-  'Ü': 'u',
-};
-
-function transliterateTurkish(value: string): string {
-  return value.replace(/[çğıiöşüÇĞİIÖŞÜ]/g, (char) => TURKISH_CHAR_MAP[char] ?? char);
-}
-
-function normalizePath(path = '/'): string {
-  const rawPath = path.split('?')[0]?.split('#')[0] ?? '/';
-  const withLeadingSlash = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
-  const singleSlashes = withLeadingSlash.replace(/\/{2,}/g, '/');
-  const transliterated = transliterateTurkish(singleSlashes);
-  const lowerCased = transliterated.toLowerCase();
-
-  if (lowerCased === '/') return '/';
-  return lowerCased.endsWith('/') ? lowerCased.slice(0, -1) : lowerCased;
-}
-
-function absoluteUrl(path = '/') {
-  const normalizedPath = normalizePath(path);
-  return new URL(normalizedPath, siteConfig.siteUrl).toString();
-}
 
 export function buildMetadata({
   title,

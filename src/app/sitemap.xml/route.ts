@@ -1,8 +1,8 @@
 import { statSync } from 'node:fs';
 import { join } from 'node:path';
 import { NextResponse } from 'next/server';
-import { siteConfig } from '@/config/site';
 import { getTotalPageCount } from '@/data/programmatic';
+import { absoluteUrl } from '@/lib/seo/url';
 
 const URLS_PER_SITEMAP = 10000;
 
@@ -31,7 +31,6 @@ function formatProgrammaticSitemapName(partIndex: number): string {
 
 export async function GET() {
   const now = new Date();
-  const base = siteConfig.siteUrl;
   const programmaticWindow = getTotalPageCount();
   const programmaticChunks = Math.ceil(programmaticWindow / URLS_PER_SITEMAP);
 
@@ -57,11 +56,11 @@ export async function GET() {
 
   const sitemapEntries = [
     {
-      loc: `${base}/sitemaps/sitemap-core.xml`,
+      loc: absoluteUrl('/sitemaps/sitemap-core.xml'),
       lastmod: coreLastmod,
     },
     ...Array.from({ length: programmaticChunks }, (_, i) => ({
-      loc: `${base}/sitemaps/${formatProgrammaticSitemapName(i + 1)}`,
+      loc: absoluteUrl(`/sitemaps/${formatProgrammaticSitemapName(i + 1)}`),
       lastmod: programmaticLastmod,
     })),
   ].sort((a, b) => b.lastmod.getTime() - a.lastmod.getTime());

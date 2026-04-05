@@ -13,6 +13,7 @@ import { monetizationConfig } from '@/config/monetization';
 import { RecommendedSolutions } from '@/components/monetization/RecommendedSolutions';
 import { ComputedExample } from '@/components/programmatic/ComputedExample';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { absoluteUrl } from '@/lib/seo/url';
 import { linkifyCommercialTerms } from '@/lib/content/commercialLinks';
 import { hashString } from '@/lib/utils';
 import {
@@ -166,19 +167,19 @@ export default async function ProgrammaticPage({ params }: PageProps) {
         '@type': 'ListItem',
         position: 1,
         name: 'Home',
-        item: siteConfig.siteUrl,
+        item: absoluteUrl('/'),
       },
       {
         '@type': 'ListItem',
         position: 2,
         name: 'Tools',
-        item: `${siteConfig.siteUrl}/tools`,
+        item: absoluteUrl('/tools'),
       },
       {
         '@type': 'ListItem',
         position: 3,
         name: page.title,
-        item: `${siteConfig.siteUrl}/k/${slug}`,
+        item: absoluteUrl(`/k/${slug}`),
       },
     ],
   };
@@ -188,26 +189,26 @@ export default async function ProgrammaticPage({ params }: PageProps) {
     '@type': 'TechArticle',
     headline: page.h1,
     description: page.description,
-    url: `${siteConfig.siteUrl}/k/${slug}`,
+    url: absoluteUrl(`/k/${slug}`),
     datePublished: '2026-01-15T00:00:00Z',
     dateModified: new Date().toISOString(),
     author: {
       '@type': 'Organization',
       name: 'DevSolve Editorial Team',
-      url: `${siteConfig.siteUrl}/about`,
+      url: absoluteUrl('/about'),
     },
     publisher: {
       '@type': 'Organization',
       name: siteConfig.name,
-      url: siteConfig.siteUrl,
+      url: absoluteUrl('/'),
       logo: {
         '@type': 'ImageObject',
-        url: `${siteConfig.siteUrl}/favicon.svg`,
+        url: absoluteUrl('/favicon.svg'),
       },
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `${siteConfig.siteUrl}/k/${slug}`,
+      '@id': absoluteUrl(`/k/${slug}`),
     },
     about: {
       '@type': 'Thing',
