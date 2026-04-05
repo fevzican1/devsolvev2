@@ -3,7 +3,6 @@
   "middleware": {
     "/": {
       "files": [
-        "prerender-manifest.js",
         "server/edge-runtime-webpack.js",
         "server/src/middleware.js"
       ],
@@ -11,103 +10,16 @@
       "page": "/",
       "matchers": [
         {
-          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?(?:\\/((?!_next\\/static|_next\\/image|.*\\..*).*))(.json)?[\\/#\\?]?$",
-          "originalSource": "/((?!_next/static|_next/image|.*\\..*).*)"
+          "regexp": "^/.*$",
+          "originalSource": "/:path*"
         }
       ],
       "wasm": [],
       "assets": [],
-      "environments": {
-        "previewModeId": "1e36eed01a224d86ffd340e81845d1c6",
-        "previewModeSigningKey": "dc6fa2d0b104b3caa033a6fad09be4cbb297f58b630eb55d6f5405043228099f",
-        "previewModeEncryptionKey": "d336a6ac340bcd58b46fcc0618dd6ec02935c2ca6a9fb06041076a0f7641b1bc"
-      }
+      "environments": {}
     }
   },
-  "functions": {
-    "/opengraph-image/route": {
-      "files": [
-        "server/middleware-build-manifest.js",
-        "server/middleware-react-loadable-manifest.js",
-        "server/next-font-manifest.js",
-        "server/interception-route-rewrite-manifest.js",
-        "prerender-manifest.js",
-        "server/edge-runtime-webpack.js",
-        "server/edge-chunks/291.js",
-        "server/app/opengraph-image/route.js"
-      ],
-      "name": "app/opengraph-image/route",
-      "page": "/opengraph-image/route",
-      "matchers": [
-        {
-          "regexp": "^/opengraph\\-image$",
-          "originalSource": "/opengraph-image"
-        }
-      ],
-      "wasm": [
-        {
-          "name": "wasm_77d9faebf7af9e421806970ce10a58e9d83116d7",
-          "filePath": "server/edge-chunks/wasm_77d9faebf7af9e421806970ce10a58e9d83116d7.wasm"
-        },
-        {
-          "name": "wasm_ef4866ecae192fd87727067cf2c0c0cf9fb8b020",
-          "filePath": "server/edge-chunks/wasm_ef4866ecae192fd87727067cf2c0c0cf9fb8b020.wasm"
-        }
-      ],
-      "assets": [
-        {
-          "name": "noto-sans-v27-latin-regular.5dda3fca77107598.ttf",
-          "filePath": "server/edge-chunks/asset_noto-sans-v27-latin-regular.5dda3fca77107598.ttf"
-        }
-      ],
-      "environments": {
-        "previewModeId": "1e36eed01a224d86ffd340e81845d1c6",
-        "previewModeSigningKey": "dc6fa2d0b104b3caa033a6fad09be4cbb297f58b630eb55d6f5405043228099f",
-        "previewModeEncryptionKey": "d336a6ac340bcd58b46fcc0618dd6ec02935c2ca6a9fb06041076a0f7641b1bc"
-      }
-    },
-    "/twitter-image/route": {
-      "files": [
-        "server/middleware-build-manifest.js",
-        "server/middleware-react-loadable-manifest.js",
-        "server/next-font-manifest.js",
-        "server/interception-route-rewrite-manifest.js",
-        "prerender-manifest.js",
-        "server/edge-runtime-webpack.js",
-        "server/edge-chunks/291.js",
-        "server/app/twitter-image/route.js"
-      ],
-      "name": "app/twitter-image/route",
-      "page": "/twitter-image/route",
-      "matchers": [
-        {
-          "regexp": "^/twitter\\-image$",
-          "originalSource": "/twitter-image"
-        }
-      ],
-      "wasm": [
-        {
-          "name": "wasm_77d9faebf7af9e421806970ce10a58e9d83116d7",
-          "filePath": "server/edge-chunks/wasm_77d9faebf7af9e421806970ce10a58e9d83116d7.wasm"
-        },
-        {
-          "name": "wasm_ef4866ecae192fd87727067cf2c0c0cf9fb8b020",
-          "filePath": "server/edge-chunks/wasm_ef4866ecae192fd87727067cf2c0c0cf9fb8b020.wasm"
-        }
-      ],
-      "assets": [
-        {
-          "name": "noto-sans-v27-latin-regular.5dda3fca77107598.ttf",
-          "filePath": "server/edge-chunks/asset_noto-sans-v27-latin-regular.5dda3fca77107598.ttf"
-        }
-      ],
-      "environments": {
-        "previewModeId": "1e36eed01a224d86ffd340e81845d1c6",
-        "previewModeSigningKey": "dc6fa2d0b104b3caa033a6fad09be4cbb297f58b630eb55d6f5405043228099f",
-        "previewModeEncryptionKey": "d336a6ac340bcd58b46fcc0618dd6ec02935c2ca6a9fb06041076a0f7641b1bc"
-      }
-    }
-  },
+  "functions": {},
   "sortedMiddleware": [
     "/"
   ]
