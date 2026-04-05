@@ -2,3 +2,7 @@
 # For Next.js static export on Netlify, avoid SPA-style rewrites that
 # would intercept `/_next/static/*` assets (CSS/JS) and break styling.
 
+# Force www → non-www to avoid duplicate-host redirects wasting crawl budget
+https://www.devsolvev2.com/*  https://devsolvev2.com/:splat  301!
+http://www.devsolvev2.com/*   https://devsolvev2.com/:splat  301!
+http://devsolvev2.com/*       https://devsolvev2.com/:splat  301!

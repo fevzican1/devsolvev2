@@ -18,7 +18,6 @@ const TURKISH_CHAR_MAP: Record<string, string> = {
   'ç': 'c',
   'ğ': 'g',
   'ı': 'i',
-  'i': 'i',
   'ö': 'o',
   'ş': 's',
   'ü': 'u',
@@ -41,7 +40,7 @@ function shouldSkipPath(pathname: string): boolean {
 }
 
 function transliterateTurkish(value: string): string {
-  return value.replace(/[çğıiöşüÇĞİIÖŞÜ]/g, (char) => TURKISH_CHAR_MAP[char] ?? char);
+  return value.replace(/[çğıöşüÇĞİIÖŞÜ]/g, (char) => TURKISH_CHAR_MAP[char] ?? char);
 }
 
 function normalizePathname(pathname: string): string {

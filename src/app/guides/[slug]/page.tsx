@@ -12,7 +12,8 @@ import { RecommendedSolutions } from '@/components/monetization/RecommendedSolut
 import { monetizationConfig } from '@/config/monetization';
 import { loadGuideContent } from '@/lib/guides/loader';
 import { buildMetadata } from '@/lib/seo/metadata';
-import { siteConfig, externalUrls } from '@/config/site';
+import { absoluteUrl } from '@/lib/seo/url';
+import { externalUrls } from '@/config/site';
 import {
   CommercialOpportunityLinks,
   EditorialByline,
@@ -66,19 +67,19 @@ export default async function GuidePage({ params }: PageProps) {
         '@type': 'ListItem',
         position: 1,
         name: 'Home',
-        item: siteConfig.siteUrl,
+        item: absoluteUrl('/'),
       },
       {
         '@type': 'ListItem',
         position: 2,
         name: 'Guides',
-        item: `${siteConfig.siteUrl}/guides`,
+        item: absoluteUrl('/guides'),
       },
       {
         '@type': 'ListItem',
         position: 3,
         name: guide.title,
-        item: `${siteConfig.siteUrl}/guides/${slug}`,
+        item: absoluteUrl(`/guides/${slug}`),
       },
     ],
   };

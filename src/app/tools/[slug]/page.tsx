@@ -17,7 +17,8 @@ import {
   OriginalValueCallouts,
 } from '@/components/content/EditorialIdentity';
 import { buildToolPageContent } from '@/lib/seo/toolPageContent';
-import { siteConfig, externalUrls } from '@/config/site';
+import { externalUrls } from '@/config/site';
+import { absoluteUrl } from '@/lib/seo/url';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -85,19 +86,19 @@ export default async function ToolPage({ params }: PageProps) {
         '@type': 'ListItem',
         position: 1,
         name: 'Home',
-        item: siteConfig.siteUrl,
+        item: absoluteUrl('/'),
       },
       {
         '@type': 'ListItem',
         position: 2,
         name: 'Tools',
-        item: `${siteConfig.siteUrl}/tools`,
+        item: absoluteUrl('/tools'),
       },
       {
         '@type': 'ListItem',
         position: 3,
         name: tool.name,
-        item: `${siteConfig.siteUrl}/tools/${tool.slug}`,
+        item: absoluteUrl(`/tools/${tool.slug}`),
       },
     ],
   };
