@@ -116,8 +116,8 @@ export default async (req: Request): Promise<Response> => {
         });
         pingState[hubPath] = new Date().toISOString();
         pingSent = true;
-      } catch {
-        pingError = 'google_ping_failed';
+      } catch (err) {
+        pingError = `google_ping_failed: ${err instanceof Error ? err.message : String(err)}`;
       }
     }
 

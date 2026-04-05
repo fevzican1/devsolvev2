@@ -5,7 +5,6 @@ declare const Netlify: {
 };
 
 const PING_ENDPOINTS = [
-  'https://www.google.com/ping?sitemap=',
   'https://www.bing.com/ping?sitemap=',
 ];
 
@@ -25,11 +24,12 @@ export default async (req: Request): Promise<Response> => {
   }
 
   const sharedKey = Netlify.env.get('INDEXING_API_SHARED_KEY');
-  if (sharedKey) {
-    const inboundKey = req.headers.get('x-indexing-key');
-    if (!inboundKey || inboundKey !== sharedKey) {
-      return json(401, { error: 'unauthorized' });
-    }
+  if (!sharedKey) {
+    return json(500, { error: 'server_misconfigured', message: 'INDEXING_API_SHARED_KEY is not set' });
+  }
+  const inboundKey = req.headers.get('x-indexing-key');
+  if (!inboundKey || inboundKey !== sharedKey) {
+    return json(401, { error: 'unauthorized' });
   }
 
   const siteUrl = Netlify.env.get('SITE_URL') || Netlify.env.get('URL') || 'https://devsolvev2.com';

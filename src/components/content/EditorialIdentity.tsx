@@ -37,9 +37,9 @@ export function EditorialIntro({ toolName }: EditorialIntroProps) {
   return (
     <div className="mb-6 rounded-lg border bg-muted/40 p-4">
       <p className="text-sm leading-7 text-foreground/90">
-        {toolName} is covered here as an editorial buying guide: what the tool does, where it
-        fits in real engineering workflows, and when a paid plan is worth purchasing for better
-        scale, reliability, and team collaboration.
+        {toolName} is covered here as an editorial guide: what the tool does, where it
+        fits in real engineering workflows, and how to get the most out of it for
+        day-to-day development tasks.
       </p>
       <p className="text-xs text-muted-foreground mt-2">
         This content is created by the DevSolve editorial team and is not sponsored or influenced by any third party.

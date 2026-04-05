@@ -169,7 +169,7 @@ function programmaticLabelFromPath(path: string): string {
     .slice(0, 9)
     .map((w) => (w.length <= 3 ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)));
 
-  return words.length > 0 ? words.join(' ') : 'Teknik Rehber';
+  return words.length > 0 ? words.join(' ') : 'Technical Guide';
 }
 
 function slugFromProgrammaticPath(path: string): string | null {
