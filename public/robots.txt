@@ -8,7 +8,7 @@ Allow: /tools/
 Allow: /guides/
 Disallow: /api/
 Disallow: /.netlify/
-Disallow: /cmd-center
+Disallow: /cmd-center/
 Disallow: /_next/static/
 
 # Google-specific directives for comprehensive crawling

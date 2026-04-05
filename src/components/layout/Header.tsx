@@ -27,7 +27,7 @@ export function Header() {
             <span className="font-bold text-xl">{siteConfig.name}</span>
           </Link>
 
-          <nav className="hidden md:flex items-center space-x-6">
+          <nav aria-label="Main navigation" className="hidden md:flex items-center space-x-6">
             {navItems.map((item) => (
               <Link
                 key={item.href}
@@ -59,6 +59,7 @@ export function Header() {
               className="md:hidden"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Toggle menu"
+              aria-expanded={mobileMenuOpen}
             >
               {mobileMenuOpen ? (
                 <X className="h-5 w-5" />
@@ -70,7 +71,7 @@ export function Header() {
         </div>
 
         {mobileMenuOpen && (
-          <nav className="md:hidden py-4 border-t">
+          <nav aria-label="Mobile navigation" className="md:hidden py-4 border-t">
             {navItems.map((item) => (
               <Link
                 key={item.href}

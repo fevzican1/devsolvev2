@@ -27,7 +27,8 @@ export function CmdCenterPageClient() {
   }, []);
 
   const handleLogin = () => {
-    if (passphrase === 'devsolve-admin-2024') {
+    const expected = process.env.NEXT_PUBLIC_CMD_CENTER_PASSPHRASE;
+    if (expected && passphrase === expected) {
       localStorage.setItem(PASSPHRASE_KEY, 'authenticated');
       setIsAuthenticated(true);
     }

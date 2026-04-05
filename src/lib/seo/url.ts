@@ -10,14 +10,13 @@ const TURKISH_CHAR_MAP: Record<string, string> = {
   'Ç': 'c',
   'Ğ': 'g',
   'İ': 'i',
-  'I': 'i',
   'Ö': 'o',
   'Ş': 's',
   'Ü': 'u',
 };
 
 function transliterateTurkish(value: string): string {
-  return value.replace(/[çğıöşüÇĞİIÖŞÜ]/g, (char) => TURKISH_CHAR_MAP[char] ?? char);
+  return value.replace(/[çğıöşüÇĞİÖŞÜ]/g, (char) => TURKISH_CHAR_MAP[char] ?? char);
 }
 
 /**
