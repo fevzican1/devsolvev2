@@ -9,6 +9,8 @@ import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
 import { externalUrls, siteConfig } from '@/config/site';
 import { absoluteUrl } from '@/lib/seo/url';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = buildMetadata({
   title: 'Contact DevSolve — Support, Partnerships & Inquiries',
   description:
