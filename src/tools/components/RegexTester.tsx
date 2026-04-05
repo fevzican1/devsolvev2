@@ -62,15 +62,31 @@ export function RegexTester() {
   }, [pattern, flags, testText]);
 
   const highlightedText = useMemo(() => {
+    const escapeHtml = (str: string) =>
+      str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
     if (!pattern || !testText || matches.length === 0) {
-      return testText;
+      return escapeHtml(testText);
     }
 
     try {
       const regex = new RegExp(pattern, flags.includes('g') ? flags : flags + 'g');
-      return testText.replace(regex, (match) => `<mark class="bg-yellow-200 dark:bg-yellow-800">${match}</mark>`);
+      // Build highlighted HTML by escaping non-match segments and wrapping matches
+      let result = '';
+      let lastIndex = 0;
+      let match;
+      while ((match = regex.exec(testText)) !== null) {
+        result += escapeHtml(testText.slice(lastIndex, match.index));
+        result += `<mark class="bg-yellow-200 dark:bg-yellow-800">${escapeHtml(match[0])}</mark>`;
+        lastIndex = match.index + match[0].length;
+        if (match[0].length === 0) {
+          regex.lastIndex++;
+        }
+      }
+      result += escapeHtml(testText.slice(lastIndex));
+      return result;
     } catch {
-      return testText;
+      return escapeHtml(testText);
     }
   }, [pattern, flags, testText, matches]);
 

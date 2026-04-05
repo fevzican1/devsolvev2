@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { siteConfig } from '@/config/site';
 
 export const runtime = 'edge';
 export const alt = 'DevSolve - Browser-based developer tools and technical guides';
@@ -37,7 +38,7 @@ export default function OpenGraphImage() {
             Format, validate, encode, and debug directly in the browser.
           </div>
         </div>
-        <div style={{ fontSize: 24, color: '#93c5fd' }}>devsolvev2.com</div>
+        <div style={{ fontSize: 24, color: '#93c5fd' }}>{siteConfig.siteUrl.replace(/^https?:\/\//, '')}</div>
       </div>
     ),
     {
