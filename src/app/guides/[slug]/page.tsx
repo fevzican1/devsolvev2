@@ -92,7 +92,7 @@ export default async function GuidePage({ params }: PageProps) {
     headline: guide.title,
     description: guide.description,
     url: absoluteUrl(`/guides/${slug}`),
-    datePublished: '2026-01-15T00:00:00Z',
+    datePublished: siteConfig.launchDate,
     dateModified: new Date().toISOString(),
     author: {
       '@type': 'Organization',

@@ -21,6 +21,8 @@ export const siteConfig = {
     mode: 'core+extended' as const,
   },
 
+  launchDate: '2026-01-15T00:00:00Z',
+
   features: {
     darkMode: true,
     cookieConsent: true,

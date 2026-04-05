@@ -90,7 +90,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     path: `/k/${slug}`,
     noindex: false,
     keywords: page.keywords,
-    datePublished: '2026-01-15T00:00:00Z',
+    datePublished: siteConfig.launchDate,
     dateModified: new Date().toISOString(),
     articleSection: page.clusterKey,
   });
@@ -190,7 +190,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
     headline: page.h1,
     description: page.description,
     url: absoluteUrl(`/k/${slug}`),
-    datePublished: '2026-01-15T00:00:00Z',
+    datePublished: siteConfig.launchDate,
     dateModified: new Date().toISOString(),
     author: {
       '@type': 'Organization',
