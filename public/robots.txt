@@ -1,5 +1,4 @@
 # DevSolve robots.txt — optimized for comprehensive indexing
-# All 4M+ pages are designed for transparent, high-quality Google indexing
 
 User-agent: *
 Allow: /
@@ -8,8 +7,11 @@ Allow: /tools/
 Allow: /guides/
 Disallow: /api/
 Disallow: /.netlify/
+Disallow: /cmd-center
 Disallow: /cmd-center/
 Disallow: /_next/static/
+Disallow: /_next/data/
+Disallow: /404
 
 # Google-specific directives for comprehensive crawling
 User-agent: Googlebot
@@ -26,7 +28,7 @@ User-agent: Yandex
 Allow: /
 Crawl-delay: 1
 
-# Sitemap index (references all sitemap chunks covering 4M+ URLs)
+# Sitemap index (references all sitemap chunks)
 Sitemap: https://devsolvev2.com/sitemap.xml
 
 # Host directive

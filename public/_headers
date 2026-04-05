@@ -33,3 +33,11 @@
 
 /robots.txt
   Cache-Control: public, max-age=86400
+
+/404
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-cache
+
+/404.html
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-cache

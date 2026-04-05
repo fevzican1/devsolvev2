@@ -22,3 +22,54 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+# --- Redirect rules ---
+# Trailing slash removal (301) — catches requests before they hit the app
+# Force flag (!) ensures these run even if a file/page exists at the slash version
+[[redirects]]
+  from = "/tools/*/"
+  to = "/tools/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/guides/*/"
+  to = "/guides/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/k/*/"
+  to = "/k/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/legal/*/"
+  to = "/legal/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/about/"
+  to = "/about"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/contact/"
+  to = "/contact"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/tools/"
+  to = "/tools"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/guides/"
+  to = "/guides"
+  status = 301
+  force = true
