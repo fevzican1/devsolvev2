@@ -6,17 +6,54 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { ContactForm } from '@/components/contact/ContactForm';
 import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
+import { externalUrls, siteConfig } from '@/config/site';
+import { absoluteUrl } from '@/lib/seo/url';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Contact Us',
+  title: 'Contact DevSolve — Support, Partnerships & Inquiries',
   description:
-    'Contact DevSolve for support, policy questions, partnership inquiries, or legal communication.',
+    'Get in touch with DevSolve for product support, partnership inquiries, policy questions, or business communication. Typical response within 2 business days.',
   path: '/contact',
 });
 
 export default function ContactPage() {
+  const breadcrumbJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: absoluteUrl('/') },
+      { '@type': 'ListItem', position: 2, name: 'Contact', item: absoluteUrl('/contact') },
+    ],
+  };
+
+  const contactPageJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'ContactPage',
+    name: 'Contact DevSolve',
+    description: 'Contact DevSolve for product support, partnership inquiries, or business communication.',
+    url: absoluteUrl('/contact'),
+    mainEntity: {
+      '@type': 'Organization',
+      name: siteConfig.name,
+      url: absoluteUrl('/'),
+      contactPoint: {
+        '@type': 'ContactPoint',
+        contactType: 'customer support',
+        url: absoluteUrl('/contact'),
+      },
+    },
+  };
+
   return (
     <div className="container mx-auto px-4 py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(contactPageJsonLd) }}
+      />
       <div className="mx-auto max-w-4xl space-y-8">
         <div className="space-y-4">
           <h1 className="text-4xl font-bold tracking-tight">Contact Us</h1>

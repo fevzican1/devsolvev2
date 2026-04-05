@@ -9,11 +9,18 @@ const footerLinks = {
     { href: '/tools/jwt-decoder', label: 'JWT Decoder' },
     { href: '/tools/hash-generator', label: 'Hash Generator' },
     { href: '/tools/regex-tester', label: 'Regex Tester' },
+    { href: '/tools/base64-encode-decode', label: 'Base64 Encoder' },
+    { href: '/tools/url-encode-decode', label: 'URL Encoder' },
+    { href: '/tools/uuid-generator', label: 'UUID Generator' },
+    { href: '/tools/diff-checker', label: 'Diff Checker' },
   ],
   guides: [
     { href: '/guides/json-validation-formatting', label: 'JSON Best Practices' },
     { href: '/guides/regex-testing-debugging', label: 'Regex Workflow' },
     { href: '/guides/hashing-integrity', label: 'Hashing Guide' },
+    { href: '/guides/jwt-decoding-browser', label: 'JWT Decoding Guide' },
+    { href: '/guides/url-encoding-pitfalls', label: 'URL Encoding Pitfalls' },
+    { href: '/guides/base64-usage', label: 'Base64 Usage Guide' },
   ],
   legal: [
     { href: '/about', label: 'About DevSolve' },

@@ -5,11 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
 export const metadata: Metadata = {
-  title: 'Page Not Found',
-  description: 'The page you are looking for could not be found. Browse our developer tools and guides.',
+  title: 'Page Not Found — DevSolve Developer Tools',
+  description: 'The page you are looking for could not be found. Browse our free browser-based developer tools and technical guides.',
   robots: {
     index: false,
-    follow: false,
+    follow: true,
   },
   alternates: {
     canonical: undefined,

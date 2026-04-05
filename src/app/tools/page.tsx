@@ -7,12 +7,15 @@ import { Badge } from '@/components/ui/badge';
 import { toolRegistry, type ToolDefinition } from '@/tools/registry';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
+import { siteConfig, externalUrls } from '@/config/site';
+import { absoluteUrl } from '@/lib/seo/url';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Developer Tools',
+  title: 'Free Online Developer Tools — Format, Validate, Encode & Debug',
   description:
-    'Browser-based developer tools for formatting, validation, encoding, and debugging workflows.',
+    'Browse 15+ free browser-based developer tools: JSON formatter, JWT decoder, regex tester, Base64 encoder, hash generator, and more. No data leaves your browser.',
   path: '/tools',
+  keywords: ['online developer tools', 'free dev tools', 'json formatter', 'regex tester', 'jwt decoder', 'base64 encoder', 'browser tools'],
 });
 
 const categories = [
@@ -38,8 +41,37 @@ function groupToolsByCategory(tools: ToolDefinition[]) {
 export default function ToolsPage() {
   const groupedTools = groupToolsByCategory(toolRegistry);
 
+  const collectionPageJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'CollectionPage',
+    name: 'Free Online Developer Tools',
+    description: 'Browse 15+ free browser-based developer tools for formatting, validation, encoding, and debugging workflows.',
+    url: absoluteUrl('/tools'),
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: toolRegistry.length,
+      itemListElement: toolRegistry.map((tool, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name: tool.name,
+        url: absoluteUrl(`/tools/${tool.slug}`),
+      })),
+    },
+    breadcrumb: {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: absoluteUrl('/') },
+        { '@type': 'ListItem', position: 2, name: 'Tools', item: absoluteUrl('/tools') },
+      ],
+    },
+  };
+
   return (
     <div className="container mx-auto px-4 py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionPageJsonLd) }}
+      />
       <div className="max-w-3xl mb-12">
         <h1 className="text-4xl font-bold mb-4">Developer Tools</h1>
         <p className="text-xl text-muted-foreground mb-4">

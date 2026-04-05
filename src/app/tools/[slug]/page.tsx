@@ -36,9 +36,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!tool) return buildMetadata({ title: 'Tool Not Found', noindex: true });
 
   return buildMetadata({
-    title: tool.name,
+    title: `${tool.name} — Free Online Tool`,
     description: tool.description,
     path: `/tools/${slug}`,
+    keywords: [...tool.keywords, 'online tool', 'free', 'browser-based', 'developer tool'],
   });
 }
 
@@ -122,6 +123,9 @@ export default async function ToolPage({ params }: PageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <div className="max-w-5xl mx-auto">
+        <article itemScope itemType="https://schema.org/SoftwareApplication">
+          <meta itemProp="applicationCategory" content="DeveloperApplication" />
+          <meta itemProp="operatingSystem" content="Web Browser" />
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
             <Link href="/tools" className="hover:text-foreground">
@@ -347,6 +351,7 @@ export default async function ToolPage({ params }: PageProps) {
             </div>
           )}
         </div>
+        </article>
       </div>
     </div>
   );

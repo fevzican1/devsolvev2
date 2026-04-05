@@ -1,17 +1,33 @@
 import type { Metadata } from 'next';
-import { siteConfig } from '@/config/site';
+import Link from 'next/link';
+import { siteConfig, externalUrls } from '@/config/site';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { absoluteUrl } from '@/lib/seo/url';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Privacy Policy',
+  title: 'Privacy Policy — How DevSolve Protects Your Data',
   description:
-    'Read how DevSolve handles browser-side processing, limited analytics, and user privacy rights.',
+    'Learn how DevSolve handles browser-side processing, limited analytics, and user privacy rights. All tool processing happens locally in your browser.',
   path: '/legal/privacy',
 });
 
 export default function PrivacyPage() {
+  const breadcrumbJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: absoluteUrl('/') },
+      { '@type': 'ListItem', position: 2, name: 'Legal', item: absoluteUrl('/legal/privacy') },
+      { '@type': 'ListItem', position: 3, name: 'Privacy Policy', item: absoluteUrl('/legal/privacy') },
+    ],
+  };
+
   return (
     <div className="container mx-auto px-4 py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <div className="max-w-3xl mx-auto prose prose-neutral dark:prose-invert">
         <h1>Privacy Policy</h1>
         <p className="text-muted-foreground">Last updated: March 17, 2026</p>

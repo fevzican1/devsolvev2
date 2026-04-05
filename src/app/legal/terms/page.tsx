@@ -1,17 +1,32 @@
 import type { Metadata } from 'next';
-import { siteConfig } from '@/config/site';
+import { siteConfig, externalUrls } from '@/config/site';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { absoluteUrl } from '@/lib/seo/url';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Terms of Service',
+  title: 'Terms of Service — DevSolve Usage Guidelines',
   description:
-    'Terms governing access to and use of DevSolve tools, guides, and website content.',
+    'Terms governing access to and use of DevSolve developer tools, technical guides, and website content. Browser-based, privacy-first tools.',
   path: '/legal/terms',
 });
 
 export default function TermsPage() {
+  const breadcrumbJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: absoluteUrl('/') },
+      { '@type': 'ListItem', position: 2, name: 'Legal', item: absoluteUrl('/legal/terms') },
+      { '@type': 'ListItem', position: 3, name: 'Terms of Service', item: absoluteUrl('/legal/terms') },
+    ],
+  };
+
   return (
     <div className="container mx-auto px-4 py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <div className="max-w-3xl mx-auto prose prose-neutral dark:prose-invert">
         <h1>Terms of Service</h1>
         <p className="text-muted-foreground">Last updated: March 17, 2026</p>

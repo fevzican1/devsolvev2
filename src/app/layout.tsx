@@ -7,6 +7,7 @@ import { Footer } from '@/components/layout/Footer';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { siteConfig, externalUrls } from '@/config/site';
 import { platformExternalUrls } from '@/config/monetization';
+import { toolRegistry } from '@/tools/registry';
 import { CodeBlocksEnhancer } from '@/components/content/CodeBlocksEnhancer';
 
 const spaceGrotesk = Space_Grotesk({
@@ -25,23 +26,39 @@ const googleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.siteUrl),
   title: {
-    default: siteConfig.name,
+    default: `${siteConfig.name} — Free Privacy-First Developer Tools & Guides`,
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
   applicationName: siteConfig.name,
   keywords: [
     'developer tools',
-    'json formatter',
+    'online developer tools',
+    'json formatter online',
     'jwt decoder',
-    'regex tester',
-    'base64',
-    'browser tools',
+    'regex tester online',
+    'base64 encode decode',
+    'url encoder',
+    'hash generator',
+    'uuid generator',
+    'browser-based tools',
     'privacy-first tools',
+    'free developer tools',
+    'code formatter',
+    'sql formatter',
+    'css minifier',
+    'diff checker',
+    'text case converter',
   ],
   category: 'technology',
+  creator: 'DevSolve Editorial Team',
+  publisher: 'DevSolve',
   alternates: {
     canonical: '/',
+    languages: {
+      'en': '/',
+      'x-default': '/',
+    },
   },
   icons: {
     icon: '/favicon.svg',
@@ -56,7 +73,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     url: siteConfig.siteUrl,
-    title: siteConfig.name,
+    title: `${siteConfig.name} — Free Privacy-First Developer Tools`,
     description: siteConfig.description,
     siteName: siteConfig.name,
     locale: 'en_US',
@@ -65,13 +82,13 @@ export const metadata: Metadata = {
         url: '/opengraph-image',
         width: 1200,
         height: 630,
-        alt: `${siteConfig.name} social preview`,
+        alt: `${siteConfig.name} — Free browser-based developer tools`,
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: siteConfig.name,
+    title: `${siteConfig.name} — Free Developer Tools`,
     description: siteConfig.description,
     images: ['/twitter-image'],
   },
@@ -103,7 +120,9 @@ const websiteJsonLd = {
   '@context': externalUrls.schemaOrg,
   '@type': 'WebSite',
   name: siteConfig.name,
+  alternateName: 'DevSolve Developer Tools',
   url: siteConfig.siteUrl,
+  description: siteConfig.description,
   inLanguage: 'en',
   potentialAction: {
     '@type': 'SearchAction',
@@ -120,7 +139,11 @@ const organizationJsonLd = {
   '@type': 'Organization',
   name: siteConfig.name,
   url: siteConfig.siteUrl,
-  logo: `${siteConfig.siteUrl}/favicon.svg`,
+  logo: {
+    '@type': 'ImageObject',
+    url: `${siteConfig.siteUrl}/favicon.svg`,
+  },
+  description: siteConfig.description,
   contactPoint: {
     '@type': 'ContactPoint',
     contactType: 'customer support',
@@ -129,6 +152,20 @@ const organizationJsonLd = {
   sameAs: [
     platformExternalUrls.netlify,
   ],
+};
+
+const itemListJsonLd = {
+  '@context': externalUrls.schemaOrg,
+  '@type': 'ItemList',
+  name: 'Developer Tools',
+  description: 'Free browser-based developer tools for formatting, validation, encoding, and debugging',
+  numberOfItems: toolRegistry.length,
+  itemListElement: toolRegistry.map((tool, index) => ({
+    '@type': 'ListItem',
+    position: index + 1,
+    name: tool.name,
+    url: `${siteConfig.siteUrl}/tools/${tool.slug}`,
+  })),
 };
 
 export default function RootLayout({
@@ -141,9 +178,12 @@ export default function RootLayout({
       <body className={`${spaceGrotesk.variable} ${ibmPlexMono.variable} font-sans antialiased`}>
         <ThemeProvider>
           <CodeBlocksEnhancer />
+          <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:top-0 focus:left-0">
+            Skip to main content
+          </a>
           <div className="relative flex min-h-screen flex-col">
             <Header />
-            <main className="flex-1">{children}</main>
+            <main id="main-content" className="flex-1">{children}</main>
             <Footer />
           </div>
         </ThemeProvider>
@@ -152,6 +192,9 @@ export default function RootLayout({
         </Script>
         <Script id="ld-organization" type="application/ld+json" strategy="beforeInteractive">
           {JSON.stringify(organizationJsonLd)}
+        </Script>
+        <Script id="ld-itemlist" type="application/ld+json" strategy="beforeInteractive">
+          {JSON.stringify(itemListJsonLd)}
         </Script>
         <Script id="infolinks-config" strategy="afterInteractive">
           {`var infolinks_pid = 3444436; var infolinks_wsid = 0;`}

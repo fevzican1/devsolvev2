@@ -1,16 +1,32 @@
 import type { Metadata } from 'next';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { externalUrls } from '@/config/site';
+import { absoluteUrl } from '@/lib/seo/url';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Publisher Ethics Policy',
+  title: 'Publisher Ethics Policy — DevSolve Content Integrity Standards',
   description:
-    'Traffic quality, affiliate transparency, and content integrity standards aligned with commerce network requirements.',
+    'Traffic quality, affiliate transparency, and content integrity standards for DevSolve. Aligned with commerce network requirements and publisher best practices.',
   path: '/legal/publisher-ethics',
 });
 
 export default function PublisherEthicsPage() {
+  const breadcrumbJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: absoluteUrl('/') },
+      { '@type': 'ListItem', position: 2, name: 'Legal', item: absoluteUrl('/legal/publisher-ethics') },
+      { '@type': 'ListItem', position: 3, name: 'Publisher Ethics', item: absoluteUrl('/legal/publisher-ethics') },
+    ],
+  };
+
   return (
     <div className="container mx-auto px-4 py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <div className="max-w-3xl mx-auto prose prose-neutral dark:prose-invert">
         <h1>Publisher Ethics Policy</h1>
         <p className="text-muted-foreground">Last updated: March 26, 2026</p>

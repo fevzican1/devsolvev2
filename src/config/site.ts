@@ -1,6 +1,7 @@
 export const siteConfig = {
   name: 'DevSolve',
-  description: 'Browser-based developer tools and guides. All processing happens locally in your browser.',
+  tagline: 'Privacy-First Developer Tools & Guides',
+  description: 'Free browser-based developer tools for JSON formatting, JWT decoding, regex testing, Base64 encoding and more. All processing happens locally — your data never leaves your machine.',
   siteUrl: 'https://devsolvev2.com',
 
   programmatic: {
