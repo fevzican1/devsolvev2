@@ -8,17 +8,49 @@ import { guideRegistry } from '@/content/guides';
 import { getToolBySlug } from '@/tools/registry';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
+import { siteConfig, externalUrls } from '@/config/site';
+import { absoluteUrl } from '@/lib/seo/url';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Developer Guides',
+  title: 'Developer Guides — Best Practices, Tutorials & Workflows',
   description:
-    'Technical guides for developer workflows, including best practices, pitfalls, and practical examples.',
+    'In-depth technical guides for JSON validation, JWT decoding, regex debugging, URL encoding, and more. Practical best practices with real examples.',
   path: '/guides',
+  keywords: ['developer guides', 'programming tutorials', 'json best practices', 'regex guide', 'jwt tutorial', 'coding workflows'],
 });
 
 export default function GuidesPage() {
+  const collectionPageJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'CollectionPage',
+    name: 'Developer Guides',
+    description: 'Technical guides for developer workflows, including best practices, pitfalls, and practical examples.',
+    url: absoluteUrl('/guides'),
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: guideRegistry.length,
+      itemListElement: guideRegistry.map((guide, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name: guide.title,
+        url: absoluteUrl(`/guides/${guide.slug}`),
+      })),
+    },
+    breadcrumb: {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: absoluteUrl('/') },
+        { '@type': 'ListItem', position: 2, name: 'Guides', item: absoluteUrl('/guides') },
+      ],
+    },
+  };
+
   return (
     <div className="container mx-auto px-4 py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionPageJsonLd) }}
+      />
       <div className="max-w-3xl mb-12">
         <h1 className="text-4xl font-bold mb-4">Developer Guides</h1>
         <p className="text-xl text-muted-foreground mb-4">

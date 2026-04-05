@@ -13,7 +13,7 @@ import { monetizationConfig } from '@/config/monetization';
 import { loadGuideContent } from '@/lib/guides/loader';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { absoluteUrl } from '@/lib/seo/url';
-import { externalUrls } from '@/config/site';
+import { externalUrls, siteConfig } from '@/config/site';
 import {
   CommercialOpportunityLinks,
   EditorialByline,
@@ -40,6 +40,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: guide.title,
     description: guide.description,
     path: `/guides/${slug}`,
+    keywords: [...guide.clusterKeys, 'developer guide', 'tutorial', 'best practices'],
+    articleSection: 'Developer Guides',
   });
 }
 
@@ -84,13 +86,52 @@ export default async function GuidePage({ params }: PageProps) {
     ],
   };
 
+  const articleJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'TechArticle',
+    headline: guide.title,
+    description: guide.description,
+    url: absoluteUrl(`/guides/${slug}`),
+    datePublished: '2026-01-15T00:00:00Z',
+    dateModified: new Date().toISOString(),
+    author: {
+      '@type': 'Organization',
+      name: 'DevSolve Editorial Team',
+      url: absoluteUrl('/about'),
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: siteConfig.name,
+      url: absoluteUrl('/'),
+      logo: {
+        '@type': 'ImageObject',
+        url: absoluteUrl('/favicon.svg'),
+      },
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': absoluteUrl(`/guides/${slug}`),
+    },
+    inLanguage: 'en',
+    isAccessibleForFree: true,
+    keywords: guide.clusterKeys.join(', '),
+    about: {
+      '@type': 'Thing',
+      name: guide.title,
+    },
+  };
+
   return (
     <div className="container mx-auto px-4 py-12">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
-      <div className="max-w-4xl mx-auto">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
+      <article className="max-w-4xl mx-auto">
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
             <Link href="/guides" className="hover:text-foreground">
@@ -192,7 +233,7 @@ export default async function GuidePage({ params }: PageProps) {
             </div>
           )}
         </div>
-      </div>
+      </article>
     </div>
   );
 }

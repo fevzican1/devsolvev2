@@ -1,7 +1,13 @@
-# DevSolve robots.txt — optimized for comprehensive indexing
+# DevSolve robots.txt — optimized for comprehensive, high-quality indexing
 
 User-agent: *
 Allow: /
+Allow: /tools/
+Allow: /guides/
+Allow: /k/
+Allow: /about
+Allow: /contact
+Allow: /legal/
 Disallow: /api/
 Disallow: /.netlify/
 Disallow: /cmd-center
@@ -10,10 +16,14 @@ Disallow: /_next/static/
 Disallow: /_next/data/
 Disallow: /404
 
-# Google-specific directives for comprehensive crawling
+# Google-specific directives for maximum crawl efficiency
 User-agent: Googlebot
 Allow: /
 Crawl-delay: 0
+
+# Googlebot image crawler
+User-agent: Googlebot-Image
+Allow: /
 
 # Bing/Microsoft
 User-agent: Bingbot
@@ -24,6 +34,15 @@ Crawl-delay: 1
 User-agent: Yandex
 Allow: /
 Crawl-delay: 1
+
+# DuckDuckGo
+User-agent: DuckDuckBot
+Allow: /
+Crawl-delay: 1
+
+# Apple search (Applebot)
+User-agent: Applebot
+Allow: /
 
 # Sitemap index (references all sitemap chunks)
 Sitemap: https://devsolvev2.com/sitemap.xml

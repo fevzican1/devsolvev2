@@ -1,16 +1,31 @@
 import type { Metadata } from 'next';
-import { siteConfig } from '@/config/site';
+import { siteConfig, externalUrls } from '@/config/site';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { absoluteUrl } from '@/lib/seo/url';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Cookie Policy',
-  description: 'Cookie and local storage policy for DevSolve.',
+  title: 'Cookie Policy — DevSolve Cookie & Local Storage Practices',
+  description: 'DevSolve cookie and local storage policy. Minimal cookies for essential functionality, transparent analytics, and full browser control.',
   path: '/legal/cookies',
 });
 
 export default function CookiesPage() {
+  const breadcrumbJsonLd = {
+    '@context': externalUrls.schemaOrg,
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: absoluteUrl('/') },
+      { '@type': 'ListItem', position: 2, name: 'Legal', item: absoluteUrl('/legal/cookies') },
+      { '@type': 'ListItem', position: 3, name: 'Cookie Policy', item: absoluteUrl('/legal/cookies') },
+    ],
+  };
+
   return (
     <div className="container mx-auto px-4 py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <div className="max-w-3xl mx-auto prose prose-neutral dark:prose-invert">
         <h1>Cookie Policy</h1>
         <p className="text-muted-foreground">Last updated: March 17, 2026</p>

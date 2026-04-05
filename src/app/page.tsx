@@ -13,8 +13,9 @@ import { platformExternalUrls } from '@/config/monetization';
 
 export const metadata: Metadata = buildMetadata({
   description:
-    'Browser-based developer tools and technical guides for formatting, validation, encoding, and debugging workflows.',
+    'Free browser-based developer tools for JSON formatting, JWT decoding, regex testing, Base64 encoding, and more. All processing happens locally — your data never leaves your browser.',
   path: '/',
+  keywords: ['developer tools', 'json formatter', 'jwt decoder', 'regex tester', 'base64', 'online tools', 'privacy-first', 'free tools'],
 });
 
 const features = [
@@ -48,12 +49,12 @@ export default function HomePage() {
               Browser-based developer tools
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
-              Developer Tools That{' '}
+              Free Developer Tools That{' '}
               <span className="text-primary">Respect Your Privacy</span>
             </h1>
-            <p className="text-xl text-muted-foreground mb-8">
-              Format, validate, encode, and transform your data without sending it to external servers.
-              All tools run locally in your browser.
+            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+              Format JSON, decode JWTs, test regex patterns, encode Base64, generate hashes — all without
+              sending data to external servers. 15+ tools that run entirely in your browser.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg">
@@ -96,9 +97,9 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-3xl font-bold mb-2">Popular Tools</h2>
+              <h2 className="text-3xl font-bold mb-2">Popular Developer Tools</h2>
               <p className="text-muted-foreground">
-                Browser-based utilities for common development tasks
+                Free browser-based utilities for JSON, encoding, hashing, and more
               </p>
             </div>
             <Button asChild variant="outline">
@@ -136,9 +137,9 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-3xl font-bold mb-2">Developer Guides</h2>
+              <h2 className="text-3xl font-bold mb-2">Technical Guides & Tutorials</h2>
               <p className="text-muted-foreground">
-                Practical guidance for common development workflows
+                In-depth guides with best practices and real-world examples
               </p>
             </div>
             <Button asChild variant="outline">
@@ -174,11 +175,11 @@ export default function HomePage() {
               <div className="max-w-2xl mx-auto text-center">
                 <Code2 className="h-12 w-12 mx-auto mb-4" />
                 <h2 className="text-3xl font-bold mb-4">
-                  Runs Locally in Your Browser
+                  100% Local Processing — Zero Data Collection
                 </h2>
                 <p className="text-lg opacity-90 mb-6">
                   Your data stays on your machine. No server processing, no data collection,
-                  no tracking. Just useful tools that work.
+                  no tracking. Free, open developer tools that simply work.
                 </p>
                 <Button asChild variant="secondary" size="lg">
                   <Link href="/tools">
