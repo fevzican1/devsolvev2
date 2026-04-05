@@ -2,9 +2,6 @@
 
 User-agent: *
 Allow: /
-Allow: /k/
-Allow: /tools/
-Allow: /guides/
 Disallow: /api/
 Disallow: /.netlify/
 Disallow: /cmd-center
@@ -30,6 +27,3 @@ Crawl-delay: 1
 
 # Sitemap index (references all sitemap chunks)
 Sitemap: https://devsolvev2.com/sitemap.xml
-
-# Host directive
-Host: https://devsolvev2.com

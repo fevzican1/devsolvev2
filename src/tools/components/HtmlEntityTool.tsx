@@ -15,9 +15,9 @@ function encodeHtmlEntities(text: string): string {
 }
 
 function decodeHtmlEntities(text: string): string {
-  const element = document.createElement('div');
-  element.innerHTML = text;
-  return element.textContent || '';
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
 }
 
 export function HtmlEntityTool() {
