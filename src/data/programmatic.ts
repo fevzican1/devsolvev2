@@ -1134,6 +1134,71 @@ export function getProgrammaticPageBySlug(slug: string): ProgrammaticPage | unde
   return page;
 }
 
+function tryResolveLegacyProgrammaticSlug(slug: string): ProgrammaticPage | undefined {
+  const match = slug.match(/^(.*)-(\d+)$/);
+  if (!match) return undefined;
+
+  const stem = match[1];
+  const legacyIndex = Number.parseInt(match[2], 10);
+  if (!Number.isFinite(legacyIndex) || legacyIndex < 0) return undefined;
+
+  const cluster = clusters.find((item) => stem.startsWith(`${item.key}-`));
+  if (!cluster) return undefined;
+
+  let cursor = stem.slice(cluster.key.length + 1);
+
+  const intents = Array.from(new Set(clusters.flatMap((item) => item.intents))).sort((a, b) => b.length - a.length);
+  const audiencesSorted = [...audiences].sort((a, b) => b.length - a.length);
+  const tasksSorted = [...tasks].sort((a, b) => b.length - a.length);
+
+  const intent = intents.find((candidate) => cursor.startsWith(`${candidate}-`));
+  if (!intent) return undefined;
+  cursor = cursor.slice(intent.length + 1);
+
+  const audience = audiencesSorted.find((candidate) => cursor.startsWith(`${candidate}-`));
+  if (!audience) return undefined;
+  cursor = cursor.slice(audience.length + 1);
+
+  const task = tasksSorted.find((candidate) => cursor.startsWith(`${candidate}-`));
+  if (!task) return undefined;
+  cursor = cursor.slice(task.length + 1);
+
+  const tool = cluster.tools.find((candidate) => candidate === cursor);
+  if (!tool) return undefined;
+
+  const pairIndex = toolIntentPairs.findIndex(
+    (pair) => pair.cluster.key === cluster.key && pair.intent === intent && pair.tool === tool,
+  );
+  if (pairIndex < 0) return undefined;
+
+  const audienceIndex = audiences.indexOf(audience);
+  const taskIndex = tasks.indexOf(task);
+  if (audienceIndex < 0 || taskIndex < 0) return undefined;
+
+  const modifierIndex = legacyIndex % MODIFIERS_COUNT;
+  const remappedIndex =
+    pairIndex * PER_PAIR +
+    audienceIndex * TASKS_COUNT * MODIFIERS_COUNT +
+    taskIndex * MODIFIERS_COUNT +
+    modifierIndex;
+
+  return getPageByIndex(remappedIndex);
+}
+
+export function resolveProgrammaticPageBySlug(
+  slug: string,
+): { page: ProgrammaticPage; canonicalSlug: string } | undefined {
+  const directPage = getProgrammaticPageBySlug(slug);
+  if (directPage) {
+    return { page: directPage, canonicalSlug: directPage.slug };
+  }
+
+  const legacyPage = tryResolveLegacyProgrammaticSlug(slug);
+  if (!legacyPage) return undefined;
+
+  return { page: legacyPage, canonicalSlug: legacyPage.slug };
+}
+
 /* ------------------------------------------------------------------ */
 /*  Helpers for sitemap generation                                     */
 /* ------------------------------------------------------------------ */
