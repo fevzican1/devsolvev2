@@ -1,4 +1,6 @@
 {
-  "/about/page": "app/about/page.js",
-  "/contact/page": "app/contact/page.js"
+  "/sitemaps/[id]/route": "app/sitemaps/[id]/route.js",
+  "/k/[slug]/page": "app/k/[slug]/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/sitemap.xml/route": "app/sitemap.xml/route.js"
 }

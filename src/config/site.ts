@@ -6,7 +6,7 @@ export const siteConfig = {
 
   programmatic: {
     targetTotal: 4008960,
-    safeDefaultTotal: 250000,
+    safeDefaultTotal: 4008960,
     rampSchedule: [250000, 800000, 1600000, 2400000, 3200000, 4008960] as const,
     rampMode: 'manual' as const,
   },
