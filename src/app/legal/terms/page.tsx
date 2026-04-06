@@ -10,6 +10,8 @@ export const metadata: Metadata = buildMetadata({
   path: '/legal/terms',
 });
 
+export const revalidate = 86400;
+
 export default function TermsPage() {
   const breadcrumbJsonLd = {
     '@context': externalUrls.schemaOrg,

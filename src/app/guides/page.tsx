@@ -19,6 +19,8 @@ export const metadata: Metadata = buildMetadata({
   keywords: ['developer guides', 'programming tutorials', 'json best practices', 'regex guide', 'jwt tutorial', 'coding workflows'],
 });
 
+export const revalidate = 86400;
+
 export default function GuidesPage() {
   const collectionPageJsonLd = {
     '@context': externalUrls.schemaOrg,

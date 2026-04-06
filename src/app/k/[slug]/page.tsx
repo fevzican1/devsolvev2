@@ -23,6 +23,7 @@ import {
   OriginalValueCallouts,
   TransparencyBadge,
 } from '@/components/content/EditorialIdentity';
+import { RelatedItemsLinks } from '@/components/seo/RelatedItemsLinks';
 
 /* ISR: revalidate every 24 hours; allow any slug not in generateStaticParams */
 export const revalidate = 86400;
@@ -115,6 +116,27 @@ export default async function ProgrammaticPage({ params }: PageProps) {
     .slice(0, 2);
   const semanticProgrammaticLinks = getProgrammaticDiscoveryLinks(page.slug, page.clusterKey, 12);
   const popularTools = toolRegistry.slice(0, 6);
+  const smartRelatedLinks = [
+    ...semanticProgrammaticLinks.map((entry) => ({
+      href: `/k/${entry.slug}`,
+      label: entry.title,
+    })),
+    ...relatedTools.map((tool) => ({
+      href: `/tools/${tool.slug}`,
+      label: tool.name,
+      description: tool.shortDescription,
+    })),
+    ...relatedGuides.map((guide) => ({
+      href: `/guides/${guide.slug}`,
+      label: guide.title,
+      description: guide.description,
+    })),
+    ...popularTools.map((tool) => ({
+      href: `/tools/${tool.slug}`,
+      label: tool.name,
+      description: tool.shortDescription,
+    })),
+  ];
   const categoryExplorationLinks = [
     { href: '/tools', label: 'Developer tools directory' },
     { href: '/guides', label: 'Developer guides hub' },
@@ -628,6 +650,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
             </div>
           )}
         </div>
+        <RelatedItemsLinks title="Explore Related Pages" items={smartRelatedLinks} />
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-# DevSolve robots.txt — optimized for comprehensive, high-quality indexing
+# DevSolve robots.txt — optimized for crawl budget and high-value indexing
 
 User-agent: *
 Allow: /
@@ -8,12 +8,18 @@ Allow: /k/
 Allow: /about
 Allow: /contact
 Allow: /legal/
+Disallow: /admin/
+Disallow: /admin
 Disallow: /api/
 Disallow: /.netlify/
 Disallow: /cmd-center
 Disallow: /cmd-center/
 Disallow: /_next/static/
 Disallow: /_next/data/
+Disallow: /*?sort=
+Disallow: /*&sort=
+Disallow: /*?filter=
+Disallow: /*&filter=
 Disallow: /404
 
 # Google-specific directives for maximum crawl efficiency
@@ -45,4 +51,4 @@ User-agent: Applebot
 Allow: /
 
 # Sitemap index (references all sitemap chunks)
-Sitemap: https://devsolvev2.com/sitemap.xml
+Sitemap: https://devsolvev2.com/sitemap-index.xml

@@ -1,7 +1,9 @@
 import fs from 'fs';
 import path from 'path';
+import { unstable_cache } from 'next/cache';
+import { cache } from 'react';
 
-export function loadGuideContent(slug: string): { part1: string; part2: string } | null {
+function readGuideContent(slug: string): { part1: string; part2: string } | null {
   try {
     const guidesDir = path.join(process.cwd(), 'src/content/guides');
     const part1Path = path.join(guidesDir, `${slug}.md`);
@@ -16,6 +18,18 @@ export function loadGuideContent(slug: string): { part1: string; part2: string }
   } catch {
     return null;
   }
+}
+
+const loadGuideContentFromCache = unstable_cache(
+  async (slug: string) => readGuideContent(slug),
+  ['guide-content-v1'],
+  { revalidate: 86400 },
+);
+
+export const loadGuideContentCached = cache(async (slug: string) => loadGuideContentFromCache(slug));
+
+export function loadGuideContent(slug: string): { part1: string; part2: string } | null {
+  return readGuideContent(slug);
 }
 
 export function getAllGuideContents(): Record<string, { part1: string; part2: string }> {

@@ -18,6 +18,8 @@ export const metadata: Metadata = buildMetadata({
   keywords: ['online developer tools', 'free dev tools', 'json formatter', 'regex tester', 'jwt decoder', 'base64 encoder', 'browser tools'],
 });
 
+export const revalidate = 86400;
+
 const categories = [
   { key: 'formatting', label: 'Formatting' },
   { key: 'encoding', label: 'Encoding' },

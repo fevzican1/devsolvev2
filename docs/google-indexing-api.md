@@ -1,6 +1,11 @@
 # Google Indexing API on Netlify
 
-This project includes a secured Netlify Function endpoint at `/api/google-indexing` to submit URL update or delete notifications to Google's Indexing API.
+This project exposes two secured Next.js API routes for Google Indexing submissions:
+
+- `POST /api/indexing/google` for direct URL notifications
+- `POST /api/indexing/google/webhook` for automated create/update/delete webhook events
+
+The existing Netlify Function endpoint at `/api/google-indexing` remains available for backward compatibility.
 
 ## Important limitation
 
@@ -13,14 +18,15 @@ For broader indexing acceleration, keep XML sitemaps fresh, ensure internal link
 Set the following variables in Netlify:
 
 - `INDEXING_API_SHARED_KEY`: Shared secret required in request header `x-indexing-key`.
-- `GOOGLE_SERVICE_ACCOUNT_EMAIL`: Service account client email.
-- `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`: Service account private key. Keep PEM format; escaped newlines (`\\n`) are supported.
+- `GOOGLE_INDEXING_SERVICE_ACCOUNT_JSON`: Full Google service-account JSON string (recommended).
+- Optional fallback: `GOOGLE_INDEXING_SERVICE_ACCOUNT_JSON_BASE64` (base64-encoded service-account JSON).
+- Legacy fallback: `GOOGLE_SERVICE_ACCOUNT_EMAIL` + `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`.
 - `SITE_URL`: Canonical site URL (for example `https://devsolvev2.com`).
 
 ## Endpoint contract
 
 - Method: `POST`
-- Path: `/api/google-indexing`
+- Path: `/api/indexing/google`
 - Headers:
   - `Content-Type: application/json`
   - `x-indexing-key: <INDEXING_API_SHARED_KEY>`
@@ -44,11 +50,34 @@ Set the following variables in Netlify:
 ## Example request
 
 ```bash
-curl -X POST "https://devsolvev2.com/api/google-indexing" \
+curl -X POST "https://devsolvev2.com/api/indexing/google" \
   -H "Content-Type: application/json" \
   -H "x-indexing-key: YOUR_SHARED_KEY" \
   -d '{"url":"https://devsolvev2.com/guides/json-validation-formatting/","type":"URL_UPDATED"}'
 ```
+
+## Webhook contract (automatic notifications)
+
+- Method: `POST`
+- Path: `/api/indexing/google/webhook`
+- Headers:
+  - `Content-Type: application/json`
+  - `x-indexing-key: <INDEXING_API_SHARED_KEY>`
+- Body:
+
+```json
+{
+  "event": "updated",
+  "path": "/k/json-validate-json-backend-engineer-debug-production-issue-json-formatter-0"
+}
+```
+
+`event` values:
+- `created` -> `URL_UPDATED`
+- `updated` -> `URL_UPDATED`
+- `deleted` -> `URL_DELETED`
+
+`path` can be replaced by absolute `url` if preferred.
 
 ## Hub discovery bridge automation
 
