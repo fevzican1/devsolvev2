@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { Shield, ArrowRight, Wrench, AlertTriangle, CheckCircle, Lightbulb, HelpCircle, BookOpen, Zap } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { getProgrammaticPageBySlug, getPageByIndex, getTotalPageCount } from '@/data/programmatic';
+import { resolveProgrammaticPageBySlug, getPageByIndex, getTotalPageCount } from '@/data/programmatic';
 import { getToolBySlug, toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
 import { siteConfig, externalUrls } from '@/config/site';
@@ -81,13 +81,14 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const page = getProgrammaticPageBySlug(slug);
-  if (!page) return buildMetadata({ title: 'Not Found', noindex: true });
+  const resolved = resolveProgrammaticPageBySlug(slug);
+  if (!resolved) return buildMetadata({ title: 'Not Found', noindex: true });
+  const { page, canonicalSlug } = resolved;
 
   return buildMetadata({
     title: page.title,
     description: page.description,
-    path: `/k/${slug}`,
+    path: `/k/${canonicalSlug}`,
     noindex: false,
     keywords: page.keywords,
     datePublished: siteConfig.launchDate,
@@ -98,10 +99,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ProgrammaticPage({ params }: PageProps) {
   const { slug } = await params;
-  const page = getProgrammaticPageBySlug(slug);
+  const resolved = resolveProgrammaticPageBySlug(slug);
 
-  if (!page) {
+  if (!resolved) {
     notFound();
+  }
+  const { page, canonicalSlug } = resolved;
+
+  if (canonicalSlug !== slug) {
+    permanentRedirect(`/k/${canonicalSlug}`);
   }
 
   const primaryTool = getToolBySlug(page.primaryTool);
