@@ -6,6 +6,8 @@ import { guideRegistry } from '@/content/guides';
 import { getTotalPageCount, getPageByIndex } from '@/data/programmatic';
 import { hashString } from '@/lib/utils';
 import { absoluteUrl } from '@/lib/seo/url';
+import { calculateQualityScore, shouldIncludeInSitemap } from '@/lib/quality/scoring';
+import { siteConfig } from '@/config/site';
 
 const URLS_PER_SITEMAP = 10000;
 
@@ -205,6 +207,14 @@ export async function GET(
     for (let i = start; i < end; i++) {
       const page = getPageByIndex(i);
       if (!page) continue;
+
+      const quality = calculateQualityScore(page);
+      const sitemapEligible = shouldIncludeInSitemap(
+        quality.score,
+        siteConfig.programmaticQuality.minSitemapScore,
+        quality.wordCount,
+      );
+      if (!sitemapEligible) continue;
 
       const freshness = calculateFreshnessScore({
         lastmod: programmaticLastmod,

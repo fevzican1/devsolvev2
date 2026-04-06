@@ -5,7 +5,7 @@ import { Shield, ArrowRight, Wrench, AlertTriangle, CheckCircle, Lightbulb, Help
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { resolveProgrammaticPageBySlug, getPageByIndex, getTotalPageCount } from '@/data/programmatic';
+import { resolveProgrammaticPageBySlug, getPageByIndex, getTotalPageCount, getProgrammaticLastModified } from '@/data/programmatic';
 import { getToolBySlug, toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
 import { siteConfig, externalUrls } from '@/config/site';
@@ -16,6 +16,7 @@ import { buildMetadata } from '@/lib/seo/metadata';
 import { absoluteUrl } from '@/lib/seo/url';
 import { linkifyCommercialTerms } from '@/lib/content/commercialLinks';
 import { hashString } from '@/lib/utils';
+import { calculateQualityScore, shouldIndex } from '@/lib/quality/scoring';
 import {
   CommercialOpportunityLinks,
   EditorialByline,
@@ -84,15 +85,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const resolved = resolveProgrammaticPageBySlug(slug);
   if (!resolved) return buildMetadata({ title: 'Not Found', noindex: true });
   const { page, canonicalSlug } = resolved;
+  const quality = calculateQualityScore(page);
+  const indexable = shouldIndex(
+    quality.score,
+    siteConfig.programmaticQuality.minIndexScore,
+    quality.wordCount,
+  );
+  const dateModified = getProgrammaticLastModified(canonicalSlug);
 
   return buildMetadata({
     title: page.title,
     description: page.description,
     path: `/k/${canonicalSlug}`,
-    noindex: false,
+    noindex: !indexable,
     keywords: page.keywords,
     datePublished: siteConfig.launchDate,
-    dateModified: new Date().toISOString(),
+    dateModified,
     articleSection: page.clusterKey,
   });
 }
@@ -197,7 +205,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
     description: page.description,
     url: absoluteUrl(`/k/${slug}`),
     datePublished: siteConfig.launchDate,
-    dateModified: new Date().toISOString(),
+    dateModified: getProgrammaticLastModified(canonicalSlug),
     author: {
       '@type': 'Organization',
       name: 'DevSolve Editorial Team',

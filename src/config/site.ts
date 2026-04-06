@@ -6,7 +6,7 @@ export const siteConfig = {
 
   programmatic: {
     targetTotal: 4008960,
-    safeDefaultTotal: 4008960,
+    safeDefaultTotal: 250000,
     rampSchedule: [250000, 800000, 1600000, 2400000, 3200000, 4008960] as const,
     rampMode: 'manual' as const,
   },
@@ -22,6 +22,7 @@ export const siteConfig = {
   },
 
   launchDate: '2026-01-15T00:00:00Z',
+  contentUpdatedAt: '2026-04-06T00:00:00Z',
 
   features: {
     darkMode: true,
