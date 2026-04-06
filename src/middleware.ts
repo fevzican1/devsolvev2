@@ -30,10 +30,16 @@ const TURKISH_CHAR_MAP: Record<string, string> = {
 };
 
 function shouldSkipPath(pathname: string): boolean {
+  const lowerPath = pathname.toLowerCase();
+
+  if (lowerPath === '/sitemap.xml' || lowerPath === '/robots.txt' || lowerPath.startsWith('/sitemaps/')) {
+    return false;
+  }
+
   if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/api') ||
-    pathname.startsWith('/favicon')
+    lowerPath.startsWith('/_next') ||
+    lowerPath.startsWith('/api') ||
+    lowerPath.startsWith('/favicon')
   ) {
     return true;
   }
@@ -86,8 +92,7 @@ export function middleware(request: NextRequest) {
   if (shouldSkipPath(pathname)) return NextResponse.next();
 
   const normalizedPathname = normalizePathname(pathname);
-  const normalizedSearchParams = removeTrackingParams(request.nextUrl.searchParams);
-  const normalizedSearch = normalizedSearchParams.toString();
+  const normalizedSearch = removeTrackingParams(request.nextUrl.searchParams).toString();
 
   const pathChanged = normalizedPathname !== pathname;
   const searchChanged = normalizedSearch !== request.nextUrl.searchParams.toString();
@@ -97,9 +102,9 @@ export function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   url.pathname = normalizedPathname;
   url.search = normalizedSearch;
-  return NextResponse.redirect(url, 301);
+  return NextResponse.rewrite(url);
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|.*\\..*).*)'],
+  matcher: ['/((?!_next/static|_next/image).*)'],
 };

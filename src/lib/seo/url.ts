@@ -30,9 +30,12 @@ export function normalizePath(path = '/'): string {
   const singleSlashes = withLeadingSlash.replace(/\/{2,}/g, '/');
   const transliterated = transliterateTurkish(singleSlashes);
   const lowerCased = transliterated.toLowerCase();
+  const spacesAsHyphens = lowerCased.replace(/%20/g, '-');
+  const compactHyphens = spacesAsHyphens.replace(/-{2,}/g, '-');
+  const trimmedSegmentHyphens = compactHyphens.replace(/-\//g, '/').replace(/-$/, '');
 
-  if (lowerCased === '/') return '/';
-  return lowerCased.endsWith('/') ? lowerCased.slice(0, -1) : lowerCased;
+  if (trimmedSegmentHyphens === '/') return '/';
+  return trimmedSegmentHyphens.endsWith('/') ? trimmedSegmentHyphens.slice(0, -1) : trimmedSegmentHyphens;
 }
 
 /**

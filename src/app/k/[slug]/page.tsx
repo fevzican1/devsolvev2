@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound, permanentRedirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { Shield, ArrowRight, Wrench, AlertTriangle, CheckCircle, Lightbulb, HelpCircle, BookOpen, Zap } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,6 @@ import { buildMetadata } from '@/lib/seo/metadata';
 import { absoluteUrl } from '@/lib/seo/url';
 import { linkifyCommercialTerms } from '@/lib/content/commercialLinks';
 import { hashString } from '@/lib/utils';
-import { calculateQualityScore, shouldIndex } from '@/lib/quality/scoring';
 import {
   CommercialOpportunityLinks,
   EditorialByline,
@@ -85,19 +84,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const resolved = resolveProgrammaticPageBySlug(slug);
   if (!resolved) return buildMetadata({ title: 'Not Found', noindex: true });
   const { page, canonicalSlug } = resolved;
-  const quality = calculateQualityScore(page);
-  const indexable = shouldIndex(
-    quality.score,
-    siteConfig.programmaticQuality.minIndexScore,
-    quality.wordCount,
-  );
   const dateModified = getProgrammaticLastModified(canonicalSlug);
 
   return buildMetadata({
     title: page.title,
     description: page.description,
     path: `/k/${canonicalSlug}`,
-    noindex: !indexable,
     keywords: page.keywords,
     datePublished: siteConfig.launchDate,
     dateModified,
@@ -113,10 +105,6 @@ export default async function ProgrammaticPage({ params }: PageProps) {
     notFound();
   }
   const { page, canonicalSlug } = resolved;
-
-  if (canonicalSlug !== slug) {
-    permanentRedirect(`/k/${canonicalSlug}`);
-  }
 
   const primaryTool = getToolBySlug(page.primaryTool);
   const relatedTools = toolRegistry
@@ -193,7 +181,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
         '@type': 'ListItem',
         position: 3,
         name: page.title,
-        item: absoluteUrl(`/k/${slug}`),
+        item: absoluteUrl(`/k/${canonicalSlug}`),
       },
     ],
   };
@@ -203,7 +191,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
     '@type': 'TechArticle',
     headline: page.h1,
     description: page.description,
-    url: absoluteUrl(`/k/${slug}`),
+    url: absoluteUrl(`/k/${canonicalSlug}`),
     datePublished: siteConfig.launchDate,
     dateModified: getProgrammaticLastModified(canonicalSlug),
     author: {
@@ -222,7 +210,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': absoluteUrl(`/k/${slug}`),
+      '@id': absoluteUrl(`/k/${canonicalSlug}`),
     },
     about: {
       '@type': 'Thing',
