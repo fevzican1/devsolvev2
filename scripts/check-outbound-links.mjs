@@ -20,8 +20,8 @@ const excludePaths = [
 const allowedFiles = [
   join(projectRoot, 'src/config/site.ts'),
   join(projectRoot, 'src/config/monetization.ts'),
-  join(projectRoot, 'src/app/sitemap.xml/route.ts'),
-  join(projectRoot, 'src/app/sitemaps/[id]/route.ts'),
+  join(projectRoot, 'next-sitemap.config.mjs'),
+  join(projectRoot, 'scripts/generate-programmatic-sitemaps.mjs'),
 ];
 
 function shouldScan(filePath) {

@@ -19,10 +19,13 @@ import {
 import { buildToolPageContent } from '@/lib/seo/toolPageContent';
 import { externalUrls } from '@/config/site';
 import { absoluteUrl } from '@/lib/seo/url';
+import { RelatedItemsLinks } from '@/components/seo/RelatedItemsLinks';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
+
+export const revalidate = 86400;
 
 export async function generateStaticParams() {
   return toolRegistry.map((tool) => ({
@@ -53,6 +56,26 @@ export default async function ToolPage({ params }: PageProps) {
 
   const relatedTools = getRelatedTools(slug);
   const relatedGuides = getGuidesForTool(slug);
+  const siblingTools = toolRegistry
+    .filter((candidate) => candidate.slug !== slug && candidate.category === tool.category)
+    .slice(0, 6);
+  const smartRelatedLinks = [
+    ...relatedTools.map((relatedTool) => ({
+      href: `/tools/${relatedTool.slug}`,
+      label: relatedTool.name,
+      description: relatedTool.shortDescription,
+    })),
+    ...relatedGuides.map((guide) => ({
+      href: `/guides/${guide.slug}`,
+      label: guide.title,
+      description: guide.description,
+    })),
+    ...siblingTools.map((sibling) => ({
+      href: `/tools/${sibling.slug}`,
+      label: sibling.name,
+      description: sibling.shortDescription,
+    })),
+  ];
   const dynamicContent = buildToolPageContent(tool);
   const softwareApplicationJsonLd = {
     '@context': externalUrls.schemaOrg,
@@ -351,6 +374,7 @@ export default async function ToolPage({ params }: PageProps) {
             </div>
           )}
         </div>
+        <RelatedItemsLinks title="Explore Related Pages" items={smartRelatedLinks} />
         </article>
       </div>
     </div>

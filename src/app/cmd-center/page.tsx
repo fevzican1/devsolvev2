@@ -9,6 +9,8 @@ export const metadata: Metadata = buildMetadata({
   noindex: true,
 });
 
+export const revalidate = 86400;
+
 export default function CmdCenterPage() {
   return <CmdCenterPageClient />;
 }

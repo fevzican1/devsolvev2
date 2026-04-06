@@ -9,6 +9,8 @@ export const metadata: Metadata = buildMetadata({
   path: '/legal/cookies',
 });
 
+export const revalidate = 86400;
+
 export default function CookiesPage() {
   const breadcrumbJsonLd = {
     '@context': externalUrls.schemaOrg,

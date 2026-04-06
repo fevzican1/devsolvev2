@@ -10,7 +10,7 @@ import { getToolBySlug } from '@/tools/registry';
 import { GuideContent } from '@/components/guides/GuideContent';
 import { RecommendedSolutions } from '@/components/monetization/RecommendedSolutions';
 import { monetizationConfig } from '@/config/monetization';
-import { loadGuideContent } from '@/lib/guides/loader';
+import { loadGuideContentCached } from '@/lib/guides/loader';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { absoluteUrl } from '@/lib/seo/url';
 import { externalUrls, siteConfig } from '@/config/site';
@@ -20,10 +20,13 @@ import {
   EditorialIntro,
   OriginalValueCallouts,
 } from '@/components/content/EditorialIdentity';
+import { RelatedItemsLinks } from '@/components/seo/RelatedItemsLinks';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
+
+export const revalidate = 86400;
 
 export async function generateStaticParams() {
   return guideRegistry.map((guide) => ({
@@ -53,13 +56,36 @@ export default async function GuidePage({ params }: PageProps) {
     notFound();
   }
 
-  const guideContent = loadGuideContent(slug);
+  const guideContent = await loadGuideContentCached(slug);
   const content = guideContent ? `${guideContent.part1}\n\n${guideContent.part2}` : '';
 
   const primaryTool = getToolBySlug(guide.primaryToolSlug);
   const relatedTools = guide.relatedToolSlugs
     .map(getToolBySlug)
     .filter((t): t is NonNullable<typeof t> => t !== undefined);
+  const relatedGuides = guideRegistry
+    .filter((candidate) => candidate.slug !== guide.slug)
+    .filter((candidate) => candidate.clusterKeys.some((key) => guide.clusterKeys.includes(key)))
+    .slice(0, 6);
+  const smartRelatedLinks = [
+    ...(primaryTool
+      ? [{
+          href: `/tools/${primaryTool.slug}`,
+          label: primaryTool.name,
+          description: primaryTool.shortDescription,
+        }]
+      : []),
+    ...relatedTools.map((tool) => ({
+      href: `/tools/${tool.slug}`,
+      label: tool.name,
+      description: tool.shortDescription,
+    })),
+    ...relatedGuides.map((candidate) => ({
+      href: `/guides/${candidate.slug}`,
+      label: candidate.title,
+      description: candidate.description,
+    })),
+  ];
 
   const breadcrumbJsonLd = {
     '@context': externalUrls.schemaOrg,
@@ -233,6 +259,7 @@ export default async function GuidePage({ params }: PageProps) {
             </div>
           )}
         </div>
+        <RelatedItemsLinks title="Explore Related Pages" items={smartRelatedLinks} />
       </article>
     </div>
   );
