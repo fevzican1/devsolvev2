@@ -1,6 +1,7 @@
 import { toolRegistry } from '@/tools/registry';
 import { hashString } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
+import { monetizationConfig } from '@/config/monetization';
 
 /* Mulberry32-based deterministic shuffle — much better distribution than modular arithmetic */
 function seededShuffle<T>(arr: T[], seed: number): T[] {
@@ -234,7 +235,18 @@ const configuredDefaultTotal = clampProgrammaticTotal(siteConfig.programmatic.sa
 const envRequestedTotal = parseEnvPositiveInteger(
   process.env.PROGRAMMATIC_PAGE_LIMIT ?? process.env.NEXT_PUBLIC_PROGRAMMATIC_PAGE_LIMIT,
 );
-const TARGET_TOTAL = clampProgrammaticTotal(envRequestedTotal ?? configuredDefaultTotal);
+function resolveRampTargetTotal(): number {
+  if (siteConfig.programmatic.rampMode !== 'manual') return configuredDefaultTotal;
+
+  const rampLevel = monetizationConfig.opsFlags.programmaticRampLevel ?? 0;
+  if (rampLevel <= 0) return configuredDefaultTotal;
+
+  const scheduleIndex = Math.min(rampLevel, siteConfig.programmatic.rampSchedule.length) - 1;
+  const scheduledTarget = siteConfig.programmatic.rampSchedule[scheduleIndex];
+  return clampProgrammaticTotal(scheduledTarget);
+}
+
+const TARGET_TOTAL = clampProgrammaticTotal(envRequestedTotal ?? resolveRampTargetTotal());
 
 /* ------------------------------------------------------------------ */
 /*  Slug builder                                                      */
@@ -1208,6 +1220,14 @@ export function getTotalPageCount(): number {
 
 export function getSlugByIndex(index: number): string | undefined {
   return getPageByIndex(index)?.slug;
+}
+
+export function getProgrammaticLastModified(slug: string): string {
+  const baseMs = Date.parse(siteConfig.contentUpdatedAt || siteConfig.launchDate);
+  if (!Number.isFinite(baseMs)) return siteConfig.launchDate;
+
+  const dayOffset = Math.abs(hashString(slug)) % 30;
+  return new Date(baseMs - dayOffset * 86_400_000).toISOString();
 }
 
 /* ------------------------------------------------------------------ */
