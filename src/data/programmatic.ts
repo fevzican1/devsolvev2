@@ -247,6 +247,7 @@ function resolveRampTargetTotal(): number {
 }
 
 const TARGET_TOTAL = clampProgrammaticTotal(envRequestedTotal ?? resolveRampTargetTotal());
+const pageCache = new Map<number, ProgrammaticPage>();
 
 /* ------------------------------------------------------------------ */
 /*  Slug builder                                                      */
@@ -1080,6 +1081,8 @@ function buildDescription(
 
 export function getPageByIndex(index: number): ProgrammaticPage | undefined {
   if (index < 0 || index >= TARGET_TOTAL) return undefined;
+  const cached = pageCache.get(index);
+  if (cached) return cached;
 
   const pairIndex = Math.floor(index / PER_PAIR);
   const remainder = index % PER_PAIR;
@@ -1129,6 +1132,7 @@ export function getPageByIndex(index: number): ProgrammaticPage | undefined {
     page.technicalAnalysis.push(...buildDepthExpansion(pair.tool, pair.cluster.key, audience, task));
   }
 
+  pageCache.set(index, page);
   return page;
 }
 
@@ -1219,7 +1223,20 @@ export function getTotalPageCount(): number {
 }
 
 export function getSlugByIndex(index: number): string | undefined {
-  return getPageByIndex(index)?.slug;
+  if (index < 0 || index >= TARGET_TOTAL) return undefined;
+
+  const pairIndex = Math.floor(index / PER_PAIR);
+  const remainder = index % PER_PAIR;
+  const audienceIndex = Math.floor(remainder / (TASKS_COUNT * MODIFIERS_COUNT));
+  const remainder2 = remainder % (TASKS_COUNT * MODIFIERS_COUNT);
+  const taskIndex = Math.floor(remainder2 / MODIFIERS_COUNT);
+
+  const pair = toolIntentPairs[pairIndex];
+  const audience = audiences[audienceIndex];
+  const task = tasks[taskIndex];
+  if (!pair || !audience || !task) return undefined;
+
+  return buildSlug(pair.cluster.key, pair.tool, pair.intent, audience, task, index);
 }
 
 export function getProgrammaticLastModified(slug: string): string {

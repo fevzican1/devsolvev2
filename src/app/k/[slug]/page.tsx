@@ -5,7 +5,7 @@ import { Shield, ArrowRight, Wrench, AlertTriangle, CheckCircle, Lightbulb, Help
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { resolveProgrammaticPageBySlug, getPageByIndex, getTotalPageCount, getProgrammaticLastModified } from '@/data/programmatic';
+import { resolveProgrammaticPageBySlug, getPageByIndex, getTotalPageCount, getProgrammaticLastModified, getSlugByIndex } from '@/data/programmatic';
 import { getToolBySlug, toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
 import { siteConfig, externalUrls } from '@/config/site';
@@ -25,9 +25,7 @@ import {
 } from '@/components/content/EditorialIdentity';
 import { RelatedItemsLinks } from '@/components/seo/RelatedItemsLinks';
 
-/* ISR: revalidate every 24 hours; allow any slug not in generateStaticParams */
-export const revalidate = 86400;
-export const dynamicParams = true;
+export const dynamicParams = false;
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -61,21 +59,12 @@ function getProgrammaticDiscoveryLinks(currentSlug: string, clusterKey: string, 
 }
 
 export async function generateStaticParams() {
-  /* Pre-render a small, evenly distributed sample and render the rest via ISR. */
-  const totalPrerender = 500;
   const totalPages = getTotalPageCount();
   if (totalPages < 1) return [];
-  const step = Math.max(1, Math.floor(totalPages / totalPrerender));
-
-  const seen = new Set<string>();
   const params: { slug: string }[] = [];
-  for (let i = 0; i < totalPrerender; i++) {
-    const idx = Math.min(i * step, totalPages - 1);
-    const page = getPageByIndex(idx);
-    if (page && !seen.has(page.slug)) {
-      seen.add(page.slug);
-      params.push({ slug: page.slug });
-    }
+  for (let idx = 0; idx < totalPages; idx++) {
+    const slug = getSlugByIndex(idx);
+    if (slug) params.push({ slug });
   }
   return params;
 }
