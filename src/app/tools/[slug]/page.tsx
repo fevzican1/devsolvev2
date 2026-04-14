@@ -25,11 +25,11 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
+export const dynamic = 'force-static';
+export const revalidate = false;
 
 export async function generateStaticParams() {
-  return toolRegistry.map((tool) => ({
-    slug: tool.slug,
-  }));
+  return [];
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

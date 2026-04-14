@@ -159,7 +159,7 @@ export const monetizationConfig: MonetizationConfig = {
   },
 
   opsFlags: {
-    programmaticRampLevel: 0,
+    programmaticRampLevel: 5,
   },
 };
 
