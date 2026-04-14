@@ -6,7 +6,7 @@ const config = {
   generateRobotsTxt: false,
   generateIndexSitemap: false,
   sitemapSize: 50000,
-  outDir: 'out',
+  outDir: 'public',
   autoLastmod: true,
   exclude: [
     '/api/*',
