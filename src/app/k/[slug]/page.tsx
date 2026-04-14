@@ -5,7 +5,7 @@ import { Shield, ArrowRight, Wrench, AlertTriangle, CheckCircle, Lightbulb, Help
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { resolveProgrammaticPageBySlug, getPageByIndex, getTotalPageCount, getProgrammaticLastModified, getSlugByIndex } from '@/data/programmatic';
+import { resolveProgrammaticPageBySlug, getPageByIndex, getTotalPageCount, getProgrammaticLastModified } from '@/data/programmatic';
 import { getToolBySlug, toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
 import { siteConfig, externalUrls } from '@/config/site';
@@ -25,7 +25,9 @@ import {
 } from '@/components/content/EditorialIdentity';
 import { RelatedItemsLinks } from '@/components/seo/RelatedItemsLinks';
 
-export const dynamicParams = false;
+export const dynamic = 'force-static';
+export const dynamicParams = true;
+export const revalidate = false;
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -59,14 +61,7 @@ function getProgrammaticDiscoveryLinks(currentSlug: string, clusterKey: string, 
 }
 
 export async function generateStaticParams() {
-  const totalPages = getTotalPageCount();
-  if (totalPages < 1) return [];
-  const params: { slug: string }[] = [];
-  for (let idx = 0; idx < totalPages; idx++) {
-    const slug = getSlugByIndex(idx);
-    if (slug) params.push({ slug });
-  }
-  return params;
+  return [];
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
