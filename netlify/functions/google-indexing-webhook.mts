@@ -120,5 +120,4 @@ export default async (req: Request): Promise<Response> => {
 
 export const config = {
   path: '/api/google-indexing/webhook',
-  method: 'POST',
 };
