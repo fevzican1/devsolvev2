@@ -57,5 +57,4 @@ export default async (req: Request): Promise<Response> => {
 
 export const config = {
   path: '/api/sitemap-ping',
-  method: 'POST',
 };

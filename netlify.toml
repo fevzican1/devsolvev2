@@ -26,9 +26,9 @@
 [[redirects]]
   from = "/api/indexing/google"
   to = "/api/google-indexing"
-  status = 301
+  status = 308
 
 [[redirects]]
   from = "/api/indexing/google/webhook"
   to = "/api/google-indexing/webhook"
-  status = 301
+  status = 308
