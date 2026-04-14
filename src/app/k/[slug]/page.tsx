@@ -5,7 +5,7 @@ import { Shield, ArrowRight, Wrench, AlertTriangle, CheckCircle, Lightbulb, Help
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { resolveProgrammaticPageBySlug, getPageByIndex, getTotalPageCount, getProgrammaticLastModified } from '@/data/programmatic';
+import { resolveProgrammaticPageBySlug, getTotalPageCount, getProgrammaticLastModified, getSlugByIndex } from '@/data/programmatic';
 import { getToolBySlug, toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
 import { siteConfig, externalUrls } from '@/config/site';
@@ -33,7 +33,36 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-function getProgrammaticDiscoveryLinks(currentSlug: string, clusterKey: string, count = 12) {
+const DEFAULT_STATIC_PROGRAMMATIC_PATHS = 300;
+const MAX_STATIC_PROGRAMMATIC_PATHS = 5000;
+
+function parsePositiveInt(value: string | undefined): number | null {
+  if (!value) return null;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function resolveStaticProgrammaticPathLimit() {
+  const envLimit = parsePositiveInt(
+    process.env.PROGRAMMATIC_STATIC_BUILD_LIMIT ??
+    process.env.NEXT_PUBLIC_PROGRAMMATIC_STATIC_BUILD_LIMIT,
+  );
+
+  if (envLimit === null) {
+    return Math.min(getTotalPageCount(), DEFAULT_STATIC_PROGRAMMATIC_PATHS);
+  }
+
+  return Math.min(getTotalPageCount(), Math.min(envLimit, MAX_STATIC_PROGRAMMATIC_PATHS));
+}
+
+function humanizeProgrammaticSlug(slug: string): string {
+  const withoutIndex = slug.replace(/-\d+$/, '');
+  const text = withoutIndex.replace(/-/g, ' ').trim();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : slug;
+}
+
+function getProgrammaticDiscoveryLinks(currentSlug: string, count = 12) {
   const total = getTotalPageCount();
   if (total < 2) return [];
 
@@ -41,27 +70,34 @@ function getProgrammaticDiscoveryLinks(currentSlug: string, clusterKey: string, 
   const links: Array<{ slug: string; title: string }> = [];
   const seen = new Set<string>();
   const step = 7919;
-  const preferredClusterFloor = Math.floor(count * 0.7);
   let attempts = 0;
 
-  while (links.length < count && attempts < count * 120) {
+  while (links.length < count && attempts < count * 10) {
     const idx = (seed + attempts * step) % total;
     attempts += 1;
 
-    const candidate = getPageByIndex(idx);
-    if (!candidate || candidate.slug === currentSlug || seen.has(candidate.slug)) continue;
+    const slug = getSlugByIndex(idx);
+    if (!slug || slug === currentSlug || seen.has(slug)) continue;
 
-    if (links.length < preferredClusterFloor && candidate.clusterKey !== clusterKey) continue;
-
-    seen.add(candidate.slug);
-    links.push({ slug: candidate.slug, title: candidate.title });
+    seen.add(slug);
+    links.push({ slug, title: humanizeProgrammaticSlug(slug) });
   }
 
   return links;
 }
 
 export async function generateStaticParams() {
-  return [];
+  const limit = resolveStaticProgrammaticPathLimit();
+  const params: Array<{ slug: string }> = [];
+
+  for (let index = 0; index < limit; index += 1) {
+    const slug = getSlugByIndex(index);
+    if (slug) {
+      params.push({ slug });
+    }
+  }
+
+  return params;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -101,7 +137,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
   const relatedGuides = guideRegistry
     .filter(g => g.clusterKeys.includes(page.clusterKey))
     .slice(0, 2);
-  const semanticProgrammaticLinks = getProgrammaticDiscoveryLinks(page.slug, page.clusterKey, 12);
+  const semanticProgrammaticLinks = getProgrammaticDiscoveryLinks(page.slug, 12);
   const popularTools = toolRegistry.slice(0, 6);
   const smartRelatedLinks = [
     ...semanticProgrammaticLinks.map((entry) => ({
