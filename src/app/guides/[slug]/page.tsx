@@ -26,7 +26,6 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-export const revalidate = 86400;
 
 export async function generateStaticParams() {
   return guideRegistry.map((guide) => ({

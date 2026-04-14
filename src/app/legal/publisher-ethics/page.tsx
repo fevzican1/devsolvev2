@@ -10,7 +10,6 @@ export const metadata: Metadata = buildMetadata({
   path: '/legal/publisher-ethics',
 });
 
-export const revalidate = 86400;
 
 export default function PublisherEthicsPage() {
   const breadcrumbJsonLd = {

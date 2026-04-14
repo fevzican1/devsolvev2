@@ -18,7 +18,6 @@ export const metadata: Metadata = buildMetadata({
   keywords: ['developer tools', 'json formatter', 'jwt decoder', 'regex tester', 'base64', 'online tools', 'privacy-first', 'free tools'],
 });
 
-export const revalidate = 86400;
 
 const features = [
   {
