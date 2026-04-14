@@ -29,7 +29,7 @@ export const dynamic = 'force-static';
 export const revalidate = false;
 
 export async function generateStaticParams() {
-  return [];
+  return toolRegistry.map((tool) => ({ slug: tool.slug }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
