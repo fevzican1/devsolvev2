@@ -243,7 +243,7 @@ async function writeSitemapIndex(coreSitemaps, programmaticSitemaps, lastmod) {
           else resolve();
         });
       });
-    });
+    })
   );
 }
 
