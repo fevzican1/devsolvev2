@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { Shield, ArrowRight, Wrench, AlertTriangle, CheckCircle, Lightbulb, HelpCircle, BookOpen, Zap } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -90,6 +90,9 @@ export default async function ProgrammaticPage({ params }: PageProps) {
     notFound();
   }
   const { page, canonicalSlug } = resolved;
+  if (slug !== canonicalSlug) {
+    permanentRedirect(`/k/${canonicalSlug}`);
+  }
 
   const primaryTool = getToolBySlug(page.primaryTool);
   const relatedTools = toolRegistry
