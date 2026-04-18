@@ -21,8 +21,7 @@ function transliterateTurkish(value: string): string {
 
 /**
  * Normalize a path to its canonical form.
- * Must match the middleware normalization exactly so sitemap/canonical URLs
- * never trigger a redirect.
+ * Kept deterministic so sitemap/canonical URLs are emitted in one stable form.
  */
 export function normalizePath(path = '/'): string {
   const rawPath = path.split('?')[0]?.split('#')[0] ?? '/';
@@ -40,8 +39,7 @@ export function normalizePath(path = '/'): string {
 
 /**
  * Build an absolute canonical URL from a path segment.
- * Applies the same normalization as the middleware so the resulting URL
- * resolves to a 200 without any intermediate redirects.
+ * Applies the same path normalization used across sitemap/canonical generation.
  */
 export function absoluteUrl(path = '/'): string {
   const normalizedPath = normalizePath(path);

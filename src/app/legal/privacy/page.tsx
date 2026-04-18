@@ -11,7 +11,6 @@ export const metadata: Metadata = buildMetadata({
   path: '/legal/privacy',
 });
 
-export const revalidate = 86400;
 
 export default function PrivacyPage() {
   const breadcrumbJsonLd = {

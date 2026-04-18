@@ -7,7 +7,6 @@ import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
 import { externalUrls, siteConfig } from '@/config/site';
 import { absoluteUrl } from '@/lib/seo/url';
 
-export const revalidate = 86400;
 
 export const metadata: Metadata = buildMetadata({
   title: 'About DevSolve — Privacy-First Browser Developer Tools Platform',

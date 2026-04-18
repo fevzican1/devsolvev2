@@ -67,5 +67,4 @@ export default async (req: Request): Promise<Response> => {
 
 export const config = {
   path: '/api/hub-discovery-priority-sync',
-  method: 'POST',
 };

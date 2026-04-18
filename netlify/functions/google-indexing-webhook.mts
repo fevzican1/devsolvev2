@@ -10,9 +10,12 @@ declare const Netlify: {
   };
 };
 
-interface IndexingRequest {
+type WebhookEvent = 'created' | 'updated' | 'deleted';
+
+interface WebhookRequest {
+  event?: WebhookEvent;
+  path?: string;
   url?: string;
-  type?: IndexingType;
 }
 
 function json(status: number, payload: Record<string, unknown>): Response {
@@ -23,6 +26,27 @@ function json(status: number, payload: Record<string, unknown>): Response {
       'Cache-Control': 'no-store',
     },
   });
+}
+
+function mapEventToType(event: WebhookEvent): IndexingType {
+  return event === 'deleted' ? 'URL_DELETED' : 'URL_UPDATED';
+}
+
+function toAbsoluteSiteUrl(value: string, siteUrl: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const asUrl = new URL(trimmed);
+    return isAllowedUrl(asUrl.toString(), siteUrl) ? asUrl.toString() : null;
+  } catch {
+    try {
+      const absolute = new URL(trimmed.startsWith('/') ? trimmed : `/${trimmed}`, siteUrl);
+      return isAllowedUrl(absolute.toString(), siteUrl) ? absolute.toString() : null;
+    } catch {
+      return null;
+    }
+  }
 }
 
 export default async (req: Request): Promise<Response> => {
@@ -51,41 +75,43 @@ export default async (req: Request): Promise<Response> => {
     return json(500, { error: 'server_not_configured', missing });
   }
 
-  let body: IndexingRequest;
+  let body: WebhookRequest;
   try {
-    body = (await req.json()) as IndexingRequest;
+    body = (await req.json()) as WebhookRequest;
   } catch {
     return json(400, { error: 'invalid_json' });
   }
 
-  const url = body.url?.trim();
-  const type = body.type ?? 'URL_UPDATED';
-
-  if (!url || !isAllowedUrl(url, siteUrl)) {
-    return json(400, {
-      error: 'invalid_url',
-      message: 'Only HTTPS URLs for this site are accepted.',
-    });
+  const event = body.event ?? 'updated';
+  if (!['created', 'updated', 'deleted'].includes(event)) {
+    return json(400, { error: 'invalid_event' });
   }
 
-  if (type !== 'URL_UPDATED' && type !== 'URL_DELETED') {
-    return json(400, { error: 'invalid_type' });
+  const rawTarget = body.url?.trim() || body.path?.trim();
+  if (!rawTarget) {
+    return json(400, { error: 'missing_url_or_path' });
+  }
+
+  const resolvedUrl = toAbsoluteSiteUrl(rawTarget, siteUrl);
+  if (!resolvedUrl) {
+    return json(400, { error: 'invalid_url', message: 'Only URLs for this canonical host are accepted.' });
   }
 
   try {
-    const payload = await publishIndexingNotification({
+    const type = mapEventToType(event);
+    const google = await publishIndexingNotification({
       serviceAccountEmail,
       serviceAccountPrivateKey,
-      url,
+      url: resolvedUrl,
       type,
     });
 
     return json(200, {
       ok: true,
-      url,
+      event,
       type,
-      google: payload,
-      note: 'Google Indexing API works only for specific page types accepted by Google.',
+      url: resolvedUrl,
+      google,
     });
   } catch {
     return json(502, { error: 'google_auth_or_publish_failed' });
@@ -93,5 +119,5 @@ export default async (req: Request): Promise<Response> => {
 };
 
 export const config = {
-  path: '/api/google-indexing',
+  path: '/api/google-indexing/webhook',
 };

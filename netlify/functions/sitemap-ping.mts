@@ -33,7 +33,7 @@ export default async (req: Request): Promise<Response> => {
   }
 
   const siteUrl = Netlify.env.get('SITE_URL') || Netlify.env.get('URL') || 'https://devsolvev2.com';
-  const sitemapUrl = `${siteUrl}/sitemap.xml`;
+  const sitemapUrl = `${siteUrl}/sitemap-index.xml`;
 
   const results: Array<{ endpoint: string; status: number }> = [];
 
@@ -57,5 +57,4 @@ export default async (req: Request): Promise<Response> => {
 
 export const config = {
   path: '/api/sitemap-ping',
-  method: 'POST',
 };

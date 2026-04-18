@@ -105,5 +105,4 @@ export default async (req: Request): Promise<Response> => {
 
 export const config = {
   path: '/api/indexnow',
-  method: 'POST',
 };

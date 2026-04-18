@@ -15,15 +15,20 @@
 
 [build]
   command = "npm run build"
-  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "20"
 
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
-
 # --- Redirect rules ---
 # Trailing slash removal is handled by Next.js (trailingSlash: false in next.config.mjs)
-# and the @netlify/plugin-nextjs. Only add redirects here for paths NOT managed by Next.js.
-# NOTE: Do NOT use force=true for Next.js routes — it conflicts with plugin-generated routing.
+# in static export mode. Only add redirects here for paths NOT managed by Next.js.
+
+[[redirects]]
+  from = "/api/indexing/google"
+  to = "/api/google-indexing"
+  status = 308
+
+[[redirects]]
+  from = "/api/indexing/google/webhook"
+  to = "/api/google-indexing/webhook"
+  status = 308

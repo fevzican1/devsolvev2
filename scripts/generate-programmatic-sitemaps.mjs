@@ -218,26 +218,33 @@ async function listCoreSitemaps() {
 }
 
 async function writeSitemapIndex(coreSitemaps, programmaticSitemaps, lastmod) {
-  const stream = createWriteStream(join(outDir, 'sitemap-index.xml'), { encoding: 'utf-8' });
+  const sitemapEntries = [...coreSitemaps, ...programmaticSitemaps];
+  const filenames = ['sitemap-index.xml', 'sitemap.xml'];
 
-  stream.write('<?xml version="1.0" encoding="UTF-8"?>\n');
-  stream.write('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n');
+  await Promise.all(
+    filenames.map(async (filename) => {
+      const stream = createWriteStream(join(outDir, filename), { encoding: 'utf-8' });
 
-  for (const file of [...coreSitemaps, ...programmaticSitemaps]) {
-    stream.write('  <sitemap>\n');
-    stream.write(`    <loc>${siteUrl}/${file}</loc>\n`);
-    stream.write(`    <lastmod>${lastmod}</lastmod>\n`);
-    stream.write('  </sitemap>\n');
-  }
+      stream.write('<?xml version="1.0" encoding="UTF-8"?>\n');
+      stream.write('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n');
 
-  stream.write('</sitemapindex>\n');
+      for (const file of sitemapEntries) {
+        stream.write('  <sitemap>\n');
+        stream.write(`    <loc>${siteUrl}/${file}</loc>\n`);
+        stream.write(`    <lastmod>${lastmod}</lastmod>\n`);
+        stream.write('  </sitemap>\n');
+      }
 
-  await new Promise((resolve, reject) => {
-    stream.end((error) => {
-      if (error) reject(error);
-      else resolve();
-    });
-  });
+      stream.write('</sitemapindex>\n');
+
+      await new Promise((resolve, reject) => {
+        stream.end((error) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
+    })
+  );
 }
 
 async function main() {
