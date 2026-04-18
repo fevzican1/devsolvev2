@@ -1,0 +1,10 @@
+# Cloudflare Pages Configuration
+
+compatibility_date = "2026-04-18"
+
+[[build]]
+  command = "npm install && npm run build"
+  directory = "out"
+  [[build.environment]]
+    NEXT_PUBLIC_API_URL = "https://api.example.com"
+    NODE_ENV = "production"
