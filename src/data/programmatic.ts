@@ -168,7 +168,8 @@ const tasks = [
   'prepare-security-audit', 'generate-test-fixtures',
 ];
 
-/* Content modifier patterns (162) – derived from execution style x delivery context */
+/* Content modifier patterns (162) — derived from execution style × delivery context */
+/* Execution style modifiers (9) */
 const modifierExecutionStyles = [
   'without-installing-cli-tools',
   'directly-in-your-browser',
@@ -181,6 +182,7 @@ const modifierExecutionStyles = [
   'with-automated-validation',
 ];
 
+/* Delivery context modifiers (18) */
 const modifierDeliveryContexts = [
   'for-time-sensitive-incidents',
   'for-team-onboarding',
