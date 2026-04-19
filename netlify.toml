@@ -13,6 +13,36 @@
   [headers.values]
     X-Robots-Tag = "noindex, nofollow, noarchive"
 
+[[headers]]
+  for = "/k/*"
+  [headers.values]
+    X-Robots-Tag = "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"
+
+[[headers]]
+  for = "/tools/*"
+  [headers.values]
+    X-Robots-Tag = "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"
+
+[[headers]]
+  for = "/guides/*"
+  [headers.values]
+    X-Robots-Tag = "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"
+
+[[headers]]
+  for = "/about"
+  [headers.values]
+    X-Robots-Tag = "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"
+
+[[headers]]
+  for = "/contact"
+  [headers.values]
+    X-Robots-Tag = "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"
+
+[[headers]]
+  for = "/legal/*"
+  [headers.values]
+    X-Robots-Tag = "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"
+
 [build]
   command = "npm run build"
 
