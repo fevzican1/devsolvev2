@@ -30,19 +30,19 @@
   X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1
 
 /tools/*
-  X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large
+  X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1
 
 /guides/*
-  X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large
+  X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1
 
 /about
-  X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large
+  X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1
 
 /contact
-  X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large
+  X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1
 
 /legal/*
-  X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large
+  X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1
 
 /robots.txt
   Cache-Control: public, max-age=86400
