@@ -1,4 +1,0 @@
-# Intentionally minimal.
-# For Next.js static export on Netlify, avoid SPA-style rewrites that
-# would intercept `/_next/static/*` assets (CSS/JS) and break styling.
-
