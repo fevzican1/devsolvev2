@@ -15,19 +15,15 @@
 
 /sitemap.xml
   Cache-Control: public, max-age=21600, stale-while-revalidate=43200
-  X-Robots-Tag: noindex
 
 /sitemap-index.xml
   Cache-Control: public, max-age=21600, stale-while-revalidate=43200
-  X-Robots-Tag: noindex
 
 /sitemap-programmatic-*.xml
   Cache-Control: public, max-age=86400, stale-while-revalidate=172800
-  X-Robots-Tag: noindex
 
 /sitemap-*.xml
   Cache-Control: public, max-age=86400, stale-while-revalidate=172800
-  X-Robots-Tag: noindex
 
 /k/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=172800
@@ -37,6 +33,15 @@
   X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large
 
 /guides/*
+  X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large
+
+/about
+  X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large
+
+/contact
+  X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large
+
+/legal/*
   X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large
 
 /robots.txt

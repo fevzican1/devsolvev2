@@ -6,7 +6,6 @@ export const metadata: Metadata = buildMetadata({
   title: 'Command Center',
   description: 'Internal operations dashboard.',
   path: '/cmd-center',
-  noindex: true,
 });
 
 
