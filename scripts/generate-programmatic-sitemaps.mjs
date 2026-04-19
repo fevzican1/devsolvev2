@@ -3,12 +3,12 @@ import { mkdir, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const siteUrl = (process.env.SITE_URL || process.env.URL || 'https://devsolvev2.com').replace(/\/$/, '');
-const outDir = join(process.cwd(), 'public');
+const outDir = join(process.cwd(), 'out');
 const urlsPerSitemap = 50000;
 const minIndexScore = 82;
 const minSitemapScore = 90;
 const minWordCount = 400;
-const maxSitemapUrls = Number.parseInt(process.env.PROGRAMMATIC_SITEMAP_LIMIT || '4008960', 10);
+const maxSitemapUrls = Number.parseInt(process.env.PROGRAMMATIC_SITEMAP_LIMIT || '18040320', 10);
 
 const clusters = [
   {
@@ -109,6 +109,8 @@ const audiences = [
   'ops-engineer', 'devops-engineer', 'technical-writer', 'data-engineer',
   'mobile-developer', 'qa-engineer', 'site-reliability-engineer',
   'database-administrator', 'cloud-architect',
+  'performance-engineer', 'platform-engineer', 'solution-architect',
+  'tech-lead', 'release-engineer',
 ];
 
 const tasks = [
@@ -116,6 +118,8 @@ const tasks = [
   'sanitize-user-input', 'prepare-query-parameters', 'inspect-encoded-payload',
   'trace-request', 'validate-auth-token', 'review-config-change',
   'migrate-legacy-system', 'prepare-deployment-artifact', 'document-api-endpoint',
+  'optimize-build-pipeline', 'resolve-merge-conflict',
+  'prepare-security-audit', 'generate-test-fixtures',
 ];
 
 const modifierExecutionStyles = [
@@ -127,6 +131,7 @@ const modifierExecutionStyles = [
   'for-quick-prototyping',
   'during-code-review',
   'as-part-of-ci-cd-pipeline',
+  'with-automated-validation',
 ];
 
 const modifierDeliveryContexts = [
@@ -138,6 +143,16 @@ const modifierDeliveryContexts = [
   'for-large-enterprise-workflows',
   'for-api-contract-validation',
   'for-weekly-ops-routines',
+  'for-compliance-reporting',
+  'for-incident-postmortems',
+  'for-capacity-planning',
+  'for-release-management',
+  'for-vendor-integration',
+  'for-data-governance',
+  'for-service-mesh-debugging',
+  'for-cost-optimization',
+  'for-performance-benchmarking',
+  'for-disaster-recovery',
 ];
 
 const modifiers = modifierExecutionStyles.flatMap((style) =>

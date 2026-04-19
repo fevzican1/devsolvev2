@@ -147,24 +147,28 @@ const clusters: ClusterDefinition[] = [
   },
 ];
 
-/* Global audience variants (15) — each represents a genuinely different developer role */
+/* Global audience variants (20) — each represents a genuinely different developer role */
 const audiences = [
   'backend-engineer', 'frontend-developer', 'fullstack-developer',
   'api-consumer', 'integration-engineer', 'security-conscious-developer',
   'ops-engineer', 'devops-engineer', 'technical-writer', 'data-engineer',
   'mobile-developer', 'qa-engineer', 'site-reliability-engineer',
   'database-administrator', 'cloud-architect',
+  'performance-engineer', 'platform-engineer', 'solution-architect',
+  'tech-lead', 'release-engineer',
 ];
 
-/* Global task variants (12) — each describes a distinct real-world scenario */
+/* Global task variants (16) — each describes a distinct real-world scenario */
 const tasks = [
   'debug-production-issue', 'prepare-api-response', 'clean-up-payload',
   'sanitize-user-input', 'prepare-query-parameters', 'inspect-encoded-payload',
   'trace-request', 'validate-auth-token', 'review-config-change',
   'migrate-legacy-system', 'prepare-deployment-artifact', 'document-api-endpoint',
+  'optimize-build-pipeline', 'resolve-merge-conflict',
+  'prepare-security-audit', 'generate-test-fixtures',
 ];
 
-/* Content modifier patterns (64) – derived from execution style x delivery context */
+/* Content modifier patterns (162) – derived from execution style x delivery context */
 const modifierExecutionStyles = [
   'without-installing-cli-tools',
   'directly-in-your-browser',
@@ -174,6 +178,7 @@ const modifierExecutionStyles = [
   'for-quick-prototyping',
   'during-code-review',
   'as-part-of-ci-cd-pipeline',
+  'with-automated-validation',
 ];
 
 const modifierDeliveryContexts = [
@@ -185,6 +190,16 @@ const modifierDeliveryContexts = [
   'for-large-enterprise-workflows',
   'for-api-contract-validation',
   'for-weekly-ops-routines',
+  'for-compliance-reporting',
+  'for-incident-postmortems',
+  'for-capacity-planning',
+  'for-release-management',
+  'for-vendor-integration',
+  'for-data-governance',
+  'for-service-mesh-debugging',
+  'for-cost-optimization',
+  'for-performance-benchmarking',
+  'for-disaster-recovery',
 ];
 
 const modifierPatterns = modifierExecutionStyles.flatMap((style) =>
@@ -213,11 +228,11 @@ for (const cluster of clusters) {
   }
 }
 
-const AUDIENCES_COUNT = audiences.length;        // 15
-const TASKS_COUNT = tasks.length;                // 12
-const MODIFIERS_COUNT = modifierPatterns.length; // 64
-const PER_PAIR = AUDIENCES_COUNT * TASKS_COUNT * MODIFIERS_COUNT; // 11520
-const TOTAL_POSSIBLE = toolIntentPairs.length * PER_PAIR;          // 348 × 11520 = 4008960
+const AUDIENCES_COUNT = audiences.length;        // 20
+const TASKS_COUNT = tasks.length;                // 16
+const MODIFIERS_COUNT = modifierPatterns.length; // 162
+const PER_PAIR = AUDIENCES_COUNT * TASKS_COUNT * MODIFIERS_COUNT; // 51840
+const TOTAL_POSSIBLE = toolIntentPairs.length * PER_PAIR;          // 348 × 51840 = 18040320
 const MIN_PROGRAMMATIC_TOTAL = 1000;
 
 function parseEnvPositiveInteger(value: string | undefined): number | null {
@@ -292,6 +307,11 @@ const audienceContext: Record<string, { focus: string; concern: string; workflow
   'site-reliability-engineer': { focus: 'system uptime and incident response', concern: 'rapid root cause identification during outages', workflow: 'as part of your incident response and observability toolkit' },
   'database-administrator': { focus: 'query performance and data integrity', concern: 'schema changes affecting existing queries or indexes', workflow: 'within your database management and maintenance routine' },
   'cloud-architect': { focus: 'scalable system design and resource optimization', concern: 'cross-service data format consistency at scale', workflow: 'informing your cloud infrastructure design decisions' },
+  'performance-engineer': { focus: 'latency reduction and throughput optimization', concern: 'identifying processing bottlenecks and resource consumption patterns', workflow: 'integrated into your performance profiling and benchmarking pipeline' },
+  'platform-engineer': { focus: 'developer experience and infrastructure abstraction', concern: 'toolchain consistency and platform reliability across teams', workflow: 'as part of your internal developer platform and self-service tooling' },
+  'solution-architect': { focus: 'end-to-end system design and technology selection', concern: 'interoperability between chosen components and long-term maintainability', workflow: 'supporting your architecture decision records and proof-of-concept evaluations' },
+  'tech-lead': { focus: 'team productivity and technical decision quality', concern: 'code quality standards and knowledge sharing across the team', workflow: 'embedded in your team review process and technical mentoring sessions' },
+  'release-engineer': { focus: 'build reproducibility and release artifact integrity', concern: 'deployment consistency and rollback safety across environments', workflow: 'integrated into your release pipeline and artifact verification process' },
 };
 
 /* ---- Cluster-specific domain knowledge ---- */
@@ -322,6 +342,10 @@ const taskContext: Record<string, { scenario: string; urgency: string; outcome: 
   'migrate-legacy-system': { scenario: 'moving data or logic from an older system', urgency: 'requires careful validation to prevent data loss during transition', outcome: 'successfully transfer data while maintaining integrity and format compatibility' },
   'prepare-deployment-artifact': { scenario: 'packaging assets for a release deployment', urgency: 'directly affects deployment reliability and performance', outcome: 'produce optimized, validated artifacts ready for production deployment' },
   'document-api-endpoint': { scenario: 'creating or updating endpoint documentation', urgency: 'keeps external and internal consumers aligned with the current API', outcome: 'produce accurate documentation with working examples and clear parameter descriptions' },
+  'optimize-build-pipeline': { scenario: 'improving build speed and artifact quality in CI/CD', urgency: 'directly affects developer iteration speed and deployment frequency', outcome: 'reduce build times while maintaining output correctness and reproducibility' },
+  'resolve-merge-conflict': { scenario: 'reconciling divergent code or configuration changes', urgency: 'blocks integration and delays feature delivery until resolved correctly', outcome: 'produce a clean merge that preserves the intent of all contributing changes' },
+  'prepare-security-audit': { scenario: 'gathering evidence and validating controls for a security review', urgency: 'required for compliance deadlines and organizational trust verification', outcome: 'compile a verifiable set of security controls and configuration evidence' },
+  'generate-test-fixtures': { scenario: 'creating realistic sample data for automated tests', urgency: 'foundational for test coverage and regression detection quality', outcome: 'produce representative test data that covers normal, edge, and adversarial scenarios' },
 };
 
 /* ------------------------------------------------------------------ */
@@ -599,6 +623,11 @@ function buildPitfalls(clusterKey: ClusterKey, audience: string, task: string, s
     'site-reliability-engineer': 'Ignoring monitoring gaps — the tool might work in isolation but fail when integrated into the broader system.',
     'database-administrator': 'Running formatted queries in production without checking the execution plan for performance regressions.',
     'cloud-architect': 'Not considering cross-region latency and data residency requirements when designing data processing workflows.',
+    'performance-engineer': 'Focusing solely on average performance metrics without examining tail latency and worst-case scenarios that affect user experience.',
+    'platform-engineer': 'Building internal tooling without validating that the abstractions match the actual workflows of the teams consuming the platform.',
+    'solution-architect': 'Selecting technologies based on feature lists without evaluating operational complexity and long-term maintenance burden.',
+    'tech-lead': 'Approving architectural changes without verifying that the team has the knowledge and tooling to maintain the new approach effectively.',
+    'release-engineer': 'Skipping artifact verification steps under release pressure, risking deployment of corrupted or incomplete build outputs.',
   };
 
   const pool = [...generic, ...(specific[clusterKey] ?? [])];
