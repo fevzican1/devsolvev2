@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
-const outDir = join(projectRoot, '.next');
+const outDir = join(projectRoot, 'out');
 const reportsDir = join(outDir, 'reports');
 
 console.log('Starting postbuild tasks...');

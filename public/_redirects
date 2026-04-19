@@ -1,8 +1,3 @@
-# Intentionally minimal.
-# For Next.js static export on Netlify, avoid SPA-style rewrites that
-# would intercept `/_next/static/*` assets (CSS/JS) and break styling.
-# NOTE: Netlify handles HTTP→HTTPS automatically — do NOT add http→https
-# rules here as that creates redirect chains (Netlify HTTPS + our rule = 2 hops).
-
-# Force www → non-www (single hop — Netlify already upgraded to HTTPS)
-https://www.devsolvev2.com/*  https://devsolvev2.com/:splat  301!
+# Cloudflare Pages redirects
+# Force www → non-www
+https://www.devsolvev2.com/*  https://devsolvev2.com/:splat  301

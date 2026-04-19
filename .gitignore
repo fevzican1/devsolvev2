@@ -12,8 +12,9 @@ dist-ssr
 *.local
 
 # Next.js build outputs
-.next
-out
+.next/
+out/
+tsconfig.tsbuildinfo
 
 .vscode/*
 !.vscode/extensions.json
@@ -25,4 +26,3 @@ out
 *.sln
 *.sw?
 .env
-
