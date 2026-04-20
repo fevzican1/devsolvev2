@@ -19,7 +19,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     const slug = decodeURIComponent(pathParts[1]);
 
-    // Basic validation: slug should be reasonable length and contain valid chars
+    // Validate slug: max 300 chars (longest valid programmatic slug is ~250 chars),
+    // and only lowercase alphanumeric + hyphens allowed per our slug format
     if (!slug || slug.length > 300 || !/^[a-z0-9-]+$/.test(slug)) {
       return notFoundResponse();
     }

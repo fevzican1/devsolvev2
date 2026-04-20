@@ -217,8 +217,14 @@ const MODIFIERS_COUNT = modifierPatterns.length;
 const PER_PAIR = AUDIENCES_COUNT * TASKS_COUNT * MODIFIERS_COUNT;
 const TOTAL_POSSIBLE = toolIntentPairs.length * PER_PAIR;
 
-/* Use same target total as the app (rampLevel 5 → schedule[4] = 14000000) */
-const TARGET_TOTAL = Math.min(TOTAL_POSSIBLE, 14000000);
+/**
+ * Maximum number of programmatic pages to serve.
+ * Matches the app's monetization config rampLevel 5 schedule (14M pages).
+ * This limits the addressable index range so invalid indices beyond this
+ * threshold return 404 instead of generating content.
+ * See: src/config/monetization.ts → opsFlags.programmaticRampLevel
+ */
+const TARGET_TOTAL = Math.min(TOTAL_POSSIBLE, 14_000_000);
 
 /* ------------------------------------------------------------------ */
 /*  Utility functions                                                   */
