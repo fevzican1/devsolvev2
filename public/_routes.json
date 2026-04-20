@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "description": "Route /k/* requests to Cloudflare Pages Functions for dynamic generation",
+  "include": ["/k/*"],
+  "exclude": []
+}

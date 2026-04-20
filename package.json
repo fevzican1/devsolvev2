@@ -12,7 +12,8 @@
     "lint": "next lint",
     "typecheck:app": "tsc --noEmit",
     "typecheck:functions": "tsc --project tsconfig.functions.json --noEmit",
-    "typecheck": "npm run typecheck:app && npm run typecheck:functions"
+    "typecheck:edge": "tsc --project tsconfig.functions-edge.json --noEmit",
+    "typecheck": "npm run typecheck:app && npm run typecheck:functions && npm run typecheck:edge"
   },
   "dependencies": {
     "@netlify/blobs": "^10.7.4",
@@ -31,6 +32,7 @@
     "tailwind-merge": "^2.2.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260420.1",
     "@netlify/plugin-nextjs": "^5.15.9",
     "@types/dompurify": "^3.0.5",
     "@types/node": "^20.11.24",

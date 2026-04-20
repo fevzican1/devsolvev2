@@ -11,7 +11,6 @@ Allow: /legal/
 Disallow: /admin/
 Disallow: /admin
 Disallow: /api/
-Disallow: /.netlify/
 Disallow: /cmd-center
 Disallow: /cmd-center/
 Disallow: /_next/static/

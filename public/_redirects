@@ -1,3 +1,24 @@
 # Cloudflare Pages redirects
-# Force www → non-www
+
+# Force www → non-www (both HTTP and HTTPS)
 https://www.devsolvev2.com/*  https://devsolvev2.com/:splat  301
+http://www.devsolvev2.com/*   https://devsolvev2.com/:splat  301
+
+# Remove trailing slashes (excluding root)
+/tools/   /tools   301
+/guides/  /guides  301
+/about/   /about   301
+/contact/ /contact 301
+/legal/*/ /legal/:splat 301
+
+# Legacy API paths that no longer exist on Cloudflare (were Netlify functions)
+/api/indexing/google          /tools  302
+/api/indexing/google/webhook  /tools  302
+/api/google-indexing          /tools  302
+/api/google-indexing/webhook  /tools  302
+/api/*                        /tools  302
+
+# Handle .html extension requests (redirect to clean URLs)
+/k/:slug.html    /k/:slug   301
+/tools/:slug.html /tools/:slug 301
+/guides/:slug.html /guides/:slug 301
