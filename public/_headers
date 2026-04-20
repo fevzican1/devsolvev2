@@ -48,9 +48,9 @@
   Cache-Control: public, max-age=86400
 
 /404
-  X-Robots-Tag: noindex, nofollow
-  Cache-Control: no-cache
+  X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1
+  Cache-Control: public, max-age=300
 
 /404.html
-  X-Robots-Tag: noindex, nofollow
-  Cache-Control: no-cache
+  X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1
+  Cache-Control: public, max-age=300

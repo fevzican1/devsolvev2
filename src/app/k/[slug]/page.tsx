@@ -103,7 +103,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const resolved = resolveProgrammaticPageBySlug(slug);
-  if (!resolved) return buildMetadata({ title: 'Not Found', noindex: true });
+  if (!resolved) return buildMetadata({ title: 'Not Found' });
   const { page, canonicalSlug } = resolved;
   const dateModified = getProgrammaticLastModified(canonicalSlug);
 

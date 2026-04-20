@@ -35,7 +35,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const tool = getToolBySlug(slug);
-  if (!tool) return buildMetadata({ title: 'Tool Not Found', noindex: true });
+  if (!tool) return buildMetadata({ title: 'Tool Not Found' });
 
   return buildMetadata({
     title: `${tool.name} — Free Online Tool`,

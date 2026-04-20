@@ -19,7 +19,6 @@ Disallow: /*?sort=
 Disallow: /*&sort=
 Disallow: /*?filter=
 Disallow: /*&filter=
-Disallow: /404
 
 # Google-specific directives for maximum crawl efficiency
 User-agent: Googlebot
