@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { mkdirSync, existsSync } from 'fs';
+import { mkdirSync, existsSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -9,6 +9,14 @@ const outDir = join(projectRoot, 'out');
 const reportsDir = join(outDir, 'reports');
 
 console.log('Starting postbuild tasks...');
+
+// Remove .next/cache to avoid Cloudflare Pages 25 MiB file size limit
+// The static export is already in out/, so the cache is no longer needed
+const nextCacheDir = join(projectRoot, '.next', 'cache');
+if (existsSync(nextCacheDir)) {
+  rmSync(nextCacheDir, { recursive: true, force: true });
+  console.log('Removed .next/cache directory (exceeds Cloudflare Pages size limit)');
+}
 
 try {
   if (!existsSync(reportsDir)) {
