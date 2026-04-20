@@ -6,7 +6,6 @@ type MetadataInput = {
   title?: string;
   description?: string;
   path?: string;
-  noindex?: boolean;
   keywords?: string[];
   datePublished?: string;
   dateModified?: string;
@@ -17,7 +16,6 @@ export function buildMetadata({
   title,
   description = siteConfig.description,
   path = '/',
-  noindex = false,
   keywords,
   datePublished,
   dateModified,
@@ -57,18 +55,16 @@ export function buildMetadata({
       description,
       images: [absoluteUrl('/twitter-image')],
     },
-    robots: noindex
-      ? { index: false, follow: true }
-      : {
-          index: true,
-          follow: true,
-          googleBot: {
-            index: true,
-            follow: true,
-            'max-image-preview': 'large' as const,
-            'max-snippet': -1,
-            'max-video-preview': -1,
-          },
-        },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-image-preview': 'large' as const,
+        'max-snippet': -1,
+        'max-video-preview': -1,
+      },
+    },
   };
 }

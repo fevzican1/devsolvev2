@@ -149,9 +149,7 @@ const organizationJsonLd = {
     contactType: 'customer support',
     url: `${siteConfig.siteUrl}/contact`,
   },
-  sameAs: [
-    platformExternalUrls.netlify,
-  ],
+  sameAs: [],
 };
 
 const itemListJsonLd = {

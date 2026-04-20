@@ -5,12 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
-function encodeForm(values: FormData): string {
-  return new URLSearchParams(
-    Array.from(values.entries()).map(([key, value]) => [key, String(value)]),
-  ).toString();
-}
-
 export function ContactForm() {
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,10 +18,28 @@ export function ContactForm() {
     const formData = new FormData(form);
 
     try {
-      const response = await fetch('/', {
+      // Submit to Web3Forms (free, works with any static site)
+      // Replace access_key with your actual Web3Forms key in production
+      const accessKey = process.env.NEXT_PUBLIC_WEB3FORMS_KEY || '';
+
+      if (!accessKey) {
+        // Fallback: open mailto
+        const subject = encodeURIComponent(String(formData.get('subject') || 'Contact Form'));
+        const body = encodeURIComponent(
+          `From: ${formData.get('fullName')} (${formData.get('email')})\n` +
+          `Company: ${formData.get('company') || 'N/A'}\n\n` +
+          `${formData.get('message')}`
+        );
+        window.open(`mailto:contact@devsolvev2.com?subject=${subject}&body=${body}`, '_blank');
+        form.reset();
+        setStatus('success');
+        return;
+      }
+
+      formData.append('access_key', accessKey);
+      const response = await fetch('https://api.web3forms.com/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: encodeForm(formData),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -47,12 +59,9 @@ export function ContactForm() {
     <form
       name="contact-us"
       method="POST"
-      data-netlify="true"
-      netlify-honeypot="bot-field"
       onSubmit={handleSubmit}
       className="space-y-5"
     >
-      <input type="hidden" name="form-name" value="contact-us" />
       <p className="hidden">
         <label>
           Do not fill this out if you are human: <input name="bot-field" />
