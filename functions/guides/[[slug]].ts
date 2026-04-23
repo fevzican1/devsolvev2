@@ -1,4 +1,5 @@
 import { buildSectionFallbackHtml } from '../_shared/sectionFallback';
+import { shouldServeHtmlFallback } from '../_shared/requestRouting';
 import {
   CONTENT_SIGNAL_HEADER,
   CONTENT_SIGNAL_VALUE,
@@ -21,7 +22,7 @@ interface Env {}
 
 const responseHeaders = {
   'Content-Type': 'text/html;charset=UTF-8',
-  'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+  'Cache-Control': 'public, max-age=86400, stale-while-revalidate=172800',
   'X-Robots-Tag': 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
   [CONTENT_SIGNAL_HEADER]: CONTENT_SIGNAL_VALUE,
 };
@@ -50,15 +51,22 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     if (slug && getGuideBySlug(slug)) {
       const response = await context.next();
-      if (response.status === 200) {
-        const headers = new Headers(response.headers);
+      const headers = new Headers(response.headers);
+
+      const contentType = headers.get('content-type') ?? '';
+      if (contentType.includes('text/html')) {
         headers.set('X-Robots-Tag', responseHeaders['X-Robots-Tag']);
         headers.set(CONTENT_SIGNAL_HEADER, CONTENT_SIGNAL_VALUE);
-        return new Response(response.body, {
-          status: 200,
-          headers,
-        });
       }
+
+      return new Response(response.body, {
+        status: response.status,
+        headers,
+      });
+    }
+
+    if (!shouldServeHtmlFallback(context.request, url.pathname)) {
+      return context.next();
     }
 
     return new Response(buildGuidesFallbackHtml(url.origin, slug ? `/guides/${slug}` : undefined), {
@@ -68,6 +76,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   } catch (error) {
     console.error('Guides fallback handler error', error);
     const url = new URL(context.request.url);
+    if (!shouldServeHtmlFallback(context.request, url.pathname)) {
+      return new Response(null, { status: 404 });
+    }
     return new Response(buildGuidesFallbackHtml(url.origin), {
       status: 200,
       headers: responseHeaders,

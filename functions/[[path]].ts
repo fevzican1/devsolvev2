@@ -1,4 +1,5 @@
 import { buildSectionFallbackHtml } from './_shared/sectionFallback';
+import { shouldServeHtmlFallback } from './_shared/requestRouting';
 import {
   CONTENT_SIGNAL_HEADER,
   CONTENT_SIGNAL_VALUE,
@@ -22,28 +23,10 @@ interface Env {}
 
 const responseHeaders = {
   'Content-Type': 'text/html;charset=UTF-8',
-  'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+  'Cache-Control': 'public, max-age=86400, stale-while-revalidate=172800',
   'X-Robots-Tag': 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
   [CONTENT_SIGNAL_HEADER]: CONTENT_SIGNAL_VALUE,
 };
-
-function isHtmlNavigation(request: Request): boolean {
-  const accept = request.headers.get('accept') ?? '';
-  const secFetchDest = request.headers.get('sec-fetch-dest') ?? '';
-  const primaryAcceptedType = accept
-    .split(',')
-    .find((value) => value.trim().length > 0)
-    ?.trim()
-    .split(';')
-    .find(Boolean);
-
-  return (
-    request.method === 'GET' &&
-    (secFetchDest === 'document' ||
-      primaryAcceptedType === 'text/html' ||
-      primaryAcceptedType === 'application/xhtml+xml')
-  );
-}
 
 function buildGlobalFallbackHtml(siteUrl: string, requestedPath?: string) {
   return buildSectionFallbackHtml(
@@ -88,25 +71,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
 
   try {
-    const response = await context.next();
-
-    if (response.status === 200) {
-      const headers = new Headers(response.headers);
-      headers.set(CONTENT_SIGNAL_HEADER, CONTENT_SIGNAL_VALUE);
-
-      const contentType = headers.get('content-type') ?? '';
-      if (contentType.includes('text/html')) {
-        headers.set('X-Robots-Tag', responseHeaders['X-Robots-Tag']);
-      }
-
-      return new Response(response.body, {
-        status: 200,
-        headers,
-      });
-    }
-
-    if (!isHtmlNavigation(context.request)) {
-      return response;
+    if (!shouldServeHtmlFallback(context.request, url.pathname)) {
+      return context.next();
     }
 
     return new Response(buildGlobalFallbackHtml(url.origin, url.pathname), {
@@ -116,8 +82,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   } catch (error) {
     console.error('Global HTML fallback handler error', error);
 
-    if (!isHtmlNavigation(context.request)) {
-      return new Response(null, { status: 500 });
+    if (!shouldServeHtmlFallback(context.request, url.pathname)) {
+      return new Response(null, { status: 404 });
     }
 
     return new Response(buildGlobalFallbackHtml(url.origin, url.pathname), {
