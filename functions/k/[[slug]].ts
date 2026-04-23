@@ -330,12 +330,12 @@ function resolvePageFromSlug(slug: string): PageData | undefined {
 }
 
 function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
-  const match = slug.match(/^(.*)-(\d+)$/);
+  const match = slug.match(/^(.*)-([0-9]+)$/);
   if (!match) return undefined;
 
   const stem = match[1];
   const legacyModifierSuffix = Number.parseInt(match[2], 10);
-  if (!Number.isFinite(legacyModifierSuffix) || legacyModifierSuffix < 0) return undefined;
+  if (Number.isNaN(legacyModifierSuffix)) return undefined;
 
   const cluster = clusters.find((item) => stem.startsWith(`${item.key}-`));
   if (!cluster) return undefined;
@@ -607,7 +607,8 @@ function getHubSampleLinks(count = 12): Array<{ slug: string; label: string }> {
   if (TOTAL_POSSIBLE < 1) return [];
 
   const slugs = new Set<string>();
-  const step = Math.max(1, Math.floor(TOTAL_POSSIBLE / Math.max(count, 1)));
+  const normalizedCount = count > 0 ? count : 1;
+  const step = Math.max(1, Math.floor(TOTAL_POSSIBLE / normalizedCount));
 
   for (let index = 0; index < TOTAL_POSSIBLE && slugs.size < count; index += step) {
     const slug = getSlugByIndex(index);

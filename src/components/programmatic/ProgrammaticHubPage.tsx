@@ -15,7 +15,8 @@ function buildFeaturedProgrammaticLinks(count = 12) {
   if (total < 1) return [];
 
   const slugs = new Set<string>();
-  const step = Math.max(1, Math.floor(total / Math.max(count, 1)));
+  const normalizedCount = count > 0 ? count : 1;
+  const step = Math.max(1, Math.floor(total / normalizedCount));
 
   for (let index = 0; index < total && slugs.size < count; index += step) {
     const slug = getSlugByIndex(index);

@@ -2,6 +2,10 @@ export const PROGRAMMATIC_HUB_LABEL_SEGMENTS = 8;
 export const PROGRAMMATIC_HUB_ACRONYM_LENGTH = 3;
 
 export function formatProgrammaticHubLabel(slug: string): string {
+  if (!slug.trim()) {
+    return 'Programmatic Page';
+  }
+
   return slug
     .replace(/-\d+$/, '')
     .split('-')
