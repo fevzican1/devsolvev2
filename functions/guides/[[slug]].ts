@@ -48,12 +48,12 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   try {
     const url = new URL(context.request.url);
     const slug = url.pathname.split('/').filter(Boolean).slice(1).join('/');
-
-    if (!shouldServeHtmlFallback(context.request, url.pathname)) {
-      return context.next();
-    }
-
+    const shouldServeFallback = shouldServeHtmlFallback(context.request, url.pathname);
     const response = await context.next();
+
+    if (!shouldServeFallback) {
+      return response;
+    }
 
     if (response.ok) {
       const headers = new Headers(response.headers);
