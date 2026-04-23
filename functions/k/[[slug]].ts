@@ -376,6 +376,8 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
   if (audienceIndex < 0 || taskIndex < 0) return undefined;
 
   const modifierIndex = legacyModifierSuffix % MODIFIERS_COUNT;
+  // Rebuild the canonical absolute page index from the legacy slug parts:
+  // pair block offset + audience block offset + task block offset + modifier slot.
   const remappedIndex =
     pairIndex * PER_PAIR +
     audienceIndex * TASKS_COUNT * MODIFIERS_COUNT +
