@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { Space_Grotesk, IBM_Plex_Mono } from 'next/font/google';
 import Script from 'next/script';
 import './globals.css';
 import { Header } from '@/components/layout/Header';
@@ -9,6 +10,17 @@ import { platformExternalUrls } from '@/config/monetization';
 import { toolRegistry } from '@/tools/registry';
 import { CodeBlocksEnhancer } from '@/components/content/CodeBlocksEnhancer';
 import { CONTENT_SIGNAL_VALUE } from '@/lib/seo/contentSignal';
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-sans',
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
+  weight: ['400', '500', '600'],
+});
 
 const googleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
 
@@ -165,7 +177,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="font-sans antialiased">
+      <body className={`${spaceGrotesk.variable} ${ibmPlexMono.variable} font-sans antialiased`}>
         <ThemeProvider>
           <CodeBlocksEnhancer />
           <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:top-0 focus:left-0">
