@@ -27,6 +27,7 @@ export function BrandLink({
         alt=""
         width={32}
         height={32}
+        aria-hidden="true"
         className={cn('h-8 w-8 shrink-0', iconClassName)}
       />
       <span className={cn('font-bold tracking-tight', textClassName)}>
