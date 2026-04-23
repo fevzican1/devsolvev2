@@ -49,7 +49,7 @@ export function ProgrammaticHubPage({ requestedSlug }: ProgrammaticHubPageProps)
             </Badge>
           </div>
           <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-            Explore DevSolve&apos;s programmatic developer pages
+            {"Explore DevSolve's programmatic developer pages"}
           </h1>
           <p className="mt-4 max-w-3xl text-base text-muted-foreground md:text-lg">
             Every programmatic URL in the /k library is intended to resolve as a crawlable HTML page without redirects.

@@ -334,8 +334,8 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
   if (!match) return undefined;
 
   const stem = match[1];
-  const legacyIndex = Number.parseInt(match[2], 10);
-  if (!Number.isFinite(legacyIndex) || legacyIndex < 0) return undefined;
+  const legacyModifierSuffix = Number.parseInt(match[2], 10);
+  if (!Number.isFinite(legacyModifierSuffix) || legacyModifierSuffix < 0) return undefined;
 
   const cluster = clusters.find((item) => stem.startsWith(`${item.key}-`));
   if (!cluster) return undefined;
@@ -370,7 +370,7 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
   const taskIndex = tasks.indexOf(task);
   if (audienceIndex < 0 || taskIndex < 0) return undefined;
 
-  const modifierIndex = legacyIndex % MODIFIERS_COUNT;
+  const modifierIndex = legacyModifierSuffix % MODIFIERS_COUNT;
   const remappedIndex =
     pairIndex * PER_PAIR +
     audienceIndex * TASKS_COUNT * MODIFIERS_COUNT +
@@ -622,6 +622,24 @@ function getHubSampleLinks(count = 12): Array<{ slug: string; label: string }> {
   }));
 }
 
+const HUB_PAGE_STYLES = `
+body{margin:0;font-family:Inter,Arial,sans-serif;background:#f8fafc;color:#0f172a}
+main{max-width:1100px;margin:0 auto;padding:3rem 1.25rem}
+.hero{background:#fff;border:1px solid #e2e8f0;border-radius:1.5rem;padding:2rem;box-shadow:0 10px 30px rgba(15,23,42,.05)}
+.badges{display:flex;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem}
+.badge{display:inline-flex;align-items:center;padding:.4rem .85rem;border-radius:9999px;font-size:.875rem;font-weight:600;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.badge-outline{background:#fff;color:#334155;border-color:#cbd5e1}
+h1{margin:0;font-size:2.25rem;line-height:1.1}
+p{line-height:1.7;color:#475569}
+.actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1.5rem}
+.button{display:inline-flex;align-items:center;justify-content:center;padding:.85rem 1.1rem;border-radius:.85rem;border:1px solid #cbd5e1;text-decoration:none;font-weight:600;color:#0f172a;background:#fff}
+.button-primary{background:#0f172a;border-color:#0f172a;color:#fff}
+.card{margin-top:1.5rem;background:#fff;border:1px solid #e2e8f0;border-radius:1.5rem;padding:1.5rem}
+.samples{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.75rem;margin-top:1rem}
+.sample-link{display:flex;flex-direction:column;gap:.35rem;padding:1rem;border:1px solid #e2e8f0;border-radius:1rem;background:#fff;text-decoration:none;color:#0f172a}
+.sample-link span{font-size:.8rem;color:#64748b;word-break:break-word}
+`;
+
 function generateHubHtml(url: URL, requestedSlug?: string): string {
   const canonicalUrl = `${url.origin}/k`;
   const title = requestedSlug
@@ -638,6 +656,9 @@ function generateHubHtml(url: URL, requestedSlug?: string): string {
       </a>
     `)
     .join('');
+  const requestedSlugNote = requestedSlug
+    ? `<p>The requested path <strong>/k/${escapeHtml(requestedSlug)}</strong> stayed inside the /k section instead of producing a redirect or HTTP error.</p>`
+    : '';
 
   return `<!doctype html>
 <html lang="en">
@@ -652,23 +673,7 @@ function generateHubHtml(url: URL, requestedSlug?: string): string {
 <meta property="og:title" content="${escapeHtml(title)}"/>
 <meta property="og:description" content="${escapeHtml(description)}"/>
 <meta property="og:url" content="${canonicalUrl}"/>
-<style>
-body{margin:0;font-family:Inter,Arial,sans-serif;background:#f8fafc;color:#0f172a}
-main{max-width:1100px;margin:0 auto;padding:3rem 1.25rem}
-.hero{background:#fff;border:1px solid #e2e8f0;border-radius:1.5rem;padding:2rem;box-shadow:0 10px 30px rgba(15,23,42,.05)}
-.badges{display:flex;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem}
-.badge{display:inline-flex;align-items:center;padding:.4rem .85rem;border-radius:9999px;font-size:.875rem;font-weight:600;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
-.badge-outline{background:#fff;color:#334155;border-color:#cbd5e1}
-h1{margin:0;font-size:2.25rem;line-height:1.1}
-p{line-height:1.7;color:#475569}
-.actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1.5rem}
-.button{display:inline-flex;align-items:center;justify-content:center;padding:.85rem 1.1rem;border-radius:.85rem;border:1px solid #cbd5e1;text-decoration:none;font-weight:600;color:#0f172a;background:#fff}
-.button-primary{background:#0f172a;border-color:#0f172a;color:#fff}
-.card{margin-top:1.5rem;background:#fff;border:1px solid #e2e8f0;border-radius:1.5rem;padding:1.5rem}
-.samples{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.75rem;margin-top:1rem}
-.sample-link{display:flex;flex-direction:column;gap:.35rem;padding:1rem;border:1px solid #e2e8f0;border-radius:1rem;background:#fff;text-decoration:none;color:#0f172a}
-.sample-link span{font-size:.8rem;color:#64748b;word-break:break-word}
-</style>
+<style>${HUB_PAGE_STYLES}</style>
 </head>
 <body>
 <main>
@@ -679,7 +684,7 @@ p{line-height:1.7;color:#475569}
     </div>
     <h1>${escapeHtml(title)}</h1>
     <p>${escapeHtml(description)}</p>
-    ${requestedSlug ? `<p>The requested path <strong>/k/${escapeHtml(requestedSlug)}</strong> stayed inside the /k section instead of producing a redirect or HTTP error.</p>` : ''}
+    ${requestedSlugNote}
     <div class="actions">
       <a class="button button-primary" href="/tools">Browse tools</a>
       <a class="button" href="/guides">Read guides</a>

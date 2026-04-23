@@ -12,6 +12,7 @@ import { monetizationConfig } from '@/config/monetization';
 import { RecommendedSolutions } from '@/components/monetization/RecommendedSolutions';
 import { ComputedExample } from '@/components/programmatic/ComputedExample';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { PROGRAMMATIC_HUB_METADATA } from '@/lib/programmatic/metadata';
 import { absoluteUrl } from '@/lib/seo/url';
 import { linkifyCommercialTerms } from '@/lib/content/commercialLinks';
 import { hashString } from '@/lib/utils';
@@ -104,12 +105,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const resolved = resolveProgrammaticPageBySlug(slug);
   if (!resolved) {
-    return buildMetadata({
-      title: 'Programmatic Developer Pages',
-      description: 'Browse DevSolve’s full programmatic /k library of static developer landing pages without redirects.',
-      path: '/k',
-      keywords: ['programmatic SEO', 'developer pages', 'static pages', 'developer tools library'],
-    });
+    return buildMetadata(PROGRAMMATIC_HUB_METADATA);
   }
   const { page, canonicalSlug } = resolved;
   const dateModified = getProgrammaticLastModified(canonicalSlug);
