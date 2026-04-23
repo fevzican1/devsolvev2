@@ -5,7 +5,7 @@ const NON_PAGE_PREFIXES = ['/_next/', '/assets/', '/api/'];
 
 function hasStaticFileExtension(pathname: string): boolean {
   const lastSegment = pathname.split('/').pop() ?? '';
-  return /\.[a-z0-9]{1,8}$/i.test(lastSegment);
+  return /\.[a-z0-9]+$/i.test(lastSegment);
 }
 
 export function shouldServeHtmlFallback(request: Request, pathname: string): boolean {
