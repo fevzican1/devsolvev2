@@ -9,7 +9,7 @@ import { siteConfig, externalUrls } from '@/config/site';
 import { platformExternalUrls } from '@/config/monetization';
 import { toolRegistry } from '@/tools/registry';
 import { CodeBlocksEnhancer } from '@/components/content/CodeBlocksEnhancer';
-import { CONTENT_SIGNAL_META_NAME, CONTENT_SIGNAL_VALUE } from '@/lib/seo/contentSignal';
+import { CONTENT_SIGNAL_VALUE } from '@/lib/seo/contentSignal';
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -93,6 +93,9 @@ export const metadata: Metadata = {
     description: siteConfig.description,
     images: ['/twitter-image.svg'],
   },
+  other: {
+    'content-signal': CONTENT_SIGNAL_VALUE,
+  },
   robots: {
     index: true,
     follow: true,
@@ -174,9 +177,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <meta name={CONTENT_SIGNAL_META_NAME} content={CONTENT_SIGNAL_VALUE} />
-      </head>
       <body className={`${spaceGrotesk.variable} ${ibmPlexMono.variable} font-sans antialiased`}>
         <ThemeProvider>
           <CodeBlocksEnhancer />

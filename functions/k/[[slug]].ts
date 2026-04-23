@@ -334,6 +334,11 @@ function resolvePageFromSlug(slug: string): PageData | undefined {
   return { slug: expectedSlug, title, h1, description, intro, clusterKey, tool: pair.tool, intent: pair.intent, audience, task, modifier, steps, keywords };
 }
 
+/**
+ * Supports older /k slug variants that only preserved the trailing numeric suffix.
+ * The suffix is remapped back into the current modifier slot so older indexed URLs
+ * can still resolve to a valid canonical page during the migration window.
+ */
 function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
   const match = slug.match(/^(.*)-([0-9]+)$/);
   if (!match) return undefined;
