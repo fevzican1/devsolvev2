@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { Code2 } from 'lucide-react';
-import { siteConfig } from '@/config/site';
+import { BrandLink } from '@/components/layout/BrandLink';
 import { monetizationConfig } from '@/config/monetization';
+import { siteConfig } from '@/config/site';
 
 const footerLinks = {
   tools: [
@@ -40,10 +40,7 @@ export function Footer() {
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center space-x-2 mb-4">
-              <Code2 className="h-6 w-6 text-primary" />
-              <span className="font-bold text-lg">{siteConfig.name}</span>
-            </Link>
+            <BrandLink className="mb-4" textClassName="text-lg" />
             <p className="text-sm text-muted-foreground mb-4">
               {siteConfig.description}
             </p>
