@@ -342,6 +342,7 @@ function resolvePageFromSlug(slug: string): PageData | undefined {
 function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
   const match = slug.match(/^(.*)-([0-9]+)$/);
   if (!match) return undefined;
+  if (MODIFIERS_COUNT < 1) return undefined;
 
   const stem = match[1];
   const legacyModifierSuffix = parseInt(match[2], 10);
@@ -379,7 +380,6 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
   const audienceIndex = audiences.indexOf(audience);
   const taskIndex = tasks.indexOf(task);
   if (audienceIndex < 0 || taskIndex < 0) return undefined;
-  if (MODIFIERS_COUNT < 1) return undefined;
 
   // Legacy slugs only carried a trailing numeric suffix, so modulo maps that
   // suffix back onto a valid modifier slot within the canonical pair/audience/task block.
