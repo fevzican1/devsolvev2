@@ -375,7 +375,8 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
     taskIndex * MODIFIERS_COUNT +
     modifierIndex;
 
-  return getPageByIndex(remappedIndex);
+  const canonicalSlug = getSlugByIndex(remappedIndex);
+  return canonicalSlug ? resolvePageFromSlug(canonicalSlug) : undefined;
 }
 
 function resolvePageForRequest(slug: string): PageData | undefined {
