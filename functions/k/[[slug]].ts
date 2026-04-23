@@ -32,6 +32,7 @@ type PagesFunction<Env = unknown> = (context: EventContext<Env>) => Response | P
 interface Env {}
 
 const LEGACY_PROGRAMMATIC_SLUG_PATTERN = /^(.*)-([0-9]+)$/;
+const DEFAULT_LOCALE = 'en-US';
 
 /* ------------------------------------------------------------------ */
 /*  Core data arrays — must match src/data/programmatic.ts exactly     */
@@ -123,9 +124,11 @@ function hashString(str: string): number {
   return Math.abs(hash);
 }
 
-function formatLabel(s: string): string {
+function slugToWords(s: string): string {
   return s.replace(/-/g, ' ');
 }
+
+const formatLabel = slugToWords;
 
 function getToolName(slug: string): string {
   return slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -387,6 +390,9 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
   // the valid modifier slot range for the reconstructed pair/audience/task block.
   // This can collapse multiple legacy suffixes onto the same canonical modifier,
   // which is acceptable because the legacy format never encoded modifier identity precisely.
+  // Collisions are acceptable here because the legacy suffix only expressed
+  // coarse position, not an exact modifier identity, so multiple old URLs can
+  // safely converge onto the same canonical modifier-backed destination.
   const modifierIndex = MODIFIERS_COUNT > 0 ? legacyModifierSuffix % MODIFIERS_COUNT : 0;
   // Rebuild the canonical absolute page index from the legacy slug parts:
   // pair block offset + audience block offset + task block offset + modifier slot.
@@ -703,7 +709,7 @@ function generateHubHtml(url: URL, requestedSlug?: string): string {
   <section class="hero">
     <div class="badges">
       <span class="badge">Static programmatic SEO library</span>
-      <span class="badge badge-outline">${TOTAL_POSSIBLE.toLocaleString('en-US')} published /k pages</span>
+      <span class="badge badge-outline">${TOTAL_POSSIBLE.toLocaleString(DEFAULT_LOCALE)} published /k pages</span>
     </div>
     <h1>${escapeHtml(title)}</h1>
     <p>${escapeHtml(description)}</p>
