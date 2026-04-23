@@ -52,11 +52,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     if (slug && getToolBySlug(slug)) {
       const response = await context.next();
       const headers = new Headers(response.headers);
-      headers.set(CONTENT_SIGNAL_HEADER, CONTENT_SIGNAL_VALUE);
 
       const contentType = headers.get('content-type') ?? '';
       if (contentType.includes('text/html')) {
         headers.set('X-Robots-Tag', responseHeaders['X-Robots-Tag']);
+        headers.set(CONTENT_SIGNAL_HEADER, CONTENT_SIGNAL_VALUE);
       }
 
       return new Response(response.body, {
