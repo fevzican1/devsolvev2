@@ -16,7 +16,7 @@ import {
   OriginalValueCallouts,
 } from '@/components/content/EditorialIdentity';
 import { buildToolPageContent } from '@/lib/seo/toolPageContent';
-import ToolsHubPage from '@/app/tools/page';
+import ToolsPage from '@/app/tools/page';
 import { externalUrls } from '@/config/site';
 import { TOOLS_SECTION_METADATA } from '@/lib/seo/sectionMetadata';
 import { absoluteUrl } from '@/lib/seo/url';
@@ -51,7 +51,7 @@ export default async function ToolPage({ params }: PageProps) {
   const tool = getToolBySlug(slug);
 
   if (!tool) {
-    return <ToolsHubPage />;
+    return <ToolsPage />;
   }
 
   const relatedTools = getRelatedTools(slug);
