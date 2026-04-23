@@ -25,6 +25,8 @@ type PagesFunction<Env = unknown> = (context: EventContext<Env>) => Response | P
 
 interface Env {}
 
+const LEGACY_PROGRAMMATIC_SLUG_PATTERN = /^(.*)-([0-9]+)$/;
+
 /* ------------------------------------------------------------------ */
 /*  Core data arrays — must match src/data/programmatic.ts exactly     */
 /* ------------------------------------------------------------------ */
@@ -340,7 +342,7 @@ function resolvePageFromSlug(slug: string): PageData | undefined {
  * can still resolve to a valid canonical page during the migration window.
  */
 function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
-  const match = slug.match(/^(.*)-([0-9]+)$/);
+  const match = slug.match(LEGACY_PROGRAMMATIC_SLUG_PATTERN);
   if (!match) return undefined;
   if (MODIFIERS_COUNT < 1) return undefined;
 
@@ -381,8 +383,8 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
   const taskIndex = tasks.indexOf(task);
   if (audienceIndex < 0 || taskIndex < 0) return undefined;
 
-  // Legacy slugs only carried a trailing numeric suffix, so modulo maps that
-  // suffix back onto a valid modifier slot within the canonical pair/audience/task block.
+  // Legacy slugs only carried a trailing numeric suffix, so modulo folds any suffix
+  // larger than MODIFIERS_COUNT back into the valid modifier range for that block.
   const modifierIndex = legacyModifierSuffix % MODIFIERS_COUNT;
   // Rebuild the canonical absolute page index from the legacy slug parts:
   // pair block offset + audience block offset + task block offset + modifier slot.
@@ -397,6 +399,10 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
 }
 
 function resolvePageForRequest(slug: string): PageData | undefined {
+  if (LEGACY_PROGRAMMATIC_SLUG_PATTERN.test(slug)) {
+    return tryResolveLegacyProgrammaticSlug(slug) ?? resolvePageFromSlug(slug);
+  }
+
   return resolvePageFromSlug(slug) ?? tryResolveLegacyProgrammaticSlug(slug);
 }
 

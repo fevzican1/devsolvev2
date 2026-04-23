@@ -19,7 +19,7 @@ import {
   EditorialIntro,
   OriginalValueCallouts,
 } from '@/components/content/EditorialIdentity';
-import GuidesPage from '@/app/guides/page';
+import GuidesHubPage from '@/app/guides/page';
 import { GUIDES_SECTION_METADATA } from '@/lib/seo/sectionMetadata';
 import { RelatedItemsLinks } from '@/components/seo/RelatedItemsLinks';
 
@@ -53,7 +53,7 @@ export default async function GuidePage({ params }: PageProps) {
   const guide = getGuideBySlug(slug);
 
   if (!guide) {
-    return <GuidesPage />;
+    return <GuidesHubPage />;
   }
 
   const guideContent = await loadGuideContentCached(slug);
