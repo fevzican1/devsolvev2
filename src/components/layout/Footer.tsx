@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Code2 } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import { monetizationConfig } from '@/config/monetization';
 
@@ -40,8 +41,7 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center space-x-2 mb-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/favicon.svg" alt="" className="h-6 w-6" aria-hidden="true" />
+              <Code2 className="h-6 w-6 text-primary" />
               <span className="font-bold text-lg">{siteConfig.name}</span>
             </Link>
             <p className="text-sm text-muted-foreground mb-4">

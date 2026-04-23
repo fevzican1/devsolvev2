@@ -519,27 +519,27 @@ function generateHtml(page: PageData): string {
 <script type="application/ld+json">${breadcrumbJsonLd}</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:#f1f5f9;background:#020617}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:#1a1a1a;background:#fff}
 .container{max-width:800px;margin:0 auto;padding:2rem 1rem}
-h1{font-size:2rem;font-weight:700;margin-bottom:1rem;line-height:1.3;color:#f1f5f9}
-h2{font-size:1.4rem;font-weight:600;margin:2rem 0 1rem;color:#e2e8f0}
-p{margin-bottom:1rem;color:#94a3b8}
-.badge{display:inline-flex;align-items:center;gap:0.25rem;padding:0.25rem 0.75rem;border-radius:9999px;font-size:0.75rem;font-weight:500;background:#1e3a5f;color:#93c5fd;border:1px solid #1e40af}
-.breadcrumb{font-size:0.875rem;color:#64748b;margin-bottom:1rem}
-.breadcrumb a{color:#60a5fa;text-decoration:none}
+h1{font-size:2rem;font-weight:700;margin-bottom:1rem;line-height:1.3}
+h2{font-size:1.4rem;font-weight:600;margin:2rem 0 1rem;color:#1a1a1a}
+p{margin-bottom:1rem;color:#374151}
+.badge{display:inline-flex;align-items:center;gap:0.25rem;padding:0.25rem 0.75rem;border-radius:9999px;font-size:0.75rem;font-weight:500;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.breadcrumb{font-size:0.875rem;color:#6b7280;margin-bottom:1rem}
+.breadcrumb a{color:#2563eb;text-decoration:none}
 .breadcrumb a:hover{text-decoration:underline}
-.card{border:1px solid #1e293b;border-radius:0.75rem;padding:1.5rem;margin-bottom:1.5rem;background:#0f172a}
-.card-title{font-size:1.1rem;font-weight:600;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;color:#f1f5f9}
+.card{border:1px solid #e5e7eb;border-radius:0.75rem;padding:1.5rem;margin-bottom:1.5rem}
+.card-title{font-size:1.1rem;font-weight:600;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem}
 ol{list-style:none;padding:0}
 ol li{margin-bottom:0.75rem}
 .steps-list li{display:flex;align-items:flex-start;gap:0.75rem}
 .related-links{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem}
 .related-links li{list-style:none}
-.nav{border-bottom:1px solid #1e293b;padding:1rem;display:flex;gap:1.5rem;align-items:center;background:#0f172a}
-.nav a{color:#60a5fa;text-decoration:none;font-size:0.875rem;font-weight:500}
-.nav-brand{font-weight:700;font-size:1.1rem;color:#f1f5f9;text-decoration:none}
-footer{border-top:1px solid #1e293b;padding:2rem 1rem;text-align:center;color:#64748b;font-size:0.875rem;margin-top:3rem}
-footer a{color:#60a5fa;text-decoration:none}
+.nav{border-bottom:1px solid #e5e7eb;padding:1rem;display:flex;gap:1.5rem;align-items:center}
+.nav a{color:#2563eb;text-decoration:none;font-size:0.875rem;font-weight:500}
+.nav-brand{font-weight:700;font-size:1.1rem;color:#1a1a1a;text-decoration:none}
+footer{border-top:1px solid #e5e7eb;padding:2rem 1rem;text-align:center;color:#6b7280;font-size:0.875rem;margin-top:3rem}
+footer a{color:#2563eb;text-decoration:none}
 </style>
 </head>
 <body>
@@ -562,7 +562,7 @@ footer a{color:#60a5fa;text-decoration:none}
 <span class="badge">🛠 ${escapeHtml(toolName)}</span>
 </div>
 
-<p style="font-size:1.1rem;color:#94a3b8;margin-bottom:2rem">${escapeHtml(page.intro)}</p>
+<p style="font-size:1.1rem;color:#374151;margin-bottom:2rem">${escapeHtml(page.intro)}</p>
 
 <div class="card">
 <div class="card-title">✅ Step-by-Step Guide</div>
@@ -571,13 +571,13 @@ ${stepsHtml}
 </ol>
 </div>
 
-<div class="card" style="border-color:#1e40af;background:#0d1f3c">
+<div class="card" style="border-color:#bfdbfe;background:#f0f9ff">
 <div class="card-title">💡 Why Use This?</div>
 <p>This page explains step by step how to handle the <strong>${escapeHtml(slugToSpacedString(page.intent))}</strong> task in real project scenarios using <strong>${escapeHtml(toolName)}</strong>.</p>
 <p>The content combines technical depth, error-point analysis, and alternative solutions, making it a definitive landing page where you can make informed decisions — not just a redirect page built for traffic.</p>
 </div>
 
-<div class="card" style="border-color:#854d0e;background:#1c1003">
+<div class="card" style="border-color:#fde68a;background:#fffbeb">
 <div class="card-title">⚠️ Common Pitfalls</div>
 <ul style="padding-left:1.25rem">
 <li>Skipping a quick manual sanity check on a small sample before processing a full dataset.</li>
@@ -653,23 +653,21 @@ function getHubSampleLinks(count = 12): Array<{ slug: string; label: string }> {
 }
 
 const HUB_PAGE_STYLES = `
-body{margin:0;font-family:Inter,Arial,sans-serif;background:#020617;color:#f1f5f9}
+body{margin:0;font-family:Inter,Arial,sans-serif;background:#f8fafc;color:#0f172a}
 main{max-width:1100px;margin:0 auto;padding:3rem 1.25rem}
-.hero{background:#0f172a;border:1px solid #1e293b;border-radius:1.5rem;padding:2rem;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.hero{background:#fff;border:1px solid #e2e8f0;border-radius:1.5rem;padding:2rem;box-shadow:0 10px 30px rgba(15,23,42,.05)}
 .badges{display:flex;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem}
-.badge{display:inline-flex;align-items:center;padding:.4rem .85rem;border-radius:9999px;font-size:.875rem;font-weight:600;background:#1e3a5f;color:#93c5fd;border:1px solid #1e40af}
-.badge-outline{background:#1e293b;color:#94a3b8;border-color:#334155}
-h1{margin:0;font-size:2.25rem;line-height:1.1;color:#f1f5f9}
-p{line-height:1.7;color:#94a3b8}
+.badge{display:inline-flex;align-items:center;padding:.4rem .85rem;border-radius:9999px;font-size:.875rem;font-weight:600;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.badge-outline{background:#fff;color:#334155;border-color:#cbd5e1}
+h1{margin:0;font-size:2.25rem;line-height:1.1}
+p{line-height:1.7;color:#475569}
 .actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1.5rem}
-.button{display:inline-flex;align-items:center;justify-content:center;padding:.85rem 1.1rem;border-radius:.85rem;border:1px solid #334155;text-decoration:none;font-weight:600;color:#f1f5f9;background:#1e293b}
-.button-primary{background:#3b82f6;border-color:#3b82f6;color:#fff}
-.card{margin-top:1.5rem;background:#0f172a;border:1px solid #1e293b;border-radius:1.5rem;padding:1.5rem}
+.button{display:inline-flex;align-items:center;justify-content:center;padding:.85rem 1.1rem;border-radius:.85rem;border:1px solid #cbd5e1;text-decoration:none;font-weight:600;color:#0f172a;background:#fff}
+.button-primary{background:#0f172a;border-color:#0f172a;color:#fff}
+.card{margin-top:1.5rem;background:#fff;border:1px solid #e2e8f0;border-radius:1.5rem;padding:1.5rem}
 .samples{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.75rem;margin-top:1rem}
-.sample-link{display:flex;flex-direction:column;gap:.35rem;padding:1rem;border:1px solid #1e293b;border-radius:1rem;background:#0f172a;text-decoration:none;color:#f1f5f9}
-.sample-link:hover{border-color:#334155;background:#1e293b}
+.sample-link{display:flex;flex-direction:column;gap:.35rem;padding:1rem;border:1px solid #e2e8f0;border-radius:1rem;background:#fff;text-decoration:none;color:#0f172a}
 .sample-link span{font-size:.875rem;color:#64748b;word-break:break-word}
-h2{color:#f1f5f9;font-size:1.25rem;margin:0 0 .5rem}
 `;
 
 function generateHubHtml(url: URL, requestedSlug?: string): string {
