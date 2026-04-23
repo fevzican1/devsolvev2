@@ -5,6 +5,8 @@
  * no 404s and full SEO-friendly HTML for all 18M+ programmatic pages.
  */
 
+import { formatProgrammaticHubLabel } from '../../src/lib/programmatic/hub';
+
 // Cloudflare Pages Function types (inline to avoid external dependency)
 interface EventContext<Env> {
   request: Request;
@@ -616,12 +618,7 @@ function getHubSampleLinks(count = 12): Array<{ slug: string; label: string }> {
 
   return Array.from(slugs).map((slug) => ({
     slug,
-    label: slug
-      .replace(/-\d+$/, '')
-      .split('-')
-      .slice(0, 8)
-      .map((segment) => (segment.length <= 3 ? segment.toUpperCase() : segment.charAt(0).toUpperCase() + segment.slice(1)))
-      .join(' '),
+    label: formatProgrammaticHubLabel(slug),
   }));
 }
 
@@ -732,7 +729,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       status: 200,
       headers: responseHeaders,
     });
-  } catch {
+  } catch (error) {
+    console.error('Programmatic /k fallback handler error', error);
     const url = new URL(context.request.url);
     return new Response(generateHubHtml(url), {
       status: 200,

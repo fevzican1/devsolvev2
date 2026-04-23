@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getSlugByIndex, getTotalPageCount } from '@/data/programmatic';
+import { formatProgrammaticHubLabel } from '@/lib/programmatic/hub';
 
 interface ProgrammaticHubPageProps {
   requestedSlug?: string;
@@ -25,12 +26,7 @@ function buildFeaturedProgrammaticLinks(count = 12) {
 
   return Array.from(slugs).map((slug: string) => ({
     slug,
-    label: slug
-      .replace(/-\d+$/, '')
-      .split('-')
-      .slice(0, 8)
-      .map((segment: string) => (segment.length <= 3 ? segment.toUpperCase() : segment.charAt(0).toUpperCase() + segment.slice(1)))
-      .join(' '),
+    label: formatProgrammaticHubLabel(slug),
   }));
 }
 
