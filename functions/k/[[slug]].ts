@@ -5,7 +5,10 @@
  * no 404s and full SEO-friendly HTML for all 18M+ programmatic pages.
  */
 
-import { formatProgrammaticHubLabel } from '../../src/lib/programmatic/hub';
+import {
+  formatProgrammaticHubLabel,
+  getProgrammaticHubSampleStep,
+} from '../../src/lib/programmatic/hub';
 import {
   CONTENT_SIGNAL_HEADER,
   CONTENT_SIGNAL_META_NAME,
@@ -346,6 +349,9 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
   if (!match) return undefined;
   if (MODIFIERS_COUNT < 1) return undefined;
 
+  // Older indexed /k URLs stored the shared slug stem plus a raw trailing number,
+  // but they did not preserve today's modifier identity. This compatibility path
+  // rebuilds the canonical block so that migrated legacy URLs still resolve.
   const stem = match[1];
   const legacyModifierSuffix = parseInt(match[2], 10);
   if (isNaN(legacyModifierSuffix)) return undefined;
@@ -383,8 +389,8 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
   const taskIndex = tasks.indexOf(task);
   if (audienceIndex < 0 || taskIndex < 0) return undefined;
 
-  // Legacy slugs only carried a trailing numeric suffix, so modulo folds any suffix
-  // larger than MODIFIERS_COUNT back into the valid modifier range for that block.
+  // The old suffix can exceed today's modifier count, so modulo folds it back into
+  // the valid modifier slot range for the reconstructed pair/audience/task block.
   const modifierIndex = legacyModifierSuffix % MODIFIERS_COUNT;
   // Rebuild the canonical absolute page index from the legacy slug parts:
   // pair block offset + audience block offset + task block offset + modifier slot.
@@ -399,6 +405,8 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
 }
 
 function resolvePageForRequest(slug: string): PageData | undefined {
+  // Pattern-matched legacy URLs try the migration resolver first because the slug
+  // shape already tells us the canonical parser is less likely to succeed directly.
   if (LEGACY_PROGRAMMATIC_SLUG_PATTERN.test(slug)) {
     return tryResolveLegacyProgrammaticSlug(slug) ?? resolvePageFromSlug(slug);
   }
@@ -629,8 +637,7 @@ function getHubSampleLinks(count = 12): Array<{ slug: string; label: string }> {
   if (TOTAL_POSSIBLE < 1) return [];
 
   const slugs = new Set<string>();
-  const normalizedCount = count > 0 ? count : 1;
-  const step = Math.max(1, Math.floor(TOTAL_POSSIBLE / normalizedCount));
+  const step = getProgrammaticHubSampleStep(TOTAL_POSSIBLE, count);
 
   for (let index = 0; index < TOTAL_POSSIBLE && slugs.size < count; index += step) {
     const slug = getSlugByIndex(index);

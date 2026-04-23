@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getSlugByIndex, getTotalPageCount } from '@/data/programmatic';
-import { formatProgrammaticHubLabel } from '@/lib/programmatic/hub';
+import { formatProgrammaticHubLabel, getProgrammaticHubSampleStep } from '@/lib/programmatic/hub';
 
 interface ProgrammaticHubPageProps {
   requestedSlug?: string;
@@ -15,8 +15,7 @@ function buildFeaturedProgrammaticLinks(count = 12) {
   if (total < 1) return [];
 
   const slugs = new Set<string>();
-  const normalizedCount = count > 0 ? count : 1;
-  const step = Math.max(1, Math.floor(total / normalizedCount));
+  const step = getProgrammaticHubSampleStep(total, count);
 
   for (let index = 0; index < total && slugs.size < count; index += step) {
     const slug = getSlugByIndex(index);

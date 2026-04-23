@@ -30,8 +30,17 @@ const responseHeaders = {
 function isHtmlNavigation(request: Request): boolean {
   const accept = request.headers.get('accept') ?? '';
   const secFetchDest = request.headers.get('sec-fetch-dest') ?? '';
+  const primaryAcceptedType = accept
+    .split(',')
+    .map((value) => value.trim().split(';')[0])
+    .find(Boolean);
 
-  return accept.includes('text/html') || secFetchDest === 'document';
+  return (
+    request.method === 'GET' &&
+    (secFetchDest === 'document' ||
+      primaryAcceptedType === 'text/html' ||
+      primaryAcceptedType === 'application/xhtml+xml')
+  );
 }
 
 function buildGlobalFallbackHtml(siteUrl: string, requestedPath?: string) {
