@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Code2, Sun, Moon, Menu, X } from 'lucide-react';
+import { Sun, Moon, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/components/providers/ThemeProvider';
@@ -23,7 +23,8 @@ export function Header() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center space-x-2" aria-label="DevSolve home">
-            <Code2 className="h-6 w-6 text-primary" aria-hidden="true" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/favicon.svg" alt="" className="h-6 w-6" aria-hidden="true" />
             <span className="font-bold text-xl">{siteConfig.name}</span>
           </Link>
 
