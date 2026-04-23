@@ -71,8 +71,15 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
 
   try {
-    if (!shouldServeHtmlFallback(context.request, url.pathname)) {
-      return context.next();
+    const shouldServeFallback = shouldServeHtmlFallback(context.request, url.pathname);
+    const response = await context.next();
+
+    if (!shouldServeFallback) {
+      return response;
+    }
+
+    if (response.ok) {
+      return response;
     }
 
     return new Response(buildGlobalFallbackHtml(url.origin, url.pathname), {

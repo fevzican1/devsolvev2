@@ -5,7 +5,7 @@ import {
   CONTENT_SIGNAL_VALUE,
 } from '../../src/lib/seo/contentSignal';
 import { GUIDES_SECTION_METADATA } from '../../src/lib/seo/sectionMetadata';
-import { getGuideBySlug, guideRegistry } from '../../src/content/guides';
+import { guideRegistry } from '../../src/content/guides';
 
 interface EventContext<Env> {
   request: Request;
@@ -48,11 +48,15 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   try {
     const url = new URL(context.request.url);
     const slug = url.pathname.split('/').filter(Boolean).slice(1).join('/');
+    const shouldServeFallback = shouldServeHtmlFallback(context.request, url.pathname);
+    const response = await context.next();
 
-    if (slug && getGuideBySlug(slug)) {
-      const response = await context.next();
+    if (!shouldServeFallback) {
+      return response;
+    }
+
+    if (response.ok) {
       const headers = new Headers(response.headers);
-
       const contentType = headers.get('content-type') ?? '';
       if (contentType.includes('text/html')) {
         headers.set('X-Robots-Tag', responseHeaders['X-Robots-Tag']);
@@ -63,10 +67,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         status: response.status,
         headers,
       });
-    }
-
-    if (!shouldServeHtmlFallback(context.request, url.pathname)) {
-      return context.next();
     }
 
     return new Response(buildGuidesFallbackHtml(url.origin, slug ? `/guides/${slug}` : undefined), {
