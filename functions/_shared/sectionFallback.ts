@@ -55,18 +55,20 @@ export function buildSectionFallbackHtml(config: SectionFallbackConfig, siteUrl:
 <meta property="og:description" content="${escapeHtml(config.description)}"/>
 <meta property="og:url" content="${canonicalUrl}"/>
 <style>
-body{margin:0;font-family:Inter,Arial,sans-serif;background:#f8fafc;color:#0f172a}
+body{margin:0;font-family:Inter,Arial,sans-serif;background:#020617;color:#f1f5f9}
 main{max-width:1100px;margin:0 auto;padding:3rem 1.25rem}
-.hero{background:#fff;border:1px solid #e2e8f0;border-radius:1.5rem;padding:2rem;box-shadow:0 10px 30px rgba(15,23,42,.05)}
-h1{margin:0;font-size:2.25rem;line-height:1.1}
-p{line-height:1.7;color:#475569}
+.hero{background:#0f172a;border:1px solid #1e293b;border-radius:1.5rem;padding:2rem;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+h1{margin:0;font-size:2.25rem;line-height:1.1;color:#f1f5f9}
+p{line-height:1.7;color:#94a3b8}
 .actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1.5rem}
-.button{display:inline-flex;align-items:center;justify-content:center;padding:.85rem 1.1rem;border-radius:.85rem;border:1px solid #cbd5e1;text-decoration:none;font-weight:600;color:#0f172a;background:#fff}
-.button-primary{background:#0f172a;border-color:#0f172a;color:#fff}
-.card{margin-top:1.5rem;background:#fff;border:1px solid #e2e8f0;border-radius:1.5rem;padding:1.5rem}
+.button{display:inline-flex;align-items:center;justify-content:center;padding:.85rem 1.1rem;border-radius:.85rem;border:1px solid #334155;text-decoration:none;font-weight:600;color:#f1f5f9;background:#1e293b}
+.button-primary{background:#3b82f6;border-color:#3b82f6;color:#fff}
+.card{margin-top:1.5rem;background:#0f172a;border:1px solid #1e293b;border-radius:1.5rem;padding:1.5rem}
 .samples{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.75rem;margin-top:1rem}
-.sample-link{display:flex;flex-direction:column;gap:.35rem;padding:1rem;border:1px solid #e2e8f0;border-radius:1rem;background:#fff;text-decoration:none;color:#0f172a}
+.sample-link{display:flex;flex-direction:column;gap:.35rem;padding:1rem;border:1px solid #1e293b;border-radius:1rem;background:#0f172a;text-decoration:none;color:#f1f5f9}
+.sample-link:hover{border-color:#334155;background:#1e293b}
 .sample-link span{font-size:.875rem;color:#64748b}
+h2{color:#f1f5f9;font-size:1.25rem;margin:0 0 .5rem}
 </style>
 </head>
 <body>
