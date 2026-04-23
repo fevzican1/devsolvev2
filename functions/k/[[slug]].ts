@@ -339,8 +339,8 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
   if (!match) return undefined;
 
   const stem = match[1];
-  const legacyModifierSuffix = Number.parseInt(match[2], 10);
-  if (Number.isNaN(legacyModifierSuffix)) return undefined;
+  const legacyModifierSuffix = parseInt(match[2], 10);
+  if (isNaN(legacyModifierSuffix)) return undefined;
 
   const cluster = clusters.find((item) => stem.startsWith(`${item.key}-`));
   if (!cluster) return undefined;
