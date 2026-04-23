@@ -375,6 +375,8 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
   const taskIndex = tasks.indexOf(task);
   if (audienceIndex < 0 || taskIndex < 0) return undefined;
 
+  // Legacy slugs only carried a trailing numeric suffix, so modulo maps that
+  // suffix back onto a valid modifier slot within the canonical pair/audience/task block.
   const modifierIndex = legacyModifierSuffix % MODIFIERS_COUNT;
   // Rebuild the canonical absolute page index from the legacy slug parts:
   // pair block offset + audience block offset + task block offset + modifier slot.
@@ -666,7 +668,7 @@ function generateHubHtml(url: URL, requestedSlug?: string): string {
     `)
     .join('');
   const requestedSlugNote = requestedSlug
-    ? `<p>The requested path <strong>/k/${escapeHtml(requestedSlug)}</strong> stayed inside the /k section instead of producing a redirect or HTTP error.</p>`
+    ? `<p>The requested path <strong>/k/${escapeHtml(requestedSlug)}</strong> now displays the /k section hub instead of producing a redirect or HTTP error.</p>`
     : '';
 
   return `<!doctype html>

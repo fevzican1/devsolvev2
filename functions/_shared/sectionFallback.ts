@@ -28,7 +28,7 @@ function escapeHtml(value: string): string {
 export function buildSectionFallbackHtml(config: SectionFallbackConfig, siteUrl: string): string {
   const canonicalUrl = `${siteUrl}${config.canonicalPath}`;
   const requestedPathNote = config.requestedPath
-    ? `<p>The requested path <strong>${escapeHtml(config.requestedPath)}</strong> stayed inside a stable section hub instead of returning a redirect or HTTP error.</p>`
+    ? `<p>The requested path <strong>${escapeHtml(config.requestedPath)}</strong> now displays the section hub instead of returning a redirect or HTTP error.</p>`
     : '';
   const linksHtml = config.featuredLinks
     .map((link) => `
