@@ -374,6 +374,7 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
   const audienceIndex = audiences.indexOf(audience);
   const taskIndex = tasks.indexOf(task);
   if (audienceIndex < 0 || taskIndex < 0) return undefined;
+  if (MODIFIERS_COUNT < 1) return undefined;
 
   // Legacy slugs only carried a trailing numeric suffix, so modulo maps that
   // suffix back onto a valid modifier slot within the canonical pair/audience/task block.
@@ -648,7 +649,7 @@ p{line-height:1.7;color:#475569}
 .card{margin-top:1.5rem;background:#fff;border:1px solid #e2e8f0;border-radius:1.5rem;padding:1.5rem}
 .samples{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.75rem;margin-top:1rem}
 .sample-link{display:flex;flex-direction:column;gap:.35rem;padding:1rem;border:1px solid #e2e8f0;border-radius:1rem;background:#fff;text-decoration:none;color:#0f172a}
-.sample-link span{font-size:.8rem;color:#64748b;word-break:break-word}
+.sample-link span{font-size:.875rem;color:#64748b;word-break:break-word}
 `;
 
 function generateHubHtml(url: URL, requestedSlug?: string): string {
