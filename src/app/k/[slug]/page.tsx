@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound, permanentRedirect } from 'next/navigation';
 import { Shield, ArrowRight, Wrench, AlertTriangle, CheckCircle, Lightbulb, HelpCircle, BookOpen, Zap } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +23,7 @@ import {
   TransparencyBadge,
 } from '@/components/content/EditorialIdentity';
 import { RelatedItemsLinks } from '@/components/seo/RelatedItemsLinks';
+import { ProgrammaticHubPage } from '@/components/programmatic/ProgrammaticHubPage';
 
 export const dynamic = 'force-static';
 export const dynamicParams = true;
@@ -103,7 +103,14 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const resolved = resolveProgrammaticPageBySlug(slug);
-  if (!resolved) return buildMetadata({ title: 'Not Found' });
+  if (!resolved) {
+    return buildMetadata({
+      title: 'Programmatic Developer Pages',
+      description: 'Browse DevSolve’s full programmatic /k library of static developer landing pages without redirects.',
+      path: '/k',
+      keywords: ['programmatic SEO', 'developer pages', 'static pages', 'developer tools library'],
+    });
+  }
   const { page, canonicalSlug } = resolved;
   const dateModified = getProgrammaticLastModified(canonicalSlug);
 
@@ -123,12 +130,9 @@ export default async function ProgrammaticPage({ params }: PageProps) {
   const resolved = resolveProgrammaticPageBySlug(slug);
 
   if (!resolved) {
-    notFound();
+    return <ProgrammaticHubPage requestedSlug={slug} />;
   }
   const { page, canonicalSlug } = resolved;
-  if (slug !== canonicalSlug) {
-    permanentRedirect(`/k/${canonicalSlug}`);
-  }
 
   const primaryTool = getToolBySlug(page.primaryTool);
   const relatedTools = toolRegistry

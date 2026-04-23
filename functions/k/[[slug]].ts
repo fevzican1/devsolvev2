@@ -327,6 +327,61 @@ function resolvePageFromSlug(slug: string): PageData | undefined {
   return { slug: expectedSlug, title, h1, description, intro, clusterKey, tool: pair.tool, intent: pair.intent, audience, task, modifier, steps, keywords };
 }
 
+function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
+  const match = slug.match(/^(.*)-(\d+)$/);
+  if (!match) return undefined;
+
+  const stem = match[1];
+  const legacyIndex = Number.parseInt(match[2], 10);
+  if (!Number.isFinite(legacyIndex) || legacyIndex < 0) return undefined;
+
+  const cluster = clusters.find((item) => stem.startsWith(`${item.key}-`));
+  if (!cluster) return undefined;
+
+  let cursor = stem.slice(cluster.key.length + 1);
+
+  const intents = Array.from(new Set(clusters.flatMap((item) => item.intents))).sort((a, b) => b.length - a.length);
+  const audiencesSorted = [...audiences].sort((a, b) => b.length - a.length);
+  const tasksSorted = [...tasks].sort((a, b) => b.length - a.length);
+
+  const intent = intents.find((candidate) => cursor.startsWith(`${candidate}-`));
+  if (!intent) return undefined;
+  cursor = cursor.slice(intent.length + 1);
+
+  const audience = audiencesSorted.find((candidate) => cursor.startsWith(`${candidate}-`));
+  if (!audience) return undefined;
+  cursor = cursor.slice(audience.length + 1);
+
+  const task = tasksSorted.find((candidate) => cursor.startsWith(`${candidate}-`));
+  if (!task) return undefined;
+  cursor = cursor.slice(task.length + 1);
+
+  const tool = cluster.tools.find((candidate) => candidate === cursor);
+  if (!tool) return undefined;
+
+  const pairIndex = toolIntentPairs.findIndex(
+    (pair) => pair.cluster.key === cluster.key && pair.intent === intent && pair.tool === tool,
+  );
+  if (pairIndex < 0) return undefined;
+
+  const audienceIndex = audiences.indexOf(audience);
+  const taskIndex = tasks.indexOf(task);
+  if (audienceIndex < 0 || taskIndex < 0) return undefined;
+
+  const modifierIndex = legacyIndex % MODIFIERS_COUNT;
+  const remappedIndex =
+    pairIndex * PER_PAIR +
+    audienceIndex * TASKS_COUNT * MODIFIERS_COUNT +
+    taskIndex * MODIFIERS_COUNT +
+    modifierIndex;
+
+  return getPageByIndex(remappedIndex);
+}
+
+function resolvePageForRequest(slug: string): PageData | undefined {
+  return resolvePageFromSlug(slug) ?? tryResolveLegacyProgrammaticSlug(slug);
+}
+
 /* ------------------------------------------------------------------ */
 /*  HTML generation                                                    */
 /* ------------------------------------------------------------------ */
@@ -545,37 +600,142 @@ function getSlugByIndex(index: number): string | undefined {
   return buildSlug(pair.cluster.key, pair.tool, pair.intent, audience, task, index);
 }
 
+function getHubSampleLinks(count = 12): Array<{ slug: string; label: string }> {
+  if (TOTAL_POSSIBLE < 1) return [];
+
+  const slugs = new Set<string>();
+  const step = Math.max(1, Math.floor(TOTAL_POSSIBLE / Math.max(count, 1)));
+
+  for (let index = 0; index < TOTAL_POSSIBLE && slugs.size < count; index += step) {
+    const slug = getSlugByIndex(index);
+    if (slug) {
+      slugs.add(slug);
+    }
+  }
+
+  return Array.from(slugs).map((slug) => ({
+    slug,
+    label: slug
+      .replace(/-\d+$/, '')
+      .split('-')
+      .slice(0, 8)
+      .map((segment) => (segment.length <= 3 ? segment.toUpperCase() : segment.charAt(0).toUpperCase() + segment.slice(1)))
+      .join(' '),
+  }));
+}
+
+function generateHubHtml(url: URL, requestedSlug?: string): string {
+  const canonicalUrl = `${url.origin}/k`;
+  const title = requestedSlug
+    ? `Explore DevSolve programmatic pages instead of /k/${requestedSlug}`
+    : 'Explore DevSolve programmatic pages';
+  const description = requestedSlug
+    ? `The requested path /k/${requestedSlug} did not match an exact generated slug, so this stable /k hub keeps the crawlable programmatic section available without redirects or errors.`
+    : 'Browse the DevSolve /k programmatic library without redirects. Every generated landing page is designed to resolve as crawlable HTML.';
+  const sampleLinks = getHubSampleLinks()
+    .map((entry) => `
+      <a href="/k/${entry.slug}" class="sample-link">
+        <strong>${escapeHtml(entry.label)}</strong>
+        <span>/k/${escapeHtml(entry.slug)}</span>
+      </a>
+    `)
+    .join('');
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>${escapeHtml(title)} | DevSolve</title>
+<meta name="description" content="${escapeHtml(description)}"/>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
+<link rel="canonical" href="${canonicalUrl}"/>
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="${escapeHtml(title)}"/>
+<meta property="og:description" content="${escapeHtml(description)}"/>
+<meta property="og:url" content="${canonicalUrl}"/>
+<style>
+body{margin:0;font-family:Inter,Arial,sans-serif;background:#f8fafc;color:#0f172a}
+main{max-width:1100px;margin:0 auto;padding:3rem 1.25rem}
+.hero{background:#fff;border:1px solid #e2e8f0;border-radius:1.5rem;padding:2rem;box-shadow:0 10px 30px rgba(15,23,42,.05)}
+.badges{display:flex;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem}
+.badge{display:inline-flex;align-items:center;padding:.4rem .85rem;border-radius:9999px;font-size:.875rem;font-weight:600;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.badge-outline{background:#fff;color:#334155;border-color:#cbd5e1}
+h1{margin:0;font-size:2.25rem;line-height:1.1}
+p{line-height:1.7;color:#475569}
+.actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1.5rem}
+.button{display:inline-flex;align-items:center;justify-content:center;padding:.85rem 1.1rem;border-radius:.85rem;border:1px solid #cbd5e1;text-decoration:none;font-weight:600;color:#0f172a;background:#fff}
+.button-primary{background:#0f172a;border-color:#0f172a;color:#fff}
+.card{margin-top:1.5rem;background:#fff;border:1px solid #e2e8f0;border-radius:1.5rem;padding:1.5rem}
+.samples{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.75rem;margin-top:1rem}
+.sample-link{display:flex;flex-direction:column;gap:.35rem;padding:1rem;border:1px solid #e2e8f0;border-radius:1rem;background:#fff;text-decoration:none;color:#0f172a}
+.sample-link span{font-size:.8rem;color:#64748b;word-break:break-word}
+</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <div class="badges">
+      <span class="badge">Static programmatic SEO library</span>
+      <span class="badge badge-outline">${TOTAL_POSSIBLE.toLocaleString('en-US')} published /k pages</span>
+    </div>
+    <h1>${escapeHtml(title)}</h1>
+    <p>${escapeHtml(description)}</p>
+    ${requestedSlug ? `<p>The requested path <strong>/k/${escapeHtml(requestedSlug)}</strong> stayed inside the /k section instead of producing a redirect or HTTP error.</p>` : ''}
+    <div class="actions">
+      <a class="button button-primary" href="/tools">Browse tools</a>
+      <a class="button" href="/guides">Read guides</a>
+    </div>
+  </section>
+  <section class="card">
+    <h2>Representative /k entry points</h2>
+    <p>These deterministic examples span the full DevSolve programmatic library.</p>
+    <div class="samples">${sampleLinks}</div>
+  </section>
+</main>
+</body>
+</html>`;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Cloudflare Pages Function handler                                  */
 /* ------------------------------------------------------------------ */
 export const onRequest: PagesFunction<Env> = async (context) => {
-  const url = new URL(context.request.url);
-  const pathParts = url.pathname.split('/').filter(Boolean);
+  const responseHeaders = {
+    'Content-Type': 'text/html;charset=UTF-8',
+    'Cache-Control': 'public, max-age=86400, stale-while-revalidate=172800',
+    'X-Robots-Tag': 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
+  };
 
-  // Expect /k/{slug}
-  if (pathParts.length < 2 || pathParts[0] !== 'k') {
-    return new Response('Not Found', { status: 404 });
+  try {
+    const url = new URL(context.request.url);
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    const slug = pathParts[0] === 'k' ? pathParts.slice(1).join('/') : '';
+
+    if (!slug) {
+      return new Response(generateHubHtml(url), {
+        status: 200,
+        headers: responseHeaders,
+      });
+    }
+
+    const page = resolvePageForRequest(slug);
+    if (!page) {
+      return new Response(generateHubHtml(url, slug), {
+        status: 200,
+        headers: responseHeaders,
+      });
+    }
+
+    return new Response(generateHtml(page), {
+      status: 200,
+      headers: responseHeaders,
+    });
+  } catch {
+    const url = new URL(context.request.url);
+    return new Response(generateHubHtml(url), {
+      status: 200,
+      headers: responseHeaders,
+    });
   }
-
-  const slug = pathParts.slice(1).join('/');
-  if (!slug) {
-    return new Response('Not Found', { status: 404 });
-  }
-
-  const page = resolvePageFromSlug(slug);
-  if (!page) {
-    // Invalid slug — redirect to tools page instead of 404
-    return Response.redirect(`${url.origin}/tools`, 302);
-  }
-
-  const html = generateHtml(page);
-
-  return new Response(html, {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/html;charset=UTF-8',
-      'Cache-Control': 'public, max-age=86400, stale-while-revalidate=172800',
-      'X-Robots-Tag': 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
-    },
-  });
 };
