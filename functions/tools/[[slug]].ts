@@ -5,7 +5,7 @@ import {
   CONTENT_SIGNAL_VALUE,
 } from '../../src/lib/seo/contentSignal';
 import { TOOLS_SECTION_METADATA } from '../../src/lib/seo/sectionMetadata';
-import { toolRegistry } from '../../src/tools/registry';
+import { getToolBySlug, toolRegistry } from '../../src/tools/registry';
 
 interface EventContext<Env> {
   request: Request;
@@ -49,8 +49,24 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     const url = new URL(context.request.url);
     const slug = url.pathname.split('/').filter(Boolean).slice(1).join('/');
 
+    if (slug && getToolBySlug(slug)) {
+      const response = await context.next();
+      const headers = new Headers(response.headers);
+      headers.set(CONTENT_SIGNAL_HEADER, CONTENT_SIGNAL_VALUE);
+
+      const contentType = headers.get('content-type') ?? '';
+      if (contentType.includes('text/html')) {
+        headers.set('X-Robots-Tag', responseHeaders['X-Robots-Tag']);
+      }
+
+      return new Response(response.body, {
+        status: response.status,
+        headers,
+      });
+    }
+
     if (!shouldServeHtmlFallback(context.request, url.pathname)) {
-      return new Response(null, { status: 404 });
+      return context.next();
     }
 
     return new Response(buildToolsFallbackHtml(url.origin, slug ? `/tools/${slug}` : undefined), {

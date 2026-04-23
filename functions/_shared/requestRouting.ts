@@ -1,5 +1,5 @@
 const BOT_USER_AGENT_PATTERN =
-  /bot|crawl|crawler|spider|preview|facebookexternalhit|facebot|linkedinbot|slackbot|twitterbot|discordbot|whatsapp|telegram/i;
+  /facebookexternalhit|facebot|linkedinbot|slackbot|twitterbot|discordbot|whatsapp|telegram|crawler|spider|preview/i;
 
 const NON_PAGE_PREFIXES = ['/_next/', '/assets/', '/api/'];
 

@@ -72,7 +72,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   try {
     if (!shouldServeHtmlFallback(context.request, url.pathname)) {
-      return new Response(null, { status: 404 });
+      return context.next();
     }
 
     return new Response(buildGlobalFallbackHtml(url.origin, url.pathname), {
