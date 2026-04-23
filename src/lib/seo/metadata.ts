@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { siteConfig } from '@/config/site';
+import { CONTENT_SIGNAL_VALUE } from '@/lib/seo/contentSignal';
 import { absoluteUrl } from '@/lib/seo/url';
 
 type MetadataInput = {
@@ -54,6 +55,9 @@ export function buildMetadata({
       title: title ?? siteConfig.name,
       description,
       images: [absoluteUrl('/twitter-image')],
+    },
+    other: {
+      'content-signal': CONTENT_SIGNAL_VALUE,
     },
     robots: {
       index: true,

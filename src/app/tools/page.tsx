@@ -6,17 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { toolRegistry, type ToolDefinition } from '@/tools/registry';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { TOOLS_SECTION_METADATA } from '@/lib/seo/sectionMetadata';
 import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
 import { siteConfig, externalUrls } from '@/config/site';
 import { absoluteUrl } from '@/lib/seo/url';
 
-export const metadata: Metadata = buildMetadata({
-  title: 'Free Online Developer Tools — Format, Validate, Encode & Debug',
-  description:
-    'Browse 15+ free browser-based developer tools: JSON formatter, JWT decoder, regex tester, Base64 encoder, hash generator, and more. No data leaves your browser.',
-  path: '/tools',
-  keywords: ['online developer tools', 'free dev tools', 'json formatter', 'regex tester', 'jwt decoder', 'base64 encoder', 'browser tools'],
-});
+export const metadata: Metadata = buildMetadata(TOOLS_SECTION_METADATA);
 
 
 const categories = [

@@ -5,6 +5,19 @@
  * no 404s and full SEO-friendly HTML for all 18M+ programmatic pages.
  */
 
+import {
+  buildProgrammaticHubDescription,
+  buildProgrammaticHubTitle,
+  formatProgrammaticHubLabel,
+  getProgrammaticHubSampleStep,
+} from '../../src/lib/programmatic/hub';
+import {
+  CONTENT_SIGNAL_HEADER,
+  CONTENT_SIGNAL_META_NAME,
+  CONTENT_SIGNAL_VALUE,
+} from '../../src/lib/seo/contentSignal';
+import { escapeHtml } from '../_shared/sectionFallback';
+
 // Cloudflare Pages Function types (inline to avoid external dependency)
 interface EventContext<Env> {
   request: Request;
@@ -17,6 +30,9 @@ interface EventContext<Env> {
 type PagesFunction<Env = unknown> = (context: EventContext<Env>) => Response | Promise<Response>;
 
 interface Env {}
+
+const LEGACY_PROGRAMMATIC_SLUG_PATTERN = /^(.*)-([0-9]+)$/;
+const DEFAULT_LOCALE = 'en-US';
 
 /* ------------------------------------------------------------------ */
 /*  Core data arrays — must match src/data/programmatic.ts exactly     */
@@ -108,17 +124,8 @@ function hashString(str: string): number {
   return Math.abs(hash);
 }
 
-function label(s: string): string {
+function slugToSpacedString(s: string): string {
   return s.replace(/-/g, ' ');
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }
 
 function getToolName(slug: string): string {
@@ -276,34 +283,34 @@ function resolvePageFromSlug(slug: string): PageData | undefined {
   const templates = titleTemplates[clusterKey];
   const titleTemplate = templates[seed % templates.length];
   const title = titleTemplate
-    .replace('{intent}', label(pair.intent))
-    .replace('{audience}', label(audience))
+    .replace('{intent}', slugToSpacedString(pair.intent))
+    .replace('{audience}', slugToSpacedString(audience))
     .replace('{tool}', toolName);
 
   // Build H1
   const h1Temps = h1Templates[clusterKey];
   const h1Template = h1Temps[seed % h1Temps.length];
   const h1 = h1Template
-    .replace('{intent}', label(pair.intent))
-    .replace(/\{audience\}/g, label(audience));
+    .replace('{intent}', slugToSpacedString(pair.intent))
+    .replace(/\{audience\}/g, slugToSpacedString(audience));
 
   // Build description
   const descVariants = [
-    `${title} — practical, browser-based workflow for real-world ${label(clusterKey)} engineering tasks, ${label(modifier)}. Learn how to ${tc.outcome} with ${toolName}.`,
-    `Step-by-step guide to ${label(pair.intent)} using ${toolName} for ${label(audience)} professionals. Covers ${tc.scenario} with best practices for ${cd.field}.`,
-    `How ${label(audience)} teams use ${toolName} to ${label(pair.intent)} ${label(modifier)}. Includes troubleshooting tips, alternative solutions, and expert recommendations.`,
-    `Complete walkthrough: ${label(pair.intent)} with ${toolName} for ${label(audience)} workflows. All processing runs locally in your browser — your data stays private.`,
-    `A ${label(audience)}'s guide to ${label(pair.intent)} using browser-based ${toolName}. Practical steps for ${tc.scenario}, with focus on ${ac.focus}.`,
+    `${title} — practical, browser-based workflow for real-world ${slugToSpacedString(clusterKey)} engineering tasks, ${slugToSpacedString(modifier)}. Learn how to ${tc.outcome} with ${toolName}.`,
+    `Step-by-step guide to ${slugToSpacedString(pair.intent)} using ${toolName} for ${slugToSpacedString(audience)} professionals. Covers ${tc.scenario} with best practices for ${cd.field}.`,
+    `How ${slugToSpacedString(audience)} teams use ${toolName} to ${slugToSpacedString(pair.intent)} ${slugToSpacedString(modifier)}. Includes troubleshooting tips, alternative solutions, and expert recommendations.`,
+    `Complete walkthrough: ${slugToSpacedString(pair.intent)} with ${toolName} for ${slugToSpacedString(audience)} workflows. All processing runs locally in your browser — your data stays private.`,
+    `A ${slugToSpacedString(audience)}'s guide to ${slugToSpacedString(pair.intent)} using browser-based ${toolName}. Practical steps for ${tc.scenario}, with focus on ${ac.focus}.`,
   ];
   const description = descVariants[seed % descVariants.length];
 
   // Build intro
   const introVariants = [
-    `As a ${label(audience)} focused on ${ac.focus}, you can ${label(pair.intent)} using the browser-based ${toolName}. ${cd.importance}, and this guide walks through the process ${label(modifier)}. The scenario here is ${tc.scenario}, which is ${tc.urgency}. By the end, you will ${tc.outcome} — all without sending data to an external server.`,
-    `This page explains how a ${label(audience)} can approach ${label(pair.intent)} with ${toolName}, ${label(modifier)}. In the context of ${cd.field}, ${cd.importance.toLowerCase()}. The specific focus is on ${tc.scenario}, and the goal is to ${tc.outcome}. Every step runs locally in your browser, so your data stays private — an important consideration given ${ac.concern}.`,
-    `When ${tc.scenario}, a ${label(audience)} needs reliable tools for ${label(pair.intent)}. ${toolName} handles this ${label(modifier)}, with all processing happening locally in your browser. This is particularly relevant because ${cd.importance.toLowerCase()}. The workflow is designed ${ac.workflow}, with the goal to ${tc.outcome}.`,
-    `For ${label(audience)} professionals working on ${cd.field}, ${label(pair.intent)} is a common requirement. This guide shows how to accomplish this using ${toolName} ${label(modifier)}. The real-world context is ${tc.scenario} — ${tc.urgency}. ${cd.bestPractice}. All processing runs locally, addressing ${ac.concern}.`,
-    `${label(pair.intent)} is a task that every ${label(audience)} encounters in ${cd.field}. Using ${toolName} ${label(modifier)}, you can handle this efficiently and securely. This walkthrough targets ${tc.scenario}, helping you ${tc.outcome}. The browser-based approach means your data never leaves your machine, which matters when dealing with ${ac.concern}.`,
+    `As a ${slugToSpacedString(audience)} focused on ${ac.focus}, you can ${slugToSpacedString(pair.intent)} using the browser-based ${toolName}. ${cd.importance}, and this guide walks through the process ${slugToSpacedString(modifier)}. The scenario here is ${tc.scenario}, which is ${tc.urgency}. By the end, you will ${tc.outcome} — all without sending data to an external server.`,
+    `This page explains how a ${slugToSpacedString(audience)} can approach ${slugToSpacedString(pair.intent)} with ${toolName}, ${slugToSpacedString(modifier)}. In the context of ${cd.field}, ${cd.importance.toLowerCase()}. The specific focus is on ${tc.scenario}, and the goal is to ${tc.outcome}. Every step runs locally in your browser, so your data stays private — an important consideration given ${ac.concern}.`,
+    `When ${tc.scenario}, a ${slugToSpacedString(audience)} needs reliable tools for ${slugToSpacedString(pair.intent)}. ${toolName} handles this ${slugToSpacedString(modifier)}, with all processing happening locally in your browser. This is particularly relevant because ${cd.importance.toLowerCase()}. The workflow is designed ${ac.workflow}, with the goal to ${tc.outcome}.`,
+    `For ${slugToSpacedString(audience)} professionals working on ${cd.field}, ${slugToSpacedString(pair.intent)} is a common requirement. This guide shows how to accomplish this using ${toolName} ${slugToSpacedString(modifier)}. The real-world context is ${tc.scenario} — ${tc.urgency}. ${cd.bestPractice}. All processing runs locally, addressing ${ac.concern}.`,
+    `${slugToSpacedString(pair.intent)} is a task that every ${slugToSpacedString(audience)} encounters in ${cd.field}. Using ${toolName} ${slugToSpacedString(modifier)}, you can handle this efficiently and securely. This walkthrough targets ${tc.scenario}, helping you ${tc.outcome}. The browser-based approach means your data never leaves your machine, which matters when dealing with ${ac.concern}.`,
   ];
   const intro = introVariants[seed % introVariants.length];
 
@@ -311,7 +318,7 @@ function resolvePageFromSlug(slug: string): PageData | undefined {
   const steps = [
     `Identify the scope of your task: ${tc.scenario}. Start by gathering a representative sample of the data you need to process.`,
     `Open the ${toolName} from the DevSolve tools directory. The tool loads entirely in your browser with no server dependency.`,
-    `Paste or type your input for the ${label(pair.intent)} operation. If working with sensitive data, verify that your browser environment is secure.`,
+    `Paste or type your input for the ${slugToSpacedString(pair.intent)} operation. If working with sensitive data, verify that your browser environment is secure.`,
     `Configure the tool options to match your requirements. Pay attention to settings that affect ${ac.focus}.`,
     `Execute the operation and carefully review the output. Check for edge cases related to ${ac.concern}.`,
     `Validate the result against your expectations. For ${tc.scenario}, the goal is to ${tc.outcome}.`,
@@ -320,11 +327,91 @@ function resolvePageFromSlug(slug: string): PageData | undefined {
   // Build keywords
   const keywords = [
     pair.intent, pair.tool, clusterKey, audience, task,
-    `${label(pair.intent)} tool`, `${label(audience)} ${label(clusterKey)} guide`,
-    `browser-based ${label(pair.tool)}`, 'developer tool', 'free online tool',
+    `${slugToSpacedString(pair.intent)} tool`, `${slugToSpacedString(audience)} ${slugToSpacedString(clusterKey)} guide`,
+    `browser-based ${slugToSpacedString(pair.tool)}`, 'developer tool', 'free online tool',
   ];
 
   return { slug: expectedSlug, title, h1, description, intro, clusterKey, tool: pair.tool, intent: pair.intent, audience, task, modifier, steps, keywords };
+}
+
+/**
+ * Supports older /k slug variants from the pre-migration format, where the slug kept
+ * a shared stem plus a trailing numeric suffix instead of the current canonical index.
+ * The suffix is remapped back into the current modifier slot so older indexed URLs can
+ * still resolve during the migration window and this layer can be removed once legacy
+ * URLs are no longer requested by crawlers.
+ */
+function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
+  const match = slug.match(LEGACY_PROGRAMMATIC_SLUG_PATTERN);
+  if (!match) return undefined;
+  if (MODIFIERS_COUNT < 1) return undefined;
+
+  // Older indexed /k URLs stored the shared slug stem plus a raw trailing number,
+  // but they did not preserve today's modifier identity. This compatibility path
+  // rebuilds the canonical block so that migrated legacy URLs still resolve.
+  const stem = match[1];
+  const legacyModifierSuffix = parseInt(match[2], 10);
+  if (isNaN(legacyModifierSuffix)) return undefined;
+
+  const cluster = clusters.find((item) => stem.startsWith(`${item.key}-`));
+  if (!cluster) return undefined;
+
+  let cursor = stem.slice(cluster.key.length + 1);
+
+  const intents = Array.from(new Set(clusters.flatMap((item) => item.intents))).sort((a, b) => b.length - a.length);
+  const audiencesSorted = [...audiences].sort((a, b) => b.length - a.length);
+  const tasksSorted = [...tasks].sort((a, b) => b.length - a.length);
+
+  const intent = intents.find((candidate) => cursor.startsWith(`${candidate}-`));
+  if (!intent) return undefined;
+  cursor = cursor.slice(intent.length + 1);
+
+  const audience = audiencesSorted.find((candidate) => cursor.startsWith(`${candidate}-`));
+  if (!audience) return undefined;
+  cursor = cursor.slice(audience.length + 1);
+
+  const task = tasksSorted.find((candidate) => cursor.startsWith(`${candidate}-`));
+  if (!task) return undefined;
+  cursor = cursor.slice(task.length + 1);
+
+  const tool = cluster.tools.find((candidate) => candidate === cursor);
+  if (!tool) return undefined;
+
+  const pairIndex = toolIntentPairs.findIndex(
+    (pair) => pair.cluster.key === cluster.key && pair.intent === intent && pair.tool === tool,
+  );
+  if (pairIndex < 0) return undefined;
+
+  const audienceIndex = audiences.indexOf(audience);
+  const taskIndex = tasks.indexOf(task);
+  if (audienceIndex < 0 || taskIndex < 0) return undefined;
+
+  // The old suffix can exceed today's modifier count, so modulo folds it back into
+  // the valid modifier slot range for the reconstructed pair/audience/task block.
+  // Multiple legacy suffixes can converge onto one canonical modifier because the
+  // old format only expressed coarse position, not exact modifier identity, so this
+  // intentional collision keeps old URLs crawlable without inventing new pages.
+  const modifierIndex = MODIFIERS_COUNT > 0 ? legacyModifierSuffix % MODIFIERS_COUNT : 0;
+  // Rebuild the canonical absolute page index from the legacy slug parts:
+  // pair block offset + audience block offset + task block offset + modifier slot.
+  const remappedIndex =
+    pairIndex * PER_PAIR +
+    audienceIndex * TASKS_COUNT * MODIFIERS_COUNT +
+    taskIndex * MODIFIERS_COUNT +
+    modifierIndex;
+
+  const canonicalSlug = getSlugByIndex(remappedIndex);
+  return canonicalSlug ? resolvePageFromSlug(canonicalSlug) : undefined;
+}
+
+function resolvePageForRequest(slug: string): PageData | undefined {
+  // Pattern-matched legacy URLs try the migration resolver first because the slug
+  // shape already tells us the canonical parser is less likely to succeed directly.
+  if (LEGACY_PROGRAMMATIC_SLUG_PATTERN.test(slug)) {
+    return tryResolveLegacyProgrammaticSlug(slug) ?? resolvePageFromSlug(slug);
+  }
+
+  return resolvePageFromSlug(slug) ?? tryResolveLegacyProgrammaticSlug(slug);
 }
 
 /* ------------------------------------------------------------------ */
@@ -357,10 +444,10 @@ function generateHtml(page: PageData): string {
   }
 
   const faqItems = [
-    { q: `What does ${label(page.intent)} mean for a ${label(page.audience)}?`, a: `For a ${label(page.audience)} focused on ${ac.focus}, ${label(page.intent)} involves using ${toolName} to ${tc.outcome}. This is done ${label(page.modifier)} to ensure efficiency and data privacy.` },
-    { q: `Is my data safe when using ${toolName}?`, a: `Yes. ${toolName} runs entirely in your browser. No data is transmitted to any external server. This is especially important for ${label(page.audience)} professionals concerned about ${ac.concern}.` },
+    { q: `What does ${slugToSpacedString(page.intent)} mean for a ${slugToSpacedString(page.audience)}?`, a: `For a ${slugToSpacedString(page.audience)} focused on ${ac.focus}, ${slugToSpacedString(page.intent)} involves using ${toolName} to ${tc.outcome}. This is done ${slugToSpacedString(page.modifier)} to ensure efficiency and data privacy.` },
+    { q: `Is my data safe when using ${toolName}?`, a: `Yes. ${toolName} runs entirely in your browser. No data is transmitted to any external server. This is especially important for ${slugToSpacedString(page.audience)} professionals concerned about ${ac.concern}.` },
     { q: `When should I use this approach?`, a: `This approach is ideal when ${tc.scenario}. It is ${tc.urgency}, and the goal is to ${tc.outcome}.` },
-    { q: `What are the best practices for ${label(page.clusterKey)} tasks?`, a: `${cd.bestPractice}. ${cd.importance}, making proper tooling essential for ${label(page.audience)} workflows.` },
+    { q: `What are the best practices for ${slugToSpacedString(page.clusterKey)} tasks?`, a: `${cd.bestPractice}. ${cd.importance}, making proper tooling essential for ${slugToSpacedString(page.audience)} workflows.` },
   ];
 
   const faqHtml = faqItems.map(item =>
@@ -413,6 +500,7 @@ function generateHtml(page: PageData): string {
 <meta name="keywords" content="${keywordsStr}"/>
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
 <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
+<meta name="${CONTENT_SIGNAL_META_NAME}" content="${CONTENT_SIGNAL_VALUE}"/>
 <link rel="canonical" href="${canonicalUrl}"/>
 <meta property="og:type" content="article"/>
 <meta property="og:url" content="${canonicalUrl}"/>
@@ -485,7 +573,7 @@ ${stepsHtml}
 
 <div class="card" style="border-color:#bfdbfe;background:#f0f9ff">
 <div class="card-title">💡 Why Use This?</div>
-<p>This page explains step by step how to handle the <strong>${escapeHtml(label(page.intent))}</strong> task in real project scenarios using <strong>${escapeHtml(toolName)}</strong>.</p>
+<p>This page explains step by step how to handle the <strong>${escapeHtml(slugToSpacedString(page.intent))}</strong> task in real project scenarios using <strong>${escapeHtml(toolName)}</strong>.</p>
 <p>The content combines technical depth, error-point analysis, and alternative solutions, making it a definitive landing page where you can make informed decisions — not just a redirect page built for traffic.</p>
 </div>
 
@@ -501,8 +589,8 @@ ${stepsHtml}
 </div>
 
 <h2>Technical Context</h2>
-<p>${escapeHtml(cd.importance)}. For ${escapeHtml(label(page.audience))} professionals, this means paying close attention to ${escapeHtml(ac.focus)}. The best practice is: ${escapeHtml(cd.bestPractice)}.</p>
-<p>In the context of ${escapeHtml(tc.scenario)}, which is ${escapeHtml(tc.urgency)}, the objective is to ${escapeHtml(tc.outcome)}. Using the approach described ${escapeHtml(label(page.modifier))} ensures efficiency without compromising on quality or security.</p>
+<p>${escapeHtml(cd.importance)}. For ${escapeHtml(slugToSpacedString(page.audience))} professionals, this means paying close attention to ${escapeHtml(ac.focus)}. The best practice is: ${escapeHtml(cd.bestPractice)}.</p>
+<p>In the context of ${escapeHtml(tc.scenario)}, which is ${escapeHtml(tc.urgency)}, the objective is to ${escapeHtml(tc.outcome)}. Using the approach described ${escapeHtml(slugToSpacedString(page.modifier))} ensures efficiency without compromising on quality or security.</p>
 
 <h2>Frequently Asked Questions</h2>
 <div style="display:flex;flex-direction:column;gap:1rem">
@@ -545,37 +633,141 @@ function getSlugByIndex(index: number): string | undefined {
   return buildSlug(pair.cluster.key, pair.tool, pair.intent, audience, task, index);
 }
 
+function getHubSampleLinks(count = 12): Array<{ slug: string; label: string }> {
+  if (TOTAL_POSSIBLE < 1) return [];
+
+  const slugs = new Set<string>();
+  const step = getProgrammaticHubSampleStep(TOTAL_POSSIBLE, count);
+
+  for (let index = 0; index < TOTAL_POSSIBLE && slugs.size < count; index += step) {
+    const slug = getSlugByIndex(index);
+    if (slug) {
+      slugs.add(slug);
+    }
+  }
+
+  return Array.from(slugs).map((slug) => ({
+    slug,
+    label: formatProgrammaticHubLabel(slug),
+  }));
+}
+
+const HUB_PAGE_STYLES = `
+body{margin:0;font-family:Inter,Arial,sans-serif;background:#f8fafc;color:#0f172a}
+main{max-width:1100px;margin:0 auto;padding:3rem 1.25rem}
+.hero{background:#fff;border:1px solid #e2e8f0;border-radius:1.5rem;padding:2rem;box-shadow:0 10px 30px rgba(15,23,42,.05)}
+.badges{display:flex;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem}
+.badge{display:inline-flex;align-items:center;padding:.4rem .85rem;border-radius:9999px;font-size:.875rem;font-weight:600;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.badge-outline{background:#fff;color:#334155;border-color:#cbd5e1}
+h1{margin:0;font-size:2.25rem;line-height:1.1}
+p{line-height:1.7;color:#475569}
+.actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1.5rem}
+.button{display:inline-flex;align-items:center;justify-content:center;padding:.85rem 1.1rem;border-radius:.85rem;border:1px solid #cbd5e1;text-decoration:none;font-weight:600;color:#0f172a;background:#fff}
+.button-primary{background:#0f172a;border-color:#0f172a;color:#fff}
+.card{margin-top:1.5rem;background:#fff;border:1px solid #e2e8f0;border-radius:1.5rem;padding:1.5rem}
+.samples{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.75rem;margin-top:1rem}
+.sample-link{display:flex;flex-direction:column;gap:.35rem;padding:1rem;border:1px solid #e2e8f0;border-radius:1rem;background:#fff;text-decoration:none;color:#0f172a}
+.sample-link span{font-size:.875rem;color:#64748b;word-break:break-word}
+`;
+
+function generateHubHtml(url: URL, requestedSlug?: string): string {
+  const canonicalUrl = `${url.origin}/k`;
+  const title = buildProgrammaticHubTitle(requestedSlug);
+  const description = buildProgrammaticHubDescription(requestedSlug);
+  const sampleLinks = getHubSampleLinks()
+    .map((entry) => `
+      <a href="/k/${entry.slug}" class="sample-link">
+        <strong>${escapeHtml(entry.label)}</strong>
+        <span>/k/${escapeHtml(entry.slug)}</span>
+      </a>
+    `)
+    .join('');
+  const requestedSlugNote = requestedSlug
+    ? `<p>The requested path <strong>/k/${escapeHtml(requestedSlug)}</strong> now displays the /k section hub instead of producing a redirect or HTTP error.</p>`
+    : '';
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>${escapeHtml(title)} | DevSolve</title>
+<meta name="description" content="${escapeHtml(description)}"/>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
+<meta name="${CONTENT_SIGNAL_META_NAME}" content="${CONTENT_SIGNAL_VALUE}"/>
+<link rel="canonical" href="${canonicalUrl}"/>
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="${escapeHtml(title)}"/>
+<meta property="og:description" content="${escapeHtml(description)}"/>
+<meta property="og:url" content="${canonicalUrl}"/>
+<style>${HUB_PAGE_STYLES}</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <div class="badges">
+      <span class="badge">Static programmatic SEO library</span>
+      <span class="badge badge-outline">${TOTAL_POSSIBLE.toLocaleString(DEFAULT_LOCALE)} published /k pages</span>
+    </div>
+    <h1>${escapeHtml(title)}</h1>
+    <p>${escapeHtml(description)}</p>
+    ${requestedSlugNote}
+    <div class="actions">
+      <a class="button button-primary" href="/tools">Browse tools</a>
+      <a class="button" href="/guides">Read guides</a>
+    </div>
+  </section>
+  <section class="card">
+    <h2>Representative /k entry points</h2>
+    <p>These deterministic examples span the full DevSolve programmatic library.</p>
+    <div class="samples">${sampleLinks}</div>
+  </section>
+</main>
+</body>
+</html>`;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Cloudflare Pages Function handler                                  */
 /* ------------------------------------------------------------------ */
 export const onRequest: PagesFunction<Env> = async (context) => {
-  const url = new URL(context.request.url);
-  const pathParts = url.pathname.split('/').filter(Boolean);
+  const responseHeaders = {
+    'Content-Type': 'text/html;charset=UTF-8',
+    'Cache-Control': 'public, max-age=86400, stale-while-revalidate=172800',
+    'X-Robots-Tag': 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
+    [CONTENT_SIGNAL_HEADER]: CONTENT_SIGNAL_VALUE,
+  };
 
-  // Expect /k/{slug}
-  if (pathParts.length < 2 || pathParts[0] !== 'k') {
-    return new Response('Not Found', { status: 404 });
+  try {
+    const url = new URL(context.request.url);
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    const slug = pathParts[0] === 'k' ? pathParts.slice(1).join('/') : '';
+
+    if (!slug) {
+      return new Response(generateHubHtml(url), {
+        status: 200,
+        headers: responseHeaders,
+      });
+    }
+
+    const page = resolvePageForRequest(slug);
+    if (!page) {
+      return new Response(generateHubHtml(url, slug), {
+        status: 200,
+        headers: responseHeaders,
+      });
+    }
+
+    return new Response(generateHtml(page), {
+      status: 200,
+      headers: responseHeaders,
+    });
+  } catch (error) {
+    console.error('Programmatic /k fallback handler error', error);
+    const url = new URL(context.request.url);
+    return new Response(generateHubHtml(url), {
+      status: 200,
+      headers: responseHeaders,
+    });
   }
-
-  const slug = pathParts.slice(1).join('/');
-  if (!slug) {
-    return new Response('Not Found', { status: 404 });
-  }
-
-  const page = resolvePageFromSlug(slug);
-  if (!page) {
-    // Invalid slug — redirect to tools page instead of 404
-    return Response.redirect(`${url.origin}/tools`, 302);
-  }
-
-  const html = generateHtml(page);
-
-  return new Response(html, {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/html;charset=UTF-8',
-      'Cache-Control': 'public, max-age=86400, stale-while-revalidate=172800',
-      'X-Robots-Tag': 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
-    },
-  });
 };

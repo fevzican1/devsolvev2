@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound, permanentRedirect } from 'next/navigation';
 import { Shield, ArrowRight, Wrench, AlertTriangle, CheckCircle, Lightbulb, HelpCircle, BookOpen, Zap } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +12,7 @@ import { monetizationConfig } from '@/config/monetization';
 import { RecommendedSolutions } from '@/components/monetization/RecommendedSolutions';
 import { ComputedExample } from '@/components/programmatic/ComputedExample';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { PROGRAMMATIC_HUB_METADATA } from '@/lib/programmatic/metadata';
 import { absoluteUrl } from '@/lib/seo/url';
 import { linkifyCommercialTerms } from '@/lib/content/commercialLinks';
 import { hashString } from '@/lib/utils';
@@ -24,6 +24,7 @@ import {
   TransparencyBadge,
 } from '@/components/content/EditorialIdentity';
 import { RelatedItemsLinks } from '@/components/seo/RelatedItemsLinks';
+import { ProgrammaticHubPage } from '@/components/programmatic/ProgrammaticHubPage';
 
 export const dynamic = 'force-static';
 export const dynamicParams = true;
@@ -103,7 +104,9 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const resolved = resolveProgrammaticPageBySlug(slug);
-  if (!resolved) return buildMetadata({ title: 'Not Found' });
+  if (!resolved) {
+    return buildMetadata(PROGRAMMATIC_HUB_METADATA);
+  }
   const { page, canonicalSlug } = resolved;
   const dateModified = getProgrammaticLastModified(canonicalSlug);
 
@@ -123,12 +126,9 @@ export default async function ProgrammaticPage({ params }: PageProps) {
   const resolved = resolveProgrammaticPageBySlug(slug);
 
   if (!resolved) {
-    notFound();
+    return <ProgrammaticHubPage requestedSlug={slug} />;
   }
   const { page, canonicalSlug } = resolved;
-  if (slug !== canonicalSlug) {
-    permanentRedirect(`/k/${canonicalSlug}`);
-  }
 
   const primaryTool = getToolBySlug(page.primaryTool);
   const relatedTools = toolRegistry

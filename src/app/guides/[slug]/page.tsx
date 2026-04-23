@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import { Shield, ArrowRight, FileText, Wrench } from 'lucide-react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +19,8 @@ import {
   EditorialIntro,
   OriginalValueCallouts,
 } from '@/components/content/EditorialIdentity';
+import GuidesPage from '@/app/guides/page';
+import { GUIDES_SECTION_METADATA } from '@/lib/seo/sectionMetadata';
 import { RelatedItemsLinks } from '@/components/seo/RelatedItemsLinks';
 
 interface PageProps {
@@ -36,7 +37,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const guide = getGuideBySlug(slug);
-  if (!guide) return buildMetadata({ title: 'Guide Not Found' });
+  if (!guide) return buildMetadata(GUIDES_SECTION_METADATA);
 
   return buildMetadata({
     title: guide.title,
@@ -52,7 +53,7 @@ export default async function GuidePage({ params }: PageProps) {
   const guide = getGuideBySlug(slug);
 
   if (!guide) {
-    notFound();
+    return <GuidesPage />;
   }
 
   const guideContent = await loadGuideContentCached(slug);

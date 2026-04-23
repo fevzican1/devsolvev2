@@ -5,6 +5,7 @@
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
   X-XSS-Protection: 0
+  Content-Signal: search=yes, ai-train=no
   Cache-Control: public, max-age=300
 
 /_next/static/*
