@@ -24,7 +24,7 @@ export function formatProgrammaticHubLabel(slug: string): string {
 
 export function getProgrammaticHubSampleStep(total: number, count: number): number {
   if (total < 1) return 1;
-  const normalizedCount = count > 0 ? count : 1;
+  const normalizedCount = count > 0 ? count : total;
   return Math.max(1, Math.floor(total / normalizedCount));
 }
 
