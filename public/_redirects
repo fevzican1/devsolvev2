@@ -1,3 +1,0 @@
-# Cloudflare Pages redirects
-# Force www → non-www
-https://www.devsolvev2.com/*  https://devsolvev2.com/:splat  301
