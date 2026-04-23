@@ -6,6 +6,11 @@
  */
 
 import { formatProgrammaticHubLabel } from '../../src/lib/programmatic/hub';
+import {
+  CONTENT_SIGNAL_HEADER,
+  CONTENT_SIGNAL_META_NAME,
+  CONTENT_SIGNAL_VALUE,
+} from '../../src/lib/seo/contentSignal';
 
 // Cloudflare Pages Function types (inline to avoid external dependency)
 interface EventContext<Env> {
@@ -471,6 +476,7 @@ function generateHtml(page: PageData): string {
 <meta name="keywords" content="${keywordsStr}"/>
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
 <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
+<meta name="${CONTENT_SIGNAL_META_NAME}" content="${CONTENT_SIGNAL_VALUE}"/>
 <link rel="canonical" href="${canonicalUrl}"/>
 <meta property="og:type" content="article"/>
 <meta property="og:url" content="${canonicalUrl}"/>
@@ -669,6 +675,7 @@ function generateHubHtml(url: URL, requestedSlug?: string): string {
 <title>${escapeHtml(title)} | DevSolve</title>
 <meta name="description" content="${escapeHtml(description)}"/>
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
+<meta name="${CONTENT_SIGNAL_META_NAME}" content="${CONTENT_SIGNAL_VALUE}"/>
 <link rel="canonical" href="${canonicalUrl}"/>
 <meta property="og:type" content="website"/>
 <meta property="og:title" content="${escapeHtml(title)}"/>
@@ -709,6 +716,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     'Content-Type': 'text/html;charset=UTF-8',
     'Cache-Control': 'public, max-age=86400, stale-while-revalidate=172800',
     'X-Robots-Tag': 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
+    [CONTENT_SIGNAL_HEADER]: CONTENT_SIGNAL_VALUE,
   };
 
   try {

@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import { Shield, AlertTriangle, ArrowRight, FileText, Wrench, HelpCircle, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +16,9 @@ import {
   OriginalValueCallouts,
 } from '@/components/content/EditorialIdentity';
 import { buildToolPageContent } from '@/lib/seo/toolPageContent';
+import ToolsPage from '@/app/tools/page';
 import { externalUrls } from '@/config/site';
+import { TOOLS_SECTION_METADATA } from '@/lib/seo/sectionMetadata';
 import { absoluteUrl } from '@/lib/seo/url';
 import { RelatedItemsLinks } from '@/components/seo/RelatedItemsLinks';
 
@@ -35,7 +36,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const tool = getToolBySlug(slug);
-  if (!tool) return buildMetadata({ title: 'Tool Not Found' });
+  if (!tool) return buildMetadata(TOOLS_SECTION_METADATA);
 
   return buildMetadata({
     title: `${tool.name} — Free Online Tool`,
@@ -50,7 +51,7 @@ export default async function ToolPage({ params }: PageProps) {
   const tool = getToolBySlug(slug);
 
   if (!tool) {
-    notFound();
+    return <ToolsPage />;
   }
 
   const relatedTools = getRelatedTools(slug);

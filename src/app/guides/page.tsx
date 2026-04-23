@@ -7,17 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { guideRegistry } from '@/content/guides';
 import { getToolBySlug } from '@/tools/registry';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { GUIDES_SECTION_METADATA } from '@/lib/seo/sectionMetadata';
 import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
 import { siteConfig, externalUrls } from '@/config/site';
 import { absoluteUrl } from '@/lib/seo/url';
 
-export const metadata: Metadata = buildMetadata({
-  title: 'Developer Guides — Best Practices, Tutorials & Workflows',
-  description:
-    'In-depth technical guides for JSON validation, JWT decoding, regex debugging, URL encoding, and more. Practical best practices with real examples.',
-  path: '/guides',
-  keywords: ['developer guides', 'programming tutorials', 'json best practices', 'regex guide', 'jwt tutorial', 'coding workflows'],
-});
+export const metadata: Metadata = buildMetadata(GUIDES_SECTION_METADATA);
 
 
 export default function GuidesPage() {
