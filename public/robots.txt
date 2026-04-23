@@ -31,6 +31,11 @@ Crawl-delay: 0
 User-agent: Googlebot-Image
 Allow: /
 
+# Social preview crawler
+User-agent: facebookexternalhit
+Allow: /
+Crawl-delay: 10
+
 # Bing/Microsoft
 User-agent: Bingbot
 Allow: /
