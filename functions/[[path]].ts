@@ -32,7 +32,10 @@ function isHtmlNavigation(request: Request): boolean {
   const secFetchDest = request.headers.get('sec-fetch-dest') ?? '';
   const primaryAcceptedType = accept
     .split(',')
-    .map((value) => value.trim().split(';')[0])
+    .map((value) => {
+      const [mediaType = ''] = value.trim().split(';');
+      return mediaType;
+    })
     .find(Boolean);
 
   return (

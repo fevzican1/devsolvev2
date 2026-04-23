@@ -6,6 +6,8 @@
  */
 
 import {
+  buildProgrammaticHubDescription,
+  buildProgrammaticHubTitle,
   formatProgrammaticHubLabel,
   getProgrammaticHubSampleStep,
 } from '../../src/lib/programmatic/hub';
@@ -14,6 +16,7 @@ import {
   CONTENT_SIGNAL_META_NAME,
   CONTENT_SIGNAL_VALUE,
 } from '../../src/lib/seo/contentSignal';
+import { escapeHtml } from '../_shared/sectionFallback';
 
 // Cloudflare Pages Function types (inline to avoid external dependency)
 interface EventContext<Env> {
@@ -122,15 +125,6 @@ function hashString(str: string): number {
 
 function label(s: string): string {
   return s.replace(/-/g, ' ');
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }
 
 function getToolName(slug: string): string {
@@ -391,6 +385,8 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
 
   // The old suffix can exceed today's modifier count, so modulo folds it back into
   // the valid modifier slot range for the reconstructed pair/audience/task block.
+  // This can collapse multiple legacy suffixes onto the same canonical modifier,
+  // which is acceptable because the legacy format never encoded modifier identity precisely.
   const modifierIndex = legacyModifierSuffix % MODIFIERS_COUNT;
   // Rebuild the canonical absolute page index from the legacy slug parts:
   // pair block offset + audience block offset + task block offset + modifier slot.
@@ -672,12 +668,8 @@ p{line-height:1.7;color:#475569}
 
 function generateHubHtml(url: URL, requestedSlug?: string): string {
   const canonicalUrl = `${url.origin}/k`;
-  const title = requestedSlug
-    ? `Explore DevSolve programmatic pages instead of /k/${requestedSlug}`
-    : 'Explore DevSolve programmatic pages';
-  const description = requestedSlug
-    ? `The requested path /k/${requestedSlug} did not match an exact generated slug, so this stable /k hub keeps the crawlable programmatic section available without redirects or errors.`
-    : 'Browse the DevSolve /k programmatic library without redirects. Every generated landing page is designed to resolve as crawlable HTML.';
+  const title = buildProgrammaticHubTitle(requestedSlug);
+  const description = buildProgrammaticHubDescription(requestedSlug);
   const sampleLinks = getHubSampleLinks()
     .map((entry) => `
       <a href="/k/${entry.slug}" class="sample-link">

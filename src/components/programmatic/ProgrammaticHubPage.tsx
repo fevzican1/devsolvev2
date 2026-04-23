@@ -4,7 +4,11 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getSlugByIndex, getTotalPageCount } from '@/data/programmatic';
-import { formatProgrammaticHubLabel, getProgrammaticHubSampleStep } from '@/lib/programmatic/hub';
+import {
+  formatProgrammaticHubLabel,
+  getProgrammaticHubSampleStep,
+  PROGRAMMATIC_HUB_TITLE,
+} from '@/lib/programmatic/hub';
 
 interface ProgrammaticHubPageProps {
   requestedSlug?: string;
@@ -49,7 +53,7 @@ export function ProgrammaticHubPage({ requestedSlug }: ProgrammaticHubPageProps)
             </Badge>
           </div>
           <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-            Explore DevSolve&apos;s programmatic developer pages
+            {PROGRAMMATIC_HUB_TITLE}
           </h1>
           <p className="mt-4 max-w-3xl text-base text-muted-foreground md:text-lg">
             Every programmatic URL in the /k library is intended to resolve as a crawlable HTML page without redirects.
