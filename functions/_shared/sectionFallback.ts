@@ -22,7 +22,8 @@ export function escapeHtml(value: string): string {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 export function buildSectionFallbackHtml(config: SectionFallbackConfig, siteUrl: string): string {
