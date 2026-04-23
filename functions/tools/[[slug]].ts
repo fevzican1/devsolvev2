@@ -55,7 +55,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     const response = await context.next();
 
-    if (response.status < 400) {
+    if (response.ok) {
       const headers = new Headers(response.headers);
       const contentType = headers.get('content-type') ?? '';
       if (contentType.includes('text/html')) {

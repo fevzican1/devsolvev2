@@ -78,7 +78,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       return response;
     }
 
-    if (response.status < 400) {
+    if (response.ok) {
       return response;
     }
 
