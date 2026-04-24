@@ -1,7 +1,5 @@
 {
   "version": 1,
-  "include": [
-    "/k/*"
-  ],
-  "exclude": []
+  "include": ["/k/*"],
+  "exclude": ["/tools/*", "/guides/*", "/static/*", "/*.html"]
 }
