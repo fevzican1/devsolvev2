@@ -1,17 +1,9 @@
 {
   "version": 1,
-  "include": ["/*"],
-  "exclude": [
-    "/_next/static/*",
-    "/assets/*",
-    "/favicon.*",
-    "/robots.txt",
-    "/sitemap.xml",
-    "/sitemap-index.xml",
-    "/sitemap-*.xml",
-    "/sitemap-programmatic-*.xml",
-    "/opengraph-image.*",
-    "/twitter-image.*",
-    "/__forms.html"
-  ]
+  "include": [
+    "/k/*",
+    "/tools/*",
+    "/guides/*"
+  ],
+  "exclude": []
 }
