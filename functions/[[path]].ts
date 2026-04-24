@@ -87,6 +87,14 @@ function buildGlobalFallbackHtml(siteUrl: string, requestedPath?: string) {
 export const onRequest: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
 
+  // Canonical: strip trailing slash (except root) with a permanent redirect so
+  // crawlers never see duplicate /tools/ vs /tools or encounter redirect loops.
+  if (url.pathname !== '/' && url.pathname.endsWith('/')) {
+    const canonical = new URL(context.request.url);
+    canonical.pathname = url.pathname.slice(0, -1);
+    return Response.redirect(canonical.toString(), 301);
+  }
+
   try {
     const response = await context.next();
 

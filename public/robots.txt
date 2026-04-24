@@ -25,7 +25,7 @@ Disallow: /404
 # Google-specific directives for maximum crawl efficiency
 User-agent: Googlebot
 Allow: /
-Crawl-delay: 0
+Crawl-delay: 1
 
 # Googlebot image crawler
 User-agent: Googlebot-Image
