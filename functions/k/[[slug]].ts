@@ -847,7 +847,10 @@ function generateHubHtml(url: URL, requestedSlug?: string): string {
 export const onRequest: PagesFunction<Env> = async (context) => {
   const responseHeaders = {
     'Content-Type': 'text/html;charset=UTF-8',
-    'Cache-Control': 'public, max-age=86400, stale-while-revalidate=172800',
+    // s-maxage instructs Cloudflare's edge to cache this response for 1 year.
+    // After the first Worker invocation per PoP, every subsequent request is
+    // served directly from Cloudflare's free CDN — zero additional Worker calls.
+    'Cache-Control': 'public, s-maxage=31536000, immutable',
     'X-Robots-Tag': 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
     [CONTENT_SIGNAL_HEADER]: CONTENT_SIGNAL_VALUE,
   };

@@ -1,185 +1,128 @@
-## Programmatic scaling playbook (DevSolve)
+## Programmatic Scaling — Smart Edge Cache Architecture (DevSolve)
 
-This document describes how to scale the `/k/[slug]` programmatic pages in a controlled way while protecting crawl budget, index safety and useful-content-first principles.
+This document describes the production architecture for serving all 18,040,320
+`/k/*` programmatic pages at zero marginal cost using Cloudflare's free global
+CDN as the storage layer.
 
-The goal is to support a 10K-page architecture without forcing all pages live at once.
-
----
-
-### 1. What `safeDefaultTotal` does
-
-- `safeDefaultTotal` in `siteConfig.programmatic` is the conservative default number of programmatic pages exported when no explicit ramp level is set.
-- It is intentionally lower than the architecture target to:
-  - keep Netlify builds fast and predictable,
-  - keep the first waves of URLs easy to monitor,
-  - avoid flooding sitemaps with pages that have not been evaluated yet.
-
-Operationally:
-- If `opsFlags.programmaticRampLevel` is unset or `0`, the generator uses `safeDefaultTotal`.
-- Use this as the default mode for first deployments of a new cluster or major generator change.
+> **R2 has been removed.** There is no file upload step, no R2 bucket, and no
+> `@aws-sdk/client-s3` dependency. All storage is handled by Cloudflare's edge
+> cache automatically.
 
 ---
 
-### 2. How `programmaticRampLevel` is increased
+## 1. How it works — On-Demand Edge SSG
 
-- `programmaticRampLevel` lives in `monetizationConfig.opsFlags`.
-- Allowed values: `0 | 1 | 2 | 3 | 4 | 5`.
-- Each level maps to an entry in `siteConfig.programmatic.rampSchedule`:
-  - `0` → `safeDefaultTotal`
-  - `1..5` → progressively larger targets up to the full 10K architecture.
+```
+First request (cold edge PoP):
+  User/Googlebot → devsolvev2.com/k/<slug>
+      ↓
+  Cloudflare checks edge cache → MISS
+      ↓
+  Cloudflare Pages Function (functions/k/[[slug]].ts)
+      ↓  generates HTML deterministically from slug
+  Response: HTML + Cache-Control: public, s-maxage=31536000, immutable
+      ↓
+  Cloudflare edge stores the page for 1 year ✔
 
-Ramp discipline:
-- Increase the level manually and incrementally only after:
-  - running a fresh build and postbuild on a branch or preview,
-  - reviewing the quality and crawl reports,
-  - checking that disclosure and monetization footprint look balanced.
-- Avoid skipping levels; this helps catch issues early and keeps changes observable.
+Every subsequent request (warm edge PoP):
+  User/Googlebot → devsolvev2.com/k/<slug>
+      ↓
+  Cloudflare checks edge cache → HIT
+      ↓
+  Static HTML served directly from CDN
+  Zero Worker invocations. Zero CPU cost. ✔
+```
 
----
-
-### 3. Which reports to review before a Netlify deploy
-
-After `npm run build` completes, inspect the artifacts under `out/reports/`:
-
-- `quality.json`:
-  - check:
-    - `totalGenerated`
-    - `indexableCount`
-    - `sitemapIncludedCount`
-    - `noindexCount`
-    - `segmentCounts` (A/B/C)
-    - `clusterDistribution`
-    - `excludedBySitemapThreshold`
-    - `excludedByIndexThreshold`
-  - confirm that:
-    - Segment A (index + sitemap) is a conservative subset,
-    - Segment C (noindex,follow) exists for weaker pages,
-    - no single cluster dominates the sample unless intentionally configured.
-
-- `quality.txt`:
-  - skim example slugs and scores,
-  - look for repeated warnings like `long-slug` or `below-index-threshold`.
-
-If the report shows rising C segment share, low usefulness warnings, or skewed cluster distribution, pause ramp-up until the underlying content or generator is improved.
+**Key property:** Pages are generated lazily on first access and then frozen at
+the Cloudflare edge for 1 year.  The 18 M pages are never uploaded or stored
+anywhere manually — Cloudflare's 300+ global PoPs act as the distributed cache.
 
 ---
 
-### 4. When to increase sitemap coverage
+## 2. Cache-Control header
 
-Consider expanding sitemap coverage (via ramp level) only when:
+`functions/k/[[slug]].ts` emits:
 
-- current Segment A pages:
-  - are helpful on their own,
-  - have clear intros, steps, pitfalls and comparison blocks,
-  - feel like real guides rather than near-duplicate keyword variants.
-- the ratio:
-  - `sitemapIncludedCount / indexableCount` is stable or improving,
-  - `noindexCount` is not growing faster than indexable pages.
+```
+Cache-Control: public, s-maxage=31536000, immutable
+```
 
-Avoid adding large new batches of URLs to sitemaps when:
-
-- quality scores cluster near the minimum sitemap threshold,
-- there are many similarity or usefulness warnings,
-- disclosure or monetization modules have just been changed and not yet observed in production.
+| Directive | Meaning |
+|-----------|---------|
+| `public` | Response is cacheable by shared (proxy/CDN) caches |
+| `s-maxage=31536000` | CDN/Cloudflare edge TTL = 1 year (365 days) |
+| `immutable` | Content will not change; no conditional revalidation needed |
 
 ---
 
-### 5. When to pause or reverse a ramp increase
+## 3. Required Cloudflare Cache Rule (Dashboard — one-time setup)
 
-Pause ramp increases (or temporarily reduce the level) if:
+By default Cloudflare does **not** cache HTML responses from Pages Functions.
+You must add a **Cache Rule** in the Cloudflare Dashboard to force edge caching:
 
-- `noindexCount` climbs faster than `indexableCount`,
-- `sitemapIncludedCount` stagnates while total generated pages grow,
-- `lowUsefulnessWarnings` trend upward in `quality.json`,
-- the commercial footprint of pages feels heavier than the underlying content.
+**Zone `devsolvev2.com` → Rules → Cache Rules → Create Rule**
 
-Operationally:
+| Field | Value |
+|-------|-------|
+| Rule name | `K-pages — Edge Cache 1 Year` |
+| When | `URI Path` wildcard matches `/k/*` |
+| Cache eligibility | **Eligible for cache** |
+| Edge Cache TTL | **Override origin → 1 year** |
+| Browser Cache TTL | **Respect origin `Cache-Control` header** |
 
-- lowering `programmaticRampLevel` reduces the active exported set in the next build,
-- sitemap chunks will automatically reflect the smaller set because only higher scoring pages are written into the programmatic sitemap files.
-
----
-
-### 6. Balancing Skimlinks-style monetization visibility
-
-The monetization layer is designed to be compatible with networks such as Skimlinks without turning pages into affiliate-first experiences.
-
-Keep the following discipline:
-
-- Affiliate or monetized links should:
-  - appear in sections that are already useful without the link,
-  - be relevant to the specific tool, guide, or cluster,
-  - be limited in number per page.
-- For tool-first pages:
-  - keep the interactive tool and its explanation clearly above any recommendation modules.
-- For guide-first pages:
-  - let the walkthrough, context, and limitations come first,
-  - then surface recommendations and alternatives.
-- For programmatic `/k/[slug]` pages:
-  - treat monetization as optional and supportive,
-  - avoid repeating the same call to action pattern across large families of near-identical slugs.
-
-If monetization elements ever feel louder than the content itself, treat that as a signal to simplify or move them further down the page.
+> This is the only dashboard step required.  After this rule is active, every
+> `/k/*` response the Worker generates is locked at the edge for 1 year.
 
 ---
 
-### 7. How index / noindex works for programmatic pages
+## 4. Cost breakdown
 
-- Each programmatic page is evaluated with a quality score based on:
-  - uniqueness and variety,
-  - usefulness (steps, pitfalls, comparison),
-  - depth (intro and description),
-  - relevance (cluster + primary tool),
-  - basic footprint checks (slug and keyword discipline).
+| Resource | Cost |
+|----------|------|
+| R2 storage | **$0** — R2 removed entirely |
+| R2 Class A/B operations | **$0** — no R2 |
+| Cloudflare edge cache storage | **$0** — included in Cloudflare free/paid plans |
+| Worker CPU (cold miss, first request per slug per PoP) | Counted against Cloudflare Workers free tier (100k req/day) |
+| Worker CPU (all subsequent requests, cache HIT) | **$0** — served by CDN, Worker is never called |
+| Egress | **$0** — Cloudflare CDN egress is free for same-account traffic |
 
-Segments:
-
-- **Segment A**
-  - score ≥ sitemap threshold,
-  - can be indexed,
-  - eligible for sitemap inclusion.
-- **Segment B**
-  - score between index and sitemap thresholds,
-  - indexable but kept out of sitemaps,
-  - used to avoid over-filling discovery with borderline pages.
-- **Segment C**
-  - score below the conservative index threshold,
-  - exported but marked `noindex,follow`,
-  - useful for users who discover the URL but not proactively promoted.
-
-The aim is to keep sitemap entries concentrated on the most helpful programmatic pages while still serving other URLs if they are visited directly.
+**In practice:** Googlebot and real users between them will warm every popular
+slug at every major PoP within weeks.  After that, Worker usage for `/k/*` drops
+to near-zero.
 
 ---
 
-### 8. When to dial back monetization intensity
+## 5. GitHub repo size
 
-Reduce monetization visibility on a set of pages if:
-
-- the same merchant or offer appears in many unrelated contexts,
-- there are multiple monetization modules before the reader has seen any substantial content,
-- disclosures become easy to miss or visually overshadowed,
-- the quality report suggests high commercial footprint with relatively modest helpfulness.
-
-Practical adjustments:
-
-- lower the maximum number of offers per placement,
-- narrow offer rules so that only tightly relevant clusters receive suggestions,
-- move recommendation modules further down on programmatic pages.
+The 18 M pages are **not stored in git**.  Content is generated 100%
+deterministically from the slug index at runtime inside the Worker function.
+The repo stays lightweight — only source code is committed.
 
 ---
 
-### 9. What to do when similarity or orphan warnings appear
+## 6. Content quality and slug determinism
 
-If future reporting introduces explicit similarity or orphan signals, use them as routing inputs rather than hard errors:
+- All 18,040,320 pages are produced by combinatorics:
+  `348 tool-intent pairs × 20 audiences × 16 tasks × 162 modifiers`
+- Content is seeded from the page index — same index always produces the same
+  HTML, ensuring cache consistency across PoPs.
+- Slug format: `{clusterKey}-{intent}-{audience}-{task}-{tool}-{index}` — all
+  lowercase, only `a-z0-9` and hyphens, exactly matching sitemap URLs.
 
-- For high similarity within a cluster:
-  - consider reducing the ramp level,
-  - tighten the generator so that each slug has a clearer angle (intent, audience, or task),
-  - keep lower-value variants out of sitemaps or in Segment C.
+---
 
-- For orphan candidates:
-  - ensure that tools, guides, and `/k/` pages link to each other using deterministic but natural anchors,
-  - rebalance internal links so that no single hub page monopolises outbound links.
+## 7. Sitemap coverage
 
-In all cases, prioritize improving the usefulness and clarity of the content before adding new slugs or monetization elements.
+The programmatic sitemap (`scripts/generate-programmatic-sitemaps.mjs`) emits
+canonical URLs in the form `https://devsolvev2.com/k/{slug}` — no `.html`
+suffix.  These match the edge-served URLs exactly.
 
+---
+
+## 8. Deprecated — legacy ramp-level system
+
+The `programmaticRampLevel` / `safeDefaultTotal` / Segment A/B/C system
+described in earlier versions of this document was designed for a Netlify
+static-export workflow with a 10 K-page limit.  It is no longer in use.
+The current Cloudflare Pages + Smart Edge Cache architecture serves all
+18 M pages on-demand without any export or ramp constraint.
