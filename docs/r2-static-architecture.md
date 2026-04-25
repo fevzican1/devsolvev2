@@ -210,12 +210,12 @@ object storage served at Cloudflare edge speeds.
 
 ---
 
-## 5. Cloudflare Cache Rule — "Cache Everything" (Edge TTL 1 Month)
+## 5. Cloudflare Cache Rule — "Cache Everything" (Edge TTL 1 Year)
 
 By default Cloudflare does **not** cache HTML responses from a Custom Domain bound
 to R2.  Add a Cache Rule to force it to cache every `/k/*` file at the edge so
-that each object is only fetched from R2 **once per PoP**, then served free from
-Cloudflare's CDN indefinitely.
+that each object is fetched from R2 **only once per PoP**, then served free from
+Cloudflare's CDN for a full year.
 
 ### Steps (Cloudflare Dashboard)
 
@@ -226,50 +226,29 @@ Cloudflare's CDN indefinitely.
 | Rule name | `R2 K-pages — Cache Everything` |
 | When | `Hostname` equals `files.devsolvev2.com` **AND** `URI Path` wildcard matches `/k/*` |
 | Cache eligibility | **Eligible for cache** |
-| Edge Cache TTL | **Override origin → 1 month** |
+| Edge Cache TTL | **Override origin → 1 year** |
 | Browser Cache TTL | **Respect origin `Cache-Control` header** (the script already sets `max-age=31536000, immutable`) |
 | Bypass Cache on Cookie | *(leave empty — no cookies on these pages)* |
 
 > **Why this works:**  
 > The script sets `Cache-Control: public, max-age=31536000, immutable` on every
 > object in R2.  Cloudflare respects that for browser caches **and** the Cache
-> Rule locks the edge copy for 1 month even if the origin header is missing or
-> shorter.  Result: a page is read from R2 exactly once per Cloudflare PoP, then
-> served free for 30 days.  R2 "Class B" read charges drop to near-zero.
+> Rule locks the edge copy for 1 year even if the origin header is missing or
+> shorter.  Result: a page is read from R2 exactly **once** per Cloudflare PoP
+> per year, then served free from CDN for 365 days.  R2 "Class B" read charges
+> are effectively **zero**.
 
----
-
-## 6. R2 Lifecycle Policy — Auto-delete Stale Objects
-
-R2 supports lifecycle rules that automatically delete objects after a set number
-of days.  Since the 18M pages are **deterministically regenerable** from the
-upload script at any time, deleting stale objects costs nothing — you simply
-re-upload if needed.
-
-### Recommended policy
-
-**Cloudflare Dashboard → R2 → `devsolvev2-pages` bucket → Settings → Lifecycle Rules → Add Rule**
-
-| Setting | Value | Rationale |
-|---------|-------|-----------|
-| Rule name | `delete-stale-k-pages` | |
-| Filter prefix | `k/` | Target only the programmatic pages, not any other objects |
-| Action | **Delete object** | R2 has no "cheaper storage tier"; deletion is the only cost-saving action |
-| Days after object creation | **180** (6 months) | Pages are static; content never changes. After 6 months without a cache miss the object is unlikely to ever be fetched again directly from R2 |
-
-> **Workflow after deletion:**  
-> Cloudflare CDN edge caches survive the R2 deletion (TTL = 1 month per Cache
-> Rule above).  The next cache miss after TTL expiry triggers a new fetch; if
-> the object was deleted, the redirect/rewrite rule falls through to the
-> Cloudflare Pages Function (`functions/k/[[slug]].ts`) which regenerates the
-> page on-the-fly — so there are **zero 404s**.  You can also re-upload any
-> range with `START_INDEX` / `END_INDEX`.
+> **No Lifecycle / Deletion rules:** Do **not** configure any R2 Lifecycle
+> deletion rules.  All 18 M objects remain in R2 permanently.  Storage cost is
+> minimised purely through Brotli compression (~75 % size reduction) and by
+> keeping reads off R2 via the 1-year edge cache above.
 
 ### Summary of cost impact
 
-| Optimisation | Savings |
+| Optimisation | Effect |
 |---|---|
-| Brotli compression (quality 11) | ~75 % less R2 storage GB |
-| `Cache-Control: immutable` + Cache Rule | R2 Class B reads → near-zero |
-| Lifecycle delete after 180 days | Removes objects never re-requested; storage shrinks over time |
-| Concurrency 200 (vs 100) | 2× upload throughput → fewer Class A write-hours |
+| Brotli compression (quality 11) | ~75 % less R2 storage GB — keeps usage near / within the 10 GB free tier |
+| `Cache-Control: max-age=31536000, immutable` | Browser never re-fetches a cached page from anywhere |
+| Cache Rule: Edge TTL = 1 year | Each PoP reads from R2 at most once per year → R2 Class B reads ≈ 0 |
+| Concurrency 200 (default) | 2× upload throughput → fewer Class A write-hours during initial load |
+| **No deletion rules** | All 18 M pages stay in R2 permanently; zero re-upload work needed |
