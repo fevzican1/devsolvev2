@@ -180,6 +180,93 @@ const clusterDomain: Record<ClusterKey, { field: string; importance: string; bes
   web: { field: 'web security and optimization', importance: 'Secure and optimized web content protects users and improves performance metrics', bestPractice: 'Sanitize all user-supplied content and test minified assets for correctness before deployment' },
 };
 
+/* ------------------------------------------------------------------ */
+/*  Per-cluster pitfalls — 6 entries each; rotated by seed to give     */
+/*  different combinations across pages and eliminate text overlap.    */
+/* ------------------------------------------------------------------ */
+const clusterPitfalls: Record<ClusterKey, string[]> = {
+  json: [
+    'JSON keys are case-sensitive — "Id" and "id" are distinct fields; a mismatch causes silent lookup failures.',
+    'Trailing commas in objects or arrays are not valid JSON and will throw a parse error in strict parsers.',
+    'Circular references cannot be serialised with JSON.stringify without a custom replacer; they throw a TypeError.',
+    'Single-quoted strings are not valid JSON — all keys and string values must use double quotes.',
+    'Large integers above 2^53 lose precision when parsed as JavaScript numbers; use a BigInt-aware parser.',
+    'Not checking for deeply nested null values before traversing a property chain causes unexpected TypeErrors.',
+  ],
+  encoding: [
+    'Double-encoding a value (e.g., encoding an already-encoded string) produces garbled output that is hard to debug.',
+    'Mixing URL-encoding and Base64 in the same pipeline without clear boundaries corrupts the encoded data.',
+    'Omitting the UTF-8 charset when converting bytes to strings garbles non-ASCII characters silently.',
+    'Treating percent-encoded spaces ("%20") as literal "+" signs causes form-data mismatches.',
+    'Not stripping Base64 padding characters ("=") before using the value in URL-safe contexts causes 400 errors.',
+    'Assuming encoding is reversible without testing a roundtrip — some codecs are lossy for certain input ranges.',
+  ],
+  security: [
+    'Logging raw JWT tokens or hash values in application logs exposes secrets to log-aggregation systems.',
+    'Not validating the JWT "alg" header allows an attacker to set it to "none" and bypass signature verification.',
+    'Hardcoding UUIDs or hash salts in source code makes them visible in version control history.',
+    'Trusting token expiry only on the client — always re-validate "exp" on the server for every request.',
+    'Using MD5 or SHA-1 for security-critical hashing; prefer SHA-256 or a stronger algorithm.',
+    'Not using a constant-time comparison function when validating HMAC signatures allows timing attacks.',
+  ],
+  text: [
+    'Greedy regex quantifiers (.*) can catastrophically backtrack on long strings and hang the process.',
+    'Forgetting the "g" flag when replacing all occurrences — without it, only the first match is replaced.',
+    'Omitting case-insensitive matching when user input may vary in capitalisation produces false negatives.',
+    'Not anchoring a regex with "^" and "$" allows partial matches to pass validation undetected.',
+    'Using "^" and "$" on multi-line text without the "m" flag means they only match the very start and end of the string.',
+    'Regex that works in one language runtime may behave differently in another due to engine-level differences.',
+  ],
+  formatting: [
+    'Auto-formatting a SQL query before reviewing it can hide logic errors buried inside complex subqueries.',
+    'Minifying CSS without browser-testing the result may break vendor-prefixed properties silently.',
+    'Markdown rendering differs across parsers — always preview in the target platform before publishing.',
+    'Mixing tabs and spaces in indented code breaks many parsers even after a formatting pass.',
+    'Collapsing multiple blank lines is not always safe — some configuration formats rely on blank-line separation.',
+    'Reformatting a query inside a migration script can change semantics if column aliases or ordering is affected.',
+  ],
+  api: [
+    'Not versioning the API schema means a response format change silently breaks all downstream consumers.',
+    'Omitting the "Content-Type: application/json" header causes many API servers to reject the request body.',
+    'Relying on HTTP 200 alone to indicate success — always inspect the response body for nested error fields.',
+    'Passing sensitive data (tokens, passwords) in query strings exposes them in server logs and browser history.',
+    'Forgetting that URL-encoded query parameters must use "%20" for spaces, not "+".',
+    'Caching API responses without checking "Cache-Control" or "ETag" headers leads to stale data bugs.',
+  ],
+  data: [
+    'Assuming the input schema is stable — always validate incoming data against the expected structure first.',
+    'Running a bulk transformation without a dry-run pass can corrupt production datasets irreversibly.',
+    'Not preserving the original data alongside the transformed copy makes rollback impossible.',
+    'Ignoring null and undefined fields during transformation causes downstream schema mismatches.',
+    'Using float arithmetic for monetary or count fields introduces precision drift over large datasets.',
+    'Forgetting to normalise character encoding before comparing string fields causes false mismatches.',
+  ],
+  debugging: [
+    'Changing multiple variables at once makes it impossible to isolate which change caused the behaviour.',
+    'Relying solely on print-debugging in production — use structured logs with correlation IDs instead.',
+    'Not reproducing the bug in isolation first means you risk fixing a symptom rather than the root cause.',
+    'Diffing large files without a semantic diff tool hides meaningful changes inside line-noise.',
+    'Assuming a bug is deterministic — some race conditions and encoding bugs are intermittent by nature.',
+    'Ignoring tool warnings; many emit actionable messages that point directly to the root cause.',
+  ],
+  automation: [
+    'Not validating the cron expression in a staging environment before deploying it to production.',
+    'Omitting a timeout on scheduled tasks allows them to hang indefinitely and block subsequent runs.',
+    'Overlapping job runs — when a task takes longer than its schedule interval — corrupt shared state.',
+    'Not logging the start, end, and exit status of automated jobs makes failures invisible.',
+    'Hardcoding environment-specific values (paths, credentials) inside automation scripts breaks portability.',
+    'Not testing extraction patterns against a representative sample of real data leads to missed matches.',
+  ],
+  web: [
+    'Sanitising HTML input on the client only — always re-sanitise on the server to prevent stored XSS.',
+    'Minifying CSS that contains "content:" properties can corrupt pseudo-element text or icon-font glyphs.',
+    'Not specifying a charset in the Content-Type header causes browsers to guess the encoding, often wrongly.',
+    'Disabling browser caching for all assets hurts performance — only disable it for dynamic or sensitive content.',
+    'Embedding raw user input into HTML without escaping it opens a reflected XSS vulnerability.',
+    'Not testing compressed CSS in multiple browsers can reveal rendering differences missed in development.',
+  ],
+};
+
 const taskContext: Record<string, { scenario: string; urgency: string; outcome: string }> = {
   'debug-production-issue': { scenario: 'diagnosing a live production problem', urgency: 'time-sensitive, as users may be affected', outcome: 'identify the root cause and apply a targeted fix' },
   'prepare-api-response': { scenario: 'constructing or validating an API response', urgency: 'important for downstream consumer reliability', outcome: 'produce a well-formed response that matches the documented schema' },
@@ -443,16 +530,61 @@ function generateHtml(page: PageData): string {
     }
   }
 
-  const faqItems = [
-    { q: `What does ${slugToSpacedString(page.intent)} mean for a ${slugToSpacedString(page.audience)}?`, a: `For a ${slugToSpacedString(page.audience)} focused on ${ac.focus}, ${slugToSpacedString(page.intent)} involves using ${toolName} to ${tc.outcome}. This is done ${slugToSpacedString(page.modifier)} to ensure efficiency and data privacy.` },
-    { q: `Is my data safe when using ${toolName}?`, a: `Yes. ${toolName} runs entirely in your browser. No data is transmitted to any external server. This is especially important for ${slugToSpacedString(page.audience)} professionals concerned about ${ac.concern}.` },
-    { q: `When should I use this approach?`, a: `This approach is ideal when ${tc.scenario}. It is ${tc.urgency}, and the goal is to ${tc.outcome}.` },
-    { q: `What are the best practices for ${slugToSpacedString(page.clusterKey)} tasks?`, a: `${cd.bestPractice}. ${cd.importance}, making proper tooling essential for ${slugToSpacedString(page.audience)} workflows.` },
+  /* 5 FAQ variant sets — rotated by seed so each page surfaces a distinct question set */
+  const faqVariants: Array<Array<{ q: string; a: string }>> = [
+    [
+      { q: `What does ${slugToSpacedString(page.intent)} mean for a ${slugToSpacedString(page.audience)}?`, a: `For a ${slugToSpacedString(page.audience)} focused on ${ac.focus}, ${slugToSpacedString(page.intent)} involves using ${toolName} to ${tc.outcome}. This is done ${slugToSpacedString(page.modifier)} to ensure efficiency and data privacy.` },
+      { q: `Is my data safe when using ${toolName}?`, a: `Yes. ${toolName} runs entirely in your browser. No data is transmitted to any external server. This is especially important for ${slugToSpacedString(page.audience)} professionals concerned about ${ac.concern}.` },
+      { q: `When should I use this approach?`, a: `This approach is ideal when ${tc.scenario}. It is ${tc.urgency}, and the goal is to ${tc.outcome}.` },
+      { q: `What are the best practices for ${slugToSpacedString(page.clusterKey)} tasks?`, a: `${cd.bestPractice}. ${cd.importance}, making proper tooling essential for ${slugToSpacedString(page.audience)} workflows.` },
+    ],
+    [
+      { q: `Why is ${slugToSpacedString(page.intent)} important in ${cd.field}?`, a: `${cd.importance}. For ${slugToSpacedString(page.audience)} teams, getting this right directly impacts ${ac.focus} and prevents issues related to ${ac.concern}.` },
+      { q: `How does ${toolName} handle ${slugToSpacedString(page.intent)} locally?`, a: `${toolName} performs all computation in your browser using client-side JavaScript. No data touches an external server — a critical requirement when dealing with ${ac.concern}.` },
+      { q: `What real-world scenario is this guide designed for?`, a: `This guide targets ${tc.scenario}, which is ${tc.urgency}. The expected outcome is to ${tc.outcome}, covering the full workflow ${slugToSpacedString(page.modifier)}.` },
+      { q: `How can a ${slugToSpacedString(page.audience)} integrate this into their workflow?`, a: `${toolName} works best ${ac.workflow}. By applying ${cd.bestPractice}, you reduce risk and improve consistency across ${cd.field} tasks.` },
+    ],
+    [
+      { q: `What risks arise when ${slugToSpacedString(page.intent)} is done incorrectly?`, a: `Incorrect ${slugToSpacedString(page.intent)} can expose ${ac.concern} and undermine ${ac.focus}. ${cd.bestPractice} to avoid these pitfalls.` },
+      { q: `Does ${toolName} support ${slugToSpacedString(page.clusterKey)} workflows at scale?`, a: `Yes. ${toolName} is designed to handle real-world ${cd.field} scenarios ${slugToSpacedString(page.modifier)}, giving ${slugToSpacedString(page.audience)} teams the confidence to ${tc.outcome} repeatedly and correctly.` },
+      { q: `What is the key outcome of following this guide?`, a: `By the end of this guide, you will ${tc.outcome}. The approach is calibrated for ${tc.scenario} — ${tc.urgency}.` },
+      { q: `Why should ${slugToSpacedString(page.audience)} professionals care about ${cd.field}?`, a: `${cd.importance}. Mastering ${slugToSpacedString(page.intent)} using ${toolName} ${ac.workflow} gives your team a measurable edge in delivering reliable, secure output.` },
+    ],
+    [
+      { q: `How does ${slugToSpacedString(page.modifier)} affect ${slugToSpacedString(page.intent)}?`, a: `Executing ${slugToSpacedString(page.intent)} ${slugToSpacedString(page.modifier)} reduces friction and keeps your data private. For ${slugToSpacedString(page.audience)} roles where ${ac.concern} is a top priority, this approach is essential.` },
+      { q: `What makes ${toolName} the right choice for this task?`, a: `${toolName} combines browser-native processing with a purpose-built interface for ${cd.field}. It addresses ${ac.concern} while delivering the output you need to ${tc.outcome}.` },
+      { q: `Is this workflow suitable for ${tc.scenario}?`, a: `Absolutely. The steps in this guide are specifically designed for ${tc.scenario}, where it is ${tc.urgency}. ${cd.bestPractice}.` },
+      { q: `What should a ${slugToSpacedString(page.audience)} watch out for?`, a: `Pay close attention to ${ac.concern} throughout this process. ${cd.importance}, so even minor mistakes in ${slugToSpacedString(page.intent)} can have downstream consequences.` },
+    ],
+    [
+      { q: `How does ${slugToSpacedString(page.intent)} relate to ${ac.focus}?`, a: `${slugToSpacedString(page.intent)} is a foundational step for maintaining ${ac.focus}. ${cd.importance}, and ${toolName} makes this process reliable and auditable ${slugToSpacedString(page.modifier)}.` },
+      { q: `Can I use ${toolName} in a CI/CD or automated pipeline?`, a: `${toolName} is designed for interactive, browser-based use. For pipeline integration, extract the logic and apply the same principles ${ac.workflow} to keep your automation consistent with your manual review process.` },
+      { q: `What context is most relevant to this guide?`, a: `This guide is tailored for ${tc.scenario} — ${tc.urgency}. The outcome you are working toward is to ${tc.outcome}, and the content is structured ${slugToSpacedString(page.modifier)} to match that goal.` },
+      { q: `Why does browser-based processing matter for ${slugToSpacedString(page.audience)} teams?`, a: `Browser-based processing means your data never leaves your machine. For ${slugToSpacedString(page.audience)} professionals dealing with ${ac.concern}, this is a non-negotiable requirement rather than a convenience.` },
+    ],
   ];
+  const faqItems = faqVariants[seed % faqVariants.length];
 
   const faqHtml = faqItems.map(item =>
     `<div class="border rounded-lg p-4"><h3 class="font-semibold mb-2">${escapeHtml(item.q)}</h3><p class="text-gray-600">${escapeHtml(item.a)}</p></div>`
   ).join('\n');
+
+  /* Dynamic pitfalls — rotated by seed so different pages within a cluster get different subsets */
+  const allPitfalls = clusterPitfalls[page.clusterKey] ?? clusterPitfalls.json;
+  const pitfallStart = seed % allPitfalls.length;
+  const pitfallsHtml = Array.from({ length: 5 }, (_, i) =>
+    `<li>${escapeHtml(allPitfalls[(pitfallStart + i) % allPitfalls.length])}</li>`,
+  ).join('\n');
+
+  /* Dynamic "Why Use This?" — 5 context-aware variants rotated by seed */
+  const whyVariants = [
+    `${cd.importance}. For ${slugToSpacedString(page.audience)} professionals, this workflow provides a reliable way to ${slugToSpacedString(page.intent)} with ${toolName} — entirely in your browser, with no data leaving your machine.`,
+    `${toolName} handles ${slugToSpacedString(page.intent)} ${slugToSpacedString(page.modifier)}. ${cd.importance}, making this the right tool when your primary concern is ${ac.concern}.`,
+    `As a ${slugToSpacedString(page.audience)}, you need tools that respect ${ac.focus}. ${toolName} processes everything locally while providing the output needed to ${tc.outcome}.`,
+    `${cd.field} tasks like ${slugToSpacedString(page.intent)} demand precision. This guide walks through the exact steps ${slugToSpacedString(page.modifier)}, tailored for ${slugToSpacedString(page.audience)} workflows.`,
+    `Unlike shallow redirect pages, this guide provides real technical depth for ${tc.scenario}. ${cd.bestPractice}.`,
+  ];
+  const whyText = escapeHtml(whyVariants[seed % whyVariants.length]);
 
   const faqJsonLd = JSON.stringify({
     '@context': 'https://schema.org',
@@ -498,6 +630,7 @@ function generateHtml(page: PageData): string {
 <title>${escapeHtml(page.title)} — DevSolve</title>
 <meta name="description" content="${escapeHtml(page.description)}"/>
 <meta name="keywords" content="${keywordsStr}"/>
+<meta name="author" content="DevSolve"/>
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
 <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
 <meta name="${CONTENT_SIGNAL_META_NAME}" content="${CONTENT_SIGNAL_VALUE}"/>
@@ -551,68 +684,77 @@ footer a{color:#2563eb;text-decoration:none}
 <a href="/contact">Contact</a>
 </nav>
 <main class="container">
+<article itemscope itemtype="https://schema.org/TechArticle">
 <div class="breadcrumb">
 <a href="/">Home</a> / <a href="/tools">Tools</a> / <span>${escapeHtml(page.title)}</span>
 </div>
 
-<h1>${escapeHtml(page.h1)}</h1>
+<h1 itemprop="headline">${escapeHtml(page.h1)}</h1>
 
 <div style="margin-bottom:1rem">
-<span class="badge">🔒 Runs locally in your browser</span>
-<span class="badge">🛠 ${escapeHtml(toolName)}</span>
+<span class="badge"><span role="img" aria-label="Lock">🔒</span> Runs locally in your browser</span>
+<span class="badge"><span role="img" aria-label="Tool">🛠</span> ${escapeHtml(toolName)}</span>
 </div>
 
-<p style="font-size:1.1rem;color:#374151;margin-bottom:2rem">${escapeHtml(page.intro)}</p>
+<p style="font-size:1.1rem;color:#374151;margin-bottom:2rem" itemprop="description">${escapeHtml(page.intro)}</p>
 
+<section aria-label="Step-by-step guide">
 <div class="card">
-<div class="card-title">✅ Step-by-Step Guide</div>
+<div class="card-title"><span role="img" aria-label="Check">✅</span> Step-by-Step Guide</div>
 <ol class="steps-list">
 ${stepsHtml}
 </ol>
 </div>
+</section>
 
+<section aria-label="Why use this">
 <div class="card" style="border-color:#bfdbfe;background:#f0f9ff">
-<div class="card-title">💡 Why Use This?</div>
-<p>This page explains step by step how to handle the <strong>${escapeHtml(slugToSpacedString(page.intent))}</strong> task in real project scenarios using <strong>${escapeHtml(toolName)}</strong>.</p>
-<p>The content combines technical depth, error-point analysis, and alternative solutions, making it a definitive landing page where you can make informed decisions — not just a redirect page built for traffic.</p>
+<div class="card-title"><span role="img" aria-label="Lightbulb">💡</span> Why Use This?</div>
+<p>${whyText}</p>
 </div>
+</section>
 
+<section aria-label="Common pitfalls">
 <div class="card" style="border-color:#fde68a;background:#fffbeb">
-<div class="card-title">⚠️ Common Pitfalls</div>
+<div class="card-title"><span role="img" aria-label="Warning">⚠️</span> Common Pitfalls</div>
 <ul style="padding-left:1.25rem">
-<li>Skipping a quick manual sanity check on a small sample before processing a full dataset.</li>
-<li>Relying on default options without confirming how they behave on malformed or edge-case input.</li>
-<li>Not keeping a backup of the original input before transforming or minifying it.</li>
-<li>Assuming all data is safe to paste without considering secrets, tokens, or production credentials.</li>
-<li>Treating the tool output as authoritative without cross-checking against another source of truth.</li>
+${pitfallsHtml}
 </ul>
 </div>
+</section>
 
+<section aria-label="Technical context">
 <h2>Technical Context</h2>
 <p>${escapeHtml(cd.importance)}. For ${escapeHtml(slugToSpacedString(page.audience))} professionals, this means paying close attention to ${escapeHtml(ac.focus)}. The best practice is: ${escapeHtml(cd.bestPractice)}.</p>
 <p>In the context of ${escapeHtml(tc.scenario)}, which is ${escapeHtml(tc.urgency)}, the objective is to ${escapeHtml(tc.outcome)}. Using the approach described ${escapeHtml(slugToSpacedString(page.modifier))} ensures efficiency without compromising on quality or security.</p>
+</section>
 
+<section aria-label="Frequently asked questions">
 <h2>Frequently Asked Questions</h2>
 <div style="display:flex;flex-direction:column;gap:1rem">
 ${faqHtml}
 </div>
+</section>
 
+<section aria-label="Related guides">
 <h2>Related Guides</h2>
 <ul class="related-links">
 ${relatedLinks.join('\n')}
 </ul>
+</section>
 
 <div class="card" style="margin-top:2rem">
-<div class="card-title">🔗 Quick Navigation</div>
+<div class="card-title"><span role="img" aria-label="Link">🔗</span> Quick Navigation</div>
 <p>
 <a href="/tools/${escapeHtml(page.tool)}" style="color:#2563eb">${escapeHtml(toolName)} →</a> |
 <a href="/tools" style="color:#2563eb">All Tools →</a> |
 <a href="/guides" style="color:#2563eb">Technical Guides →</a>
 </p>
 </div>
+</article>
 </main>
 <footer>
-<p>© 2026 DevSolve — Privacy-First Developer Tools & Guides</p>
+<p>© 2026 DevSolve — Privacy-First Developer Tools &amp; Guides</p>
 <p style="margin-top:0.5rem"><a href="/about">About</a> · <a href="/contact">Contact</a> · <a href="/legal/privacy">Privacy</a></p>
 </footer>
 </body>
@@ -733,7 +875,13 @@ function generateHubHtml(url: URL, requestedSlug?: string): string {
 export const onRequest: PagesFunction<Env> = async (context) => {
   const responseHeaders = {
     'Content-Type': 'text/html;charset=UTF-8',
-    'Cache-Control': 'public, max-age=86400, stale-while-revalidate=172800',
+    // s-maxage instructs Cloudflare's edge to cache this response for 1 year.
+    // After the first Worker invocation per PoP, every subsequent request is
+    // served directly from Cloudflare's free CDN — zero additional Worker calls.
+    // stale-while-revalidate allows the CDN to serve stale content for up to 7
+    // days while silently refreshing in the background, preventing any cold-miss
+    // latency after the annual cache expiry without ever billing a Worker request.
+    'Cache-Control': 'public, s-maxage=31536000, stale-while-revalidate=604800, immutable',
     'X-Robots-Tag': 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
     [CONTENT_SIGNAL_HEADER]: CONTENT_SIGNAL_VALUE,
   };
