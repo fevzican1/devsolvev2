@@ -878,10 +878,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     // s-maxage instructs Cloudflare's edge to cache this response for 1 year.
     // After the first Worker invocation per PoP, every subsequent request is
     // served directly from Cloudflare's free CDN — zero additional Worker calls.
-    // stale-while-revalidate allows the CDN to serve stale content for up to 7
-    // days while silently refreshing in the background, preventing any cold-miss
-    // latency after the annual cache expiry without ever billing a Worker request.
-    'Cache-Control': 'public, s-maxage=31536000, stale-while-revalidate=604800, immutable',
+    'Cache-Control': 'public, s-maxage=31536000, immutable',
     'X-Robots-Tag': 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
     [CONTENT_SIGNAL_HEADER]: CONTENT_SIGNAL_VALUE,
   };
