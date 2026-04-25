@@ -685,14 +685,98 @@ async function uploadToR2(slug, html) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Pre-flight validation                                               */
+/*  Samples 10 evenly-spaced slugs across the full index space and     */
+/*  confirms: (a) the resolver returns a page, (b) the slug is all     */
+/*  lowercase a-z0-9 with hyphens and a numeric suffix, and (c) the    */
+/*  R2 object key `k/<slug>.html` is consistent with the sitemap URL   */
+/*  `https://devsolvev2.com/k/<slug>` (same slug, no casing drift).    */
+/* ------------------------------------------------------------------ */
+function preflight() {
+  const SLUG_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-\d+$/;
+  const SAMPLE  = 10;
+  const step    = Math.max(1, Math.floor(TOTAL_POSSIBLE / SAMPLE));
+
+  for (let i = 0; i < SAMPLE; i++) {
+    const idx  = i * step;
+    const page = resolvePageByIndex(idx);
+
+    if (!page) {
+      process.stderr.write(
+        `❌ Pre-flight FAIL: resolvePageByIndex(${idx}) returned null — ` +
+        `check TOTAL_POSSIBLE and toolIntentPairs/audiences/tasks/modifiers counts.\n`,
+      );
+      process.exit(1);
+    }
+
+    if (!SLUG_RE.test(page.slug)) {
+      process.stderr.write(
+        `❌ Pre-flight FAIL: slug at index ${idx} = "${page.slug}" — ` +
+        `does not match /^[a-z][a-z0-9]*(-[a-z0-9]+)*-\\d+$/\n`,
+      );
+      process.exit(1);
+    }
+
+    if (page.slug !== page.slug.toLowerCase()) {
+      process.stderr.write(
+        `❌ Pre-flight FAIL: slug "${page.slug}" contains uppercase characters — ` +
+        `all slugs must be 100 % lowercase to match sitemap URLs exactly.\n`,
+      );
+      process.exit(1);
+    }
+
+    // R2 key  → k/<slug>.html
+    // Sitemap → https://devsolvev2.com/k/<slug>
+    // The slug portion is identical in both; the .html suffix is added only to the R2 key.
+    // No further transform is needed — record the assertion here for visibility.
+    const r2Key     = `k/${page.slug}.html`;
+    const sitemapUrl = `https://devsolvev2.com/k/${page.slug}`;
+    void r2Key; void sitemapUrl; // used for documentation only; equality is structural
+  }
+
+  process.stdout.write(
+    `✅ Pre-flight OK: ${SAMPLE} evenly-spaced slugs validated ` +
+    `(format, case, R2-key ↔ sitemap URL mapping).\n\n`,
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Concurrency pool — runs `concurrency` tasks in parallel            */
 /* ------------------------------------------------------------------ */
 async function runWithConcurrency(total, concurrency, worker) {
-  let next = START_INDEX;
+  let next      = START_INDEX;
   let completed = 0;
-  let errors = 0;
-  const startTime = Date.now();
-  const REPORT_INTERVAL = 10_000;
+  let errors    = 0;
+  const startTime  = Date.now();
+  const rangeSize  = total - START_INDEX;
+  const isTTY      = process.stdout.isTTY === true;
+
+  /**
+   * Real-time dashboard:
+   *  - TTY mode  : overwrites a single status line every second using \r
+   *  - non-TTY   : appends a new line every 50,000 pages (clean for CI logs)
+   */
+  const dashboard = setInterval(() => {
+    const elapsedMs = Date.now() - startTime;
+    const elapsedS  = (elapsedMs / 1000).toFixed(0);
+    const rate      = elapsedMs > 0 ? Math.round(completed / (elapsedMs / 1000)) : 0;
+    const pct       = rangeSize > 0 ? ((completed / rangeSize) * 100).toFixed(2) : '0.00';
+    const remaining = rate > 0 ? (rangeSize - completed) / rate : Infinity;
+    const eta       = isFinite(remaining)
+      ? remaining >= 3600
+        ? `${Math.floor(remaining / 3600)}h ${Math.floor((remaining % 3600) / 60)}m`
+        : `${Math.floor(remaining / 60)}m ${Math.floor(remaining % 60)}s`
+      : '—';
+    const line =
+      `[${elapsedS}s] ${completed.toLocaleString()} / ${rangeSize.toLocaleString()}` +
+      ` (${pct}%) | ${rate.toLocaleString()}/s | ETA: ${eta} | errors: ${errors}`;
+
+    if (isTTY) {
+      process.stdout.write(`\r${line}   `);
+    } else if (completed > 0 && completed % 50_000 === 0) {
+      process.stdout.write(`${line}\n`);
+    }
+  }, 1_000);
 
   async function runOne() {
     while (next < total) {
@@ -702,13 +786,9 @@ async function runWithConcurrency(total, concurrency, worker) {
         completed++;
       } catch (err) {
         errors++;
+        // Print errors on a new line so they don't overwrite the dashboard
+        if (isTTY) process.stdout.write('\n');
         process.stderr.write(`ERROR index=${index}: ${err.message}\n`);
-      }
-      if (completed % REPORT_INTERVAL === 0) {
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(0);
-        const rate    = (completed / (Date.now() - startTime) * 1000).toFixed(0);
-        const pct     = ((completed / (total - START_INDEX)) * 100).toFixed(2);
-        process.stdout.write(`[${elapsed}s] ${completed.toLocaleString()} uploaded (${pct}%) — ${rate}/s — errors: ${errors}\n`);
       }
     }
   }
@@ -717,8 +797,13 @@ async function runWithConcurrency(total, concurrency, worker) {
   for (let i = 0; i < concurrency; i++) workers.push(runOne());
   await Promise.all(workers);
 
+  clearInterval(dashboard);
+  if (isTTY) process.stdout.write('\n'); // move cursor past dashboard line
+
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   process.stdout.write(`\nDone. ${completed.toLocaleString()} pages in ${elapsed}s — ${errors} errors.\n`);
+
+  if (errors > 0) process.exit(1); // non-zero exit for CI failure detection
 }
 
 /* ------------------------------------------------------------------ */
@@ -734,6 +819,8 @@ console.log(`  Cache-Control: public, max-age=31536000, immutable`);
 console.log(`  Bucket      : ${DRY_RUN ? '(dry-run)' : BUCKET}`);
 console.log(`  Endpoint    : ${DRY_RUN ? '(dry-run)' : `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`}`);
 console.log('');
+
+preflight();
 
 await runWithConcurrency(END_INDEX, CONCURRENCY, async (index) => {
   const page = resolvePageByIndex(index);

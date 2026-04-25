@@ -252,3 +252,102 @@ Cloudflare's CDN for a full year.
 | Cache Rule: Edge TTL = 1 year | Each PoP reads from R2 at most once per year → R2 Class B reads ≈ 0 |
 | Concurrency 200 (default) | 2× upload throughput → fewer Class A write-hours during initial load |
 | **No deletion rules** | All 18 M pages stay in R2 permanently; zero re-upload work needed |
+
+---
+
+## 6. Phase Cutover — Safe Reveal Procedure
+
+> **Do not activate the Redirect / Rewrite Rule until a large portion of the
+> 18 M pages are confirmed uploaded.**  Activating too early means Googlebot
+> hits a mix of R2 (found) and missing keys (404 from R2 Custom Domain).
+
+### Phase 1 — Upload in progress (current state)
+
+- `_routes.json` routes `/k/*` to the Cloudflare Pages Function (kept as fallback).
+- The zone-level Redirect Rule **does not exist yet** (not created in the dashboard).
+- Every `/k/*` request goes through the function → zero 404s, same content as R2 will serve.
+
+### Phase 2 — Create the Redirect Rule (but keep it disabled)
+
+While the upload is running:
+
+1. Go to **Cloudflare Dashboard → `devsolvev2.com` → Rules → Redirect Rules → Create Rule**.
+2. Fill in the rule (see Section 3, Option A above) but **leave the rule toggled OFF** (disabled).
+3. Save it.  The rule exists but does not fire.
+
+### Phase 3 — Activate (Safe Reveal)
+
+When the upload script completes (or when `≥ 95 %` of pages are in R2), you own
+the cutover.  Complete these three steps in order:
+
+**Step A — Enable the Redirect Rule**
+
+In Cloudflare Dashboard → Rules → Redirect Rules, toggle the `K-pages → R2`
+rule **ON**.  Cloudflare propagates this globally within seconds.  From this
+moment all `/k/*` requests redirect to `files.devsolvev2.com/k/<slug>.html`
+before the Pages Function is ever consulted.
+
+**Step B — Disable the Pages Function for /k/***
+
+Update `public/_routes.json` to stop routing `/k/*` to the Pages Function
+(it is now redundant — the zone-level redirect fires first):
+
+```json
+{
+  "version": 1,
+  "include": [],
+  "exclude": ["/*"]
+}
+```
+
+Commit and deploy.  This removes the `/k/*` entry from `_routes.json` so the
+function is never woken for those paths even if the redirect somehow fails.
+
+> **Keep the function file** (`functions/k/[[slug]].ts`) — it serves as a
+> safety net and can be re-enabled instantly by restoring `_routes.json`.
+
+**Step C — Verify Zero Workers**
+
+After both steps above are live, open **Cloudflare Dashboard → Workers & Pages →
+your Pages project → Analytics** and confirm `/k/*` request volume drops to
+zero.  Independently, you can `curl -I https://devsolvev2.com/k/<any-slug>` and
+confirm the response has `location: https://files.devsolvev2.com/k/<slug>.html`
+and status `301` — **no `cf-worker` header**, which confirms zero Worker
+invocations.
+
+### Phase summary
+
+| Phase | `_routes.json` | Redirect Rule | Traffic path |
+|-------|---------------|---------------|--------------|
+| 1 — Uploading | `/k/*` → Function | Does not exist | Function (fallback) |
+| 2 — Rule created, disabled | `/k/*` → Function | Disabled | Function (fallback) |
+| 3A — Rule enabled | `/k/*` → Function | **Enabled** | Zone redirect → R2 |
+| 3B — `_routes.json` updated | No include entries | Enabled | Zone redirect → R2 |
+
+After Phase 3B the architecture is **zero Workers, zero CPU billing** on all
+`/k/*` traffic.
+
+---
+
+## 7. Monitoring the Upload — Live Dashboard
+
+The upload script (`npm run r2:upload`) now shows a real-time progress line:
+
+```
+[42s] 8,400,000 / 18,040,320 (46.56%) | 200,000/s | ETA: 48m 12s | errors: 0
+```
+
+| Column | Meaning |
+|--------|---------|
+| `[42s]` | Wall-clock seconds since start |
+| `8,400,000 / 18,040,320` | Pages uploaded out of total range |
+| `(46.56%)` | Percentage complete |
+| `200,000/s` | Upload throughput (pages per second) |
+| `ETA: 48m 12s` | Estimated time to completion |
+| `errors: 0` | Running error count |
+
+In TTY mode the line is overwritten in place every second.  In non-TTY mode
+(CI / log files) a new line is printed every 50 000 pages instead.
+
+The script exits with code `1` if any errors occurred, making CI/CD failure
+detection automatic.
