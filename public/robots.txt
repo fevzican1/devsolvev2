@@ -1,52 +1,15 @@
-# DevSolve robots.txt — optimized for crawl budget and high-value indexing
+# DevSolve robots.txt — Google crawlers only
 
+# Block all bots by default
 User-agent: *
-Allow: /
-Allow: /tools/
-Allow: /guides/
-Allow: /k/
-Allow: /about
-Allow: /contact
-Allow: /legal/
-Disallow: /admin/
-Disallow: /admin
-Disallow: /api/
-Disallow: /.netlify/
-Disallow: /cmd-center
-Disallow: /cmd-center/
-Disallow: /_next/static/
-Disallow: /_next/data/
-Disallow: /*?sort=
-Disallow: /*&sort=
-Disallow: /*?filter=
-Disallow: /*&filter=
-Disallow: /404
+Disallow: /
 
-# Google-specific directives for maximum crawl efficiency
+# Google web crawler
 User-agent: Googlebot
 Allow: /
 
-# Googlebot image crawler
+# Google image crawler
 User-agent: Googlebot-Image
-Allow: /
-
-# Bing/Microsoft
-User-agent: Bingbot
-Allow: /
-Crawl-delay: 1
-
-# Yandex
-User-agent: Yandex
-Allow: /
-Crawl-delay: 1
-
-# DuckDuckGo
-User-agent: DuckDuckBot
-Allow: /
-Crawl-delay: 1
-
-# Apple search (Applebot)
-User-agent: Applebot
 Allow: /
 
 # Sitemap index (references all sitemap chunks)
