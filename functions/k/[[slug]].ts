@@ -530,12 +530,40 @@ function generateHtml(page: PageData): string {
     }
   }
 
-  const faqItems = [
-    { q: `What does ${slugToSpacedString(page.intent)} mean for a ${slugToSpacedString(page.audience)}?`, a: `For a ${slugToSpacedString(page.audience)} focused on ${ac.focus}, ${slugToSpacedString(page.intent)} involves using ${toolName} to ${tc.outcome}. This is done ${slugToSpacedString(page.modifier)} to ensure efficiency and data privacy.` },
-    { q: `Is my data safe when using ${toolName}?`, a: `Yes. ${toolName} runs entirely in your browser. No data is transmitted to any external server. This is especially important for ${slugToSpacedString(page.audience)} professionals concerned about ${ac.concern}.` },
-    { q: `When should I use this approach?`, a: `This approach is ideal when ${tc.scenario}. It is ${tc.urgency}, and the goal is to ${tc.outcome}.` },
-    { q: `What are the best practices for ${slugToSpacedString(page.clusterKey)} tasks?`, a: `${cd.bestPractice}. ${cd.importance}, making proper tooling essential for ${slugToSpacedString(page.audience)} workflows.` },
+  /* 5 FAQ variant sets — rotated by seed so each page surfaces a distinct question set */
+  const faqVariants: Array<Array<{ q: string; a: string }>> = [
+    [
+      { q: `What does ${slugToSpacedString(page.intent)} mean for a ${slugToSpacedString(page.audience)}?`, a: `For a ${slugToSpacedString(page.audience)} focused on ${ac.focus}, ${slugToSpacedString(page.intent)} involves using ${toolName} to ${tc.outcome}. This is done ${slugToSpacedString(page.modifier)} to ensure efficiency and data privacy.` },
+      { q: `Is my data safe when using ${toolName}?`, a: `Yes. ${toolName} runs entirely in your browser. No data is transmitted to any external server. This is especially important for ${slugToSpacedString(page.audience)} professionals concerned about ${ac.concern}.` },
+      { q: `When should I use this approach?`, a: `This approach is ideal when ${tc.scenario}. It is ${tc.urgency}, and the goal is to ${tc.outcome}.` },
+      { q: `What are the best practices for ${slugToSpacedString(page.clusterKey)} tasks?`, a: `${cd.bestPractice}. ${cd.importance}, making proper tooling essential for ${slugToSpacedString(page.audience)} workflows.` },
+    ],
+    [
+      { q: `Why is ${slugToSpacedString(page.intent)} important in ${cd.field}?`, a: `${cd.importance}. For ${slugToSpacedString(page.audience)} teams, getting this right directly impacts ${ac.focus} and prevents issues related to ${ac.concern}.` },
+      { q: `How does ${toolName} handle ${slugToSpacedString(page.intent)} locally?`, a: `${toolName} performs all computation in your browser using client-side JavaScript. No data touches an external server — a critical requirement when dealing with ${ac.concern}.` },
+      { q: `What real-world scenario is this guide designed for?`, a: `This guide targets ${tc.scenario}, which is ${tc.urgency}. The expected outcome is to ${tc.outcome}, covering the full workflow ${slugToSpacedString(page.modifier)}.` },
+      { q: `How can a ${slugToSpacedString(page.audience)} integrate this into their workflow?`, a: `${toolName} works best ${ac.workflow}. By applying ${cd.bestPractice}, you reduce risk and improve consistency across ${cd.field} tasks.` },
+    ],
+    [
+      { q: `What risks arise when ${slugToSpacedString(page.intent)} is done incorrectly?`, a: `Incorrect ${slugToSpacedString(page.intent)} can expose ${ac.concern} and undermine ${ac.focus}. ${cd.bestPractice} to avoid these pitfalls.` },
+      { q: `Does ${toolName} support ${slugToSpacedString(page.clusterKey)} workflows at scale?`, a: `Yes. ${toolName} is designed to handle real-world ${cd.field} scenarios ${slugToSpacedString(page.modifier)}, giving ${slugToSpacedString(page.audience)} teams the confidence to ${tc.outcome} repeatedly and correctly.` },
+      { q: `What is the key outcome of following this guide?`, a: `By the end of this guide, you will ${tc.outcome}. The approach is calibrated for ${tc.scenario} — ${tc.urgency}.` },
+      { q: `Why should ${slugToSpacedString(page.audience)} professionals care about ${cd.field}?`, a: `${cd.importance}. Mastering ${slugToSpacedString(page.intent)} using ${toolName} ${ac.workflow} gives your team a measurable edge in delivering reliable, secure output.` },
+    ],
+    [
+      { q: `How does ${slugToSpacedString(page.modifier)} affect ${slugToSpacedString(page.intent)}?`, a: `Executing ${slugToSpacedString(page.intent)} ${slugToSpacedString(page.modifier)} reduces friction and keeps your data private. For ${slugToSpacedString(page.audience)} roles where ${ac.concern} is a top priority, this approach is essential.` },
+      { q: `What makes ${toolName} the right choice for this task?`, a: `${toolName} combines browser-native processing with a purpose-built interface for ${cd.field}. It addresses ${ac.concern} while delivering the output you need to ${tc.outcome}.` },
+      { q: `Is this workflow suitable for ${tc.scenario}?`, a: `Absolutely. The steps in this guide are specifically designed for ${tc.scenario}, where it is ${tc.urgency}. ${cd.bestPractice}.` },
+      { q: `What should a ${slugToSpacedString(page.audience)} watch out for?`, a: `Pay close attention to ${ac.concern} throughout this process. ${cd.importance}, so even minor mistakes in ${slugToSpacedString(page.intent)} can have downstream consequences.` },
+    ],
+    [
+      { q: `How does ${slugToSpacedString(page.intent)} relate to ${ac.focus}?`, a: `${slugToSpacedString(page.intent)} is a foundational step for maintaining ${ac.focus}. ${cd.importance}, and ${toolName} makes this process reliable and auditable ${slugToSpacedString(page.modifier)}.` },
+      { q: `Can I use ${toolName} in a CI/CD or automated pipeline?`, a: `${toolName} is designed for interactive, browser-based use. For pipeline integration, extract the logic and apply the same principles ${ac.workflow} to keep your automation consistent with your manual review process.` },
+      { q: `What context is most relevant to this guide?`, a: `This guide is tailored for ${tc.scenario} — ${tc.urgency}. The outcome you are working toward is to ${tc.outcome}, and the content is structured ${slugToSpacedString(page.modifier)} to match that goal.` },
+      { q: `Why does browser-based processing matter for ${slugToSpacedString(page.audience)} teams?`, a: `Browser-based processing means your data never leaves your machine. For ${slugToSpacedString(page.audience)} professionals dealing with ${ac.concern}, this is a non-negotiable requirement rather than a convenience.` },
+    ],
   ];
+  const faqItems = faqVariants[seed % faqVariants.length];
 
   const faqHtml = faqItems.map(item =>
     `<div class="border rounded-lg p-4"><h3 class="font-semibold mb-2">${escapeHtml(item.q)}</h3><p class="text-gray-600">${escapeHtml(item.a)}</p></div>`
@@ -850,7 +878,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     // s-maxage instructs Cloudflare's edge to cache this response for 1 year.
     // After the first Worker invocation per PoP, every subsequent request is
     // served directly from Cloudflare's free CDN — zero additional Worker calls.
-    'Cache-Control': 'public, s-maxage=31536000, immutable',
+    // stale-while-revalidate allows the CDN to serve stale content for up to 7
+    // days while silently refreshing in the background, preventing any cold-miss
+    // latency after the annual cache expiry without ever billing a Worker request.
+    'Cache-Control': 'public, s-maxage=31536000, immutable, stale-while-revalidate=604800',
     'X-Robots-Tag': 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
     [CONTENT_SIGNAL_HEADER]: CONTENT_SIGNAL_VALUE,
   };
