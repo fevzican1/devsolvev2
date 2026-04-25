@@ -45,7 +45,21 @@ CONCURRENCY=50 npm run r2:upload
 
 The script uploads each file to R2 as `k/<slug>.html` with:
 - `Content-Type: text/html; charset=utf-8`
-- `Cache-Control: public, max-age=86400, stale-while-revalidate=604800`
+- `Content-Encoding: br` (Brotli, default) — compresses each HTML by ~75 % before writing to R2, cutting storage costs proportionally
+- `Cache-Control: public, max-age=31536000, immutable` — tells Cloudflare's CDN to cache each object for 1 year; after the first edge fetch R2 "Class B" read requests drop to near-zero
+
+### Compression options
+
+```bash
+# Default: Brotli quality-11 (best ratio, ~75 % size reduction)
+npm run r2:upload
+
+# Alternative: Gzip level-9 (slightly larger, wider client support)
+COMPRESS=gz npm run r2:upload
+
+# No compression (for debugging only)
+COMPRESS=none npm run r2:upload
+```
 
 ---
 
@@ -193,3 +207,69 @@ devsolvev2.com/k/<slug>
 
 **Result:** Zero Worker invocations. Zero `_routes.json` triggers. Pure CDN
 object storage served at Cloudflare edge speeds.
+
+---
+
+## 5. Cloudflare Cache Rule — "Cache Everything" (Edge TTL 1 Month)
+
+By default Cloudflare does **not** cache HTML responses from a Custom Domain bound
+to R2.  Add a Cache Rule to force it to cache every `/k/*` file at the edge so
+that each object is only fetched from R2 **once per PoP**, then served free from
+Cloudflare's CDN indefinitely.
+
+### Steps (Cloudflare Dashboard)
+
+**Your zone `devsolvev2.com` → Rules → Cache Rules → Create Rule**
+
+| Field | Value |
+|-------|-------|
+| Rule name | `R2 K-pages — Cache Everything` |
+| When | `Hostname` equals `files.devsolvev2.com` **AND** `URI Path` wildcard matches `/k/*` |
+| Cache eligibility | **Eligible for cache** |
+| Edge Cache TTL | **Override origin → 1 month** |
+| Browser Cache TTL | **Respect origin `Cache-Control` header** (the script already sets `max-age=31536000, immutable`) |
+| Bypass Cache on Cookie | *(leave empty — no cookies on these pages)* |
+
+> **Why this works:**  
+> The script sets `Cache-Control: public, max-age=31536000, immutable` on every
+> object in R2.  Cloudflare respects that for browser caches **and** the Cache
+> Rule locks the edge copy for 1 month even if the origin header is missing or
+> shorter.  Result: a page is read from R2 exactly once per Cloudflare PoP, then
+> served free for 30 days.  R2 "Class B" read charges drop to near-zero.
+
+---
+
+## 6. R2 Lifecycle Policy — Auto-delete Stale Objects
+
+R2 supports lifecycle rules that automatically delete objects after a set number
+of days.  Since the 18M pages are **deterministically regenerable** from the
+upload script at any time, deleting stale objects costs nothing — you simply
+re-upload if needed.
+
+### Recommended policy
+
+**Cloudflare Dashboard → R2 → `devsolvev2-pages` bucket → Settings → Lifecycle Rules → Add Rule**
+
+| Setting | Value | Rationale |
+|---------|-------|-----------|
+| Rule name | `delete-stale-k-pages` | |
+| Filter prefix | `k/` | Target only the programmatic pages, not any other objects |
+| Action | **Delete object** | R2 has no "cheaper storage tier"; deletion is the only cost-saving action |
+| Days after object creation | **180** (6 months) | Pages are static; content never changes. After 6 months without a cache miss the object is unlikely to ever be fetched again directly from R2 |
+
+> **Workflow after deletion:**  
+> Cloudflare CDN edge caches survive the R2 deletion (TTL = 1 month per Cache
+> Rule above).  The next cache miss after TTL expiry triggers a new fetch; if
+> the object was deleted, the redirect/rewrite rule falls through to the
+> Cloudflare Pages Function (`functions/k/[[slug]].ts`) which regenerates the
+> page on-the-fly — so there are **zero 404s**.  You can also re-upload any
+> range with `START_INDEX` / `END_INDEX`.
+
+### Summary of cost impact
+
+| Optimisation | Savings |
+|---|---|
+| Brotli compression (quality 11) | ~75 % less R2 storage GB |
+| `Cache-Control: immutable` + Cache Rule | R2 Class B reads → near-zero |
+| Lifecycle delete after 180 days | Removes objects never re-requested; storage shrinks over time |
+| Concurrency 200 (vs 100) | 2× upload throughput → fewer Class A write-hours |

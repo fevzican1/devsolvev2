@@ -3,7 +3,8 @@
  *
  * High-speed static page generator that streams all 18M+ /k/* pages directly
  * to a Cloudflare R2 bucket via the S3-compatible API.  Nothing is written to
- * local disk — each HTML string is turned into a Buffer and uploaded immediately.
+ * local disk — each HTML string is Brotli-compressed in memory and uploaded
+ * immediately, cutting R2 storage costs by ~75 % compared to raw HTML.
  *
  * Environment variables (required):
  *   R2_ACCOUNT_ID       — Cloudflare account ID (found in the dashboard sidebar)
@@ -12,9 +13,10 @@
  *   R2_BUCKET_NAME      — Name of the R2 bucket (e.g. "devsolvev2-pages")
  *
  * Optional:
- *   CONCURRENCY         — Parallel upload slots (default: 100)
+ *   CONCURRENCY         — Parallel upload slots (default: 200)
  *   START_INDEX         — Resume from a specific page index (default: 0)
  *   END_INDEX           — Stop before this index  (default: TOTAL_POSSIBLE)
+ *   COMPRESS            — "br" (Brotli, default) | "gz" (Gzip) | "none"
  *   DRY_RUN             — Set to "1" to log slugs without uploading
  *
  * Usage:
@@ -26,6 +28,11 @@
  */
 
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { brotliCompress, gzip, constants as zlibConstants } from 'node:zlib';
+import { promisify } from 'node:util';
+
+const brotliCompressAsync = promisify(brotliCompress);
+const gzipAsync           = promisify(gzip);
 
 /* ------------------------------------------------------------------ */
 /*  Configuration                                                       */
@@ -34,8 +41,9 @@ const ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
 const ACCESS_KEY = process.env.R2_ACCESS_KEY_ID;
 const SECRET_KEY = process.env.R2_SECRET_ACCESS_KEY;
 const BUCKET     = process.env.R2_BUCKET_NAME;
-const CONCURRENCY = parseInt(process.env.CONCURRENCY || '100', 10);
-const DRY_RUN    = process.env.DRY_RUN === '1';
+const CONCURRENCY = parseInt(process.env.CONCURRENCY || '200', 10);
+const COMPRESS    = (process.env.COMPRESS ?? 'br').toLowerCase();
+const DRY_RUN     = process.env.DRY_RUN === '1';
 
 if (!DRY_RUN && (!ACCOUNT_ID || !ACCESS_KEY || !SECRET_KEY || !BUCKET)) {
   console.error(
@@ -518,6 +526,25 @@ ${relatedLinks.join('\n')}
 }
 
 /* ------------------------------------------------------------------ */
+/*  Compression helper                                                  */
+/* ------------------------------------------------------------------ */
+async function compressHtml(html) {
+  const raw = Buffer.from(html, 'utf-8');
+  if (COMPRESS === 'gz') {
+    const buf = await gzipAsync(raw, { level: 9 });
+    return { body: buf, encoding: 'gzip' };
+  }
+  if (COMPRESS === 'none') {
+    return { body: raw, encoding: null };
+  }
+  // Default: Brotli — best ratio for repetitive static HTML
+  const buf = await brotliCompressAsync(raw, {
+    params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 11 },
+  });
+  return { body: buf, encoding: 'br' };
+}
+
+/* ------------------------------------------------------------------ */
 /*  R2 upload                                                           */
 /* ------------------------------------------------------------------ */
 async function uploadToR2(slug, html) {
@@ -526,17 +553,21 @@ async function uploadToR2(slug, html) {
     process.stdout.write(`[DRY-RUN] Would upload: ${key}\n`);
     return;
   }
-  const body = Buffer.from(html, 'utf-8');
-  await s3.send(new PutObjectCommand({
+  const { body, encoding } = await compressHtml(html);
+  const params = {
     Bucket:       BUCKET,
     Key:          key,
     Body:         body,
     ContentType:  'text/html; charset=utf-8',
-    CacheControl: 'public, max-age=86400, stale-while-revalidate=604800',
+    // Immutable + 1-year TTL: Cloudflare caches at edge indefinitely;
+    // R2 "Class B" read requests drop to near-zero after the first fetch.
+    CacheControl: 'public, max-age=31536000, immutable',
     Metadata: {
       'x-content-signal': 'search=yes, ai-train=no',
     },
-  }));
+  };
+  if (encoding) params.ContentEncoding = encoding;
+  await s3.send(new PutObjectCommand(params));
 }
 
 /* ------------------------------------------------------------------ */
@@ -581,11 +612,13 @@ async function runWithConcurrency(total, concurrency, worker) {
 /* ------------------------------------------------------------------ */
 const rangeTotal = END_INDEX - START_INDEX;
 
-console.log(`DevSolve R2 Uploader`);
-console.log(`  Pages  : ${rangeTotal.toLocaleString()} (index ${START_INDEX} – ${END_INDEX - 1})`);
-console.log(`  Concurrency: ${CONCURRENCY}`);
-console.log(`  Bucket : ${DRY_RUN ? '(dry-run)' : BUCKET}`);
-console.log(`  Endpoint: ${DRY_RUN ? '(dry-run)' : `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`}`);
+console.log(`DevSolve R2 Uploader — Cost-optimised mode`);
+console.log(`  Pages       : ${rangeTotal.toLocaleString()} (index ${START_INDEX} – ${END_INDEX - 1})`);
+console.log(`  Concurrency : ${CONCURRENCY}`);
+console.log(`  Compression : ${COMPRESS === 'none' ? 'none (raw HTML)' : COMPRESS === 'gz' ? 'Gzip  (level 9)' : 'Brotli (quality 11)'}`);
+console.log(`  Cache-Control: public, max-age=31536000, immutable`);
+console.log(`  Bucket      : ${DRY_RUN ? '(dry-run)' : BUCKET}`);
+console.log(`  Endpoint    : ${DRY_RUN ? '(dry-run)' : `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`}`);
 console.log('');
 
 await runWithConcurrency(END_INDEX, CONCURRENCY, async (index) => {
