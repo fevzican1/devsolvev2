@@ -579,7 +579,7 @@ function generateHtml(page: PageData): string {
   /* Dynamic "Why Use This?" — 5 context-aware variants rotated by seed */
   const whyVariants = [
     `${cd.importance}. For ${slugToSpacedString(page.audience)} professionals, this workflow provides a reliable way to ${slugToSpacedString(page.intent)} with ${toolName} — entirely in your browser, with no data leaving your machine.`,
-    `${toolName} handles ${slugToSpacedString(page.intent)} ${slugToSpacedString(page.modifier)}. ${cd.importance.toLowerCase()}, making this the right tool when your primary concern is ${ac.concern}.`,
+    `${toolName} handles ${slugToSpacedString(page.intent)} ${slugToSpacedString(page.modifier)}. ${cd.importance}, making this the right tool when your primary concern is ${ac.concern}.`,
     `As a ${slugToSpacedString(page.audience)}, you need tools that respect ${ac.focus}. ${toolName} processes everything locally while providing the output needed to ${tc.outcome}.`,
     `${cd.field} tasks like ${slugToSpacedString(page.intent)} demand precision. This guide walks through the exact steps ${slugToSpacedString(page.modifier)}, tailored for ${slugToSpacedString(page.audience)} workflows.`,
     `Unlike shallow redirect pages, this guide provides real technical depth for ${tc.scenario}. ${cd.bestPractice}.`,
@@ -881,7 +881,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     // stale-while-revalidate allows the CDN to serve stale content for up to 7
     // days while silently refreshing in the background, preventing any cold-miss
     // latency after the annual cache expiry without ever billing a Worker request.
-    'Cache-Control': 'public, s-maxage=31536000, immutable, stale-while-revalidate=604800',
+    'Cache-Control': 'public, s-maxage=31536000, stale-while-revalidate=604800, immutable',
     'X-Robots-Tag': 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
     [CONTENT_SIGNAL_HEADER]: CONTENT_SIGNAL_VALUE,
   };
