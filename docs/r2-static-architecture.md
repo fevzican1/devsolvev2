@@ -39,7 +39,7 @@ DRY_RUN=1 npm run r2:upload
 # Resume from a specific index (e.g. after a crash at index 5,000,000)
 START_INDEX=5000000 npm run r2:upload
 
-# Limit concurrency for lower-end networks (default is 100)
+# Limit concurrency for lower-end networks (default is 200)
 CONCURRENCY=50 npm run r2:upload
 ```
 
