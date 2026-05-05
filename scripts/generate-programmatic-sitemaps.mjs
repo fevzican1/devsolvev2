@@ -234,10 +234,9 @@ async function listCoreSitemaps() {
 
 async function writeSitemapIndex(coreSitemaps, programmaticSitemaps, lastmod) {
   const sitemapEntries = [...coreSitemaps, ...programmaticSitemaps];
-  const filenames = ['sitemap-index.xml', 'sitemap.xml'];
 
   await Promise.all(
-    filenames.map(async (filename) => {
+    ['sitemap-index.xml'].map(async (filename) => {
       const stream = createWriteStream(join(outDir, filename), { encoding: 'utf-8' });
 
       stream.write('<?xml version="1.0" encoding="UTF-8"?>\n');
