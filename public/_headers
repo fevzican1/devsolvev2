@@ -6,6 +6,7 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
   X-XSS-Protection: 0
   Content-Signal: search=yes, ai-train=no
+  X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1
   Cache-Control: public, max-age=300
 
 /_next/static/*

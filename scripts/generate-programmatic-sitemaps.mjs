@@ -3,6 +3,9 @@ import { mkdir, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const siteUrl = (process.env.SITE_URL || process.env.URL || 'https://devsolvev2.com').replace(/\/$/, '');
+// Fixed content-update date — must match siteConfig.contentUpdatedAt so that
+// sitemap lastmod and page dateModified are consistent for Google.
+const CONTENT_UPDATED_AT = process.env.SITE_CONTENT_UPDATED_AT || '2026-05-07T00:00:00.000Z';
 const outDir = join(process.cwd(), 'out');
 const urlsPerSitemap = 50000;
 const minIndexScore = 82;
@@ -265,7 +268,7 @@ async function main() {
   await mkdir(outDir, { recursive: true });
   await removeExistingProgrammaticSitemaps();
 
-  const lastmod = new Date().toISOString();
+  const lastmod = CONTENT_UPDATED_AT;
   let generatedUrlCount = 0;
   let globalIndex = 0;
   let chunkIndex = 1;

@@ -675,10 +675,10 @@ function generateHtml(page: PageData): string {
 
   const keywordsStr = page.keywords.map(k => escapeHtml(k)).join(', ');
 
-  // Generate related page links
+  // Generate related page links (12 for better internal link density)
   const relatedLinks: string[] = [];
   const seed = hashString(page.slug);
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 12; i++) {
     const relIdx = (seed + i * 7919) % TOTAL_POSSIBLE;
     const relSlug = getSlugByIndex(relIdx);
     if (relSlug && relSlug !== page.slug) {
@@ -965,6 +965,11 @@ function generateHtml(page: PageData): string {
   const proTips = Array.from({ length: 4 }, (_, i) => proTipsPool[(ptStart + i * 5) % proTipsPool.length]);
   const proTipsHtml = proTips.map(t => `<li>${escapeHtml(t)}</li>`).join('\n');
 
+  // Per-page dateModified: stagger within 30 days before contentUpdatedAt (matches Next.js SSG pages)
+  const contentUpdatedAtMs = Date.parse('2026-05-07T00:00:00Z');
+  const dayOffset = seed % 30;
+  const dateModified = new Date(contentUpdatedAtMs - dayOffset * 86_400_000).toISOString();
+
   const faqJsonLd = JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
@@ -975,6 +980,33 @@ function generateHtml(page: PageData): string {
     })),
   });
 
+  const howToJsonLd = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: page.h1,
+    description: page.description,
+    step: page.steps.map((step, index) => ({
+      '@type': 'HowToStep',
+      position: index + 1,
+      name: `Step ${index + 1}`,
+      text: step,
+    })),
+  });
+
+  const softwareApplicationJsonLd = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: toolName,
+    applicationCategory: 'DeveloperApplication',
+    operatingSystem: 'Web Browser',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+    },
+    url: `${siteUrl}/tools/${page.tool}`,
+  });
+
   const articleJsonLd = JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'TechArticle',
@@ -982,10 +1014,18 @@ function generateHtml(page: PageData): string {
     description: page.description,
     url: canonicalUrl,
     datePublished: '2026-01-15T00:00:00Z',
-    dateModified: '2026-04-06T00:00:00Z',
+    dateModified,
     author: { '@type': 'Organization', name: 'DevSolve Editorial Team', url: `${siteUrl}/about` },
-    publisher: { '@type': 'Organization', name: 'DevSolve', url: siteUrl },
+    publisher: {
+      '@type': 'Organization',
+      name: 'DevSolve',
+      url: siteUrl,
+      logo: { '@type': 'ImageObject', url: `${siteUrl}/favicon.svg` },
+    },
     mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },
+    about: { '@type': 'Thing', name: page.intent.replace(/-/g, ' ') },
+    proficiencyLevel: 'Beginner',
+    dependencies: 'Web browser with JavaScript enabled',
     inLanguage: 'en',
     isAccessibleForFree: true,
     keywords: keywordsStr,
@@ -1021,12 +1061,14 @@ function generateHtml(page: PageData): string {
 <meta property="og:site_name" content="DevSolve"/>
 <meta property="og:locale" content="en_US"/>
 <meta property="article:published_time" content="2026-01-15T00:00:00Z"/>
-<meta property="article:modified_time" content="2026-04-06T00:00:00Z"/>
+<meta property="article:modified_time" content="${dateModified}"/>
 <meta property="article:section" content="${escapeHtml(page.clusterKey)}"/>
 <meta name="twitter:card" content="summary_large_image"/>
 <meta name="twitter:title" content="${escapeHtml(page.title)} — DevSolve"/>
 <meta name="twitter:description" content="${escapeHtml(page.description)}"/>
 <script type="application/ld+json">${faqJsonLd}</script>
+<script type="application/ld+json">${howToJsonLd}</script>
+<script type="application/ld+json">${softwareApplicationJsonLd}</script>
 <script type="application/ld+json">${articleJsonLd}</script>
 <script type="application/ld+json">${breadcrumbJsonLd}</script>
 <style>
