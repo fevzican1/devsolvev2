@@ -34,6 +34,10 @@ interface Env {}
 const LEGACY_PROGRAMMATIC_SLUG_PATTERN = /^(.*)-([0-9]+)$/;
 const DEFAULT_LOCALE = 'en-US';
 
+// Must match siteConfig.contentUpdatedAt — update here and in src/config/site.ts together.
+// The sitemap generator reads the same value via SITE_CONTENT_UPDATED_AT env var.
+const CONTENT_UPDATED_AT = '2026-05-07T00:00:00Z';
+
 /* ------------------------------------------------------------------ */
 /*  Core data arrays — must match src/data/programmatic.ts exactly     */
 /* ------------------------------------------------------------------ */
@@ -966,7 +970,7 @@ function generateHtml(page: PageData): string {
   const proTipsHtml = proTips.map(t => `<li>${escapeHtml(t)}</li>`).join('\n');
 
   // Per-page dateModified: stagger within 30 days before contentUpdatedAt (matches Next.js SSG pages)
-  const contentUpdatedAtMs = Date.parse('2026-05-07T00:00:00Z');
+  const contentUpdatedAtMs = Date.parse(CONTENT_UPDATED_AT);
   const dayOffset = seed % 30;
   const dateModified = new Date(contentUpdatedAtMs - dayOffset * 86_400_000).toISOString();
 
