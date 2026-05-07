@@ -831,7 +831,7 @@ function generateHtml(page: PageData): string {
   };
   const taPool = technicalAnalysisPool[page.clusterKey] ?? technicalAnalysisPool.json;
   const taStart = (seed + 13) % taPool.length;
-  const technicalParas = Array.from({ length: 3 }, (_, i) => taPool[(taStart + i * 2) % taPool.length]);
+  const technicalParas = Array.from({ length: 3 }, (_, i) => taPool[(taStart + i * 5) % taPool.length]);
   const technicalAnalysisHtml = technicalParas.map(p => `<p>${escapeHtml(p)}</p>`).join('\n');
 
   /* Expert tips — cluster-specific actionable tips, 4 selected from pool */
@@ -962,7 +962,7 @@ function generateHtml(page: PageData): string {
     `Use browser developer tools alongside ${toolName} to confirm no data leaves your machine — the Network tab should show zero outbound requests during tool operation.`,
   ];
   const ptStart = (seed + 47) % proTipsPool.length;
-  const proTips = Array.from({ length: 4 }, (_, i) => proTipsPool[(ptStart + i * 4) % proTipsPool.length]);
+  const proTips = Array.from({ length: 4 }, (_, i) => proTipsPool[(ptStart + i * 5) % proTipsPool.length]);
   const proTipsHtml = proTips.map(t => `<li>${escapeHtml(t)}</li>`).join('\n');
 
   const faqJsonLd = JSON.stringify({
