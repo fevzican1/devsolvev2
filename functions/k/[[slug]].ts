@@ -290,29 +290,169 @@ const taskContext: Record<string, { scenario: string; urgency: string; outcome: 
 /*  Title builders                                                     */
 /* ------------------------------------------------------------------ */
 const titleTemplates: Record<ClusterKey, string[]> = {
-  json: ['How to {intent} as a {audience} with {tool}', '{tool}: {intent} guide for {audience} professionals', 'A {audience} approach to {intent} using {tool}'],
-  encoding: ['How to {intent} as a {audience} using {tool}', '{tool} workflow: {intent} for {audience} teams', 'Encoding best practices: {intent} with {tool} for {audience} roles'],
-  security: ['How to {intent} as a {audience} with {tool}', 'Security workflow: {intent} using {tool} for {audience} teams', '{tool} for {audience} professionals: {intent} safely'],
-  text: ['How to {intent} as a {audience} using {tool}', 'Text processing: {intent} with {tool} for {audience} workflows', '{audience} guide to {intent} with {tool}'],
-  formatting: ['How to {intent} as a {audience} with {tool}', 'Code formatting: {intent} using {tool} for {audience} teams', '{tool} for {audience} professionals: {intent} effectively'],
-  api: ['How to {intent} as a {audience} using {tool}', 'API workflow: {intent} with {tool} for {audience} professionals', '{audience} approach to {intent} using {tool}'],
-  data: ['How to {intent} as a {audience} with {tool}', 'Data engineering: {intent} using {tool} for {audience} roles', '{tool} guide: {intent} for {audience} professionals'],
-  debugging: ['How to {intent} as a {audience} using {tool}', 'Debugging: {intent} with {tool} for {audience} workflows', '{audience} troubleshooting guide: {intent} with {tool}'],
-  automation: ['How to {intent} as a {audience} with {tool}', 'Automation: {intent} using {tool} for {audience} teams', '{audience} guide to {intent} with {tool}'],
-  web: ['How to {intent} as a {audience} using {tool}', 'Web development: {intent} with {tool} for {audience} roles', '{tool} for {audience} professionals: {intent} securely'],
+  json: [
+    'How to {intent} as a {audience} with {tool}',
+    '{tool}: {intent} guide for {audience} professionals',
+    'A {audience} approach to {intent} using {tool}',
+    '{intent} with {tool} — the {audience} field guide',
+    'Complete {audience} reference: {intent} using {tool}',
+    '{tool} in practice: {intent} for {audience} teams',
+  ],
+  encoding: [
+    'How to {intent} as a {audience} using {tool}',
+    '{tool} workflow: {intent} for {audience} teams',
+    'Encoding best practices: {intent} with {tool} for {audience} roles',
+    '{intent} step-by-step — a {audience} guide to {tool}',
+    '{audience} playbook: {intent} using {tool} safely',
+    'Reliable {intent} with {tool}: the {audience} handbook',
+  ],
+  security: [
+    'How to {intent} as a {audience} with {tool}',
+    'Security workflow: {intent} using {tool} for {audience} teams',
+    '{tool} for {audience} professionals: {intent} safely',
+    'Secure {intent} — a {audience} guide using {tool}',
+    '{audience} security checklist: {intent} with {tool}',
+    'Zero-leak {intent}: {tool} in the {audience} workflow',
+  ],
+  text: [
+    'How to {intent} as a {audience} using {tool}',
+    'Text processing: {intent} with {tool} for {audience} workflows',
+    '{audience} guide to {intent} with {tool}',
+    'Mastering {intent}: {tool} for {audience} professionals',
+    '{intent} in practice — the {audience} {tool} reference',
+    '{tool} explained: {intent} for {audience} teams',
+  ],
+  formatting: [
+    'How to {intent} as a {audience} with {tool}',
+    'Code formatting: {intent} using {tool} for {audience} teams',
+    '{tool} for {audience} professionals: {intent} effectively',
+    '{intent} made easy — {tool} for {audience} workflows',
+    'Consistent {intent} with {tool}: the {audience} guide',
+    '{audience} formatting handbook: {intent} using {tool}',
+  ],
+  api: [
+    'How to {intent} as a {audience} using {tool}',
+    'API workflow: {intent} with {tool} for {audience} professionals',
+    '{audience} approach to {intent} using {tool}',
+    'Reliable {intent} — {tool} for {audience} integrations',
+    '{tool} API guide: {intent} for {audience} teams',
+    '{intent} in API development: {tool} for {audience} roles',
+  ],
+  data: [
+    'How to {intent} as a {audience} with {tool}',
+    'Data engineering: {intent} using {tool} for {audience} roles',
+    '{tool} guide: {intent} for {audience} professionals',
+    '{audience} data workflow: {intent} with {tool}',
+    '{intent} and data quality — {tool} for {audience} teams',
+    'Production-ready {intent}: {tool} for {audience} engineers',
+  ],
+  debugging: [
+    'How to {intent} as a {audience} using {tool}',
+    'Debugging: {intent} with {tool} for {audience} workflows',
+    '{audience} troubleshooting guide: {intent} with {tool}',
+    'Root cause analysis: {intent} for {audience} using {tool}',
+    '{tool} debugging guide: {intent} for {audience} professionals',
+    'Faster {intent}: {tool} in the {audience} debugging toolkit',
+  ],
+  automation: [
+    'How to {intent} as a {audience} with {tool}',
+    'Automation: {intent} using {tool} for {audience} teams',
+    '{audience} guide to {intent} with {tool}',
+    'Reliable {intent} in automation — {tool} for {audience}',
+    '{tool} automation playbook: {intent} for {audience} teams',
+    'Scalable {intent}: {tool} for {audience} pipelines',
+  ],
+  web: [
+    'How to {intent} as a {audience} using {tool}',
+    'Web development: {intent} with {tool} for {audience} roles',
+    '{tool} for {audience} professionals: {intent} securely',
+    '{intent} in web engineering — {tool} for {audience}',
+    'Secure and fast {intent}: {tool} for {audience} teams',
+    '{audience} web guide: {intent} using {tool}',
+  ],
 };
 
 const h1Templates: Record<ClusterKey, string[]> = {
-  json: ['Practical guide: {intent} for a {audience}', '{intent} — a hands-on walkthrough for {audience} professionals', 'Step-by-step: {intent} in your {audience} workflow'],
-  encoding: ['Practical guide: {intent} for a {audience}', 'Encoding workflow: {intent} tailored for {audience} teams', 'How {audience} professionals can {intent} efficiently'],
-  security: ['Practical guide: {intent} for a {audience}', 'Security-first approach to {intent} for {audience} roles', 'Secure workflow: {intent} designed for {audience} professionals'],
-  text: ['Practical guide: {intent} for a {audience}', 'Text processing walkthrough: {intent} for {audience} teams', '{intent} — practical steps for {audience} professionals'],
-  formatting: ['Practical guide: {intent} for a {audience}', 'Formatting workflow: {intent} optimized for {audience} teams', 'Clean code approach: {intent} for {audience} professionals'],
-  api: ['Practical guide: {intent} for a {audience}', 'API integration: {intent} designed for {audience} workflows', '{intent} — a structured approach for {audience} professionals'],
-  data: ['Practical guide: {intent} for a {audience}', 'Data workflow: {intent} tailored for {audience} teams', 'From raw data to results: {intent} for {audience} roles'],
-  debugging: ['Practical guide: {intent} for a {audience}', 'Troubleshooting: {intent} for {audience} workflows', 'Debug effectively: {intent} as a {audience}'],
-  automation: ['Practical guide: {intent} for a {audience}', 'Automation workflow: {intent} for {audience} teams', 'Streamline your work: {intent} as a {audience}'],
-  web: ['Practical guide: {intent} for a {audience}', 'Web development: {intent} for {audience} professionals', 'Build securely: {intent} in your {audience} workflow'],
+  json: [
+    'Practical guide: {intent} for a {audience}',
+    '{intent} — a hands-on walkthrough for {audience} professionals',
+    'Step-by-step: {intent} in your {audience} workflow',
+    'The {audience} playbook for {intent}',
+    '{intent}: real-world scenarios for {audience} engineers',
+    'Field notes: how {audience} teams tackle {intent}',
+  ],
+  encoding: [
+    'Practical guide: {intent} for a {audience}',
+    'Encoding workflow: {intent} tailored for {audience} teams',
+    'How {audience} professionals can {intent} efficiently',
+    '{intent} without the guesswork — a {audience} reference',
+    'The {audience} encoding guide: {intent} in practice',
+    '{intent} for {audience} workflows: clarity at every step',
+  ],
+  security: [
+    'Practical guide: {intent} for a {audience}',
+    'Security-first approach to {intent} for {audience} roles',
+    'Secure workflow: {intent} designed for {audience} professionals',
+    'How {audience} teams safely {intent}',
+    '{intent} — the security-conscious {audience} handbook',
+    'Auditable {intent}: a guide for {audience} professionals',
+  ],
+  text: [
+    'Practical guide: {intent} for a {audience}',
+    'Text processing walkthrough: {intent} for {audience} teams',
+    '{intent} — practical steps for {audience} professionals',
+    'The {audience} reference: {intent} from start to finish',
+    'Thorough {intent}: a guide for {audience} workflows',
+    '{intent} explained for {audience} — step by step',
+  ],
+  formatting: [
+    'Practical guide: {intent} for a {audience}',
+    'Formatting workflow: {intent} optimized for {audience} teams',
+    'Clean code approach: {intent} for {audience} professionals',
+    'Consistent {intent} — the {audience} standard guide',
+    '{intent} in the {audience} workflow: a practical walkthrough',
+    'The {audience} guide to maintainable {intent}',
+  ],
+  api: [
+    'Practical guide: {intent} for a {audience}',
+    'API integration: {intent} designed for {audience} workflows',
+    '{intent} — a structured approach for {audience} professionals',
+    'How {audience} engineers approach {intent} reliably',
+    '{intent} for {audience} teams: a complete reference',
+    'Production-grade {intent}: the {audience} API guide',
+  ],
+  data: [
+    'Practical guide: {intent} for a {audience}',
+    'Data workflow: {intent} tailored for {audience} teams',
+    'From raw data to results: {intent} for {audience} roles',
+    '{intent} in data engineering — the {audience} approach',
+    'The {audience} data guide: {intent} with confidence',
+    'Quality-first {intent}: a walkthrough for {audience} professionals',
+  ],
+  debugging: [
+    'Practical guide: {intent} for a {audience}',
+    'Troubleshooting: {intent} for {audience} workflows',
+    'Debug effectively: {intent} as a {audience}',
+    'Systematic {intent} — the {audience} debugging guide',
+    '{intent} in production: how {audience} engineers investigate',
+    'Root cause first: {intent} for {audience} professionals',
+  ],
+  automation: [
+    'Practical guide: {intent} for a {audience}',
+    'Automation workflow: {intent} for {audience} teams',
+    'Streamline your work: {intent} as a {audience}',
+    'Reliable {intent} — the {audience} automation guide',
+    '{intent} in CI/CD: a guide for {audience} engineers',
+    'Scale your {intent}: the {audience} automation handbook',
+  ],
+  web: [
+    'Practical guide: {intent} for a {audience}',
+    'Web development: {intent} for {audience} professionals',
+    'Build securely: {intent} in your {audience} workflow',
+    'The {audience} web guide to {intent}',
+    '{intent} for modern web — a {audience} walkthrough',
+    'Performance and security in {intent}: the {audience} guide',
+  ],
 };
 
 /* ------------------------------------------------------------------ */
@@ -388,6 +528,16 @@ function resolvePageFromSlug(slug: string): PageData | undefined {
     `How ${slugToSpacedString(audience)} teams use ${toolName} to ${slugToSpacedString(pair.intent)} ${slugToSpacedString(modifier)}. Includes troubleshooting tips, alternative solutions, and expert recommendations.`,
     `Complete walkthrough: ${slugToSpacedString(pair.intent)} with ${toolName} for ${slugToSpacedString(audience)} workflows. All processing runs locally in your browser — your data stays private.`,
     `A ${slugToSpacedString(audience)}'s guide to ${slugToSpacedString(pair.intent)} using browser-based ${toolName}. Practical steps for ${tc.scenario}, with focus on ${ac.focus}.`,
+    `${slugToSpacedString(pair.intent)} for ${slugToSpacedString(audience)} engineers — covers ${tc.scenario} using ${toolName} ${slugToSpacedString(modifier)} with all data processing happening locally in your browser.`,
+    `Master ${slugToSpacedString(pair.intent)} in ${cd.field}: a complete ${slugToSpacedString(audience)} reference covering ${tc.scenario}, ${tc.urgency}, with ${toolName}. Zero data transmission, fully private.`,
+    `${toolName} for ${slugToSpacedString(audience)} professionals: how to ${slugToSpacedString(pair.intent)} ${slugToSpacedString(modifier)}, focused on ${ac.focus} and addressing ${ac.concern}.`,
+    `Trusted by ${slugToSpacedString(audience)} teams: ${slugToSpacedString(pair.intent)} with ${toolName} ${slugToSpacedString(modifier)}. Includes step-by-step instructions, common pitfalls, and expert tips for ${cd.field}.`,
+    `${slugToSpacedString(audience)} guide: ${slugToSpacedString(pair.intent)} using ${toolName} in a browser-based, privacy-safe workflow. Tailored for ${tc.scenario} where ${tc.urgency}.`,
+    `${cd.field} workflow guide — ${slugToSpacedString(pair.intent)} for ${slugToSpacedString(audience)} using ${toolName}. No data leaves your browser; ${cd.bestPractice}.`,
+    `Hands-on ${slugToSpacedString(pair.intent)} reference for ${slugToSpacedString(audience)} engineers: ${toolName}, ${slugToSpacedString(modifier)}, real-world ${tc.scenario}. From setup to validated output.`,
+    `${slugToSpacedString(audience)} professionals use ${toolName} to ${slugToSpacedString(pair.intent)} ${slugToSpacedString(modifier)} — this guide covers every step, from input preparation to output verification.`,
+    `${slugToSpacedString(pair.intent)} — the ${slugToSpacedString(audience)} way: browser-based, locally processed, privacy-safe. ${toolName} guide for ${tc.scenario} in ${cd.field}.`,
+    `Quick and reliable ${slugToSpacedString(pair.intent)} for ${slugToSpacedString(audience)} roles: ${toolName} guide covering ${tc.scenario}, key pitfalls, and how to ${tc.outcome} confidently.`,
   ];
   const description = descVariants[seed % descVariants.length];
 
@@ -398,6 +548,13 @@ function resolvePageFromSlug(slug: string): PageData | undefined {
     `When ${tc.scenario}, a ${slugToSpacedString(audience)} needs reliable tools for ${slugToSpacedString(pair.intent)}. ${toolName} handles this ${slugToSpacedString(modifier)}, with all processing happening locally in your browser. This is particularly relevant because ${cd.importance.toLowerCase()}. The workflow is designed ${ac.workflow}, with the goal to ${tc.outcome}.`,
     `For ${slugToSpacedString(audience)} professionals working on ${cd.field}, ${slugToSpacedString(pair.intent)} is a common requirement. This guide shows how to accomplish this using ${toolName} ${slugToSpacedString(modifier)}. The real-world context is ${tc.scenario} — ${tc.urgency}. ${cd.bestPractice}. All processing runs locally, addressing ${ac.concern}.`,
     `${slugToSpacedString(pair.intent)} is a task that every ${slugToSpacedString(audience)} encounters in ${cd.field}. Using ${toolName} ${slugToSpacedString(modifier)}, you can handle this efficiently and securely. This walkthrough targets ${tc.scenario}, helping you ${tc.outcome}. The browser-based approach means your data never leaves your machine, which matters when dealing with ${ac.concern}.`,
+    `${cd.field} is a discipline where precision matters, and ${slugToSpacedString(audience)} professionals know that ${slugToSpacedString(pair.intent)} done wrong leads to downstream failures. This guide walks through how ${toolName} enables you to ${slugToSpacedString(pair.intent)} ${slugToSpacedString(modifier)}, building confidence before committing to production. The context is ${tc.scenario} — a situation that is ${tc.urgency}. Following these steps, you will ${tc.outcome} with full visibility into each transformation.`,
+    `${toolName} is designed for exactly the scenario a ${slugToSpacedString(audience)} faces when ${tc.scenario}. The guide covers ${slugToSpacedString(pair.intent)} ${slugToSpacedString(modifier)}, staying entirely within your browser so ${ac.concern} remains controlled. ${cd.importance}, which is why the steps here are structured ${ac.workflow}. By the end you will have what you need to ${tc.outcome}, with a repeatable process you can apply in future situations.`,
+    `In ${cd.field}, the gap between a working result and a subtle bug often comes down to how carefully ${slugToSpacedString(pair.intent)} was handled. This guide equips a ${slugToSpacedString(audience)} with the exact steps to ${slugToSpacedString(pair.intent)} using ${toolName} ${slugToSpacedString(modifier)}. The scenario — ${tc.scenario} — is ${tc.urgency}, so the workflow prioritises correctness and speed equally. All data stays local, directly addressing the ${ac.concern} that matters most in your role.`,
+    `A ${slugToSpacedString(audience)} working on ${tc.scenario} cannot afford ambiguity about ${slugToSpacedString(pair.intent)}. ${toolName} removes that ambiguity by running every operation locally and delivering deterministic output ${slugToSpacedString(modifier)}. ${cd.importance}. This guide maps that importance to practical steps tailored for ${ac.workflow}. When you finish, you will ${tc.outcome} — reliably, reproducibly, and without transmitting sensitive data anywhere.`,
+    `There are many ways to approach ${slugToSpacedString(pair.intent)}, but for a ${slugToSpacedString(audience)} the priorities are clear: ${ac.focus} and control over ${ac.concern}. ${toolName} satisfies both by processing everything locally and providing transparent output ${slugToSpacedString(modifier)}. The driving scenario is ${tc.scenario}, where the urgency — ${tc.urgency} — demands a tool that does not slow you down. ${cd.bestPractice}. This guide shows you exactly how.`,
+    `Speed and accuracy are often in tension when ${slugToSpacedString(audience)} teams need to ${slugToSpacedString(pair.intent)} under pressure. ${toolName} resolves that tension by offering ${slugToSpacedString(modifier)}, so the process is both fast and verifiable. ${cd.importance}, and this guide makes that principle concrete for ${tc.scenario}. The outcome: you will ${tc.outcome}, backed by a transparent, auditable workflow ${ac.workflow}.`,
+    `${slugToSpacedString(pair.intent)} is not just a technical task — for a ${slugToSpacedString(audience)}, it is a quality gate that protects ${ac.focus}. This guide builds that gate using ${toolName} ${slugToSpacedString(modifier)}, covering ${tc.scenario} in full. Because ${cd.importance.toLowerCase()}, each step is designed to surface issues before they propagate. You will finish able to ${tc.outcome}, with every decision traceable back to the input you provided.`,
   ];
   const intro = introVariants[seed % introVariants.length];
 
@@ -530,40 +687,36 @@ function generateHtml(page: PageData): string {
     }
   }
 
-  /* 5 FAQ variant sets — rotated by seed so each page surfaces a distinct question set */
-  const faqVariants: Array<Array<{ q: string; a: string }>> = [
-    [
-      { q: `What does ${slugToSpacedString(page.intent)} mean for a ${slugToSpacedString(page.audience)}?`, a: `For a ${slugToSpacedString(page.audience)} focused on ${ac.focus}, ${slugToSpacedString(page.intent)} involves using ${toolName} to ${tc.outcome}. This is done ${slugToSpacedString(page.modifier)} to ensure efficiency and data privacy.` },
-      { q: `Is my data safe when using ${toolName}?`, a: `Yes. ${toolName} runs entirely in your browser. No data is transmitted to any external server. This is especially important for ${slugToSpacedString(page.audience)} professionals concerned about ${ac.concern}.` },
-      { q: `When should I use this approach?`, a: `This approach is ideal when ${tc.scenario}. It is ${tc.urgency}, and the goal is to ${tc.outcome}.` },
-      { q: `What are the best practices for ${slugToSpacedString(page.clusterKey)} tasks?`, a: `${cd.bestPractice}. ${cd.importance}, making proper tooling essential for ${slugToSpacedString(page.audience)} workflows.` },
-    ],
-    [
-      { q: `Why is ${slugToSpacedString(page.intent)} important in ${cd.field}?`, a: `${cd.importance}. For ${slugToSpacedString(page.audience)} teams, getting this right directly impacts ${ac.focus} and prevents issues related to ${ac.concern}.` },
-      { q: `How does ${toolName} handle ${slugToSpacedString(page.intent)} locally?`, a: `${toolName} performs all computation in your browser using client-side JavaScript. No data touches an external server — a critical requirement when dealing with ${ac.concern}.` },
-      { q: `What real-world scenario is this guide designed for?`, a: `This guide targets ${tc.scenario}, which is ${tc.urgency}. The expected outcome is to ${tc.outcome}, covering the full workflow ${slugToSpacedString(page.modifier)}.` },
-      { q: `How can a ${slugToSpacedString(page.audience)} integrate this into their workflow?`, a: `${toolName} works best ${ac.workflow}. By applying ${cd.bestPractice}, you reduce risk and improve consistency across ${cd.field} tasks.` },
-    ],
-    [
-      { q: `What risks arise when ${slugToSpacedString(page.intent)} is done incorrectly?`, a: `Incorrect ${slugToSpacedString(page.intent)} can expose ${ac.concern} and undermine ${ac.focus}. ${cd.bestPractice} to avoid these pitfalls.` },
-      { q: `Does ${toolName} support ${slugToSpacedString(page.clusterKey)} workflows at scale?`, a: `Yes. ${toolName} is designed to handle real-world ${cd.field} scenarios ${slugToSpacedString(page.modifier)}, giving ${slugToSpacedString(page.audience)} teams the confidence to ${tc.outcome} repeatedly and correctly.` },
-      { q: `What is the key outcome of following this guide?`, a: `By the end of this guide, you will ${tc.outcome}. The approach is calibrated for ${tc.scenario} — ${tc.urgency}.` },
-      { q: `Why should ${slugToSpacedString(page.audience)} professionals care about ${cd.field}?`, a: `${cd.importance}. Mastering ${slugToSpacedString(page.intent)} using ${toolName} ${ac.workflow} gives your team a measurable edge in delivering reliable, secure output.` },
-    ],
-    [
-      { q: `How does ${slugToSpacedString(page.modifier)} affect ${slugToSpacedString(page.intent)}?`, a: `Executing ${slugToSpacedString(page.intent)} ${slugToSpacedString(page.modifier)} reduces friction and keeps your data private. For ${slugToSpacedString(page.audience)} roles where ${ac.concern} is a top priority, this approach is essential.` },
-      { q: `What makes ${toolName} the right choice for this task?`, a: `${toolName} combines browser-native processing with a purpose-built interface for ${cd.field}. It addresses ${ac.concern} while delivering the output you need to ${tc.outcome}.` },
-      { q: `Is this workflow suitable for ${tc.scenario}?`, a: `Absolutely. The steps in this guide are specifically designed for ${tc.scenario}, where it is ${tc.urgency}. ${cd.bestPractice}.` },
-      { q: `What should a ${slugToSpacedString(page.audience)} watch out for?`, a: `Pay close attention to ${ac.concern} throughout this process. ${cd.importance}, so even minor mistakes in ${slugToSpacedString(page.intent)} can have downstream consequences.` },
-    ],
-    [
-      { q: `How does ${slugToSpacedString(page.intent)} relate to ${ac.focus}?`, a: `${slugToSpacedString(page.intent)} is a foundational step for maintaining ${ac.focus}. ${cd.importance}, and ${toolName} makes this process reliable and auditable ${slugToSpacedString(page.modifier)}.` },
-      { q: `Can I use ${toolName} in a CI/CD or automated pipeline?`, a: `${toolName} is designed for interactive, browser-based use. For pipeline integration, extract the logic and apply the same principles ${ac.workflow} to keep your automation consistent with your manual review process.` },
-      { q: `What context is most relevant to this guide?`, a: `This guide is tailored for ${tc.scenario} — ${tc.urgency}. The outcome you are working toward is to ${tc.outcome}, and the content is structured ${slugToSpacedString(page.modifier)} to match that goal.` },
-      { q: `Why does browser-based processing matter for ${slugToSpacedString(page.audience)} teams?`, a: `Browser-based processing means your data never leaves your machine. For ${slugToSpacedString(page.audience)} professionals dealing with ${ac.concern}, this is a non-negotiable requirement rather than a convenience.` },
-    ],
+  /* 24-question FAQ pool — 5 selected per page via seed rotation for maximum variety */
+  const faqPool: Array<{ q: string; a: string }> = [
+    { q: `What does ${slugToSpacedString(page.intent)} mean for a ${slugToSpacedString(page.audience)}?`, a: `For a ${slugToSpacedString(page.audience)} focused on ${ac.focus}, ${slugToSpacedString(page.intent)} involves using ${toolName} to ${tc.outcome}. This is done ${slugToSpacedString(page.modifier)} to ensure efficiency and data privacy.` },
+    { q: `Is my data safe when using ${toolName}?`, a: `Yes. ${toolName} runs entirely in your browser. No data is transmitted to any external server. This is especially important for ${slugToSpacedString(page.audience)} professionals concerned about ${ac.concern}.` },
+    { q: `When should I use this approach?`, a: `This approach is ideal when ${tc.scenario}. It is ${tc.urgency}, and the goal is to ${tc.outcome}.` },
+    { q: `What are the best practices for ${slugToSpacedString(page.clusterKey)} tasks?`, a: `${cd.bestPractice}. ${cd.importance}, making proper tooling essential for ${slugToSpacedString(page.audience)} workflows.` },
+    { q: `Why is ${slugToSpacedString(page.intent)} important in ${cd.field}?`, a: `${cd.importance}. For ${slugToSpacedString(page.audience)} teams, getting this right directly impacts ${ac.focus} and prevents issues related to ${ac.concern}.` },
+    { q: `How does ${toolName} handle ${slugToSpacedString(page.intent)} locally?`, a: `${toolName} performs all computation in your browser using client-side JavaScript. No data touches an external server — a critical requirement when dealing with ${ac.concern}.` },
+    { q: `What real-world scenario is this guide designed for?`, a: `This guide targets ${tc.scenario}, which is ${tc.urgency}. The expected outcome is to ${tc.outcome}, covering the full workflow ${slugToSpacedString(page.modifier)}.` },
+    { q: `How can a ${slugToSpacedString(page.audience)} integrate this into their workflow?`, a: `${toolName} works best ${ac.workflow}. By applying ${cd.bestPractice}, you reduce risk and improve consistency across ${cd.field} tasks.` },
+    { q: `What risks arise when ${slugToSpacedString(page.intent)} is done incorrectly?`, a: `Incorrect ${slugToSpacedString(page.intent)} can expose ${ac.concern} and undermine ${ac.focus}. ${cd.bestPractice} to avoid these pitfalls.` },
+    { q: `Does ${toolName} support ${slugToSpacedString(page.clusterKey)} workflows at scale?`, a: `Yes. ${toolName} is designed to handle real-world ${cd.field} scenarios ${slugToSpacedString(page.modifier)}, giving ${slugToSpacedString(page.audience)} teams the confidence to ${tc.outcome} repeatedly and correctly.` },
+    { q: `What is the key outcome of following this guide?`, a: `By the end of this guide, you will ${tc.outcome}. The approach is calibrated for ${tc.scenario} — ${tc.urgency}.` },
+    { q: `Why should ${slugToSpacedString(page.audience)} professionals care about ${cd.field}?`, a: `${cd.importance}. Mastering ${slugToSpacedString(page.intent)} using ${toolName} ${ac.workflow} gives your team a measurable edge in delivering reliable, secure output.` },
+    { q: `How does ${slugToSpacedString(page.modifier)} affect ${slugToSpacedString(page.intent)}?`, a: `Executing ${slugToSpacedString(page.intent)} ${slugToSpacedString(page.modifier)} reduces friction and keeps your data private. For ${slugToSpacedString(page.audience)} roles where ${ac.concern} is a top priority, this approach is essential.` },
+    { q: `What makes ${toolName} the right choice for this task?`, a: `${toolName} combines browser-native processing with a purpose-built interface for ${cd.field}. It addresses ${ac.concern} while delivering the output you need to ${tc.outcome}.` },
+    { q: `Is this workflow suitable for ${tc.scenario}?`, a: `Absolutely. The steps in this guide are specifically designed for ${tc.scenario}, where it is ${tc.urgency}. ${cd.bestPractice}.` },
+    { q: `What should a ${slugToSpacedString(page.audience)} watch out for?`, a: `Pay close attention to ${ac.concern} throughout this process. ${cd.importance}, so even minor mistakes in ${slugToSpacedString(page.intent)} can have downstream consequences.` },
+    { q: `How does ${slugToSpacedString(page.intent)} relate to ${ac.focus}?`, a: `${slugToSpacedString(page.intent)} is a foundational step for maintaining ${ac.focus}. ${cd.importance}, and ${toolName} makes this process reliable and auditable ${slugToSpacedString(page.modifier)}.` },
+    { q: `Can I use ${toolName} in a CI/CD or automated pipeline?`, a: `${toolName} is designed for interactive, browser-based use. For pipeline integration, extract the logic and apply the same principles ${ac.workflow} to keep your automation consistent with your manual review process.` },
+    { q: `What context is most relevant to this guide?`, a: `This guide is tailored for ${tc.scenario} — ${tc.urgency}. The outcome you are working toward is to ${tc.outcome}, and the content is structured ${slugToSpacedString(page.modifier)} to match that goal.` },
+    { q: `Why does browser-based processing matter for ${slugToSpacedString(page.audience)} teams?`, a: `Browser-based processing means your data never leaves your machine. For ${slugToSpacedString(page.audience)} professionals dealing with ${ac.concern}, this is a non-negotiable requirement rather than a convenience.` },
+    { q: `Can multiple ${slugToSpacedString(page.audience)} team members use this tool simultaneously?`, a: `Yes. Since ${toolName} runs entirely in each user's browser, there are no shared sessions or server-side state. Each team member gets an independent, isolated environment.` },
+    { q: `What should I do if the output looks unexpected?`, a: `First verify the input format and encoding, then check whether any options or settings affect the transformation. ${cd.bestPractice} to ensure the output is correct before using it.` },
+    { q: `Does ${toolName} work offline?`, a: `Yes. Once the page is loaded, ${toolName} processes everything locally in your browser. No network connection is required for the tool operations themselves.` },
+    { q: `How does this workflow compare to writing custom ${slugToSpacedString(page.clusterKey)} code?`, a: `For ${tc.scenario}, a browser-based tool provides faster iteration and lower setup cost. Once you understand the expected behaviour through manual testing, you can implement the same logic confidently in your codebase with a clear reference to compare against.` },
   ];
-  const faqItems = faqVariants[seed % faqVariants.length];
+  // Select 5 questions from the pool using seed rotation
+  const faqStart = seed % faqPool.length;
+  const faqItems = Array.from({ length: 5 }, (_, i) => faqPool[(faqStart + i * 5) % faqPool.length]);
 
   const faqHtml = faqItems.map(item =>
     `<div class="border rounded-lg p-4"><h3 class="font-semibold mb-2">${escapeHtml(item.q)}</h3><p class="text-gray-600">${escapeHtml(item.a)}</p></div>`
@@ -576,15 +729,241 @@ function generateHtml(page: PageData): string {
     `<li>${escapeHtml(allPitfalls[(pitfallStart + i) % allPitfalls.length])}</li>`,
   ).join('\n');
 
-  /* Dynamic "Why Use This?" — 5 context-aware variants rotated by seed */
+  /* Dynamic "Why Use This?" — 12 context-aware variants rotated by seed */
   const whyVariants = [
     `${cd.importance}. For ${slugToSpacedString(page.audience)} professionals, this workflow provides a reliable way to ${slugToSpacedString(page.intent)} with ${toolName} — entirely in your browser, with no data leaving your machine.`,
     `${toolName} handles ${slugToSpacedString(page.intent)} ${slugToSpacedString(page.modifier)}. ${cd.importance}, making this the right tool when your primary concern is ${ac.concern}.`,
     `As a ${slugToSpacedString(page.audience)}, you need tools that respect ${ac.focus}. ${toolName} processes everything locally while providing the output needed to ${tc.outcome}.`,
     `${cd.field} tasks like ${slugToSpacedString(page.intent)} demand precision. This guide walks through the exact steps ${slugToSpacedString(page.modifier)}, tailored for ${slugToSpacedString(page.audience)} workflows.`,
     `Unlike shallow redirect pages, this guide provides real technical depth for ${tc.scenario}. ${cd.bestPractice}.`,
+    `For ${slugToSpacedString(page.audience)} teams, the combination of local processing and structured guidance makes ${toolName} the right choice when ${ac.concern} cannot be compromised. ${cd.importance}.`,
+    `${slugToSpacedString(page.intent)} is only as reliable as the tool used to perform it. ${toolName} delivers deterministic output ${slugToSpacedString(page.modifier)}, giving ${slugToSpacedString(page.audience)} professionals a verifiable baseline for ${tc.scenario}.`,
+    `Every ${cd.field} operation that handles sensitive data should run locally. ${toolName} ensures that ${slugToSpacedString(page.intent)} is performed without external dependencies, keeping ${ac.concern} under your control.`,
+    `${cd.bestPractice}. ${toolName} enforces this by design — all computation happens in your browser, and no data is persisted or transmitted. For ${slugToSpacedString(page.audience)} workflows, this is the gold standard.`,
+    `When ${tc.scenario} demands speed without sacrificing accuracy, ${toolName} delivers both. The browser-based architecture eliminates network latency and external risk, while the structured guide ensures ${ac.focus} is maintained throughout.`,
+    `The value of ${toolName} for ${slugToSpacedString(page.audience)} professionals is in its verifiability: you can see exactly what input goes in and what output comes out, with no black-box server processing in between. This transparency is essential for ${tc.scenario}.`,
+    `${slugToSpacedString(page.intent)} is a prerequisite for ${tc.outcome}. By choosing ${toolName} ${slugToSpacedString(page.modifier)}, you ensure that this prerequisite is met correctly every time — without creating data exposure risks for your team.`,
   ];
   const whyText = escapeHtml(whyVariants[seed % whyVariants.length]);
+
+  /* Technical analysis — cluster-specific deep-dive paragraphs, 3 selected from pool */
+  const technicalAnalysisPool: Record<ClusterKey, string[]> = {
+    json: [
+      `JSON parsing edge cases are a significant source of bugs in production systems. The JSON specification (RFC 8259) is strict: trailing commas, unquoted keys, and single-quoted strings are all invalid, yet many development-environment parsers accept them silently. ${slugToSpacedString(page.audience)} professionals using ${toolName} can verify strict conformance before deploying data to systems where lenient parsers are not available.`,
+      `Deeply nested JSON structures increase cognitive load and can cause stack overflows in recursive parsers for very deep inputs. For ${tc.scenario}, flattening nested structures where possible reduces both risk and maintenance burden. ${cd.importance}, making this kind of structural simplification a recurring concern in ${cd.field}.`,
+      `JSON key ordering is unspecified by the standard, which means two logically equivalent objects may serialize differently. For ${slugToSpacedString(page.audience)} teams that hash, cache, or compare JSON, this requires explicit canonicalization before any comparison or signing operation. ${toolName} makes the actual key order visible, helping diagnose comparison failures.`,
+      `Numeric precision in JSON is constrained by the IEEE 754 double-precision format used in most JavaScript runtimes. Integers beyond 2^53 lose precision silently. For ${slugToSpacedString(page.audience)} professionals working with financial data, distributed identifiers, or high-resolution timestamps in ${tc.scenario}, validating numeric round-trip behaviour with ${toolName} prevents silent data corruption.`,
+      `JSON schema validation provides a formal contract for document structure, but many teams skip it during early development and pay the cost later during incident response. Validating structure early — including required fields, type constraints, and enum values — catches integration mismatches before they reach production. ${cd.bestPractice} in ${cd.field} strongly favours this approach.`,
+      `The difference between null, an absent key, and an empty string has practical implications for deserialization code across languages. In JavaScript, accessing a missing key returns undefined, not null. In Go or Java, missing fields may default to zero values. For ${slugToSpacedString(page.audience)} teams working on cross-language ${cd.field} integrations, making these distinctions explicit in the schema prevents subtle runtime differences.`,
+    ],
+    encoding: [
+      `Encoding layers accumulate when data traverses multiple system boundaries. A value might be URL-encoded at the HTTP layer, HTML-entity-encoded in the DOM, and Base64-encoded for JSON transport — arriving triple-encoded at the destination. For ${slugToSpacedString(page.audience)} teams diagnosing ${tc.scenario}, identifying the number of encoding layers applied is the first step to correct decoding. ${toolName} supports this by making each decoding step explicit.`,
+      `The distinction between encoding and encryption is critical for security-conscious ${slugToSpacedString(page.audience)} teams. Encoding (Base64, URL encoding) transforms data for transport compatibility but provides zero confidentiality — anyone can decode it. Encryption provides confidentiality but requires key management. Applying only encoding to sensitive data in ${tc.scenario} creates a false sense of security. ${cd.bestPractice} requires understanding this distinction.`,
+      `Unicode normalization forms (NFC, NFD, NFKC, NFKD) affect how composed and decomposed character representations compare. The same visible string can have multiple binary representations depending on normalization form, causing string equality checks to fail unexpectedly. For ${slugToSpacedString(page.audience)} professionals handling multilingual content in ${tc.scenario}, consistent normalization before any comparison or hashing is essential.`,
+      `URL encoding (percent-encoding, RFC 3986) and form encoding (application/x-www-form-urlencoded) handle spaces differently: form encoding uses '+' while RFC 3986 uses '%20'. This subtle difference causes bugs when switching between URL construction and form data submission. ${slugToSpacedString(page.audience)} teams working on ${cd.field} integrations must be explicit about which convention each component expects.`,
+      `Base64 encoding increases payload size by approximately 33%, which has concrete implications for API rate limits, bandwidth costs, and storage requirements. For ${slugToSpacedString(page.audience)} teams working on ${tc.scenario} at scale, this overhead should be quantified and factored into architecture decisions. ${toolName} makes the size difference visible by showing both encoded length and original byte count.`,
+      `Character set mismatches between producer and consumer are a leading cause of garbled text in legacy system integrations. UTF-8 and Latin-1 share the same byte representation for ASCII characters (0–127), making mismatches invisible for English text but destructive for characters outside that range. For ${slugToSpacedString(page.audience)} professionals, verifying the declared encoding against the actual byte patterns is a critical diagnostic step for ${tc.scenario}.`,
+    ],
+    security: [
+      `JWT validation requires checking multiple claims, not just the signature. The algorithm (alg), issuer (iss), audience (aud), and expiration (exp) claims must all be verified to prevent common attacks. Algorithm confusion attacks exploit libraries that trust the alg header rather than enforcing an expected algorithm. For ${slugToSpacedString(page.audience)} professionals working on ${tc.scenario}, ${toolName} provides a safe local environment to inspect and understand token structure without exposing the token to external services.`,
+      `Hash function strength determines the security properties of your entire verification chain. MD5 and SHA-1 are cryptographically broken — collision attacks are practical for both. SHA-256 is the minimum recommended for new systems, and SHA-3 provides additional margin against theoretical future attacks. For ${slugToSpacedString(page.audience)} teams managing ${tc.scenario}, auditing the hash functions in use and migrating away from deprecated algorithms is a high-priority security task.`,
+      `Token storage location is a security design decision with significant trade-offs. localStorage is accessible to any JavaScript on the page, making it vulnerable to XSS. HttpOnly cookies prevent JavaScript access but require careful CSRF protection. Memory storage (JavaScript variables) is the most secure but does not survive page refresh. For ${slugToSpacedString(page.audience)} professionals, the right choice depends on the threat model and session longevity requirements.`,
+      `Timing attacks exploit the fact that string comparison operations short-circuit at the first mismatch, leaking information about the correct value through response time differences. For ${slugToSpacedString(page.audience)} teams implementing token verification or hash comparison in ${tc.scenario}, using constant-time comparison functions (such as crypto.timingSafeEqual in Node.js) is essential. Standard equality operators must never be used for security-critical comparisons.`,
+      `Secret rotation is a long-term operational security requirement, not a one-time setup task. Algorithms deprecated today (SHA-1, MD5, DES) were once considered secure. For ${slugToSpacedString(page.audience)} teams working on ${cd.field}, designing systems with algorithm agility — using identifier fields that allow future algorithm changes without data migration — is a best practice that pays dividends over the system's lifetime.`,
+      `The principle of least privilege extends to cryptographic keys and tokens. A token issued for one service should not be accepted by another. JWT audience (aud) and issuer (iss) claims, verified server-side, enforce this separation. For ${slugToSpacedString(page.audience)} professionals working on ${tc.scenario}, verifying these claims in every authentication flow prevents privilege escalation through token reuse across service boundaries.`,
+    ],
+    text: [
+      `Regular expression backtracking can cause catastrophic performance degradation for certain input patterns. Patterns with nested quantifiers such as (a+)+ or (.*)* can require exponential time for carefully crafted inputs, creating a denial-of-service vector. For ${slugToSpacedString(page.audience)} professionals who use regex to process untrusted input in ${tc.scenario}, reviewing patterns for backtracking susceptibility is a security requirement, not just a performance optimisation.`,
+      `Unicode grapheme clusters represent what users perceive as a single character, but may consist of multiple code points. A flag emoji, for example, is composed of two Regional Indicator Symbols. String length functions that count code points rather than grapheme clusters will miscount characters visible to the user. For ${slugToSpacedString(page.audience)} teams working on text validation or truncation in ${tc.scenario}, grapheme-aware string operations are required for correct behaviour across all scripts.`,
+      `Diff algorithm choice affects both the readability of the output and the completeness of the match. Myers diff minimises edit distance but can produce unintuitive output when lines are moved rather than changed. Patience diff prioritises unique line matching, producing more readable output for code and configuration changes. For ${slugToSpacedString(page.audience)} teams reviewing changes in ${tc.scenario}, choosing the right diff algorithm for the content type improves review quality.`,
+      `Line ending normalisation is a cross-platform text processing prerequisite. Windows systems use CRLF (\\r\\n), Unix/macOS use LF (\\n), and some legacy systems use CR (\\r) alone. String comparison and regex operations behave differently depending on which convention is present. For ${slugToSpacedString(page.audience)} professionals working on ${tc.scenario} across heterogeneous environments, explicit normalisation to a single convention before processing prevents phantom differences.`,
+      `Text case conversion is locale-sensitive for some languages. The Turkish dotless-i rule means that 'i'.toUpperCase() should return 'İ' in Turkish locale, not 'I'. Locale-insensitive comparison functions using the wrong locale produce incorrect results for users in affected regions. For ${slugToSpacedString(page.audience)} teams working on internationalised systems in ${tc.scenario}, testing case operations with locale-specific inputs prevents production bugs that only affect a subset of users.`,
+      `Named capture groups in regular expressions ((?<name>pattern) syntax) serve dual purposes: they make the pattern self-documenting and they allow accessing extracted values by name rather than by positional index. For ${slugToSpacedString(page.audience)} professionals building extraction pipelines for ${tc.scenario}, named groups reduce the maintenance cost of complex patterns by making the intent of each group explicit.`,
+    ],
+    formatting: [
+      `Code formatter configuration drift between local development and CI/CD environments causes formatting-only diff noise in pull requests. When different team members' editors apply different formatting rules, code review time is consumed by visual noise rather than substance. For ${slugToSpacedString(page.audience)} teams, committing formatter configuration files to version control and enforcing them in CI ensures that ${toolName} output matches what the automated pipeline would produce.`,
+      `SQL query formatting has performance implications beyond readability. While most query optimisers are whitespace-agnostic, inline query hints (Oracle's /*+ INDEX */ or SQL Server's WITH (NOLOCK)) may be invalidated by certain formatting transformations. For ${slugToSpacedString(page.audience)} professionals working on database-intensive ${tc.scenario}, always validate that formatted queries execute identically to their unformatted counterparts before deploying.`,
+      `Minification of JavaScript and CSS trades readability for reduced file size, but introduces source map dependencies for debugging. Without accurate source maps, debugging minified code in production is impractical. For ${slugToSpacedString(page.audience)} teams, maintaining source map generation as part of the build pipeline ensures that ${tc.scenario} debugging remains feasible even after aggressive minification.`,
+      `Idempotent formatting — applying the formatter multiple times and getting the same result — is a property that well-designed formatters guarantee but is not universally true. Some formatters are sensitive to specific edge cases (long line wrapping, certain comment placements) that produce different output on the second pass. For ${slugToSpacedString(page.audience)} professionals, verifying idempotency by running ${toolName} twice on the same input is a quick smoke test before adopting a new formatting configuration.`,
+      `AST-based formatters (Prettier for JavaScript, gofmt for Go) guarantee semantically safe transformations because they parse the language into a structured representation before reformatting. Regex-based formatters cannot provide this guarantee — they may produce syntactically valid but semantically different code in edge cases. For ${slugToSpacedString(page.audience)} teams choosing a formatter for ${tc.scenario}, preferring AST-based tools reduces the risk of formatting-induced bugs.`,
+      `Format-on-save editor integrations ensure consistent code style without relying on developer discipline. Combined with pre-commit hooks that block unformatted code, this creates a two-layer enforcement strategy. For ${slugToSpacedString(page.audience)} teams working on ${tc.scenario}, layered enforcement eliminates formatting-related review comments and keeps diff history clean, making genuine logic changes easier to identify.`,
+    ],
+    api: [
+      `API schema versioning prevents breaking changes from disrupting existing consumers. Additive changes (new optional fields, new endpoints) are generally backward compatible, while removals and type changes are breaking. For ${slugToSpacedString(page.audience)} professionals managing API evolution in ${tc.scenario}, semantic versioning aligned with breaking-change detection tools ensures consumers are notified before changes are deployed.`,
+      `HTTP content negotiation — the Accept and Content-Type headers — determines how request and response bodies are encoded and parsed. A mismatch causes parsers to fail silently or produce garbled output. For ${slugToSpacedString(page.audience)} teams working on ${cd.field} integrations, validating that the declared content type matches the actual payload format with ${toolName} is a quick diagnostic for mysterious parse failures.`,
+      `Idempotency in API design means that making the same request multiple times produces the same result as making it once. This property is critical for reliable webhook consumers, retry logic, and distributed systems. For ${slugToSpacedString(page.audience)} professionals implementing ${tc.scenario}, ensuring that POST/PATCH operations are idempotent using unique idempotency keys prevents duplicate side effects from retry storms.`,
+      `Rate limit response handling determines how gracefully an API integration degrades under load. The Retry-After header specifies when the next request can be made, and exponential backoff with jitter prevents thundering herd effects. For ${slugToSpacedString(page.audience)} teams working on ${cd.field} at scale, implementing proper rate limit handling is the difference between a resilient integration and one that amplifies failure.`,
+      `Pagination cursor design affects both security and maintainability. Opaque cursors that encode server state as an encrypted or hashed value prevent consumers from reverse-engineering pagination internals and decoupling the cursor format from the storage implementation. For ${slugToSpacedString(page.audience)} professionals building APIs for ${tc.scenario}, preferring opaque cursors over offset-based pagination improves long-term API stability.`,
+      `Error response design directly impacts how quickly ${slugToSpacedString(page.audience)} consumers can diagnose and recover from failures. RFC 7807 Problem Details for HTTP APIs provides a standardised error format with type, title, status, detail, and instance fields. Adopting this standard reduces the cognitive overhead for consumers debugging ${tc.scenario} failures and enables automated error classification in monitoring systems.`,
+    ],
+    data: [
+      `Schema evolution requires explicit backward and forward compatibility strategies. Backward compatibility ensures new code can read old data; forward compatibility ensures old code can read new data. For ${slugToSpacedString(page.audience)} teams operating multi-version deployments during ${tc.scenario}, both directions must be considered simultaneously. Schema registries with compatibility checks enforce these rules automatically at the point of schema registration.`,
+      `Data type inference from samples is probabilistic, not definitive. A field that appears as an integer in the first 1,000 rows may be null, float, or string in row 1,001. For ${slugToSpacedString(page.audience)} professionals generating type definitions from ${tc.scenario} data, always validate inferred types against the full range of possible values by consulting source documentation and testing with boundary samples.`,
+      `Data lineage — the record of where data came from, what transformations it underwent, and where it went — is essential for debugging data quality issues. Without lineage, tracing the origin of a corrupt value in a long pipeline requires examining every transformation step. For ${slugToSpacedString(page.audience)} teams, investing in lineage tooling pays back during the first serious ${tc.scenario} data incident.`,
+      `Serialisation format selection has compound effects on throughput, debuggability, and schema evolution. JSON is self-describing and debuggable with ${toolName} but has higher parse overhead. Protocol Buffers and Avro are compact and fast but require a schema definition to deserialise. For ${slugToSpacedString(page.audience)} professionals designing data pipelines for ${tc.scenario}, choose the format based on the bottleneck — if human inspection matters, prefer JSON; if throughput matters, prefer binary formats.`,
+      `Partitioning strategy determines whether queries are fast or slow for a given access pattern. Range partitioning on a date field enables efficient time-range queries but creates hot partitions during bulk inserts. Hash partitioning distributes load evenly but does not support range scans. For ${slugToSpacedString(page.audience)} teams designing data storage for ${tc.scenario}, align partition strategy with the dominant query pattern of your consumers.`,
+      `Data deduplication at ingestion time is cheaper than deduplication at query time. For ${slugToSpacedString(page.audience)} professionals working on ${cd.field} pipelines, implementing an idempotent ingestion layer using event identifiers or content hashes prevents duplicate data from accumulating in the first place. Reactive deduplication at query time can consume unbounded resources as the dataset grows.`,
+    ],
+    debugging: [
+      `Scientific debugging — form a hypothesis, design a test, observe the result, revise the hypothesis — is more efficient than trial-and-error code changes. For ${slugToSpacedString(page.audience)} professionals working on ${tc.scenario}, isolating the minimal reproducing case is the highest-value first step. ${toolName} supports this by enabling controlled data transformations in a sandboxed environment, confirming whether the issue is in the data or the processing logic.`,
+      `Configuration drift between environments (development, staging, production) causes bugs that cannot be reproduced locally. Subtle differences in environment variables, feature flags, or dependency versions can produce different behaviour from identical code. For ${slugToSpacedString(page.audience)} teams debugging ${tc.scenario}, comparing configuration artifacts between environments with a diff tool is a routine but high-yield diagnostic step.`,
+      `Structured logging (JSON-formatted log entries with consistent field names) transforms log files from text to queryable data. For ${slugToSpacedString(page.audience)} professionals investigating ${tc.scenario}, structured logs enable filtering by correlation ID, user ID, or error code, reducing the time to find relevant events from minutes to seconds. ${toolName} helps inspect and validate log entry structures during the transition from unstructured to structured logging.`,
+      `Distributed tracing propagates a unique correlation ID through every service call in a request chain, enabling end-to-end reconstruction of what happened. For ${slugToSpacedString(page.audience)} teams debugging cross-service failures in ${tc.scenario}, a trace viewer shows exactly which service failed, what the latency was at each step, and what data was passed between services — information that is impossible to reconstruct from service-level logs alone.`,
+      `Binary search debugging (git bisect for code, data bisection for production issues) identifies the exact change that introduced a bug in O(log n) steps rather than O(n). For ${slugToSpacedString(page.audience)} professionals who have a reproducible failure in ${tc.scenario} but many candidate causes, bisection is the most efficient systematic approach to root cause identification.`,
+      `Exception telemetry tools (Sentry, Datadog, Honeybadger) capture structured error context including stack trace, user context, and breadcrumbs from the events leading up to the error. For ${slugToSpacedString(page.audience)} teams, correlating telemetry data with ${toolName} payload inspection during debugging provides evidence-based confidence that a locally reproduced issue matches what happened in production.`,
+    ],
+    automation: [
+      `Cron expression validation prevents scheduling errors that may go unnoticed until the task fails to run at the expected time. The five-field standard format (minute, hour, day-of-month, month, day-of-week) varies in implementation across Unix cron, Kubernetes CronJob, AWS EventBridge, and GitHub Actions — especially for day-of-week indexing (0 vs 7 for Sunday) and support for @reboot or @weekly aliases. For ${slugToSpacedString(page.audience)} teams working on ${tc.scenario}, validating cron expressions against the target scheduler's dialect prevents silent scheduling failures.`,
+      `Idempotency in automation design means that running a task multiple times produces the same outcome as running it once. For ${slugToSpacedString(page.audience)} professionals, idempotency is achieved through unique identifiers on records, existence checks before creation operations, and separating the data-gathering phase from the side-effect-producing phase. In ${tc.scenario}, these patterns prevent duplicate side effects from retry storms and overlapping executions.`,
+      `Dead letter queues (DLQs) capture messages that fail processing after exhausting retry attempts. For ${slugToSpacedString(page.audience)} teams, DLQs serve two purposes: they prevent data loss from transient failures, and they provide a corpus of failed messages for post-incident analysis. Inspecting DLQ payloads with ${toolName} helps identify whether failures are caused by malformed data, schema mismatches, or logic errors in the processor.`,
+      `Circuit breakers prevent automated pipelines from overwhelming failing downstream services. When a service fails repeatedly, the circuit breaker opens — temporarily rejecting requests rather than queueing them — allowing the downstream service to recover. For ${slugToSpacedString(page.audience)} professionals, implementing circuit breakers with appropriate thresholds and half-open probe intervals ensures that ${tc.scenario} automation degrades gracefully rather than amplifying failures.`,
+      `Event sourcing stores every state change as an immutable append-only event log. For ${slugToSpacedString(page.audience)} teams, this design provides a complete audit trail, the ability to replay events to rebuild state, and a natural integration point for downstream consumers. In ${tc.scenario}, event sourcing is particularly valuable because it makes the sequence of decisions that led to the current state fully auditable.`,
+      `Workflow orchestration tools (Apache Airflow, Temporal, Prefect) provide dependency management, retries, and observability for complex multi-step automation. For ${slugToSpacedString(page.audience)} professionals moving from simple cron jobs to complex pipelines in ${tc.scenario}, orchestration tools provide the visibility and control needed to operate reliably at scale without building bespoke infrastructure.`,
+    ],
+    web: [
+      `Cross-site scripting (XSS) prevention requires context-aware output encoding: HTML entity encoding for HTML content, JavaScript string escaping for inline scripts, URL encoding for URL parameters, and CSS value encoding for style attributes. Applying the wrong encoding for the context leaves vulnerabilities, while applying the right encoding in the wrong context breaks functionality. For ${slugToSpacedString(page.audience)} professionals working on ${tc.scenario}, ${toolName} validates encoding transformations in isolation, confirming they produce safe output for the intended context.`,
+      `Core Web Vitals (LCP, FID/INP, CLS) are measurable user experience metrics that Google uses in search ranking. Improving them requires understanding which resources block rendering, how long JavaScript execution delays interactivity, and which DOM changes cause layout shifts. For ${slugToSpacedString(page.audience)} teams working on ${cd.field} for ${tc.scenario}, focusing optimisation efforts on these metrics provides direct business value through both improved rankings and user experience.`,
+      `Content Security Policy (CSP) reduces XSS attack surface by specifying which sources of content are allowed. Deploying CSP in report-only mode first captures violations without breaking functionality, enabling incremental tightening. For ${slugToSpacedString(page.audience)} professionals, building a CSP from scratch is error-prone; generating it from a complete list of all content sources used by the application is a more reliable approach.`,
+      `Service Worker caching strategies (cache-first, network-first, stale-while-revalidate) each make different trade-offs between performance and data freshness. Cache-first serves instantly from cache and validates asynchronously; network-first prioritises freshness at the cost of latency. For ${slugToSpacedString(page.audience)} teams working on ${tc.scenario}, the stale-while-revalidate strategy often provides the best balance — fast for users, fresh for subsequent loads.`,
+      `Subresource Integrity (SRI) prevents supply-chain attacks by verifying the cryptographic hash of externally hosted scripts and stylesheets. If a CDN-hosted file is modified after the hash was recorded, the browser rejects it. For ${slugToSpacedString(page.audience)} professionals working on ${cd.field}, adding SRI attributes to all third-party resources is a low-effort security improvement that protects against a class of attack that standard HTTPS does not prevent.`,
+      `HTTP/2 server push and HTTP/3 QUIC transport change the performance characteristics of web asset delivery. Under HTTP/1.1, bundling files reduces connection overhead; under HTTP/2 and HTTP/3, granular files can be delivered with lower latency. For ${slugToSpacedString(page.audience)} teams optimising ${tc.scenario} performance, measuring actual network behaviour rather than relying on HTTP/1.1-era intuitions is essential — the optimal bundle size changes with the protocol.`,
+    ],
+  };
+  const taPool = technicalAnalysisPool[page.clusterKey] ?? technicalAnalysisPool.json;
+  const taStart = (seed + 13) % taPool.length;
+  const technicalParas = Array.from({ length: 3 }, (_, i) => taPool[(taStart + i * 5) % taPool.length]);
+  const technicalAnalysisHtml = technicalParas.map(p => `<p>${escapeHtml(p)}</p>`).join('\n');
+
+  /* Expert tips — cluster-specific actionable tips, 4 selected from pool */
+  const expertTipsPool: Record<ClusterKey, string[]> = {
+    json: [
+      `Use a schema validator alongside ${toolName} to catch not just syntax errors but also semantic violations like missing required fields and type mismatches — two complementary checks for ${tc.scenario}.`,
+      `For large JSON payloads, consider streaming parsers in production code. Use ${toolName} for initial inspection and validation, then switch to streaming for production workloads where memory is constrained.`,
+      `JSON Pointer (RFC 6901) and JSON Patch (RFC 6902) provide standardised ways to reference and modify specific parts of a JSON document — useful for ${slugToSpacedString(page.audience)} teams communicating changes precisely during code review.`,
+      `Define explicit precedence rules when merging JSON configurations from multiple sources. Most deep-merge implementations replace arrays rather than concatenating them, which is rarely the desired behaviour.`,
+      `Implement canonical JSON serialisation (sorted keys, no trailing whitespace) for any JSON that will be hashed or signed. This ensures identical documents produce identical byte representations, which is critical for ${tc.scenario}.`,
+      `Use JSON.parse reviver functions to perform type coercion and validation in a single pass rather than parsing and validating separately — this reduces memory usage and processing time for large payloads.`,
+      `Use consistent null-versus-missing-key conventions in your API contract and document them explicitly. Inconsistency is one of the most common sources of client-side bugs in JSON-heavy ${slugToSpacedString(page.audience)} workflows.`,
+      `Validate strict JSON with ${toolName} even when your development environment accepts JSON5 or JSONC — what your production systems receive may be stricter than what your tooling accepts.`,
+    ],
+    encoding: [
+      `Prefer URL-safe Base64 (RFC 4648 §5, replacing '+' with '-' and '/' with '_') when encoding data that will appear in URLs or headers, to avoid double-encoding issues in ${cd.field} pipelines.`,
+      `When debugging cross-system encoding issues, verify which Base64 variant (standard, URL-safe, MIME line-wrapping) each endpoint expects before assuming the encoding implementation is incorrect.`,
+      `Remember that RFC 3986 URI encoding uses '%20' for spaces while HTML form encoding uses '+' — this subtle difference causes integration bugs when switching between URL construction and form data in ${tc.scenario}.`,
+      `For international domain names (IDN), verify Punycode encoding roundtrips correctly using ${toolName}, especially when domain names contain characters from non-Latin scripts that behave differently across resolvers.`,
+      `Cache the encoded form of values that are encoded repeatedly — Base64 decoding is approximately 3× faster than encoding, so caching avoids redundant computation in high-throughput ${slugToSpacedString(page.audience)} workflows.`,
+      `Establish a canonicalization step before encoding: normalize Unicode, sort keys in JSON, and strip trailing whitespace. This prevents the same logical data from producing multiple encoded representations in ${tc.scenario}.`,
+      `For legacy system integrations, always verify character set assumptions by inspecting byte patterns rather than trusting declared metadata — older systems frequently misclaim their encoding.`,
+      `MIME multipart and inline binary encoding are different transport choices with different receiver expectations. Choosing the wrong one is a leading cause of file corruption in ${cd.field} API integrations.`,
+    ],
+    security: [
+      `Store JWT tokens in HttpOnly cookies rather than localStorage to eliminate XSS exposure. Use ${toolName} to inspect token contents during development but ensure production code uses secure cookie mechanisms.`,
+      `Always use HMAC (keyed hashing) instead of plain hashing for authentication purposes. HMAC prevents length extension attacks that are possible against raw SHA-2 hashes, which is critical for ${tc.scenario}.`,
+      `Monitor Certificate Transparency logs for your domain to detect unauthorised certificate issuance that could enable man-in-the-middle attacks — relevant for ${slugToSpacedString(page.audience)} teams with high ${ac.concern} requirements.`,
+      `Use constant-time comparison functions for all security-critical hash and token comparisons. Standard equality operators short-circuit on the first mismatch, leaking timing information about the expected value.`,
+      `Design for cryptographic agility: use algorithm identifier fields in stored hashes and tokens so that future algorithm rotation is possible without requiring full data migration or schema changes.`,
+      `Verify JWT claims beyond the signature: algorithm, issuer (iss), audience (aud), and expiration (exp) must all match expectations. Algorithm confusion attacks exploit libraries that trust the alg header unconditionally.`,
+      `TOTP (RFC 6238) time-window tolerance should be set to ±1 step (typically ±30 seconds). Wider windows increase usability but reduce security; narrower windows fail for users with minor clock drift.`,
+      `Generate secure random identifiers with crypto.getRandomValues() in the browser or a cryptographically secure RNG in server code. Never use Math.random() for any security-sensitive identifier generation.`,
+    ],
+    text: [
+      `Use named capture groups ((?<name>pattern)) in regex patterns for ${tc.scenario} — they make patterns self-documenting and allow accessing extracted values by name rather than fragile positional index.`,
+      `Test regex patterns that process untrusted input for ReDoS vulnerability by running them against crafted adversarial inputs. Patterns with nested quantifiers (a+)+ have potential for catastrophic backtracking.`,
+      `Use grapheme-aware string operations (Intl.Segmenter in modern JavaScript) when measuring or truncating text for display, especially for content containing emoji or characters from scripts with combining marks.`,
+      `Normalise line endings (CRLF to LF) before text comparison or regex operations in cross-platform workflows. Invisible differences in line endings cause phantom diffs that mask real changes in ${slugToSpacedString(page.audience)} reviews.`,
+      `Specify the Unicode normalisation form (NFC for composed forms, NFD for decomposed) before any comparison or hashing operation on text from untrusted or user-provided sources.`,
+      `For multi-line patterns, use the 'm' flag to make '^' and '$' match line boundaries, and 's' (dotAll) to make '.' match newlines — these defaults are wrong for most multi-line text processing scenarios.`,
+      `Lookahead and lookbehind assertions match context without consuming it, enabling precise extraction from structured text without requiring post-processing of the match result in ${tc.scenario} pipelines.`,
+      `Document the exact normalisation pipeline (lowercasing, accent stripping, punctuation removal) for any text comparison operation, so results are reproducible across different environments in your ${slugToSpacedString(page.audience)} workflow.`,
+    ],
+    formatting: [
+      `Commit formatter configuration files to version control and enforce them in CI/CD — this eliminates formatting-only commits that pollute git history and slow down ${slugToSpacedString(page.audience)} code reviews.`,
+      `Verify that formatted SQL queries produce identical execution plans to their unformatted counterparts, especially for queries containing inline optimiser hints that may be sensitive to whitespace changes.`,
+      `For CSS, always test minified output in target browsers before deployment — shorthand property conflicts and calc() expression spacing can behave differently when whitespace is removed.`,
+      `Preserve comments when running ${toolName} for ${slugToSpacedString(page.intent)} — stripped comments in shared codebases increase knowledge silos and slow onboarding for ${slugToSpacedString(page.audience)} teams.`,
+      `Verify formatter idempotency by running ${toolName} twice on the same input — a well-designed formatter should produce identical output on the second pass, which confirms stable configuration.`,
+      `Prefer AST-based formatters (Prettier, gofmt, black) over regex-based tools for ${tc.scenario} — they guarantee semantically safe transformations by operating on the parse tree rather than raw text.`,
+      `Use format-on-save integrations for individual editors and pre-commit hooks for enforcement, creating a two-layer strategy that catches formatting issues without requiring manual discipline.`,
+      `Document the formatting convention chosen for SQL in your team runbook — the Rivers style, Holywell style, and team-specific conventions each have different keyword capitalisation and indentation rules.`,
+    ],
+    api: [
+      `Validate JWT audience and issuer claims server-side on every request — these claims prevent tokens issued for one service from being accepted by another, closing a common privilege escalation path in ${cd.field}.`,
+      `Use opaque, encrypted cursors for API pagination rather than offset-based pagination — this decouples the cursor format from storage implementation and prevents consumers from reverse-engineering internals.`,
+      `Implement exponential backoff with jitter for rate-limited API requests — synchronized retry storms without jitter amplify failures rather than distributing load across the retry window.`,
+      `Implement idempotency keys on POST/PATCH operations to make API integrations safe to retry — this is especially important for ${tc.scenario} where network failures may leave the outcome ambiguous.`,
+      `Use RFC 7807 Problem Details for HTTP API error responses — the standardised type, title, status, detail, and instance fields reduce debugging time for ${slugToSpacedString(page.audience)} consumers significantly.`,
+      `Disable GraphQL introspection in production — it exposes internal implementation details that are useful during development but create information leakage risk in production environments.`,
+      `Keep OpenAPI specifications in sync with implementation using code generation or spec-first development — an out-of-date spec is worse than no spec because it actively misleads ${slugToSpacedString(page.audience)} consumers.`,
+      `Design API versions as additive (new optional fields, new endpoints) rather than breaking where possible — this extends the compatibility window and reduces forced consumer upgrades in ${tc.scenario}.`,
+    ],
+    data: [
+      `Integrate schema compatibility validation into CI/CD pipelines to block breaking schema changes before they reach production — catching incompatibility at merge time is cheaper than reprocessing failed data in ${tc.scenario}.`,
+      `Invest in data lineage tooling when your pipeline is long and transformations are complex — the payback period is typically the first serious data quality incident where root cause would otherwise be impossible to trace.`,
+      `Use Bloom filters to pre-filter large datasets before expensive exact lookups in ${tc.scenario} — they provide constant-time set membership checks with zero false negatives and configurable false positive rates.`,
+      `Choose serialisation format based on the dominant consumer type: JSON for human-debuggable ${slugToSpacedString(page.audience)} workflows, Parquet/Avro/Protocol Buffers for high-throughput analytics pipelines.`,
+      `Align partition strategy with the dominant query access pattern — range partitioning on dates enables efficient time-range scans but creates hot partitions during bulk ingestion of recent data.`,
+      `Implement deduplication at ingestion time rather than at query time — reactive query-time deduplication consumes resources proportional to dataset size, which becomes untenable as data grows.`,
+      `Use data contracts (formal schema + SLA agreements between producers and consumers) to make breaking changes explicit and provide a clear escalation path when upstream data quality degrades.`,
+      `Test schema evolution in both directions: new code reading old data (backward compatibility) and old code reading new data (forward compatibility). Both must hold for safe multi-version deployments.`,
+    ],
+    debugging: [
+      `Start every debugging session by isolating the minimal reproducing case — the smaller the input that triggers the bug, the faster the root cause becomes obvious for ${tc.scenario}.`,
+      `Compare configuration files between environments using ${toolName} before assuming a code bug — configuration drift between development and production is a leading cause of unreproducible issues.`,
+      `Adopt structured logging (JSON format with consistent field names) before a major incident happens — the ability to filter by correlation ID reduces time-to-resolution for ${tc.scenario} from hours to minutes.`,
+      `Propagate W3C Trace Context headers through every service boundary in distributed systems — without them, reconstructing the full request chain for ${tc.scenario} requires correlating timestamps across service logs manually.`,
+      `Use git bisect for code regressions and data bisection for production data issues — both reduce the problem space logarithmically rather than linearly, making root cause identification predictable.`,
+      `Correlate exception telemetry with ${toolName} payload inspection to verify that a locally reproduced issue matches the production failure — this prevents solving the wrong problem during ${tc.scenario} investigations.`,
+      `Explain the problem out loud or in writing before making changes — articulating the expected versus actual behaviour often reveals incorrect assumptions before any code modification is needed.`,
+      `Implement circuit breakers and dead letter queues in automated systems — they prevent transient failures from cascading and preserve failed payloads for post-incident analysis of ${tc.scenario}.`,
+    ],
+    automation: [
+      `Always validate cron expressions against the target scheduler's specific dialect (Kubernetes, AWS EventBridge, GitHub Actions) — day-of-week indexing and special macro support differ significantly between platforms.`,
+      `Design automation tasks for idempotency using unique identifiers and existence checks — this makes them safe to retry after network failures and prevents duplicate side effects from overlapping executions in ${tc.scenario}.`,
+      `Implement dead letter queues with replay capability — failed messages are preserved for post-incident analysis and can be replayed after fixing the root cause without losing data.`,
+      `Size circuit breaker thresholds based on measured baseline failure rates, not intuition — thresholds that are too sensitive cause unnecessary open states, while thresholds that are too lenient fail to protect downstream services.`,
+      `Prefer code-driven workflow orchestration (Temporal, Prefect) over DAG-based schedulers for complex multi-step automation that requires conditional branching, dynamic task generation, or sub-workflows.`,
+      `Test automation failure scenarios explicitly: rate limit responses, partial failures, stale data, and timeout conditions should all be covered in your test suite for ${tc.scenario}.`,
+      `Implement backpressure monitoring with queue depth alerts and consumer autoscaling — unbounded queue growth is a leading indicator of impending data loss or processing delays in ${slugToSpacedString(page.audience)} pipelines.`,
+      `Verify scheduled task idempotency by running the task twice and comparing outputs — this is especially important after schema changes or dependency updates that may affect task behaviour.`,
+    ],
+    web: [
+      `Apply context-aware output encoding rather than HTML entity encoding universally — different contexts (HTML, URLs, JavaScript strings, CSS values) require different escaping rules to be both safe and functional.`,
+      `Measure Core Web Vitals (LCP, INP, CLS) with real user monitoring (RUM) rather than lab tests alone — synthetic tests miss network variability, third-party script behaviour, and device performance distribution.`,
+      `Deploy CSP in report-only mode first and monitor violations for at least two weeks before switching to enforcement — this prevents breaking functionality while establishing a complete allowlist for ${tc.scenario}.`,
+      `Add Subresource Integrity (SRI) hashes to all externally hosted scripts and stylesheets — SRI blocks tampered CDN-served files, closing a supply-chain attack vector that HTTPS alone does not prevent.`,
+      `Use stale-while-revalidate Service Worker strategy for content that updates infrequently — it delivers instant load from cache while refreshing in the background, balancing speed and freshness for ${slugToSpacedString(page.audience)} users.`,
+      `Add web security headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy) as a standard deployment checklist item — they complement CSP with minimal implementation cost.`,
+      `Validate that your CORS configuration aligns withCredentials flag with server Access-Control headers — a mismatch causes authentication failures that are difficult to diagnose from client-side errors alone.`,
+      `Measure optimisation decisions (bundling, lazy loading, compression) against the deployment HTTP version — HTTP/2 multiplexing reduces the benefit of bundling, making granular files the better choice in modern deployments.`,
+    ],
+  };
+  const etPool = expertTipsPool[page.clusterKey] ?? expertTipsPool.json;
+  const etStart = (seed + 29) % etPool.length;
+  const expertTips = Array.from({ length: 4 }, (_, i) => etPool[(etStart + i * 3) % etPool.length]);
+  const expertTipsHtml = expertTips.map(t => `<li>${escapeHtml(t)}</li>`).join('\n');
+
+  /* Pro tips — general actionable tips, 4 selected from pool */
+  const proTipsPool = [
+    `Bookmark ${toolName} for quick access — ${cd.field} tasks come up frequently and having a reliable tool ready reduces context-switching time.`,
+    `${cd.bestPractice} — this is especially important when ${ac.concern} is a factor in ${slugToSpacedString(page.audience)} workflows.`,
+    `Start with the smallest reproducible input sample to save time and reduce complexity when working on ${tc.scenario}.`,
+    `Keep a personal library of test inputs for ${cd.field} tasks — reusing known-good samples speeds up future debugging sessions significantly.`,
+    `Since ${toolName} runs entirely in your browser, you can use it offline or in air-gapped environments where external network access is restricted.`,
+    `Consider integrating this ${slugToSpacedString(page.clusterKey)} validation step ${ac.workflow} for maximum efficiency in your ${slugToSpacedString(page.audience)} team.`,
+    `After completing ${slugToSpacedString(page.task)}, review the result with fresh eyes — familiarity bias can mask subtle issues that would be obvious on a second pass.`,
+    `Share validated results by copying output directly — no login or account needed, making ${toolName} frictionless for ${slugToSpacedString(page.audience)} teams.`,
+    `Document the exact tool settings and input sample used so you can reproduce the result deterministically in a future incident or audit.`,
+    `Pair ${toolName} with a version-controlled config file — changes become auditable and reviewable like code, maintaining ${ac.focus} over time.`,
+    `Prepare your input data in advance for time-sensitive ${slugToSpacedString(page.task)} scenarios — having the data ready keeps tool sessions focused and fast.`,
+    `Cross-check ${toolName} output against at least one independent validation method for security-critical ${cd.field} operations where ${ac.concern} is highest.`,
+    `Establish a team-wide standard for which tool to use for ${cd.field} tasks — consistency reduces onboarding time and eliminates tool discrepancies during review.`,
+    `Verify input encoding and whitespace before assuming the tool or data is incorrect — most unexpected results in ${slugToSpacedString(page.clusterKey)} tooling trace back to input preparation.`,
+    `Write a short runbook entry referencing this guide for recurring ${slugToSpacedString(page.task)} scenarios so team members can repeat the process consistently.`,
+    `Use browser developer tools alongside ${toolName} to confirm no data leaves your machine — the Network tab should show zero outbound requests during tool operation.`,
+  ];
+  const ptStart = (seed + 47) % proTipsPool.length;
+  const proTips = Array.from({ length: 4 }, (_, i) => proTipsPool[(ptStart + i * 5) % proTipsPool.length]);
+  const proTipsHtml = proTips.map(t => `<li>${escapeHtml(t)}</li>`).join('\n');
 
   const faqJsonLd = JSON.stringify({
     '@context': 'https://schema.org',
@@ -727,6 +1106,29 @@ ${pitfallsHtml}
 <h2>Technical Context</h2>
 <p>${escapeHtml(cd.importance)}. For ${escapeHtml(slugToSpacedString(page.audience))} professionals, this means paying close attention to ${escapeHtml(ac.focus)}. The best practice is: ${escapeHtml(cd.bestPractice)}.</p>
 <p>In the context of ${escapeHtml(tc.scenario)}, which is ${escapeHtml(tc.urgency)}, the objective is to ${escapeHtml(tc.outcome)}. Using the approach described ${escapeHtml(slugToSpacedString(page.modifier))} ensures efficiency without compromising on quality or security.</p>
+</section>
+
+<section aria-label="Technical analysis">
+<h2>Technical Analysis</h2>
+${technicalAnalysisHtml}
+</section>
+
+<section aria-label="Expert tips">
+<div class="card" style="border-color:#d1fae5;background:#f0fdf4">
+<div class="card-title"><span role="img" aria-label="Star">⭐</span> Expert Tips</div>
+<ul style="padding-left:1.25rem">
+${expertTipsHtml}
+</ul>
+</div>
+</section>
+
+<section aria-label="Pro tips">
+<div class="card" style="border-color:#e9d5ff;background:#faf5ff">
+<div class="card-title"><span role="img" aria-label="Rocket">🚀</span> Pro Tips</div>
+<ul style="padding-left:1.25rem">
+${proTipsHtml}
+</ul>
+</div>
 </section>
 
 <section aria-label="Frequently asked questions">
@@ -900,6 +1302,22 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       return new Response(generateHubHtml(url, slug), {
         status: 200,
         headers: responseHeaders,
+      });
+    }
+
+    // When the requested slug is a legacy variant that remaps to a different canonical
+    // slug, issue a 301 redirect so search engines consolidate link equity to the
+    // single canonical URL and stop reporting it as an "alternate page with proper
+    // canonical tag".  The canonical mapping is deterministic and permanent, so the
+    // redirect is safe to cache at the CDN edge for 7 days, reducing Worker invocations.
+    if (page.slug !== slug) {
+      return new Response(null, {
+        status: 301,
+        headers: {
+          'Location': `${url.origin}/k/${page.slug}`,
+          'Cache-Control': 'public, max-age=604800, s-maxage=604800',
+          [CONTENT_SIGNAL_HEADER]: CONTENT_SIGNAL_VALUE,
+        },
       });
     }
 

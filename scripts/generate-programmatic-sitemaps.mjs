@@ -7,7 +7,7 @@ const outDir = join(process.cwd(), 'out');
 const urlsPerSitemap = 50000;
 const minIndexScore = 82;
 const minSitemapScore = 90;
-const minWordCount = 400;
+const minWordCount = 900;
 const maxSitemapUrls = Number.parseInt(process.env.PROGRAMMATIC_SITEMAP_LIMIT || '18040320', 10);
 
 const clusters = [
