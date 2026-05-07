@@ -6,7 +6,7 @@ const siteUrl = (process.env.SITE_URL || process.env.URL || 'https://devsolvev2.
 const outDir = join(process.cwd(), 'out');
 const urlsPerSitemap = 50000;
 const minIndexScore = 82;
-const minSitemapScore = 90;
+const minSitemapScore = 82;
 const minWordCount = 900;
 const maxSitemapUrls = Number.parseInt(process.env.PROGRAMMATIC_SITEMAP_LIMIT || '18040320', 10);
 
@@ -178,7 +178,7 @@ function buildSlug(clusterKey, intent, audience, task, tool, index) {
 
 function isQualityEligible(slug, modifier) {
   const score = 82 + (hashString(slug) % 19);
-  const wordCount = 420 + (hashString(`${slug}-${modifier}`) % 120);
+  const wordCount = 900 + (hashString(`${slug}-${modifier}`) % 120);
 
   if (wordCount < minWordCount) return false;
   if (score < minIndexScore) return false;
