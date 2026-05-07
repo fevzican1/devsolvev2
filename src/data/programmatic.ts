@@ -935,6 +935,7 @@ function buildFAQ(clusterKey: ClusterKey, tool: string, audience: string, intent
   const toolName = getToolName(tool);
   const cd = clusterDomain[clusterKey];
   const ac = audienceContext[audience] ?? { focus: 'quality', concern: 'correctness', workflow: 'your workflow' };
+  const tc = taskContext[task] ?? { scenario: 'completing a development task', urgency: 'important for project quality', outcome: 'achieve the desired result efficiently' };
 
   const faqs = [
     { question: `Is my data safe when using ${toolName}?`, answer: `Yes. ${toolName} runs entirely in your browser. No data is sent to any external server, making it safe for working with sensitive or proprietary information.` },
