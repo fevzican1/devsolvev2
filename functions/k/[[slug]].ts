@@ -903,6 +903,22 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
+    // When the requested slug is a legacy variant that remaps to a different canonical
+    // slug, issue a 301 redirect so search engines consolidate link equity to the
+    // single canonical URL and stop reporting it as an "alternate page with proper
+    // canonical tag".  The canonical mapping is deterministic and permanent, so the
+    // redirect is safe to cache at the CDN edge for 7 days, reducing Worker invocations.
+    if (page.slug !== slug) {
+      return new Response(null, {
+        status: 301,
+        headers: {
+          'Location': `${url.origin}/k/${page.slug}`,
+          'Cache-Control': 'public, max-age=604800, s-maxage=604800',
+          [CONTENT_SIGNAL_HEADER]: CONTENT_SIGNAL_VALUE,
+        },
+      });
+    }
+
     return new Response(generateHtml(page), {
       status: 200,
       headers: responseHeaders,
