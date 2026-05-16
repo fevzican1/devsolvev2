@@ -5,8 +5,6 @@ const config = {
   siteUrl,
   generateRobotsTxt: false,
   generateIndexSitemap: false,
-  // Avoid sitemap.xml — Google auto-discovers it and can treat it as a second root sitemap.
-  sitemapBaseFileName: 'sitemap-main-pages',
   sitemapSize: 50000,
   outDir: 'out',
   autoLastmod: true,
