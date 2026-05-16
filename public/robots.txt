@@ -1,0 +1,16 @@
+# DevSolve robots.txt — Google crawlers only
+
+# Block all bots by default
+User-agent: *
+Disallow: /
+
+# Google web crawler
+User-agent: Googlebot
+Allow: /
+
+# Google image crawler
+User-agent: Googlebot-Image
+Allow: /
+
+# Sitemap index (references all sitemap chunks)
+Sitemap: https://devsolvev2.com/sitemap-index.xml
