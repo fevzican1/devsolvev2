@@ -5,6 +5,7 @@ const config = {
   siteUrl,
   generateRobotsTxt: false,
   generateIndexSitemap: false,
+  sitemapBaseFileName: 'sitemap-main-pages',
   sitemapSize: 50000,
   outDir: 'out',
   autoLastmod: true,

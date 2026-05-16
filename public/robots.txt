@@ -12,7 +12,5 @@ Allow: /
 User-agent: Googlebot-Image
 Allow: /
 
-# Main site pages (about, tools, guides, etc.)
-Sitemap: https://devsolvev2.com/sitemap.xml
-# Programmatic /k/* page chunks only
+# Single entry: index lists sitemap-main-pages.xml + programmatic chunks
 Sitemap: https://devsolvev2.com/sitemap-index.xml
