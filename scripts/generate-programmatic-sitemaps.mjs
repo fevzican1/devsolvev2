@@ -219,6 +219,9 @@ function closeSitemapFile(stream) {
 }
 
 const coreSitemapPattern = /^sitemap-main-pages(\.xml|-\d+\.xml)$/i;
+// Match the historical `sitemap.xml` (and any chunked variants) so we can purge
+// stale artifacts that would otherwise leak into sitemap-index.xml and produce
+// a 404 in Google Search Console.
 const legacySitemapPattern = /^sitemap(\.xml|-\d+\.xml)$/i;
 
 async function removeExistingProgrammaticSitemaps() {
@@ -243,9 +246,31 @@ async function removeLegacySitemapXml() {
 
 async function listCoreSitemaps() {
   const files = await readdir(outDir);
-  return files
+  const matched = files
     .filter((file) => coreSitemapPattern.test(file))
     .sort((a, b) => a.localeCompare(b));
+
+  if (matched.length === 0) {
+    // Defensive fallback: emit an empty sitemap-main-pages.xml so the
+    // sitemap-index.xml never references a missing file. This guarantees
+    // Googlebot sees a 200 OK response for every <loc> in the index.
+    const filename = 'sitemap-main-pages.xml';
+    const filePath = join(outDir, filename);
+    const stream = createWriteStream(filePath, { encoding: 'utf-8' });
+    stream.write('<?xml version="1.0" encoding="UTF-8"?>\n');
+    stream.write('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n');
+    stream.write('</urlset>\n');
+    await new Promise((resolve, reject) => {
+      stream.end((error) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    });
+    console.warn('No sitemap-main-pages*.xml produced by next-sitemap; emitted an empty placeholder.');
+    return [filename];
+  }
+
+  return matched;
 }
 
 async function writeSitemapIndex(coreSitemaps, programmaticSitemaps, lastmod) {
@@ -337,10 +362,17 @@ async function main() {
   }
 
   const coreSitemaps = await listCoreSitemaps();
-  await writeSitemapIndex(coreSitemaps, generatedFiles, lastmod);
+
+  // Hard guard: never let a stale sitemap.xml leak in via either core or
+  // programmatic listings. This is the entry Google complained about (404).
+  const safeCore = coreSitemaps.filter((f) => !legacySitemapPattern.test(f));
+  const safeProgrammatic = generatedFiles.filter((f) => !legacySitemapPattern.test(f));
+
+  await writeSitemapIndex(safeCore, safeProgrammatic, lastmod);
 
   console.log(`Programmatic sitemap URLs generated: ${generatedUrlCount}`);
-  console.log(`Programmatic sitemap files generated: ${generatedFiles.length}`);
+  console.log(`Programmatic sitemap files generated: ${safeProgrammatic.length}`);
+  console.log(`Core sitemap files referenced in index: ${safeCore.join(', ')}`);
   console.log(`Sitemap index generated: sitemap-index.xml`);
 }
 

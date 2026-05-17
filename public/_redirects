@@ -1,0 +1,5 @@
+# Legacy sitemap URL kept alive for Googlebot — points to current main pages sitemap.
+# 301 ensures Search Console transfers any historical signal to the new file.
+/sitemap.xml            /sitemap-main-pages.xml   301
+/sitemap_index.xml      /sitemap-index.xml        301
+/sitemaps.xml           /sitemap-index.xml        301
