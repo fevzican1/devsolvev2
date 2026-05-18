@@ -36,7 +36,7 @@ const DEFAULT_LOCALE = 'en-US';
 
 // Must match siteConfig.contentUpdatedAt — update here and in src/config/site.ts together.
 // The sitemap generator reads the same value via SITE_CONTENT_UPDATED_AT env var.
-const CONTENT_UPDATED_AT = '2026-05-07T00:00:00Z';
+const CONTENT_UPDATED_AT = '2026-05-18T00:00:00Z';
 
 /* ------------------------------------------------------------------ */
 /*  Core data arrays — must match src/data/programmatic.ts exactly     */
@@ -653,13 +653,19 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
 }
 
 function resolvePageForRequest(slug: string): PageData | undefined {
-  // Pattern-matched legacy URLs try the migration resolver first because the slug
-  // shape already tells us the canonical parser is less likely to succeed directly.
-  if (LEGACY_PROGRAMMATIC_SLUG_PATTERN.test(slug)) {
-    return tryResolveLegacyProgrammaticSlug(slug) ?? resolvePageFromSlug(slug);
-  }
-
-  return resolvePageFromSlug(slug) ?? tryResolveLegacyProgrammaticSlug(slug);
+  // CRITICAL: always try the canonical resolver FIRST. Every current programmatic
+  // slug ends with `-<number>` and therefore matches LEGACY_PROGRAMMATIC_SLUG_PATTERN,
+  // so previously the legacy migration path was running for valid canonical URLs and
+  // remapping them onto a *different* canonical slug. That produced spurious 301
+  // redirects, which Google Search Console reports as "Page with redirect" /
+  // "Duplicate, Google chose different canonical than user" and prevents indexing.
+  //
+  // The canonical resolver is exact: it only returns a page when the requested slug
+  // matches the deterministic build output. Only when that fails do we fall back to
+  // the legacy resolver — for genuinely outdated URL shapes from before migration.
+  const canonical = resolvePageFromSlug(slug);
+  if (canonical) return canonical;
+  return tryResolveLegacyProgrammaticSlug(slug);
 }
 
 /* ------------------------------------------------------------------ */
