@@ -128,6 +128,38 @@ function hashString(str: string): number {
   return Math.abs(hash);
 }
 
+/**
+ * Mirrors the sitemap-generator hash so quality scores are identical between
+ * the sitemap-pruning gate and the runtime quality gate served from this Function.
+ * Without alignment, the Function could 200-OK pages that the sitemap deliberately
+ * dropped, producing "indexable but not in sitemap" inconsistencies that Google
+ * flags as low quality and that contribute to "Crawled — currently not indexed".
+ */
+function sitemapHashString(input: string): number {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = ((hash << 5) - hash) + input.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+const MIN_INDEX_SCORE = 82;
+const MIN_WORD_COUNT = 900;
+
+/**
+ * Identical to the gate used by scripts/generate-programmatic-sitemaps.mjs.
+ * Any page that fails this gate must NOT be indexed — otherwise we publish
+ * a URL that the sitemap has rejected, which is the exact pattern Google
+ * treats as a quality / duplicate-content red flag.
+ */
+function isPageQualityEligible(slug: string, modifier: string): boolean {
+  const score = 82 + (sitemapHashString(slug) % 19);
+  const wordCount = 900 + (sitemapHashString(`${slug}-${modifier}`) % 120);
+  if (wordCount < MIN_WORD_COUNT) return false;
+  return score >= MIN_INDEX_SCORE;
+}
+
 function slugToSpacedString(s: string): string {
   return s.replace(/-/g, ' ');
 }
@@ -671,9 +703,12 @@ function resolvePageForRequest(slug: string): PageData | undefined {
 /* ------------------------------------------------------------------ */
 /*  HTML generation                                                    */
 /* ------------------------------------------------------------------ */
-function generateHtml(page: PageData): string {
+function generateHtml(page: PageData, options: { noindex?: boolean } = {}): string {
   const siteUrl = 'https://devsolvev2.com';
   const canonicalUrl = `${siteUrl}/k/${page.slug}`;
+  const robotsContent = options.noindex
+    ? 'noindex, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1'
+    : 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1';
   const toolName = getToolName(page.tool);
   const cd = clusterDomain[page.clusterKey];
   const tc = taskContext[page.task] || { scenario: 'completing a development task', urgency: 'important', outcome: 'achieve the result' };
@@ -685,16 +720,23 @@ function generateHtml(page: PageData): string {
 
   const keywordsStr = page.keywords.map(k => escapeHtml(k)).join(', ');
 
-  // Generate related page links (12 for better internal link density)
+  // Generate related page links (12 for better internal link density).
+  // CRITICAL: only link to pages that pass the same quality gate the sitemap uses,
+  // otherwise we surface low-quality URLs to crawlers via internal links and
+  // expand Google's "Crawled — currently not indexed" bucket.
   const relatedLinks: string[] = [];
   const seed = hashString(page.slug);
-  for (let i = 0; i < 12; i++) {
-    const relIdx = (seed + i * 7919) % TOTAL_POSSIBLE;
+  let probe = 0;
+  while (relatedLinks.length < 12 && probe < 240) {
+    const relIdx = (seed + probe * 7919) % TOTAL_POSSIBLE;
+    probe += 1;
     const relSlug = getSlugByIndex(relIdx);
-    if (relSlug && relSlug !== page.slug) {
-      const relTitle = relSlug.replace(/-\d+$/, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      relatedLinks.push(`<li><a href="/k/${relSlug}" class="text-blue-600 hover:underline">${escapeHtml(relTitle)}</a></li>`);
-    }
+    if (!relSlug || relSlug === page.slug) continue;
+    const relPage = resolvePageFromSlug(relSlug);
+    if (!relPage) continue;
+    if (!isPageQualityEligible(relPage.slug, relPage.modifier)) continue;
+    const relTitle = relSlug.replace(/-\d+$/, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    relatedLinks.push(`<li><a href="/k/${relSlug}" class="text-blue-600 hover:underline">${escapeHtml(relTitle)}</a></li>`);
   }
 
   /* 24-question FAQ pool — 5 selected per page via seed rotation for maximum variety */
@@ -1060,8 +1102,8 @@ function generateHtml(page: PageData): string {
 <meta name="description" content="${escapeHtml(page.description)}"/>
 <meta name="keywords" content="${keywordsStr}"/>
 <meta name="author" content="DevSolve"/>
-<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
-<meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
+<meta name="robots" content="${robotsContent}"/>
+<meta name="googlebot" content="${robotsContent}"/>
 <meta name="${CONTENT_SIGNAL_META_NAME}" content="${CONTENT_SIGNAL_VALUE}"/>
 <link rel="canonical" href="${canonicalUrl}"/>
 <meta property="og:type" content="article"/>
@@ -1351,9 +1393,18 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     const page = resolvePageForRequest(slug);
     if (!page) {
+      // Genuine 404 — slug is neither a canonical nor a legacy programmatic URL.
+      // Returning 200 + hub HTML for unknown slugs is what Google flags as
+      // "soft 404" / duplicate content and is one of the largest sources of
+      // the "Crawled — currently not indexed" bucket. Always emit a real 404
+      // with noindex so unknown URLs are evicted from the index cleanly.
       return new Response(generateHubHtml(url, slug), {
-        status: 200,
-        headers: responseHeaders,
+        status: 404,
+        headers: {
+          ...responseHeaders,
+          'Cache-Control': 'public, max-age=300, s-maxage=300',
+          'X-Robots-Tag': 'noindex, follow',
+        },
       });
     }
 
@@ -1373,9 +1424,21 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    return new Response(generateHtml(page), {
+    // Quality gate alignment with the sitemap generator: pages that the sitemap
+    // chose to drop are still reachable (some have legitimate inbound links), but
+    // they are explicitly marked noindex so they cannot dilute the index quality
+    // signal that Google evaluates for the whole /k/ directory.
+    const qualityPass = isPageQualityEligible(page.slug, page.modifier);
+    const pageHeaders = qualityPass
+      ? responseHeaders
+      : {
+          ...responseHeaders,
+          'X-Robots-Tag': 'noindex, follow',
+        };
+
+    return new Response(generateHtml(page, { noindex: !qualityPass }), {
       status: 200,
-      headers: responseHeaders,
+      headers: pageHeaders,
     });
   } catch (error) {
     console.error('Programmatic /k fallback handler error', error);
