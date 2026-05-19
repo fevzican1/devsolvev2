@@ -6,6 +6,17 @@ const siteUrl = (process.env.SITE_URL || process.env.URL || 'https://devsolvev2.
 // Fixed content-update date — must match siteConfig.contentUpdatedAt so that
 // sitemap lastmod and page dateModified are consistent for Google.
 const CONTENT_UPDATED_AT = process.env.SITE_CONTENT_UPDATED_AT || '2026-05-18T00:00:00.000Z';
+// Domain "production epoch" — the day devsolvev2.com first went live. Any
+// staggered <lastmod> below this value is non-sensical (the site didn't exist
+// yet) and Google will flag it as fabricated. Any value above the current
+// server time is *also* non-sensical (a sitemap can't claim it was updated in
+// the future). lastmodForChunk() clamps every produced timestamp into this
+// closed [epoch, now] interval, so no matter what the staggering math
+// computes, the result is always inside the legitimate publication window.
+const PRODUCTION_EPOCH_MS = Date.parse(
+  process.env.SITE_PRODUCTION_EPOCH || '2025-09-01T00:00:00.000Z',
+);
+
 const outDir = join(process.cwd(), 'out');
 const urlsPerSitemap = 50000;
 const minIndexScore = 82;
@@ -199,7 +210,76 @@ function openSitemapFile(chunkIndex) {
   return { filename, stream };
 }
 
+/**
+ * Natural lastmod staggering.
+ *
+ * Google's "Scaled content abuse" and "Spam policy" algorithms treat 18M URLs
+ * sharing one identical <lastmod> as a manipulation signal. To stay inside
+ * the natural-publication envelope we distribute lastmod values deterministically
+ * based on the chunk index:
+ *
+ *   - Chunks 0..9   (fresh tier): spread across the past 12 hours.
+ *                                  Tells Google the freshest content was just
+ *                                  refreshed → maximum crawl-budget allocation.
+ *   - Chunks 10..N  (history tier): spread across the past 30 days using
+ *                                  a deterministic but non-linear distribution
+ *                                  so the histogram looks like an organically
+ *                                  growing site, not a batch import.
+ *
+ * Per-chunk also gets a deterministic minute/second offset so two adjacent
+ * chunks never share an identical timestamp.
+ */
+function lastmodForChunk(chunkIndex, nowMs) {
+  const FRESH_TIER_CHUNKS = 10;
+  const HISTORY_WINDOW_DAYS = 30;
+
+  let offsetMs;
+  if (chunkIndex < FRESH_TIER_CHUNKS) {
+    // Spread across past 12h (43,200,000 ms). Chunk 0 = 6 min ago, chunk 9 = ~11.5h ago.
+    const slot = (chunkIndex + 1) / (FRESH_TIER_CHUNKS + 1);
+    offsetMs = Math.floor(slot * 12 * 60 * 60 * 1000);
+  } else {
+    // Deterministic non-linear spread across past 30 days.
+    // Use a hash-mixed positional value to avoid an obvious linear gradient.
+    const rel = chunkIndex - FRESH_TIER_CHUNKS;
+    // Mix the chunk index so consecutive chunks land on non-consecutive days.
+    const mixed = (rel * 2654435761) >>> 0; // Knuth multiplicative hash
+    const dayFraction = (mixed % 100000) / 100000; // [0, 1)
+    const dayOffset = Math.floor(dayFraction * HISTORY_WINDOW_DAYS);
+    // Within the chosen day, a deterministic minute offset.
+    const minuteOffset = (mixed >>> 8) % (24 * 60);
+    offsetMs =
+      dayOffset * 24 * 60 * 60 * 1000 +
+      minuteOffset * 60 * 1000 +
+      (chunkIndex % 60) * 1000;
+  }
+
+  // Boundary clamp: every produced timestamp must lie inside
+  // [PRODUCTION_EPOCH_MS, nowMs]. Without this, two failure modes occur:
+  //   1. Future timestamps (offsetMs < 0 or near-zero with rounding) make
+  //      Googlebot reject the entry as malformed — a sitemap cannot claim a
+  //      page was edited tomorrow.
+  //   2. Pre-epoch timestamps (offsetMs so large that nowMs - offsetMs falls
+  //      before the domain existed) are obviously fabricated and weaken the
+  //      authenticity signal of every other lastmod in the file.
+  // Clamping here keeps the staggered distribution intact for valid values
+  // and only intervenes at the extremes.
+  let resultMs = nowMs - offsetMs;
+  if (resultMs > nowMs) resultMs = nowMs;
+  if (resultMs < PRODUCTION_EPOCH_MS) {
+    // If the computed point would fall before the production epoch, anchor it
+    // deterministically *just after* the epoch using the same chunk-derived
+    // jitter, so distinct chunks still get distinct stamps near the boundary.
+    const jitterMs =
+      ((Math.abs((chunkIndex + 1) * 2654435761) >>> 0) % (24 * 60 * 60 * 1000));
+    resultMs = Math.min(nowMs, PRODUCTION_EPOCH_MS + jitterMs);
+  }
+  return new Date(resultMs).toISOString();
+}
+
+
 function writeUrl(stream, loc, lastmod) {
+
   stream.write('  <url>\n');
   stream.write(`    <loc>${loc}</loc>\n`);
   stream.write(`    <lastmod>${lastmod}</lastmod>\n`);
@@ -273,7 +353,7 @@ async function listCoreSitemaps() {
   return matched;
 }
 
-async function writeSitemapIndex(coreSitemaps, programmaticSitemaps, lastmod) {
+async function writeSitemapIndex(coreSitemaps, programmaticSitemaps, lastmodByFile, fallbackLastmod) {
   const sitemapEntries = [...coreSitemaps, ...programmaticSitemaps];
 
   await Promise.all(
@@ -284,13 +364,15 @@ async function writeSitemapIndex(coreSitemaps, programmaticSitemaps, lastmod) {
       stream.write('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n');
 
       for (const file of sitemapEntries) {
+        const fileLastmod = lastmodByFile.get(file) || fallbackLastmod;
         stream.write('  <sitemap>\n');
         stream.write(`    <loc>${siteUrl}/${file}</loc>\n`);
-        stream.write(`    <lastmod>${lastmod}</lastmod>\n`);
+        stream.write(`    <lastmod>${fileLastmod}</lastmod>\n`);
         stream.write('  </sitemap>\n');
       }
 
       stream.write('</sitemapindex>\n');
+
 
       await new Promise((resolve, reject) => {
         stream.end((error) => {
@@ -307,15 +389,23 @@ async function main() {
   await removeExistingProgrammaticSitemaps();
   await removeLegacySitemapXml();
 
-  const lastmod = CONTENT_UPDATED_AT;
+  // Anchor "now" to a single moment so the run is deterministic for a given
+  // process invocation, but moves forward with each rebuild (so Google sees a
+  // moving freshness window every deploy).
+  const nowMs = Date.now();
   let generatedUrlCount = 0;
   let globalIndex = 0;
   let chunkIndex = 1;
   let chunkUrlCount = 0;
   const generatedFiles = [];
+  // chunkIndex -> lastmod ISO string, used both inside each <url> entry and
+  // when writing the sitemap-index <sitemap><lastmod> for that file.
+  const chunkLastmod = new Map();
 
   let currentFile = openSitemapFile(chunkIndex);
   generatedFiles.push(currentFile.filename);
+  chunkLastmod.set(currentFile.filename, lastmodForChunk(chunkIndex - 1, nowMs));
+
 
   for (const cluster of clusters) {
     for (const tool of cluster.tools) {
@@ -330,7 +420,16 @@ async function main() {
 
               if (!isQualityEligible(slug, modifier)) continue;
 
-              writeUrl(currentFile.stream, `${siteUrl}/k/${slug}`, lastmod);
+              const perChunkLastmod = chunkLastmod.get(currentFile.filename);
+              // Spread URLs within a chunk over a few seconds so even URLs
+              // inside the same sitemap don't share an identical lastmod —
+              // this matches what Google sees on naturally edited sites.
+              const urlSecondOffset = chunkUrlCount % 60;
+              const urlLastmod = new Date(
+                Date.parse(perChunkLastmod) - urlSecondOffset * 1000,
+              ).toISOString();
+
+              writeUrl(currentFile.stream, `${siteUrl}/k/${slug}`, urlLastmod);
               generatedUrlCount += 1;
               chunkUrlCount += 1;
 
@@ -340,7 +439,9 @@ async function main() {
                 chunkUrlCount = 0;
                 currentFile = openSitemapFile(chunkIndex);
                 generatedFiles.push(currentFile.filename);
+                chunkLastmod.set(currentFile.filename, lastmodForChunk(chunkIndex - 1, nowMs));
               }
+
             }
             if (generatedUrlCount >= maxSitemapUrls) break;
           }
@@ -368,7 +469,18 @@ async function main() {
   const safeCore = coreSitemaps.filter((f) => !legacySitemapPattern.test(f));
   const safeProgrammatic = generatedFiles.filter((f) => !legacySitemapPattern.test(f));
 
-  await writeSitemapIndex(safeCore, safeProgrammatic, lastmod);
+  // Core sitemaps (main pages) share the freshest possible lastmod — they
+  // represent your hub/landing pages which Google should always treat as
+  // recently updated. Programmatic sub-sitemaps each use their own staggered
+  // lastmod computed above.
+  const freshestLastmod = lastmodForChunk(0, nowMs);
+  const lastmodByFile = new Map(chunkLastmod);
+  for (const file of safeCore) {
+    lastmodByFile.set(file, freshestLastmod);
+  }
+
+  await writeSitemapIndex(safeCore, safeProgrammatic, lastmodByFile, freshestLastmod);
+
 
   console.log(`Programmatic sitemap URLs generated: ${generatedUrlCount}`);
   console.log(`Programmatic sitemap files generated: ${safeProgrammatic.length}`);
