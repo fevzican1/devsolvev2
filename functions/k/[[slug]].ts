@@ -1770,43 +1770,6 @@ ${Array.from({ length: 5 }, (_, i) => `<li>${escapeHtml(takeawaysPool[(tkStart +
   // for the sitemap generator (no behavioural impact at the page level).
   void CONTENT_UPDATED_AT;
 
-  const faqJsonLd = JSON.stringify({
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: faqItems.map(item => ({
-      '@type': 'Question',
-      name: item.q,
-      acceptedAnswer: { '@type': 'Answer', text: item.a },
-    })),
-  });
-
-  const howToJsonLd = JSON.stringify({
-    '@context': 'https://schema.org',
-    '@type': 'HowTo',
-    name: page.h1,
-    description: page.description,
-    step: page.steps.map((step, index) => ({
-      '@type': 'HowToStep',
-      position: index + 1,
-      name: `Step ${index + 1}`,
-      text: step,
-    })),
-  });
-
-  const softwareApplicationJsonLd = JSON.stringify({
-    '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
-    name: toolName,
-    applicationCategory: 'DeveloperApplication',
-    operatingSystem: 'Web Browser',
-    offers: {
-      '@type': 'Offer',
-      price: '0',
-      priceCurrency: 'USD',
-    },
-    url: `${siteUrl}/tools/${page.tool}`,
-  });
-
   // Deterministic document identifier — surfaces in JSON-LD as the
   // schema.org `identifier` field. Combined with self-canonical URL it gives
   // Google's deduper a strong primary key for the page.
@@ -2089,6 +2052,87 @@ ${diagnosticsSelected.map((item) => `<li style="margin-bottom:0.55rem"><label st
     ],
   });
 
+  // ------------------------------------------------------------------
+  //  UNIFIED SCHEMA.ORG @graph — global schema-conflict fix
+  //
+  //  The page previously emitted six independent top-level JSON-LD
+  //  scripts. Two of them declared `@type: FAQPage` (the general FAQ
+  //  + the Technical FAQ), which Google's Rich Results validator flags
+  //  as conflicting — only ONE FAQPage entity per URL is permitted, and
+  //  duplicate top-level entries trigger "Duplicate field 'FAQPage'"
+  //  warnings plus reduced eligibility for the FAQ rich snippet.
+  //
+  //  We now emit a single <script type="application/ld+json"> whose
+  //  `@graph` contains every entity with a unique, self-referencing
+  //  `@id`, all sharing one `@context`. The visible HTML — including
+  //  the 28-edge internal link matrix, benchmark table, SVG flowchart,
+  //  author/editor box, Quick Verification checklist, Technical FAQ
+  //  section, layout-asymmetry patterns, edge-cache headers — is left
+  //  byte-for-byte untouched. Only the structured-data emission is
+  //  consolidated. The two FAQPage entities are merged into a single
+  //  FAQPage whose `mainEntity` is the union of both Question sets,
+  //  preserving every Q&A pair previously published.
+  // ------------------------------------------------------------------
+  const unifiedSchemaGraph = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      // TechArticle (already a fully formed object)
+      Object.assign(JSON.parse(articleJsonLd), {
+        '@id': `${canonicalUrl}#article`,
+      }),
+      // BreadcrumbList
+      Object.assign(JSON.parse(breadcrumbJsonLd), {
+        '@id': `${canonicalUrl}#breadcrumb`,
+      }),
+      // SoftwareApplication
+      {
+        '@type': 'SoftwareApplication',
+        '@id': `${canonicalUrl}#tool`,
+        name: toolName,
+        applicationCategory: 'DeveloperApplication',
+        operatingSystem: 'Web Browser',
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+        url: `${siteUrl}/tools/${page.tool}`,
+      },
+      // HowTo
+      {
+        '@type': 'HowTo',
+        '@id': `${canonicalUrl}#howto`,
+        name: page.h1,
+        description: page.description,
+        step: page.steps.map((step, index) => ({
+          '@type': 'HowToStep',
+          position: index + 1,
+          name: `Step ${index + 1}`,
+          text: step,
+        })),
+      },
+      // SINGLE FAQPage — merges general FAQ + Technical FAQ items so
+      // exactly one FAQPage entity exists per URL (schema-conflict fix).
+      {
+        '@type': 'FAQPage',
+        '@id': `${canonicalUrl}#faq`,
+        inLanguage: 'en',
+        mainEntity: [
+          ...faqItems.map((item) => ({
+            '@type': 'Question',
+            name: item.q,
+            acceptedAnswer: { '@type': 'Answer', text: item.a },
+          })),
+          ...technicalFaqItems.map((item) => ({
+            '@type': 'Question',
+            name: item.q,
+            acceptedAnswer: { '@type': 'Answer', text: item.a },
+          })),
+        ],
+      },
+    ],
+  });
+  // The legacy single-purpose JSON-LD variables (faqJsonLd, howToJsonLd,
+  // softwareApplicationJsonLd, technicalFaqJsonLd) are no longer emitted
+  // separately — they are subsumed by `unifiedSchemaGraph` above.
+  void technicalFaqJsonLd;
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2118,12 +2162,7 @@ ${diagnosticsSelected.map((item) => `<li style="margin-bottom:0.55rem"><label st
 <meta name="twitter:card" content="summary_large_image"/>
 <meta name="twitter:title" content="${escapeHtml(page.title)} — DevSolve"/>
 <meta name="twitter:description" content="${escapeHtml(page.description)}"/>
-<script type="application/ld+json">${faqJsonLd}</script>
-<script type="application/ld+json">${howToJsonLd}</script>
-<script type="application/ld+json">${softwareApplicationJsonLd}</script>
-<script type="application/ld+json">${articleJsonLd}</script>
-<script type="application/ld+json">${breadcrumbJsonLd}</script>
-<script type="application/ld+json">${technicalFaqJsonLd}</script>
+<script type="application/ld+json">${unifiedSchemaGraph}</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:#1a1a1a;background:#fff}
