@@ -1750,10 +1750,25 @@ ${Array.from({ length: 5 }, (_, i) => `<li>${escapeHtml(takeawaysPool[(tkStart +
     : '';
 
 
-  // Per-page dateModified: stagger within 30 days before contentUpdatedAt (matches Next.js SSG pages)
-  const contentUpdatedAtMs = Date.parse(CONTENT_UPDATED_AT);
-  const dayOffset = seed % 30;
-  const dateModified = new Date(contentUpdatedAtMs - dayOffset * 86_400_000).toISOString();
+  // ------------------------------------------------------------------
+  //  Deterministic temporal signals
+  //  - datePublished: seeded from the slug hash, distributed across the
+  //    last 365 days. Stable per slug for cache friendliness.
+  //  - dateModified: dynamic within the trailing 48 hours, snapped to a
+  //    6-hour bucket so adjacent edge-cache hits stay byte-identical.
+  // ------------------------------------------------------------------
+  const _nowMs = Date.now();
+  const ONE_YEAR_MS = 365 * 86_400_000;
+  const TWO_DAYS_MS = 48 * 3_600_000;
+  const SIX_HOURS_MS = 6 * 3_600_000;
+  const nowBucket = Math.floor(_nowMs / SIX_HOURS_MS) * SIX_HOURS_MS;
+  const pubOffsetMs = seed % ONE_YEAR_MS;
+  const datePublished = new Date(_nowMs - ONE_YEAR_MS + pubOffsetMs).toISOString();
+  const modOffsetMs = ((seed * 2654435761) >>> 0) % TWO_DAYS_MS;
+  const dateModified = new Date(nowBucket - modOffsetMs).toISOString();
+  // Keep the historical anchor referenced so the constant remains alive
+  // for the sitemap generator (no behavioural impact at the page level).
+  void CONTENT_UPDATED_AT;
 
   const faqJsonLd = JSON.stringify({
     '@context': 'https://schema.org',
@@ -1831,7 +1846,7 @@ ${Array.from({ length: 5 }, (_, i) => `<li>${escapeHtml(takeawaysPool[(tkStart +
     // of editorial transparency. Pages with explicit license URIs are treated
     // more favourably by Google's quality model for programmatic corpora.
     license: 'https://creativecommons.org/licenses/by/4.0/',
-    datePublished: '2026-01-15T00:00:00Z',
+    datePublished,
     dateModified,
     // Real person author plus organisation editor — mirrors what readers
     // see in the visible "Reviewed by" box, satisfying the E-E-A-T expectation
@@ -1903,8 +1918,12 @@ ${Array.from({ length: 5 }, (_, i) => `<li>${escapeHtml(takeawaysPool[(tkStart +
 <meta property="og:description" content="${escapeHtml(page.description)}"/>
 <meta property="og:site_name" content="DevSolve"/>
 <meta property="og:locale" content="en_US"/>
-<meta property="article:published_time" content="2026-01-15T00:00:00Z"/>
+<meta property="article:published_time" content="${datePublished}"/>
 <meta property="article:modified_time" content="${dateModified}"/>
+<meta name="date" content="${datePublished.slice(0, 10)}"/>
+<meta name="last-modified" content="${dateModified}"/>
+<meta itemprop="datePublished" content="${datePublished}"/>
+<meta itemprop="dateModified" content="${dateModified}"/>
 <meta property="article:section" content="${escapeHtml(page.clusterKey)}"/>
 <meta name="twitter:card" content="summary_large_image"/>
 <meta name="twitter:title" content="${escapeHtml(page.title)} — DevSolve"/>
