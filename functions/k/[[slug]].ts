@@ -2507,29 +2507,66 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // Resolve canonical / legacy first; otherwise synthesise a unique page
-    // deterministically from the requested slug so every /k/* request returns
-    // 200 OK with self-canonical content. No redirects, no 404s, no noindex —
-    // ever. Each distinct slug produces distinct title / H1 / intro / FAQ /
-    // technical analysis / expert tips via seed rotation, eliminating
-    // duplicate-content signals.
-    let page = resolvePageForRequest(slug);
-    let isLegacyRemap = false;
+    // Resolve to a real canonical or legacy page. If the slug matches no
+    // known programmatic page, we MUST return a proper 404 (with noindex
+    // headers). Previously this function synthesised a unique page for
+    // ANY arbitrary slug, which caused three serious Google Search Console
+    // problems at the same time:
+    //
+    //   1. "Soft 404"           — Google detects boilerplate-shaped content
+    //                             served from URLs that have no real entity
+    //                             behind them and downgrades them.
+    //   2. "Scaled content abuse" — generating an effectively infinite set
+    //                             of low-uniqueness pages from random slugs
+    //                             triggers the spam-policy classifier.
+    //   3. "Crawled — currently not indexed" — Googlebot wastes crawl budget
+    //                             on synthesised URLs and chooses not to
+    //                             index any of them, while the legitimate
+    //                             pages lose discoverability.
+    //
+    // The correct behaviour is: serve real pages with 200 OK, redirect
+    // legacy slugs to their canonical form (Google handles 301s cleanly),
+    // and return 404 for everything else so search engines can drop the
+    // unknown URL from their index.
+    const page = resolvePageForRequest(slug);
 
     if (!page) {
-      page = synthesizePageForArbitrarySlug(slug);
-    } else if (page.slug !== slug) {
-      // Legacy URL maps to a different canonical slug. Instead of issuing a
-      // 301 (which Google reports as "Page with redirect"), we serve 200 OK
-      // with the resolved page content but rewrite its slug back to the
-      // requested URL so the canonical tag self-references. This collapses
-      // both legacy and canonical URLs into independent, self-canonical
-      // pages, but because the underlying content templates are seeded by
-      // slug they remain distinct from each other.
-      isLegacyRemap = true;
-      page = synthesizePageForArbitrarySlug(slug);
+      // Unknown slug → genuine 404. The noindex header guarantees that
+      // even if a crawler caches the body, the URL is dropped from the
+      // index. The hub HTML is reused only as a user-facing fallback —
+      // search engines will see the 404 status + noindex header first.
+      return new Response(generateHubHtml(url, slug), {
+        status: 404,
+        headers: {
+          ...responseHeaders,
+          'X-Robots-Tag': 'noindex, follow',
+          // 404s must not be aggressively cached at the edge — if the
+          // missing slug is later added to the canonical inventory we want
+          // the new 200 response to propagate quickly.
+          'Cache-Control': 'public, max-age=60, s-maxage=300',
+          'CDN-Cache-Control': 'public, max-age=300',
+          'Cloudflare-CDN-Cache-Control': 'public, max-age=300',
+        },
+      });
     }
-    void isLegacyRemap;
+
+    if (page.slug !== slug) {
+      // Legacy URL → 301 redirect to the canonical slug. A single
+      // canonical destination per topic is what Google's quality
+      // guidelines explicitly recommend; the previous "rewrite content
+      // to self-canonical" trick produced two near-identical pages for
+      // the same intent and triggered "Duplicate, Google chose
+      // different canonical".
+      return new Response(null, {
+        status: 301,
+        headers: {
+          Location: `/k/${page.slug}`,
+          'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+          'CDN-Cache-Control': 'public, max-age=86400',
+          'Cloudflare-CDN-Cache-Control': 'public, max-age=86400',
+        },
+      });
+    }
 
     return new Response(generateHtml(page), {
       status: 200,
@@ -2538,9 +2575,16 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   } catch (error) {
     console.error('Programmatic /k fallback handler error', error);
     const url = new URL(context.request.url);
+    // On unexpected handler failure, surface a real 500 rather than a
+    // synthesised 200 — Google must be able to distinguish "page exists
+    // but currently broken" from "page exists and is healthy".
     return new Response(generateHubHtml(url), {
-      status: 200,
-      headers: responseHeaders,
+      status: 500,
+      headers: {
+        ...responseHeaders,
+        'X-Robots-Tag': 'noindex, follow',
+        'Cache-Control': 'no-store',
+      },
     });
   }
 };

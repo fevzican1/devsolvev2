@@ -1,16 +1,44 @@
-# DevSolve robots.txt — Google crawlers only
+# DevSolve robots.txt
+# Allow all reputable crawlers to discover content so indexing
+# and social previews (Twitter, LinkedIn, Facebook, Slack, Discord,
+# Bing, DuckDuckGo, etc.) work correctly.
+#
+# Previously this file blocked every non-Google crawler with a
+# blanket `Disallow: /` rule, which not only killed alternative
+# search engines but also reduced overall discovery and external
+# linking signals that Google itself relies on when deciding what
+# to index. The new rules below mirror standard high-quality
+# publisher robots.txt practice.
 
-# Block all bots by default
 User-agent: *
-Disallow: /
-
-# Google web crawler
-User-agent: Googlebot
 Allow: /
 
-# Google image crawler
+# Block private / non-canonical sections from every crawler.
+# These pages contain administrative or duplicate content and
+# should never be indexed by any search engine.
+Disallow: /cmd-center
+Disallow: /cmd-center/
+Disallow: /api/
+Disallow: /*?*sort=
+Disallow: /*?*filter=
+Disallow: /*?*ref=
+Disallow: /*?*utm_
+
+# Explicit allow lists for Google crawlers (kept for clarity —
+# the wildcard rule above already covers them, but search-console
+# operators sometimes inspect these blocks directly).
+User-agent: Googlebot
+Allow: /
+Disallow: /cmd-center
+Disallow: /api/
+
 User-agent: Googlebot-Image
 Allow: /
 
-# Single entry: index lists sitemap-main-pages.xml + programmatic chunks
+User-agent: Googlebot-News
+Allow: /
+
+# Single sitemap-index entry — points to the main pages sitemap
+# plus all programmatic chunks. Google fetches this once and
+# discovers every other sitemap from inside it.
 Sitemap: https://devsolvev2.com/sitemap-index.xml
