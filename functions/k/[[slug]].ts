@@ -2600,12 +2600,17 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         headers: {
           ...responseHeaders,
           'X-Robots-Tag': 'noindex, follow',
-          // 404s must not be aggressively cached at the edge — if the
-          // missing slug is later added to the canonical inventory we want
-          // the new 200 response to propagate quickly.
-          'Cache-Control': 'public, max-age=60, s-maxage=300',
-          'CDN-Cache-Control': 'public, max-age=300',
-          'Cloudflare-CDN-Cache-Control': 'public, max-age=300',
+          // Canonical slug resolution is purely deterministic (driven by
+          // the cluster/tool/intent/audience/task/modifier arrays in this
+          // file), so a slug that 404s today will 404 forever unless this
+          // code is redeployed — which automatically purges the edge cache.
+          // We therefore cache 404s for 24h to absorb crawler floods on
+          // unknown slugs and keep the per-request Function CPU budget
+          // (10 ms on Cloudflare Pages free / 50 ms on paid) well clear
+          // of the limit even under heavy Googlebot discovery passes.
+          'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+          'CDN-Cache-Control': 'public, max-age=86400',
+          'Cloudflare-CDN-Cache-Control': 'public, max-age=86400',
         },
       });
     }
