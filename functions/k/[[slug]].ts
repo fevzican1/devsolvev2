@@ -2507,7 +2507,67 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
+    // ------------------------------------------------------------------
+    // Ultra-light early-return filter (Function quota protection)
+    // ------------------------------------------------------------------
+    // Every canonical slug from buildSlug() is lowercase [a-z0-9-] and ends
+    // with `-<number>`, with length ≤ ~200 chars. Anything outside that
+    // shape is either malicious scanner garbage or a typo. By fast-rejecting
+    // these BEFORE the legacy resolver scan, we keep the Function CPU
+    // budget per malicious request at ~50 µs and cache the 404 at the edge
+    // for 24h so a bot flooding the same garbage URL hits cache, not the
+    // Function.
+
+    // Hard length cap — Cloudflare URL limit is 16 KiB but anything over
+    // 220 chars cannot match a canonical slug, so reject without parsing.
+    if (slug.length > 220) {
+      return new Response(generateHubHtml(url, slug.slice(0, 80)), {
+        status: 404,
+        headers: {
+          ...responseHeaders,
+          'X-Robots-Tag': 'noindex, follow',
+          'Cache-Control': 'public, max-age=300, s-maxage=86400',
+          'CDN-Cache-Control': 'public, max-age=86400',
+          'Cloudflare-CDN-Cache-Control': 'public, max-age=86400',
+        },
+      });
+    }
+
+    // Case-insensitive 301 — external links and address-bar typos with
+    // uppercase letters now flow PageRank to the canonical lowercase slug
+    // instead of producing a 404.
+    const normalisedSlug = slug.toLowerCase();
+    if (normalisedSlug !== slug) {
+      return new Response(null, {
+        status: 301,
+        headers: {
+          Location: `/k/${normalisedSlug}`,
+          'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+          'CDN-Cache-Control': 'public, max-age=86400',
+          'Cloudflare-CDN-Cache-Control': 'public, max-age=86400',
+        },
+      });
+    }
+
+    // Strict shape check — canonical slugs match this exact pattern.
+    // Garbage-shaped slugs are deterministic so caching the 404 for 24h
+    // keeps repeated bot floods off the Function entirely after the
+    // first hit per PoP.
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*-\d+$/.test(normalisedSlug)) {
+      return new Response(generateHubHtml(url, normalisedSlug), {
+        status: 404,
+        headers: {
+          ...responseHeaders,
+          'X-Robots-Tag': 'noindex, follow',
+          'Cache-Control': 'public, max-age=300, s-maxage=86400',
+          'CDN-Cache-Control': 'public, max-age=86400',
+          'Cloudflare-CDN-Cache-Control': 'public, max-age=86400',
+        },
+      });
+    }
+
     // Resolve to a real canonical or legacy page. If the slug matches no
+
     // known programmatic page, we MUST return a proper 404 (with noindex
     // headers). Previously this function synthesised a unique page for
     // ANY arbitrary slug, which caused three serious Google Search Console
