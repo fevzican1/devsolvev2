@@ -7,9 +7,18 @@ import { Card, CardContent } from '@/components/ui/card';
 export const metadata: Metadata = {
   title: 'Page Not Found — DevSolve Developer Tools',
   description: 'The page you are looking for could not be found. Browse our free browser-based developer tools and technical guides.',
+  // The 404 page must NEVER be indexed. Telling Google `index: true`
+  // on a not-found template causes Search Console to report the page
+  // as "Soft 404" — Google can see the same boilerplate served from
+  // many unknown URLs and flags it as low-value duplicate content,
+  // which then drags down the indexing score for the rest of the site.
   robots: {
-    index: true,
+    index: false,
     follow: true,
+    googleBot: {
+      index: false,
+      follow: true,
+    },
   },
 };
 
