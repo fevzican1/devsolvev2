@@ -62,4 +62,11 @@ try {
   console.log('Forbidden scan completed with warnings');
 }
 
+try {
+  console.log('Running indexability audit...');
+  execSync(`node ${join(__dirname, 'indexability-audit.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('Indexability audit reported critical issues — see out/reports/indexability.txt');
+}
+
 console.log('Postbuild tasks completed!');
