@@ -117,6 +117,42 @@ export const guideRegistry: GuideMetadata[] = [
     programmaticLinkCountTarget: 16,
     description: 'Generate TypeScript interfaces from JSON samples and understand the limitations.',
   },
+  {
+    slug: 'api-contract-validation-deep-dive',
+    title: 'API Contract Validation: A Deep Dive for Senior Backend Engineers',
+    primaryToolSlug: 'json-formatter',
+    relatedToolSlugs: ['jwt-decoder', 'diff-checker', 'json-to-typescript'],
+    clusterKeys: ['json', 'api', 'validation', 'contracts'],
+    programmaticLinkCountTarget: 24,
+    description: 'How senior teams keep documented, runtime, and consumer API contracts aligned — and the validation harness that detects drift before consumers do.',
+  },
+  {
+    slug: 'token-security-deep-dive',
+    title: 'Production Token Security: JWT, Hashing, and Identifier Rotation',
+    primaryToolSlug: 'jwt-decoder',
+    relatedToolSlugs: ['hash-generator', 'uuid-generator', 'base64-encode-decode'],
+    clusterKeys: ['security', 'jwt', 'tokens', 'hashing'],
+    programmaticLinkCountTarget: 22,
+    description: 'A field manual for shipping JWTs, hashes, and machine identifiers safely — including the algorithm-confusion, replay, and timing-attack patterns most teams miss.',
+  },
+  {
+    slug: 'encoding-pitfalls-deep-dive',
+    title: 'Encoding Pitfalls: Where Production Data Gets Corrupted',
+    primaryToolSlug: 'base64-encode-decode',
+    relatedToolSlugs: ['url-encode-decode', 'html-entity-encode-decode', 'json-formatter'],
+    clusterKeys: ['encoding', 'utf8', 'base64', 'url'],
+    programmaticLinkCountTarget: 22,
+    description: 'The eight encoding boundaries in every web stack, the four bugs to recognise on sight, and the roundtrip tests that prevent silent data corruption.',
+  },
+  {
+    slug: 'text-diffing-deep-dive',
+    title: 'Diffing Text in Production: Beyond `git diff`',
+    primaryToolSlug: 'diff-checker',
+    relatedToolSlugs: ['json-formatter', 'text-case-converter', 'regex-tester'],
+    clusterKeys: ['text', 'diff', 'review', 'config'],
+    programmaticLinkCountTarget: 20,
+    description: 'Three classes of diff failure that only appear at scale — and the line, word, and semantic diff modes senior engineers actually use during reviews and incidents.',
+  },
 ];
 
 export function getGuideBySlug(slug: string): GuideMetadata | undefined {

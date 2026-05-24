@@ -9,6 +9,7 @@ import { getToolBySlug } from '@/tools/registry';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { GUIDES_SECTION_METADATA } from '@/lib/seo/sectionMetadata';
 import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
+import { FreshSlugsRotator } from '@/components/seo/FreshSlugsRotator';
 import { siteConfig, externalUrls } from '@/config/site';
 import { absoluteUrl } from '@/lib/seo/url';
 
@@ -85,6 +86,13 @@ export default function GuidesPage() {
           );
         })}
       </div>
+
+      <FreshSlugsRotator
+        salt="guides-hub"
+        heading="Fresh Deep-Dives"
+        description="Rotating /k/* deep-dives surfaced from the engineering library. Each deployment exposes a different slice, ensuring Googlebot continually discovers new internal links."
+        count={18}
+      />
 
       <Suspense fallback={null}>
         <HubDiscoveryLinks hubPath="/guides" heading="Related Technical Guides" />

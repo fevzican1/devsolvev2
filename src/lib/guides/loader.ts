@@ -48,6 +48,10 @@ export function getAllGuideContents(): Record<string, { part1: string; part2: st
     'sql-formatting',
     'minification-basics',
     'json-to-types',
+    'api-contract-validation-deep-dive',
+    'token-security-deep-dive',
+    'encoding-pitfalls-deep-dive',
+    'text-diffing-deep-dive',
   ];
 
   for (const slug of slugs) {

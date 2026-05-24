@@ -39,6 +39,12 @@
   Cloudflare-CDN-Cache-Control: max-age=86400
   Content-Type: application/xml; charset=utf-8
 
+/sitemap-priority-*.xml
+  Cache-Control: public, max-age=86400, s-maxage=86400
+  CDN-Cache-Control: max-age=86400
+  Cloudflare-CDN-Cache-Control: max-age=86400
+  Content-Type: application/xml; charset=utf-8
+
 /sitemap-*.xml
   Cache-Control: public, max-age=86400, s-maxage=86400
   CDN-Cache-Control: max-age=86400
@@ -77,3 +83,19 @@
 
 /robots.txt
   Cache-Control: public, max-age=86400
+
+# Administrative / preview routes — robots.txt blocks crawling, but third-party
+# sites can still link to these URLs. A bare robots.txt block does NOT prevent
+# Google from listing a URL in search results (it can index based on the link
+# alone). The explicit X-Robots-Tag below removes that loophole and produces
+# the GSC behaviour we want: "Excluded by 'noindex' tag" instead of "Indexed,
+# though blocked by robots.txt". Both routes are still Disallow'd in robots.txt
+# to save crawl budget; noindex here covers the link-graph case.
+/cmd-center
+  X-Robots-Tag: noindex, nofollow
+
+/cmd-center/*
+  X-Robots-Tag: noindex, nofollow
+
+/api/*
+  X-Robots-Tag: noindex, nofollow

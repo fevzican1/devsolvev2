@@ -8,6 +8,7 @@ import { toolRegistry, type ToolDefinition } from '@/tools/registry';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { TOOLS_SECTION_METADATA } from '@/lib/seo/sectionMetadata';
 import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
+import { FreshSlugsRotator } from '@/components/seo/FreshSlugsRotator';
 import { siteConfig, externalUrls } from '@/config/site';
 import { absoluteUrl } from '@/lib/seo/url';
 
@@ -112,6 +113,13 @@ export default function ToolsPage() {
           </section>
         );
       })}
+
+      <FreshSlugsRotator
+        salt="tools-hub"
+        heading="Fresh from the Workshop"
+        description="A rotating selection of deep-dive engineering guides — refreshed with each deployment so Googlebot always finds new internal links from this hub."
+        count={18}
+      />
 
       <Suspense fallback={null}>
         <HubDiscoveryLinks hubPath="/tools" heading="Related Technical Guides" />
