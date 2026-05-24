@@ -34,11 +34,30 @@ try {
   console.log('Core sitemap generation completed with warnings');
 }
 
+// Priority sitemap MUST be written BEFORE the programmatic sitemap because
+// the programmatic step is the one that writes sitemap-index.xml — and it now
+// reads sitemap-priority-*.xml from out/ to include them at the top of the
+// index. If the priority step ran AFTER the index was generated, the index
+// would never reference the priority files until the next build.
+try {
+  console.log('Generating priority sitemap files (highest-value /k/* URLs)...');
+  execSync(`node ${join(__dirname, 'generate-priority-sitemap.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('Priority sitemap generation completed with warnings');
+}
+
 try {
   console.log('Generating chunked programmatic sitemap files...');
   execSync(`node ${join(__dirname, 'generate-programmatic-sitemaps.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
   console.log('Programmatic sitemap generation completed with warnings');
+}
+
+try {
+  console.log('Running canonical spot-check on generated sitemaps...');
+  execSync(`node ${join(__dirname, 'canonical-spotcheck.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('Canonical spot-check reported issues — see logs above');
 }
 
 try {

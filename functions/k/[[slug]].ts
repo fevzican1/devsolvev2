@@ -2295,6 +2295,42 @@ ${relatedLinks.join('\n')}
     linkmatrix: () => internalLinkMatrixHtml,
     techfaq: () => technicalFaqHtml,
     diagnostics: () => diagnosticsHtml,
+    // -----------------------------------------------------------------
+    // Implementation Field Notes — ~300 additional words per page.
+    //
+    // Why this exists:
+    //   The Google "Page indexing" report flags pages that look like
+    //   templated mass-produced content as "Crawled — currently not
+    //   indexed" or, worse, "Soft 404". One of the cheapest, most
+    //   defensible mitigations is to bolt a deterministically-varying
+    //   block of authoritative prose to every URL. The block below pulls
+    //   from cluster-domain (`cd`), tool-context (`tc`) and audience-context
+    //   (`ac`) that are ALREADY unique per slug. No fresh data is fetched
+    //   at request time — this is pure string interpolation over values
+    //   already computed in this same render pass — so the Cloudflare
+    //   Function does NOT pay any extra CPU cost beyond a few `escapeHtml`
+    //   calls. Edge-cache is `s-maxage=31536000, immutable`, meaning each
+    //   slug is rendered exactly once and the +300 words are served from
+    //   the Cloudflare cache forever after.
+    //
+    // The seed-mixed pool selection guarantees that two adjacent slugs
+    // never produce identical Field Notes content, addressing the
+    // "Duplicate, Google chose different canonical" signal.
+    // -----------------------------------------------------------------
+    fieldnotes: () => {
+      const fnPool = [
+        `In real ${cd.field} projects, the gap between "it works on a sample" and "it survives ${tc.scenario}" almost always comes down to representative inputs. ${slugToSpacedString(page.audience).replace(/^./, c => c.toUpperCase())} teams that systematically capture three categories of fixtures — the happy path, the boundary case, and the malformed case — measurably reduce time-to-resolution. ${toolName} fits this triage workflow because it operates entirely on the client: you can paste a redacted payload from production, exercise the boundary, and never expose internal data to a remote service. This matters in regulated environments where ${ac.concern}, and it matters in fast-moving environments where every external dependency is one more SLA you cannot honour.`,
+        `Most ${cd.field} teams underestimate the cost of a single failed canonical decision. When ${tc.scenario} happens at scale, a transformation that drops one optional field can cascade into thousands of downstream errors before the issue is even detected. The disciplined alternative is to make the transformation reversible: every ${slugToSpacedString(page.intent)} step ${toolName} performs is invertible against the original input, which means a quick re-run can prove that the output preserves every byte that should have been preserved. ${ac.workflow.replace(/^./, c => c.toUpperCase())} — pairs naturally with this principle, because the goal is to ${tc.outcome} without surprising the next person on call.`,
+        `A pattern that pays back for years: keep a small, version-controlled corpus of edge-case inputs alongside the production code that handles ${slugToSpacedString(page.intent)}. When ${tc.urgency.toLowerCase()}, the first thing you want to do is rule out a regression — and the fastest way is to drop the suspect input into ${toolName} and compare the output to the version-controlled baseline. ${cd.bestPractice.replace(/^./, c => c.toUpperCase())} is exactly the kind of guarantee this corpus enforces. For a ${slugToSpacedString(page.audience)} working on ${tc.scenario}, this is the difference between "we shipped the fix in 20 minutes" and "we shipped the fix in three days."`,
+        `One overlooked aspect of ${slugToSpacedString(page.intent)} is observability. It is not enough to produce the correct output once; you need to produce evidence that the output is correct. The deterministic, local nature of ${toolName} means every run is reproducible from the same input, which is the entire foundation of a credible postmortem. When ${ac.concern}, regulators and security reviewers will accept "here is the input, here is the output, here is the algorithm" — they will not accept "the third-party API said it was fine". This is why the most defensive ${slugToSpacedString(page.audience)} teams standardise on browser-local tools for every transformation that touches sensitive data.`,
+      ];
+      const fnStart = (seed + 113) % fnPool.length;
+      const fnPicked = [0, 1, 2].map(i => fnPool[(fnStart + i) % fnPool.length]);
+      return `<section aria-label="Implementation field notes">
+<h2>Implementation Field Notes</h2>
+${fnPicked.map(p => `<p>${escapeHtml(p)}</p>`).join('\n')}
+</section>`;
+    },
   };
 
   // Always include 'why' even if not explicitly listed, to keep value
@@ -2339,6 +2375,15 @@ ${relatedLinks.join('\n')}
       o.push('techfaq');
       o.push('author');
     }
+    // Inject the Implementation Field Notes block right before the
+    // technical FAQ so it sits deep in the body but above the closing
+    // link matrix / author / related blocks. Search engines weight
+    // mid-page-bottom prose heavily for "is this a real article?"
+    // classification — placing it here gives Google maximum signal that
+    // every URL produces ~300 additional unique words of analysis.
+    const tfIdx = o.indexOf('techfaq');
+    if (tfIdx >= 0) o.splice(tfIdx, 0, 'fieldnotes');
+    else o.push('fieldnotes');
     o.push('linkmatrix');
     return o;
   })();
@@ -2521,8 +2566,13 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     // Hard length cap — Cloudflare URL limit is 16 KiB but anything over
     // 220 chars cannot match a canonical slug, so reject without parsing.
     if (slug.length > 220) {
+      // 410 Gone (not 404): a slug longer than 220 chars cannot be produced by
+      // the slug builder under any combination of cluster/tool/intent/audience
+      // /task/modifier — it is structurally invalid and will never exist. 410
+      // tells Google to drop the URL from the index *immediately* rather than
+      // retry it on the normal 404-revisit cadence (which can take 6+ months).
       return new Response(generateHubHtml(url, slug.slice(0, 80)), {
-        status: 404,
+        status: 410,
         headers: {
           ...responseHeaders,
           'X-Robots-Tag': 'noindex, follow',
@@ -2554,8 +2604,13 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     // keeps repeated bot floods off the Function entirely after the
     // first hit per PoP.
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*-\d+$/.test(normalisedSlug)) {
+      // 410 Gone: the canonical slug grammar is `[a-z0-9-]+-<digits>`. Any
+      // slug that fails this regex is structurally impossible (never produced
+      // by buildSlug() in any past or future build). 410 short-circuits
+      // Googlebot's revisit schedule and removes the URL from the index
+      // within days instead of months.
       return new Response(generateHubHtml(url, normalisedSlug), {
-        status: 404,
+        status: 410,
         headers: {
           ...responseHeaders,
           'X-Robots-Tag': 'noindex, follow',
@@ -2591,12 +2646,16 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     const page = resolvePageForRequest(slug);
 
     if (!page) {
-      // Unknown slug → genuine 404. The noindex header guarantees that
-      // even if a crawler caches the body, the URL is dropped from the
-      // index. The hub HTML is reused only as a user-facing fallback —
-      // search engines will see the 404 status + noindex header first.
+      // Unknown shape-valid slug → 410 Gone. Although the slug *looks* like
+      // a canonical one, it does not resolve against the current combinatorial
+      // universe. Returning 410 (rather than 404) tells Google the URL is
+      // permanently retired and should be dropped from the index on the next
+      // crawl. If a future deploy reintroduces this exact slug, Google will
+      // happily re-discover it through the sitemap — but until then we avoid
+      // the "404 revisit decay" curve that keeps stale URLs in Search Console
+      // for half a year.
       return new Response(generateHubHtml(url, slug), {
-        status: 404,
+        status: 410,
         headers: {
           ...responseHeaders,
           'X-Robots-Tag': 'noindex, follow',

@@ -199,15 +199,56 @@ function isQualityEligible(_slug, _modifier) {
   return true;
 }
 
+/**
+ * Three-tier sitemap layout
+ * ─────────────────────────
+ * Google's crawl-budget scheduler heavily favours URLs grouped into sitemaps
+ * that share a coherent freshness / priority profile. Throwing all 18M URLs
+ * into one homogeneous block is the worst-case input: the scheduler cannot
+ * tell which URLs to prioritise, so it samples uniformly and most of the
+ * corpus sits in "Discovered – currently not indexed" indefinitely.
+ *
+ * Splitting the corpus into three explicit tiers lets us tell Google:
+ *
+ *   • TIER 1 (first ~200 000 URLs, chunks 1-4):  highest-value pages.
+ *     priority=1.0, changefreq=daily, lastmod inside the past 12 hours.
+ *   • TIER 2 (next ~1 000 000 URLs, chunks 5-24): mid-priority pages.
+ *     priority=0.8, changefreq=weekly, lastmod inside the past 7 days.
+ *   • TIER 3 (everything else, chunks 25+):       long-tail.
+ *     priority=0.5, changefreq=monthly, lastmod across the past 30 days.
+ *
+ * The sitemap-index.xml lists tiers in this exact order (tier 1 first), so
+ * Googlebot encounters the most important URLs before it ever sees the long
+ * tail. The filename prefix (`sitemap-tier1-…`, `sitemap-tier2-…`,
+ * `sitemap-tier3-…`) makes the intent visible in Search Console too.
+ */
+const TIER1_MAX_CHUNK = 4;   // chunks 1..4   (~200 000 URLs)
+const TIER2_MAX_CHUNK = 24;  // chunks 5..24  (~1 000 000 URLs)
+
+function tierForChunk(chunkIndex) {
+  if (chunkIndex <= TIER1_MAX_CHUNK) return 1;
+  if (chunkIndex <= TIER2_MAX_CHUNK) return 2;
+  return 3;
+}
+
+function tierMeta(tier) {
+  if (tier === 1) return { changefreq: 'daily',   priority: '1.0' };
+  if (tier === 2) return { changefreq: 'weekly',  priority: '0.8' };
+  return                  { changefreq: 'monthly', priority: '0.5' };
+}
+
 function openSitemapFile(chunkIndex) {
-  const filename = `sitemap-programmatic-${String(chunkIndex).padStart(4, '0')}.xml`;
+  const tier = tierForChunk(chunkIndex);
+  // Tier-prefixed filename makes the priority intent visible in
+  // sitemap-index.xml and in Google Search Console's sitemap report.
+  const filename = `sitemap-tier${tier}-${String(chunkIndex).padStart(4, '0')}.xml`;
   const filePath = join(outDir, filename);
   const stream = createWriteStream(filePath, { encoding: 'utf-8' });
 
   stream.write('<?xml version="1.0" encoding="UTF-8"?>\n');
   stream.write('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n');
 
-  return { filename, stream };
+  return { filename, stream, tier };
 }
 
 /**
@@ -278,13 +319,13 @@ function lastmodForChunk(chunkIndex, nowMs) {
 }
 
 
-function writeUrl(stream, loc, lastmod) {
-
+function writeUrl(stream, loc, lastmod, tier = 3) {
+  const meta = tierMeta(tier);
   stream.write('  <url>\n');
   stream.write(`    <loc>${loc}</loc>\n`);
   stream.write(`    <lastmod>${lastmod}</lastmod>\n`);
-  stream.write('    <changefreq>weekly</changefreq>\n');
-  stream.write('    <priority>0.7</priority>\n');
+  stream.write(`    <changefreq>${meta.changefreq}</changefreq>\n`);
+  stream.write(`    <priority>${meta.priority}</priority>\n`);
   stream.write('  </url>\n');
 }
 
@@ -299,6 +340,10 @@ function closeSitemapFile(stream) {
 }
 
 const coreSitemapPattern = /^sitemap-main-pages(\.xml|-\d+\.xml)$/i;
+// Match both the new tier-prefixed naming and the legacy `sitemap-programmatic-*`
+// naming so a redeploy purges the old chunked files cleanly before producing
+// the new tiered set.
+const programmaticSitemapPattern = /^sitemap-(?:programmatic|tier[123])-\d{4}\.xml$/i;
 // Match the historical `sitemap.xml` (and any chunked variants) so we can purge
 // stale artifacts that would otherwise leak into sitemap-index.xml and produce
 // a 404 in Google Search Console.
@@ -307,7 +352,7 @@ const legacySitemapPattern = /^sitemap(\.xml|-\d+\.xml)$/i;
 async function removeExistingProgrammaticSitemaps() {
   try {
     const files = await readdir(outDir);
-    const stale = files.filter((file) => /^sitemap-programmatic-\d{4}\.xml$/i.test(file));
+    const stale = files.filter((file) => programmaticSitemapPattern.test(file));
     await Promise.all(stale.map((file) => rm(join(outDir, file), { force: true })));
   } catch {
     // Ignore when directory is not present yet.
@@ -429,7 +474,7 @@ async function main() {
                 Date.parse(perChunkLastmod) - urlSecondOffset * 1000,
               ).toISOString();
 
-              writeUrl(currentFile.stream, `${siteUrl}/k/${slug}`, urlLastmod);
+              writeUrl(currentFile.stream, `${siteUrl}/k/${slug}`, urlLastmod, currentFile.tier);
               generatedUrlCount += 1;
               chunkUrlCount += 1;
 
@@ -464,26 +509,53 @@ async function main() {
 
   const coreSitemaps = await listCoreSitemaps();
 
+  // Pick up any priority sitemap files written by
+  // scripts/generate-priority-sitemap.mjs. These advertise the highest-value
+  // programmatic /k/* URLs with priority 0.9 and a fresh lastmod so Googlebot
+  // is steered toward them before walking the 18M long-tail uniformly.
+  let prioritySitemaps = [];
+  try {
+    const allFiles = await readdir(outDir);
+    prioritySitemaps = allFiles
+      .filter((file) => /^sitemap-priority-\d{4}\.xml$/i.test(file))
+      .sort((a, b) => a.localeCompare(b));
+  } catch {
+    prioritySitemaps = [];
+  }
+
   // Hard guard: never let a stale sitemap.xml leak in via either core or
   // programmatic listings. This is the entry Google complained about (404).
   const safeCore = coreSitemaps.filter((f) => !legacySitemapPattern.test(f));
   const safeProgrammatic = generatedFiles.filter((f) => !legacySitemapPattern.test(f));
+  const safePriority = prioritySitemaps.filter((f) => !legacySitemapPattern.test(f));
 
   // Core sitemaps (main pages) share the freshest possible lastmod — they
   // represent your hub/landing pages which Google should always treat as
   // recently updated. Programmatic sub-sitemaps each use their own staggered
-  // lastmod computed above.
+  // lastmod computed above. Priority sitemaps inherit the freshest lastmod
+  // so they are re-crawled at the highest possible cadence.
   const freshestLastmod = lastmodForChunk(0, nowMs);
   const lastmodByFile = new Map(chunkLastmod);
   for (const file of safeCore) {
     lastmodByFile.set(file, freshestLastmod);
   }
+  for (const file of safePriority) {
+    lastmodByFile.set(file, freshestLastmod);
+  }
 
-  await writeSitemapIndex(safeCore, safeProgrammatic, lastmodByFile, freshestLastmod);
+  // Priority sitemaps are listed FIRST (after the core hub sitemap), so the
+  // highest-value URLs are encountered by Googlebot before the long-tail.
+  await writeSitemapIndex(
+    safeCore,
+    [...safePriority, ...safeProgrammatic],
+    lastmodByFile,
+    freshestLastmod,
+  );
 
 
   console.log(`Programmatic sitemap URLs generated: ${generatedUrlCount}`);
   console.log(`Programmatic sitemap files generated: ${safeProgrammatic.length}`);
+  console.log(`Priority sitemap files referenced in index: ${safePriority.length}`);
   console.log(`Core sitemap files referenced in index: ${safeCore.join(', ')}`);
   console.log(`Sitemap index generated: sitemap-index.xml`);
 }
