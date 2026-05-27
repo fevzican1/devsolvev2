@@ -1,5 +1,6 @@
 name: Indexing API — daily priority submission
-
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 # Runs on GitHub Actions free tier. Does NOT touch any Cloudflare Function
 # or paid infrastructure. Submits up to 200 priority URLs/day directly to
 # Google's Indexing API using a service-account JWT.
