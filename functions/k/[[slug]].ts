@@ -2575,6 +2575,21 @@ function isBlockedUserAgent(ua: string): boolean {
 }
 
 export const onRequest: PagesFunction<Env> = async (context) => {
+  // ---- .pages.dev preview domainini engelle (canonical = devsolvev2.com) ----
+  // Cloudflare Pages'ın *.pages.dev preview hostname'i SEO için zararlı
+  // (duplicate content / saldırı yüzeyi). Tüm istekleri 403 ile reddediyoruz.
+  const earlyUrl = new URL(context.request.url);
+  if (earlyUrl.hostname.includes('pages.dev')) {
+    return new Response('Siktir Git', {
+      status: 403,
+      headers: {
+        'Content-Type': 'text/plain;charset=UTF-8',
+        'X-Robots-Tag': 'noindex, nofollow',
+        'Cache-Control': 'public, max-age=86400',
+      },
+    });
+  }
+
   // ---- Bot engelleme: fonksiyon ağır işi tetiklemeden önce ----
   const ua = context.request.headers.get('user-agent') || '';
   if (isBlockedUserAgent(ua)) {
