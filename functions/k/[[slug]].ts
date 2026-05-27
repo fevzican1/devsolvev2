@@ -2522,7 +2522,72 @@ function generateHubHtml(url: URL, requestedSlug?: string): string {
 /* ------------------------------------------------------------------ */
 /*  Cloudflare Pages Function handler                                  */
 /* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ */
+/*  Bot / scraper guard                                                */
+/*  Siteye yoğun saldırı altında olduğumuz için, Google dışındaki      */
+/*  bilinen tarayıcı/scraper/AI botlarını fonksiyon ağır iş yapmadan   */
+/*  ÇOK ERKEN aşamada 403 ile reddediyoruz. Gerçek tarayıcılar         */
+/*  (Chrome, Firefox, Safari, Edge vb.) ve Googlebot etkilenmez.       */
+/* ------------------------------------------------------------------ */
+const BLOCKED_BOT_PATTERNS: readonly string[] = [
+  // Kullanıcı tarafından açıkça belirtilenler
+  'gptbot', 'ahrefsbot', 'ahrefssiteaudit', 'semrushbot', 'yandexbot', 'yandex.com/bots',
+  'bingbot', 'bingpreview', 'adidxbot', 'msnbot',
+  'meta-webindexer', 'meta-externalagent', 'meta-externalfetcher', 'facebookexternalhit', 'facebookbot',
+  // AI / LLM tarayıcıları
+  'chatgpt-user', 'oai-searchbot', 'openai', 'anthropic-ai', 'claude-web', 'claudebot',
+  'perplexitybot', 'perplexity-user', 'youbot', 'cohere-ai', 'cohere-training-data-crawler',
+  'google-extended', // Google'ın AI eğitim crawler'ı; arama crawler'ı (googlebot) etkilenmez
+  'bytespider', 'amazonbot', 'applebot-extended', 'diffbot', 'omgilibot', 'omgili',
+  'ccbot', 'common crawl', 'commoncrawl',
+  // SEO / agresif tarayıcılar
+  'mj12bot', 'dotbot', 'blexbot', 'petalbot', 'dataforseobot', 'seznambot', 'aspiegelbot',
+  'sogou', 'exabot', 'megaindex', 'serpstatbot', 'barkrowler', 'zoominfobot',
+  'seekport', 'linkdexbot', 'rogerbot', 'sistrix', 'pingdom', 'screaming frog',
+  'netcraftsurveyagent', 'gigabot', 'leikibot', 'palo alto', 'wpscan',
+  // Genel scraper / saldırı araçları
+  'scrapy', 'httrack', 'wget', 'curl/', 'libwww-perl', 'python-requests', 'python-urllib',
+  'go-http-client', 'java/', 'okhttp', 'node-fetch', 'axios/', 'phantomjs', 'headlesschrome',
+  'puppeteer', 'playwright', 'selenium', 'masscan', 'nikto', 'nmap', 'sqlmap', 'fuzz', 'zgrab',
+  'censys', 'shodan', 'binlar', 'spbot', 'mauibot', 'researchscan',
+];
+
+function isBlockedUserAgent(ua: string): boolean {
+  if (!ua) return true; // UA başlığı yoksa engelle — gerçek tarayıcılar her zaman UA gönderir
+  const lower = ua.toLowerCase();
+
+  // Beyaz liste: Google arama crawler'ları HER ZAMAN geçmeli
+  // (googlebot, googlebot-image, googlebot-news, googlebot-video, googlebot-mobile,
+  //  adsbot-google, mediapartners-google, storebot-google, google-inspectiontool,
+  //  google-site-verification vb.)
+  if (lower.includes('googlebot') || lower.includes('adsbot-google') ||
+      lower.includes('mediapartners-google') || lower.includes('storebot-google') ||
+      lower.includes('google-inspectiontool') || lower.includes('google-site-verification') ||
+      lower.includes('feedfetcher-google') || lower.includes('apis-google') ||
+      lower.includes('duplexweb-google') || lower.includes('googleother')) {
+    return false;
+  }
+
+  for (const pattern of BLOCKED_BOT_PATTERNS) {
+    if (lower.includes(pattern)) return true;
+  }
+  return false;
+}
+
 export const onRequest: PagesFunction<Env> = async (context) => {
+  // ---- Bot engelleme: fonksiyon ağır işi tetiklemeden önce ----
+  const ua = context.request.headers.get('user-agent') || '';
+  if (isBlockedUserAgent(ua)) {
+    return new Response('Access Denied', {
+      status: 403,
+      headers: {
+        'Content-Type': 'text/plain;charset=UTF-8',
+        'X-Robots-Tag': 'noindex, nofollow',
+        'Cache-Control': 'public, max-age=86400',
+      },
+    });
+  }
+
   const responseHeaders = {
     'Content-Type': 'text/html;charset=UTF-8',
     // s-maxage instructs Cloudflare's edge to cache this response for 1 year.
