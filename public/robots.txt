@@ -1,32 +1,16 @@
 # DevSolve robots.txt
-# Allow all reputable crawlers to discover content so indexing
-# and social previews (Twitter, LinkedIn, Facebook, Slack, Discord,
-# Bing, DuckDuckGo, etc.) work correctly.
 #
-# Previously this file blocked every non-Google crawler with a
-# blanket `Disallow: /` rule, which not only killed alternative
-# search engines but also reduced overall discovery and external
-# linking signals that Google itself relies on when deciding what
-# to index. The new rules below mirror standard high-quality
-# publisher robots.txt practice.
+# Policy (matches the Cloudflare Pages Function bot-guard in
+# functions/k/[[slug]].ts): the site is built for Google Search and real
+# human visitors. Known AI-training, SEO-audit and scraper crawlers are
+# explicitly disallowed here (defense-in-depth). Polite bots obey these
+# rules and save our crawl budget; impolite bots that ignore robots.txt are
+# additionally rejected at the edge with HTTP 403 (and verified-Googlebot
+# checks block spoofed "Googlebot" user-agents from non-Google networks).
 
-User-agent: *
-Allow: /
-
-# Block private / non-canonical sections from every crawler.
-# These pages contain administrative or duplicate content and
-# should never be indexed by any search engine.
-Disallow: /cmd-center
-Disallow: /cmd-center/
-Disallow: /api/
-Disallow: /*?*sort=
-Disallow: /*?*filter=
-Disallow: /*?*ref=
-Disallow: /*?*utm_
-
-# Explicit allow lists for Google crawlers (kept for clarity —
-# the wildcard rule above already covers them, but search-console
-# operators sometimes inspect these blocks directly).
+# ---------------------------------------------------------------------------
+# Google Search crawlers — explicitly allowed (only private sections blocked)
+# ---------------------------------------------------------------------------
 User-agent: Googlebot
 Allow: /
 Disallow: /cmd-center
@@ -38,7 +22,142 @@ Allow: /
 User-agent: Googlebot-News
 Allow: /
 
-# Single sitemap-index entry — points to the main pages sitemap
-# plus all programmatic chunks. Google fetches this once and
-# discovers every other sitemap from inside it.
+User-agent: Googlebot-Video
+Allow: /
+
+User-agent: Storebot-Google
+Allow: /
+
+User-agent: Google-InspectionTool
+Allow: /
+
+User-agent: AdsBot-Google
+Allow: /
+
+User-agent: Mediapartners-Google
+Allow: /
+
+# ---------------------------------------------------------------------------
+# AI / LLM training & answer crawlers — fully disallowed
+# ---------------------------------------------------------------------------
+User-agent: GPTBot
+Disallow: /
+
+User-agent: OAI-SearchBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: Perplexity-User
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Amazonbot
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: cohere-ai
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: Omgilibot
+Disallow: /
+
+# ---------------------------------------------------------------------------
+# SEO-audit / backlink / scraper crawlers — fully disallowed
+# ---------------------------------------------------------------------------
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: BLEXBot
+Disallow: /
+
+User-agent: PetalBot
+Disallow: /
+
+User-agent: DataForSeoBot
+Disallow: /
+
+User-agent: SeznamBot
+Disallow: /
+
+User-agent: ZoominfoBot
+Disallow: /
+
+User-agent: Barkrowler
+Disallow: /
+
+User-agent: rogerbot
+Disallow: /
+
+User-agent: SerpstatBot
+Disallow: /
+
+User-agent: MegaIndex
+Disallow: /
+
+# ---------------------------------------------------------------------------
+# Other search engines — disallowed per site policy (Google-only indexing)
+# ---------------------------------------------------------------------------
+User-agent: Bingbot
+Disallow: /
+
+User-agent: YandexBot
+Disallow: /
+
+User-agent: Sogou
+Disallow: /
+
+User-agent: Baiduspider
+Disallow: /
+
+# ---------------------------------------------------------------------------
+# Everyone else — block private / non-canonical sections only.
+# (The edge Function still enforces the human-or-Google policy for /k/*.)
+# ---------------------------------------------------------------------------
+User-agent: *
+Allow: /
+Disallow: /cmd-center
+Disallow: /cmd-center/
+Disallow: /api/
+Disallow: /*?*sort=
+Disallow: /*?*filter=
+Disallow: /*?*ref=
+Disallow: /*?*utm_
+
+# Single sitemap-index entry — Google discovers every other sitemap from it.
 Sitemap: https://devsolvev2.com/sitemap-index.xml

@@ -19,8 +19,16 @@ import {
 import { escapeHtml } from '../_shared/sectionFallback';
 
 // Cloudflare Pages Function types (inline to avoid external dependency)
+interface CfRequestProperties {
+  asn?: number;
+  asOrganization?: string;
+  verifiedBotCategory?: string;
+  botManagement?: { verifiedBot?: boolean; score?: number };
+}
+type CfRequest = Request & { cf?: CfRequestProperties };
+
 interface EventContext<Env> {
-  request: Request;
+  request: CfRequest;
   env: Env;
   params: Record<string, string | string[]>;
   waitUntil(promise: Promise<unknown>): void;
@@ -2574,6 +2582,115 @@ function isBlockedUserAgent(ua: string): boolean {
   return false;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Verified Googlebot (anti-spoofing)                                 */
+/*                                                                     */
+/*  A blocklist on the User-Agent string alone is trivially bypassed:  */
+/*  any attacker can send `User-Agent: Googlebot` and sail through the */
+/*  whitelist above, hammering the Function. The user reported a heavy */
+/*  attack plus "DNS leak" suspicion — the fix is to never trust the   */
+/*  claimed Googlebot UA unless the connecting network is actually     */
+/*  Google's. Cloudflare injects `request.cf`, which on every plan     */
+/*  exposes the originating ASN / organisation, and (on Bot-Management  */
+/*  plans) a `verifiedBotCategory`. Google's search crawlers originate  */
+/*  from AS15169 (Google LLC). Anything claiming to be Googlebot from   */
+/*  a different ASN is a spoofer and is rejected.                       */
+/* ------------------------------------------------------------------ */
+const GOOGLE_UA_MARKERS: readonly string[] = [
+  'googlebot', 'adsbot-google', 'mediapartners-google', 'storebot-google',
+  'google-inspectiontool', 'google-site-verification', 'feedfetcher-google',
+  'apis-google', 'duplexweb-google', 'googleother',
+];
+
+// ASNs that legitimately originate Google's crawlers. AS15169 is Google LLC;
+// AS396982 is Google Cloud (used by some Google fetch services). We keep this
+// list tight on purpose.
+const GOOGLE_ASNS: ReadonlySet<number> = new Set([15169, 396982]);
+
+function uaClaimsGoogle(lowerUa: string): boolean {
+  return GOOGLE_UA_MARKERS.some((m) => lowerUa.includes(m));
+}
+
+/**
+ * Returns true only when the connecting network genuinely belongs to Google.
+ * When `cf` is unavailable (e.g. local `wrangler dev`), we return `null` to
+ * signal "cannot verify" so the caller can decide a safe default rather than
+ * hard-blocking real Googlebot during local development.
+ */
+function isNetworkVerifiedGoogle(cf?: CfRequestProperties): boolean | null {
+  if (!cf) return null;
+  // Bot Management (paid) — most authoritative: Cloudflare itself reverse-DNS
+  // verified the crawler.
+  if (cf.verifiedBotCategory && /search/i.test(cf.verifiedBotCategory)) return true;
+  if (cf.botManagement?.verifiedBot === true) return true;
+  if (typeof cf.asn === 'number') {
+    if (GOOGLE_ASNS.has(cf.asn)) return true;
+    // ASN known and NOT Google → definitely not Google.
+    return false;
+  }
+  if (cf.asOrganization) {
+    return /google/i.test(cf.asOrganization);
+  }
+  return null;
+}
+
+/**
+ * A coarse "is this a mainstream human browser?" heuristic. Real users send a
+ * Mozilla-based UA token from one of the major engines. We deliberately keep
+ * this permissive (false negatives just mean a legitimate niche browser is
+ * asked to pass the blocklist instead) but it lets us reject the long tail of
+ * headless/script clients that don't declare themselves in BLOCKED_BOT_PATTERNS.
+ */
+function looksLikeRealBrowser(lowerUa: string): boolean {
+  if (!lowerUa.includes('mozilla/')) return false;
+  return (
+    lowerUa.includes('chrome/') || lowerUa.includes('crios/') ||
+    lowerUa.includes('firefox/') || lowerUa.includes('fxios/') ||
+    lowerUa.includes('safari/') || lowerUa.includes('edg/') ||
+    lowerUa.includes('edga/') || lowerUa.includes('edgios/') ||
+    lowerUa.includes('opr/') || lowerUa.includes('opera') ||
+    lowerUa.includes('samsungbrowser/')
+  );
+}
+
+type AccessDecision = 'allow' | 'block';
+
+/**
+ * Central access decision combining UA reputation + network verification.
+ * Policy (matching the site owner's requirement "only Google + real humans"):
+ *   1. UA claims to be Google → allow ONLY if the network is verified Google
+ *      (or unverifiable in local dev); spoofed Googlebot from a non-Google ASN
+ *      is blocked.
+ *   2. UA matches a known bad bot pattern → block.
+ *   3. UA looks like a mainstream human browser → allow.
+ *   4. Verified Google network (e.g. GoogleOther with odd UA) → allow.
+ *   5. Everything else (unknown non-browser clients) → block.
+ */
+function decideAccess(ua: string, cf?: CfRequestProperties): AccessDecision {
+  if (!ua) return 'block'; // real browsers always send a UA
+  const lower = ua.toLowerCase();
+
+  if (uaClaimsGoogle(lower)) {
+    const verified = isNetworkVerifiedGoogle(cf);
+    // verified === true  → real Googlebot
+    // verified === null  → cannot verify (local dev / missing cf) → allow
+    // verified === false → spoofed Googlebot UA from non-Google network → block
+    return verified === false ? 'block' : 'allow';
+  }
+
+  if (isBlockedUserAgent(ua)) return 'block';
+
+  if (looksLikeRealBrowser(lower)) return 'allow';
+
+  // Genuine Google network but a non-standard UA (rare) still gets through.
+  if (isNetworkVerifiedGoogle(cf) === true) return 'allow';
+
+  // Unknown non-browser client → block to protect the Function from the
+  // long tail of scripted scrapers that don't advertise themselves.
+  return 'block';
+}
+
+
 export const onRequest: PagesFunction<Env> = async (context) => {
   // ---- .pages.dev preview domainini engelle (canonical = devsolvev2.com) ----
   // Cloudflare Pages'ın *.pages.dev preview hostname'i SEO için zararlı
@@ -2591,9 +2708,16 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   // ---- Bot engelleme: fonksiyon ağır işi tetiklemeden önce ----
+  // decideAccess birleşik karar verir: UA itibarı + Cloudflare ağ doğrulaması.
+  // Sadece (1) ağ-doğrulanmış Googlebot ve (2) gerçek insan tarayıcıları geçer.
+  // Googlebot taklidi yapan (spoof) ama Google ASN'inden GELMEYEN istekler ve
+  // tanımlanamayan script/scraper istemcileri fonksiyon ağır işi yapmadan
+  // ÇOK ERKEN 403 ile reddedilir — bu, "botların fonksiyon tetiklemesi" ve
+  // DNS sızıntısı kaynaklı sahte trafiği kökten engeller.
   const ua = context.request.headers.get('user-agent') || '';
-  if (isBlockedUserAgent(ua)) {
+  if (decideAccess(ua, context.request.cf) === 'block') {
     return new Response('Access Denied', {
+
       status: 403,
       headers: {
         'Content-Type': 'text/plain;charset=UTF-8',
