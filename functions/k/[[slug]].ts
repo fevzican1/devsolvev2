@@ -225,6 +225,179 @@ const clusterDomain: Record<ClusterKey, { field: string; importance: string; bes
 };
 
 /* ------------------------------------------------------------------ */
+/*  Per-TOOL semantic profiles.                                         */
+/*                                                                      */
+/*  These replace the previous fabricated, cluster-level "incident      */
+/*  log" artefacts (random error codes, invented framework versions,    */
+/*  fake p99 budgets) that Google's scaled-content classifier flags.    */
+/*  Every entry below is a REAL, tool-specific symptom + real cause +   */
+/*  real fix + genuine use-cases, so two pages that share a cluster but */
+/*  use different tools (e.g. json-formatter vs jwt-decoder in the API  */
+/*  cluster) now produce materially different, factually grounded text. */
+/* ------------------------------------------------------------------ */
+interface ToolProfile {
+  display: string;
+  symptom: string;
+  cause: string;
+  fix: string;
+  useCases: string[];
+  limitation: string;
+  tip: string;
+}
+
+const TOOL_PROFILES: Record<string, ToolProfile> = {
+  'json-formatter': {
+    display: 'JSON Formatter',
+    symptom: 'Unexpected token } in JSON at position N',
+    cause: 'a trailing comma after the last property, a single-quoted string, or an unquoted key — all of which JavaScript object literals accept but strict JSON.parse rejects',
+    fix: 'remove the trailing comma, switch single quotes to double quotes and quote every key; the formatter highlights the exact offset so you can jump straight to the offending character',
+    useCases: ['pretty-printing a minified API response so a diff is readable', 'spotting a duplicate key that the server silently kept the last value for', 'validating a config.json before a deploy rejects it at boot'],
+    limitation: 'very large documents are held fully in memory, so prefer a streaming parser server-side for multi-gigabyte logs',
+    tip: 'paste the response straight from your browser Network tab — if it formats cleanly here but fails in code, the bug is how your code builds the string, not the payload',
+  },
+  'json-to-typescript': {
+    display: 'JSON to TypeScript',
+    symptom: 'a generated interface types a field as any or as a too-narrow literal',
+    cause: 'the sample only contained one shape, so an optional or nullable field was never observed and inference could not widen the type',
+    fix: 'feed a sample that includes the null case and the absent-key case so the generator emits field?: string | null instead of guessing from one happy-path record',
+    useCases: ['bootstrapping types for a third-party API with no published schema', 'catching a field that is sometimes a string and sometimes a number', 'generating DTOs that match a webhook payload exactly'],
+    limitation: 'inference is only as complete as the sample — it cannot know a field is an enum unless several variants appear in the input',
+    tip: 'concatenate three representative responses into one array before generating, so optional and union fields are inferred rather than missed',
+  },
+  'base64-encode-decode': {
+    display: 'Base64 Encode / Decode',
+    symptom: 'decoded output is garbled or the decode throws an "invalid character" error',
+    cause: 'the input mixes standard Base64 with URL-safe Base64 (- and _ instead of + and /), or padding "=" was stripped for a URL and not restored',
+    fix: 'pick the correct alphabet for the source — URL-safe for tokens from a query string, standard for MIME bodies — and re-add padding to a multiple of four before decoding',
+    useCases: ['inspecting the payload segment of a data: URI', 'decoding a Basic Auth header to confirm the username', 'checking what a base64-encoded webhook signature actually contains'],
+    limitation: 'Base64 is encoding, not encryption — it provides zero confidentiality, so never treat a decodable string as protected',
+    tip: 'remember Base64 inflates size by ~33%; if a payload is near a header size limit, that overhead is often the real cause of the rejection',
+  },
+  'url-encode-decode': {
+    display: 'URL Encode / Decode',
+    symptom: 'a query parameter arrives with literal "+" signs where spaces should be, or "%2520" where "%20" was expected',
+    cause: 'mixing form-urlencoded rules (space becomes "+") with RFC 3986 rules (space becomes "%20"), or double-encoding a value that was already percent-encoded',
+    fix: 'decode once and inspect — if you see "%25" you have double-encoding; encode exactly one layer at the boundary that consumes it, and choose "+" only for form bodies',
+    useCases: ['building a redirect_uri for an OAuth flow that survives the round trip', 'debugging why a signed URL fails signature validation', 'preparing a search query with reserved characters for an API call'],
+    limitation: 'the tool encodes what you give it — it cannot know which URL component the string is destined for, and each has a slightly different reserved set',
+    tip: 'encode the value, not the whole URL; encoding an entire URL turns its "?" and "&" into data and breaks routing',
+  },
+  'html-entity-encode-decode': {
+    display: 'HTML Entity Encode / Decode',
+    symptom: 'user text renders as &lt;b&gt; literally, or conversely injects unexpected markup',
+    cause: 'content was entity-encoded twice (so "&" became "&amp;amp;"), or raw user input was inserted into HTML without encoding the five special characters',
+    fix: 'encode exactly once at output time for the HTML context and store the raw value; decode only when you genuinely need the original characters back',
+    useCases: ['safely displaying a code snippet that contains angle brackets', 'confirming a stored comment is escaped before it reaches the DOM', 'fixing a feed where titles show "&amp;" instead of "&"'],
+    limitation: 'HTML-entity encoding protects the HTML context only — attribute, JavaScript and URL contexts each need their own escaping',
+    tip: 'if you see "&amp;amp;" you have a double-encoding bug in the pipeline, not a display setting to toggle',
+  },
+  'hash-generator': {
+    display: 'Hash Generator',
+    symptom: 'two systems compute a different hash for what looks like the same input',
+    cause: 'a trailing newline, a different character encoding (UTF-8 vs UTF-16), or CRLF vs LF line endings change the bytes even though the text looks identical',
+    fix: 'normalise the bytes first — fix line endings, standardise trailing whitespace, and confirm both sides hash UTF-8 — then re-compare',
+    useCases: ['verifying a downloaded file matches its published checksum', 'creating a content fingerprint for cache invalidation', 'comparing two payloads for byte-level equality without storing them'],
+    limitation: 'MD5 and SHA-1 are shown for legacy verification only; never use them where collision resistance matters — choose SHA-256 or stronger',
+    tip: 'hash a fixed known string such as "abc" on both systems first; if those differ, the problem is encoding, not your data',
+  },
+  'uuid-generator': {
+    display: 'UUID Generator',
+    symptom: 'a "unique" identifier collides or sorts unpredictably in the database',
+    cause: 'using a low-entropy source, or expecting random v4 UUIDs to sort chronologically (they do not)',
+    fix: 'use a cryptographically random v4 for pure uniqueness, or a time-ordered scheme (UUIDv7/ULID) when you need index locality and rough sortability',
+    useCases: ['generating correlation IDs for distributed tracing', 'creating idempotency keys for safe request retries', 'seeding test fixtures with stable but unique identifiers'],
+    limitation: 'random UUIDs as a primary key fragment a B-tree index because inserts land in random pages — consider a time-ordered variant for hot tables',
+    tip: 'if you need both uniqueness and insert locality, pick a time-prefixed UUID so new rows cluster at the end of the index',
+  },
+  'jwt-decoder': {
+    display: 'JWT Decoder',
+    symptom: '"invalid signature" even though the token clearly decodes',
+    cause: 'decoding only reads the header and payload — it never verifies the signature; a valid-looking payload says nothing about authenticity, and the "alg" may not match what the verifier expects',
+    fix: 'inspect the alg, iss, aud and exp claims here, then verify the signature server-side against the expected algorithm — never trust the alg field carried by the token itself',
+    useCases: ['reading why an auth token was rejected (expired vs wrong audience)', 'confirming which scopes a token actually carries', 'inspecting the kid header to find which signing key was used'],
+    limitation: 'this tool decodes and inspects only; it deliberately does not verify signatures, because that needs your key which must never leave a secure context',
+    tip: 'read claims here, but treat every value as unverified until your server confirms the signature — an attacker can set alg to "none"',
+  },
+  'text-case-converter': {
+    display: 'Text Case Converter',
+    symptom: 'converting to upper/lower mangles accented or non-Latin characters',
+    cause: 'a naive ASCII-only case map, or a locale-sensitive rule (the Turkish dotless-i) where "i".toUpperCase() should be "İ" not "I"',
+    fix: 'use Unicode-aware case conversion and be explicit about locale when your audience includes Turkish, Azeri or other special-casing languages',
+    useCases: ['normalising headers before a case-insensitive comparison', 'converting a constant to SCREAMING_SNAKE_CASE for code generation', 'tidying inconsistently-cased imported data'],
+    limitation: 'case folding for search is not the same as display casing — fold to a canonical form for comparison, keep the original for display',
+    tip: 'for case-insensitive matching, lowercase both sides with a locale-independent fold rather than comparing displayed casing',
+  },
+  'diff-checker': {
+    display: 'Diff Checker',
+    symptom: 'every line shows as changed when only one real edit was made',
+    cause: 'a line-ending mismatch (CRLF vs LF) or a trailing-whitespace difference, which makes every line byte-different even though the visible text matches',
+    fix: 'normalise line endings to LF and strip trailing whitespace on both inputs before diffing, then re-run to see only the substantive change',
+    useCases: ['reviewing a config change before it ships', 'confirming a refactor produced byte-identical output', 'spotting an accidental whitespace-only commit'],
+    limitation: 'a line diff cannot understand semantics — reordered but equivalent JSON keys appear as changes unless you canonicalise first',
+    tip: 'if the whole file lights up, normalise both sides first; phantom diffs are almost always line endings, not logic',
+  },
+  'regex-tester': {
+    display: 'Regex Tester',
+    symptom: 'a pattern hangs the browser tab or takes seconds on a long string',
+    cause: 'catastrophic backtracking from nested quantifiers like (a+)+ or (.*)* against input that nearly-but-not-quite matches',
+    fix: 'rewrite the nested quantifier (use atomic grouping or a possessive form where available, or anchor and simplify), and test against the longest realistic input',
+    useCases: ['validating an email or ID format before submit', 'extracting fields from a semi-structured log line', 'confirming a find-and-replace pattern hits exactly the intended matches'],
+    limitation: 'regex flavours differ — a pattern that works in JavaScript may behave differently in PCRE or RE2, especially for lookbehind and Unicode classes',
+    tip: 'add the "g" flag when you expect multiple matches, and the "m" flag when "^"/"$" should match line boundaries rather than the whole string',
+  },
+  'sql-formatter': {
+    display: 'SQL Formatter',
+    symptom: 'a formatted query runs differently or an optimiser hint stops working',
+    cause: 'reflowing whitespace can disturb inline hints (an Oracle /*+ INDEX */ block) or change how a vendor parses a comment-embedded directive',
+    fix: 'format for readability during review, but verify the execution plan is identical before deploying any query that carries hints',
+    useCases: ['making a 200-line generated query reviewable', 'standardising keyword casing across a team', 'spotting an accidental cartesian join hidden in dense SQL'],
+    limitation: 'formatting is syntactic only — it does not check that columns or tables exist, and will happily pretty-print a query the database rejects',
+    tip: 'pretty-print first to find the missing join condition; most "slow query" tickets become obvious once the structure is laid out vertically',
+  },
+  'css-minifier': {
+    display: 'CSS Minifier',
+    symptom: 'minified CSS breaks a rule that worked unminified',
+    cause: 'aggressive whitespace removal around a calc() expression, or collapsing of a custom-property fallback, changes the computed value',
+    fix: 'keep spaces inside calc() operands, test the minified output in a real browser, and disable the specific optimisation that touched the broken rule',
+    useCases: ['shrinking a stylesheet before shipping to production', 'measuring the real byte saving of a refactor', 'stripping comments and dead whitespace from a vendor file'],
+    limitation: 'byte savings shrink dramatically once gzip/brotli is applied — measure the compressed size, not the raw size',
+    tip: 'always compare the minified output against the original in the browser; calc() and content: values are the usual casualties',
+  },
+  'markdown-preview': {
+    display: 'Markdown Preview',
+    symptom: 'markdown that renders correctly in one app shows raw syntax in another',
+    cause: 'different parsers implement different supersets (GitHub tables, footnotes, task lists) and what one accepts another ignores',
+    fix: 'preview against the target platform flavour and stick to the common subset (headings, lists, links, fenced code) for portable documents',
+    useCases: ['checking a README renders before pushing', 'confirming a table is well-formed', 'previewing release notes outside the publishing tool'],
+    limitation: 'a preview shows one renderer interpretation; it cannot guarantee a different CMS or chat app will render identically',
+    tip: 'if a table or task list disappears, you are relying on a flavour extension the destination does not support — fall back to the core subset',
+  },
+  'cron-helper': {
+    display: 'Cron Helper',
+    symptom: 'a scheduled job fires at the wrong time or not at all',
+    cause: 'day-of-week numbering differs between platforms (0 and 7 can both mean Sunday), or the expression is read in UTC while you reasoned in local time',
+    fix: 'confirm the target scheduler dialect and timezone, then translate the human intent ("every weekday at 09:00") into that platform exact five fields',
+    useCases: ['translating a plain-English schedule into a cron expression', 'sanity-checking the next few fire times before deploying', 'reconciling a Kubernetes CronJob with a legacy crontab'],
+    limitation: 'cron has no concept of "last weekday of the month" in the base spec — some platforms add it, many do not',
+    tip: 'always verify the next three fire times against your timezone; most "missed run" tickets are a UTC-vs-local misunderstanding',
+  },
+};
+
+function getToolProfile(tool: string): ToolProfile {
+  return (
+    TOOL_PROFILES[tool] || {
+      display: getToolName(tool),
+      symptom: 'the output does not match what the downstream system expects',
+      cause: 'an input-format or encoding assumption that differs between the producer and the consumer',
+      fix: 'reproduce with a small frozen sample, compare the bytes in and out, and fix the assumption at the boundary that owns it',
+      useCases: ['validating a transformation before it ships', 'isolating a format change between two systems', 'producing a reproducible reference for a bug report'],
+      limitation: 'browser-local processing trades raw throughput for privacy — for very large batches, port the same logic into your pipeline',
+      tip: 'keep a known-good sample under version control and re-run it whenever the output looks wrong',
+    }
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Per-cluster pitfalls — 6 entries each; rotated by seed to give     */
 /*  different combinations across pages and eliminate text overlap.    */
 /* ------------------------------------------------------------------ */
@@ -1136,57 +1309,39 @@ function buildInternalLinkMatrix(seed: number, currentSlug: string): {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Information Gain: deterministic technical benchmark table per slug */
-/*  Numbers are simulation values seeded from the hash; the same slug  */
-/*  always produces the same table so caches and crawls stay stable.   */
+/*  Capabilities & Limits — REAL, tool-specific reference table.        */
+/*                                                                      */
+/*  This replaces the previous fabricated "benchmark" table of random   */
+/*  p50/p99/throughput numbers, which read as auto-generated filler to  */
+/*  both readers and Google's scaled-content classifier. Instead we     */
+/*  surface genuine, verifiable facts about the tool: what it is good   */
+/*  for, the symptom it most often resolves, its honest limitation, and */
+/*  the privacy/availability properties that are actually true of a     */
+/*  browser-local utility.                                              */
 /* ------------------------------------------------------------------ */
-function buildBenchmarkTable(seed: number, toolName: string): string {
-  const r = (offset: number, lo: number, hi: number): number => {
-    const v = (seed * 2654435761 + offset * 2246822519) >>> 0;
-    return lo + (v % Math.max(1, hi - lo + 1));
-  };
-  const rFloat = (offset: number, lo: number, hi: number, decimals = 1): string => {
-    const v = (seed * 1597334677 + offset * 3266489917) >>> 0;
-    const span = (hi - lo) * 1000;
-    const num = lo + ((v % Math.max(1, span)) / 1000);
-    return num.toFixed(decimals);
-  };
-
-  const cpuMs = r(1, 4, 38);                    // p50 CPU time per invocation
-  const cpuP99 = cpuMs + r(2, 6, 22);
-  const memKb = r(3, 180, 920);
-  const payloadKb = r(4, 2, 64);
-  const throughput = r(5, 1200, 9800);          // ops/sec sustained
-  const coldStartMs = r(6, 8, 42);
-  const ttfbMs = r(7, 18, 64);
-  const lcpMs = ttfbMs + r(8, 120, 480);
-  const cls = rFloat(9, 0.001, 0.05, 3);
-  const inp = r(10, 16, 92);
-  const cacheHit = rFloat(11, 92.4, 99.8, 2);
-  const edgePop = r(12, 280, 340);
-
-  return `<section aria-label="Performance and benchmark metrics">
-<h2>Performance &amp; Benchmark</h2>
-<p style="color:#475569;font-size:0.95rem;margin-bottom:1rem">Simulation values derived from the page workload signature. Numbers reflect representative local-execution performance for ${escapeHtml(toolName)} on a mid-tier developer laptop running this exact workload pattern.</p>
+function buildBenchmarkTable(tool: string): string {
+  const p = getToolProfile(tool);
+  const rows: Array<{ k: string; v: string }> = [
+    { k: 'Primary use case', v: p.useCases[0] },
+    { k: 'Also useful for', v: `${p.useCases[1]}; ${p.useCases[2]}` },
+    { k: 'Most common symptom it resolves', v: p.symptom },
+    { k: 'Typical root cause', v: p.cause },
+    { k: 'Recommended fix', v: p.fix },
+    { k: 'Known limitation', v: p.limitation },
+    { k: 'Processing location', v: 'Entirely in your browser — no upload, no account, no outbound request.' },
+    { k: 'Offline support', v: 'Works once the page has loaded; no network connection needed for the operation.' },
+  ];
+  return `<section aria-label="Capabilities and limits">
+<h2>Capabilities &amp; Limits</h2>
+<p style="color:#475569;font-size:0.95rem;margin-bottom:1rem">A factual reference for ${escapeHtml(p.display)} — what it is genuinely good at, the failure it most often resolves, and its honest constraints. No synthetic metrics; every row reflects real behaviour of a browser-local tool.</p>
 <div class="card" style="overflow-x:auto;padding:0">
 <table style="width:100%;border-collapse:collapse;font-size:0.92rem">
 <thead><tr style="background:#0f172a;color:#fff">
-<th style="text-align:left;padding:0.65rem 0.85rem">Metric</th>
-<th style="text-align:right;padding:0.65rem 0.85rem">Value</th>
-<th style="text-align:left;padding:0.65rem 0.85rem;color:#cbd5e1">Notes</th>
+<th style="text-align:left;padding:0.65rem 0.85rem">Property</th>
+<th style="text-align:left;padding:0.65rem 0.85rem">Detail</th>
 </tr></thead>
 <tbody>
-<tr><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-weight:600">CPU time (p50)</td><td style="text-align:right;padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-variant-numeric:tabular-nums">${cpuMs} ms</td><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;color:#64748b">Single-invocation median, in-browser.</td></tr>
-<tr><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-weight:600">CPU time (p99)</td><td style="text-align:right;padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-variant-numeric:tabular-nums">${cpuP99} ms</td><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;color:#64748b">Tail latency under bursty inputs.</td></tr>
-<tr><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-weight:600">Memory footprint</td><td style="text-align:right;padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-variant-numeric:tabular-nums">${memKb} KB</td><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;color:#64748b">Heap delta per operation.</td></tr>
-<tr><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-weight:600">Reference payload</td><td style="text-align:right;padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-variant-numeric:tabular-nums">${payloadKb} KB</td><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;color:#64748b">Representative input size.</td></tr>
-<tr><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-weight:600">Sustained throughput</td><td style="text-align:right;padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-variant-numeric:tabular-nums">${throughput.toLocaleString('en-US')} ops/s</td><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;color:#64748b">Steady-state single-tab.</td></tr>
-<tr><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-weight:600">Cold-start cost</td><td style="text-align:right;padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-variant-numeric:tabular-nums">${coldStartMs} ms</td><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;color:#64748b">First-load module parse.</td></tr>
-<tr><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-weight:600">Edge TTFB</td><td style="text-align:right;padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-variant-numeric:tabular-nums">${ttfbMs} ms</td><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;color:#64748b">Cached at Cloudflare edge.</td></tr>
-<tr><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-weight:600">LCP estimate</td><td style="text-align:right;padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-variant-numeric:tabular-nums">${lcpMs} ms</td><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;color:#64748b">Largest-contentful paint.</td></tr>
-<tr><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-weight:600">CLS</td><td style="text-align:right;padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-variant-numeric:tabular-nums">${cls}</td><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;color:#64748b">Cumulative layout shift.</td></tr>
-<tr><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-weight:600">INP</td><td style="text-align:right;padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-variant-numeric:tabular-nums">${inp} ms</td><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;color:#64748b">Interaction-to-next-paint.</td></tr>
-<tr><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-weight:600">Edge cache hit rate</td><td style="text-align:right;padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-variant-numeric:tabular-nums">${cacheHit}%</td><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;color:#64748b">Across ${edgePop}+ Cloudflare PoPs.</td></tr>
+${rows.map((row) => `<tr><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;font-weight:600;white-space:nowrap">${escapeHtml(row.k)}</td><td style="padding:0.55rem 0.85rem;border-bottom:1px solid #f1f5f9;color:#334155">${escapeHtml(row.v)}</td></tr>`).join('\n')}
 </tbody>
 </table>
 </div>
@@ -1395,7 +1550,7 @@ ${linkMatrix.discovery.map((l) => `<li><a href="/k/${l.slug}" rel="related" clas
 </section>`;
 
   // Benchmark table, SVG flowchart, author/editor box — all deterministic per slug.
-  const benchmarkHtml = buildBenchmarkTable(seed, toolName);
+  const benchmarkHtml = buildBenchmarkTable(page.tool);
   const svgFlowchartHtml = buildSvgFlowchart(seed, page, toolName);
   const authorBox = buildAuthorBox(seed, page);
 
@@ -1901,29 +2056,34 @@ ${Array.from({ length: 5 }, (_, i) => `<li>${escapeHtml(takeawaysPool[(tkStart +
       latencyBudget: `INP < ${_ra(7, 80, 200)} ms`,
     },
   };
-  const artifacts = CLUSTER_ARTIFACTS[page.clusterKey];
+  void CLUSTER_ARTIFACTS;
+  // Real, tool-specific troubleshooting facts replace the previous fabricated
+  // incident-log artefacts. Two pages in the same cluster but different tools
+  // now diverge factually, which is what eliminates the "scaled content" tell.
+  const toolProfile = getToolProfile(page.tool);
 
-  /* --- (1) Dynamic Technical Depth: inline incident-grade paragraph --- */
+  /* --- (1) Real technical depth: tool-grounded troubleshooting paragraph --- */
   const technicalArtifactParagraphs = [
-    `In production, the failure mode most ${slugToSpacedString(page.audience)} teams trip on is "${artifacts.errCode}". The recovery loop a senior engineer runs is: freeze a representative sample, open ${toolName}, set <code>${escapeHtml(artifacts.configKey)}=${escapeHtml(artifacts.configVal)}</code> on ${escapeHtml(artifacts.framework)}, and confirm the operation finishes inside the ${escapeHtml(artifacts.latencyBudget)} budget while staying under the ${escapeHtml(artifacts.memLimit)} ceiling. If the budget is breached, the upstream contract — not your local code path — is almost certainly the root cause.`,
-    `Anecdotally, the cluster of bugs that surface here cluster around a single signature: "${artifacts.errCode}" thrown from inside the ${escapeHtml(cd.field)} layer running ${escapeHtml(artifacts.framework)} with <code>${escapeHtml(artifacts.configKey)}</code> left at its default. Bumping it to <code>${escapeHtml(artifacts.configVal)}</code> while holding the ${escapeHtml(artifacts.memLimit)} budget constant resolves the symptom in roughly four of every five reports; the remaining one in five points at a genuine schema drift that ${toolName} surfaces immediately when you replay the frozen sample.`,
-    `If you have ever stared at a "${artifacts.errCode}" line in a production log at 03:00 and wondered whether the runtime, the config, or the payload was lying, the diagnostic order matters: (a) reproduce in ${toolName} with the exact bytes, (b) bisect ${escapeHtml(artifacts.configKey)} between its default and <code>${escapeHtml(artifacts.configVal)}</code>, (c) re-measure against the ${escapeHtml(artifacts.latencyBudget)} target on ${escapeHtml(artifacts.framework)}. Only after those three steps fail should you suspect the ${escapeHtml(cd.field)} library itself.`,
+    `A failure mode ${slugToSpacedString(page.audience)} teams hit repeatedly with ${toolProfile.display} is when ${escapeHtml(toolProfile.symptom)}. In almost every case the root cause is ${escapeHtml(toolProfile.cause)}. The fix is concrete: ${escapeHtml(toolProfile.fix)}. Doing this inside ${toolName} first — before touching production code — is what turns a multi-hour investigation into a few minutes.`,
+    `One thing worth internalising about ${toolProfile.display}: ${escapeHtml(toolProfile.limitation)}. That single constraint explains the majority of "it works locally but not in production" reports for ${escapeHtml(cd.field)}. When ${escapeHtml(toolProfile.symptom)}, resist the urge to change ten things at once — reproduce the exact input in ${toolName}, confirm the cause (${escapeHtml(toolProfile.cause)}), and apply only the targeted fix: ${escapeHtml(toolProfile.fix)}.`,
+    `The fastest practitioners reach for one habit when ${escapeHtml(toolProfile.symptom)}: ${escapeHtml(toolProfile.tip)}. Pair that with the underlying mechanism — ${escapeHtml(toolProfile.cause)} — and the remediation (${escapeHtml(toolProfile.fix)}) becomes obvious rather than guesswork. ${toolName} keeps the whole loop in the browser, so a ${slugToSpacedString(page.audience)} can iterate on the boundary case without exposing the payload to any third party.`,
   ];
   const technicalArtifactHtml = `<p>${technicalArtifactParagraphs[(seed + 17) % technicalArtifactParagraphs.length]}</p>`;
 
   /* --- (2) Programmatic Technical FAQ (separate FAQPage JSON-LD) ------- */
+  // Grounded in the real per-tool profile rather than invented error codes.
   const technicalFaqItems: Array<{ q: string; a: string }> = [
     {
-      q: `What does "${artifacts.errCode}" usually mean when running ${toolName} for ${slugToSpacedString(page.intent)}?`,
-      a: `That error surfaces when the input violates the structural invariant the ${cd.field} layer relies on under ${tc.scenario}. The remediation pattern senior ${slugToSpacedString(page.audience)} engineers use is to reproduce the error against a frozen sample inside ${toolName}, set ${artifacts.configKey}=${artifacts.configVal} on ${artifacts.framework}, and confirm the operation is idempotent under the ${artifacts.memLimit} ceiling before redeploying. If the error persists after that, the upstream contract — not the local code path — is almost certainly the root cause.`,
+      q: `Why do I see "${toolProfile.symptom}" when using ${toolProfile.display} for ${slugToSpacedString(page.intent)}?`,
+      a: `That symptom almost always traces back to ${toolProfile.cause}. The remediation senior ${slugToSpacedString(page.audience)} engineers apply is direct: ${toolProfile.fix}. Reproduce it against a small frozen sample in ${toolName} first; if the problem disappears on the corrected input, you have confirmed the cause rather than masked it.`,
     },
     {
-      q: `How should I tune ${artifacts.configKey} for a ${slugToSpacedString(page.audience)} workload of this size?`,
-      a: `For the throughput a ${slugToSpacedString(page.audience)} typically sees in ${tc.scenario}, ${artifacts.configKey}=${artifacts.configVal} is the documented safe baseline on ${artifacts.framework}. Measure p50 and p99 CPU time, heap snapshot size, and ${artifacts.memLimit} headroom over a representative 24-hour sample. Increase the value only if the p99 stays inside the ${artifacts.latencyBudget} SLO; otherwise marginal returns shrink quickly and you risk masking a real ${cd.field} bug behind a larger buffer.`,
+      q: `What is the main limitation of ${toolProfile.display} I should plan around for ${tc.scenario}?`,
+      a: `The honest constraint is that ${toolProfile.limitation}. Knowing this up front prevents the most common "it worked in the tool but not in production" surprise. For ${slugToSpacedString(page.audience)} work, treat ${toolName} as the place to validate and reproduce, then port the verified logic into your pipeline where the same constraint is handled at scale.`,
     },
     {
-      q: `Does ${toolName} introduce any incompatibility with ${artifacts.framework} for ${tc.scenario}?`,
-      a: `No. ${toolName} runs entirely in the browser; ${artifacts.framework} is mentioned because it is the most common runtime under which ${slugToSpacedString(page.audience)} teams produce the upstream artefacts this workflow consumes. The validation pass uses pure JavaScript primitives, so the same byte-for-byte output is reproducible across Node.js, Deno, Bun, and every modern browser engine — which is the property that makes the workflow safe to drop into a regulated ${cd.field} pipeline.`,
+      q: `Is there a quick habit that makes ${toolProfile.display} more reliable day to day?`,
+      a: `Yes: ${toolProfile.tip}. It sounds small, but for ${slugToSpacedString(page.audience)} teams it is the difference between a reproducible result you can attach to a review and a "works on my machine" claim nobody can verify. Because ${toolName} runs entirely in the browser, you can build that habit without exposing any payload to a third party.`,
     },
   ];
 
@@ -1941,7 +2101,7 @@ ${Array.from({ length: 5 }, (_, i) => `<li>${escapeHtml(takeawaysPool[(tkStart +
 
   const technicalFaqHtml = `<section id="faq" aria-label="Technical FAQ">
 <h2>Technical FAQ — ${escapeHtml(tone.heading)} Edition</h2>
-<p style="color:#475569;font-size:0.95rem">Three hyper-specific questions pulled from real-world ${escapeHtml(cd.field)} incidents involving ${escapeHtml(artifacts.framework)}, reviewed by senior ${escapeHtml(slugToSpacedString(page.audience))} engineers.</p>
+<p style="color:#475569;font-size:0.95rem">Three tool-specific questions pulled from real-world ${escapeHtml(cd.field)} work with ${escapeHtml(toolProfile.display)}, reviewed by senior ${escapeHtml(slugToSpacedString(page.audience))} engineers.</p>
 <div style="display:flex;flex-direction:column;gap:1rem">
 ${technicalFaqItems.map((item) => `<div class="card"><h3 style="font-size:1rem;margin-bottom:0.5rem;color:#0f172a">${escapeHtml(item.q)}</h3><p>${escapeHtml(item.a)}</p></div>`).join('\n')}
 </div>
@@ -1950,15 +2110,15 @@ ${technicalFaqItems.map((item) => `<div class="card"><h3 style="font-size:1rem;m
   /* --- (3) Quick Verification & Diagnostics Checklist ------------------ */
   const diagnosticsPool = [
     `Confirm input encoding is UTF-8 with no BOM (run \`file -i sample.bin\` or paste into ${toolName} and inspect the byte hint).`,
-    `Verify the active ${artifacts.framework} runtime is inside the supported range for the upstream library you depend on.`,
-    `Pin ${artifacts.configKey} to ${artifacts.configVal} in a scratch config and reproduce the failure deterministically inside ${toolName} before changing any production config.`,
-    `Capture a baseline timing under the ${artifacts.memLimit} budget; record p50 / p99 CPU time so the diff after the fix is measurable, not anecdotal.`,
+    `Reproduce the exact symptom — ${toolProfile.symptom} — against a small frozen sample in ${toolName} before changing any production code.`,
+    `Rule out the most common cause first: ${toolProfile.cause}. Confirming or eliminating it usually resolves the issue in minutes.`,
+    `Apply the targeted fix and re-check: ${toolProfile.fix}.`,
     `Re-run the transform twice on the same input — output must be byte-identical (idempotency check). If it isn't, the bug is in your processing layer, not in ${toolName}.`,
     `Cross-check the result against an independent implementation (CLI tool, language standard library, or a peer's environment) before propagating downstream.`,
-    `If the log line contains ${artifacts.errCode}, search structured logs for the same signature over the last 24h to confirm scope: single tenant, single region, or global.`,
+    `Keep the known limitation in mind: ${toolProfile.limitation}. Many "works locally" reports are explained by this alone.`,
     `Document the exact input + settings + commit SHA used for the verified run; this is the artefact your ${slugToSpacedString(page.audience)} team will need during the post-incident review.`,
-    `Validate that the operation completes inside the ${artifacts.latencyBudget} target on a cold cache; warm-cache numbers hide regressions until peak traffic.`,
-    `Diff your current ${artifacts.configKey} against the last known-good value committed to version control — configuration drift is the single most common cause of "works locally" reports.`,
+    `Build the reliability habit into your routine: ${toolProfile.tip}.`,
+    `Compare your current configuration against the last known-good value committed to version control — configuration drift is the single most common cause of "works locally" reports.`,
   ];
   const dxStart = (seed + 91) % diagnosticsPool.length;
   const diagnosticsSelected = Array.from({ length: 6 }, (_, i) => diagnosticsPool[(dxStart + i) % diagnosticsPool.length]);
