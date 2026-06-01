@@ -1,0 +1,40 @@
+name: Indexing API — daily priority submission
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+# Runs on GitHub Actions free tier. Does NOT touch any Cloudflare Function
+# or paid infrastructure. Submits up to 200 priority URLs/day directly to
+# Google's Indexing API using a service-account JWT.
+on:
+  schedule:
+    - cron: '0 3 * * *'   # 03:00 UTC daily
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Build (sitemap + priority sitemap)
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
+          SITE_URL: https://devsolvev2.com
+        run: |
+          npm run build
+          # postbuild.mjs already runs generate-priority-sitemap.mjs via the
+          # build pipeline; this confirms the priority files are present.
+          ls -lh out/sitemap-priority-*.xml || true
+      - name: Submit priority URLs to Google Indexing API
+        env:
+          SITE_URL: https://devsolvev2.com
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: node scripts/submit-indexing-api.mjs

@@ -1,0 +1,13 @@
+{
+  "_comment": "Relax markdownlint rules that produce noisy, non-actionable VS Code 'Problems' on the long-form Turkish recovery report and README. These are documentation-style choices, not defects.",
+  "default": true,
+  "MD013": false,
+  "MD024": { "siblings_only": true },
+  "MD033": false,
+  "MD034": false,
+  "MD036": false,
+  "MD040": false,
+  "MD041": false,
+  "MD045": false,
+  "MD046": false
+}
