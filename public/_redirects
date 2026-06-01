@@ -1,5 +1,15 @@
-# Legacy sitemap URL kept alive for Googlebot — points to current main pages sitemap.
-# 301 ensures Search Console transfers any historical signal to the new file.
-/sitemap.xml            /sitemap-main-pages.xml   301
-/sitemap_index.xml      /sitemap-index.xml        301
-/sitemaps.xml           /sitemap-index.xml        301
+# Legacy sitemap URLs kept alive for Googlebot.
+#
+# They 301 to the CURRENT, versioned sitemap index so no crawler ever lands on
+# the purged, frozen /sitemap-index.xml. That old index is intentionally removed
+# at build time (removeStaleSitemapIndexes) so it returns 404 and Google drops
+# its stale parse — see docs/indexing-recovery-2026-06.md §6. We deliberately do
+# NOT redirect the bare /sitemap-index.xml here: it must 404 to force a fresh
+# discovery pass on the new versioned URL.
+#
+# IMPORTANT: scripts/generate-programmatic-sitemaps.mjs rewrites the index-target
+# lines below (in out/_redirects) to match SITEMAP_INDEX_NAME during the build,
+# so bumping the sitemap version never silently re-breaks these legacy redirects.
+/sitemap.xml            /sitemap-main-pages.xml            301
+/sitemap_index.xml      /sitemap-index-2026-06-v2.xml      301
+/sitemaps.xml           /sitemap-index-2026-06-v2.xml      301

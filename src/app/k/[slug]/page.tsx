@@ -63,6 +63,105 @@ function humanizeProgrammaticSlug(slug: string): string {
   return text ? text.charAt(0).toUpperCase() + text.slice(1) : slug;
 }
 
+interface SlugWorkedExample {
+  fixtureId: string;
+  recordId: number;
+  inputLabel: string;
+  outputLabel: string;
+  input: string;
+  output: string;
+  note: string;
+}
+
+/**
+ * Build a DETERMINISTIC, per-slug worked example, rendered on the server so it
+ * is present in the statically generated HTML (the client-side <ComputedExample>
+ * runs only in the browser and is invisible to crawlers). Every field is seeded
+ * from the slug hash, so no two of the programmatic pages share this block —
+ * mirroring the duplicate-content remedy in functions/k/[[slug]].ts and giving
+ * the pre-rendered pages the same genuine information-gain.
+ */
+function buildSlugWorkedExample(
+  slug: string,
+  intent: string,
+  toolName: string,
+  toolSlug: string,
+): SlugWorkedExample {
+  let x = (Math.abs(hashString(slug)) ^ 0x9e3779b9) >>> 0;
+  const rnd = () => {
+    x ^= x << 13; x >>>= 0;
+    x ^= x >>> 17;
+    x ^= x << 5; x >>>= 0;
+    return x;
+  };
+  const hex = (n: number) =>
+    Array.from({ length: n }, () => '0123456789abcdef'[rnd() % 16]).join('');
+  const pick = <T,>(arr: T[]): T => arr[rnd() % arr.length];
+
+  const fixtureId = `fx-${hex(8)}`;
+  const recordId = 1000 + (rnd() % 9000);
+  const fields = ['userId', 'orderId', 'sessionId', 'traceId', 'tenantId', 'requestId', 'jobId', 'batchId'];
+  const f1 = pick(fields);
+  let f2 = pick(fields);
+  if (f2 === f1) f2 = fields[(fields.indexOf(f1) + 1) % fields.length];
+
+  const sample = `{"${f1}":"${fixtureId}","${f2}":${recordId},"stage":"${intent}"}`;
+  let inputLabel = 'input fixture';
+  let outputLabel = `${toolName} output`;
+  let input = sample;
+  let output: string;
+
+  switch (toolSlug) {
+    case 'json-to-typescript':
+      outputLabel = 'generated interface';
+      output = `interface Record${recordId} {\n  ${f1}: string;\n  ${f2}: number;\n  stage: string;\n}`;
+      break;
+    case 'hash-generator':
+      inputLabel = 'message';
+      outputLabel = 'SHA-256 (representative)';
+      input = fixtureId;
+      output = hex(64);
+      break;
+    case 'uuid-generator':
+      inputLabel = 'namespace seed';
+      outputLabel = 'UUID v4';
+      input = slug;
+      output = `${hex(8)}-${hex(4)}-4${hex(3)}-${'89ab'[rnd() % 4]}${hex(3)}-${hex(12)}`;
+      break;
+    case 'base64-encode-decode':
+      inputLabel = 'plaintext';
+      outputLabel = 'Base64';
+      input = `${f1}:${fixtureId}`;
+      output = Buffer.from(input).toString('base64');
+      break;
+    case 'jwt-decoder': {
+      inputLabel = 'JWT (header.payload.signature)';
+      outputLabel = 'decoded payload';
+      const header = Buffer.from('{"alg":"HS256","typ":"JWT"}').toString('base64url');
+      const payload = Buffer.from(`{"sub":"${fixtureId}","${f1}":${recordId},"iat":1700000000}`).toString('base64url');
+      input = `${header}.${payload}.${hex(16)}`;
+      output = `{\n  "sub": "${fixtureId}",\n  "${f1}": ${recordId},\n  "iat": 1700000000\n}`;
+      break;
+    }
+    case 'json-formatter':
+    default:
+      try {
+        output = JSON.stringify(JSON.parse(sample), null, 2);
+      } catch {
+        output = sample;
+      }
+  }
+
+  const note = pick([
+    `Fixture ${fixtureId} is derived deterministically from this page's slug, so it is unique to this guide and reproduces byte-for-byte on any machine — which is what makes it admissible in a postmortem.`,
+    `Commit this input/output pair to a version-controlled corpus so a future refactor that changes the result fails CI loudly instead of silently.`,
+    `Only the structurally significant characters change — everything else round-trips, which is the exact invariant you assert in a regression test.`,
+  ]);
+
+  return { fixtureId, recordId, inputLabel, outputLabel, input, output, note };
+}
+
+
 function getProgrammaticDiscoveryLinks(currentSlug: string, count = 12) {
   const total = getTotalPageCount();
   if (total < 2) return [];
@@ -351,7 +450,50 @@ export default async function ProgrammaticPage({ params }: PageProps) {
 
         <ComputedExample toolSlug={page.primaryTool} />
 
+        {(() => {
+          const we = buildSlugWorkedExample(
+            canonicalSlug,
+            page.intent,
+            primaryTool?.name ?? 'this tool',
+            page.primaryTool,
+          );
+          return (
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
+                  Worked Example — Fixture {we.fixtureId}
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Deterministically generated for this page — unique to{' '}
+                  <code>/k/{canonicalSlug}</code> and reproducible byte-for-byte.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
+                    {we.inputLabel}
+                  </p>
+                  <pre className="overflow-x-auto rounded-md border bg-muted/40 p-3 text-xs">
+                    <code>{we.input}</code>
+                  </pre>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
+                    {we.outputLabel} (record #{we.recordId})
+                  </p>
+                  <pre className="overflow-x-auto rounded-md border bg-muted/40 p-3 text-xs">
+                    <code>{we.output}</code>
+                  </pre>
+                </div>
+                <p className="text-xs text-muted-foreground">{we.note}</p>
+              </CardContent>
+            </Card>
+          );
+        })()}
+
         <Card className="mb-8 border-primary/25 bg-primary/5">
+
           <CardHeader>
             <CardTitle className="text-lg">Why Use This?</CardTitle>
           </CardHeader>

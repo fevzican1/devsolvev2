@@ -1,5 +1,6 @@
 import { createWriteStream } from 'node:fs';
-import { mkdir, readdir, rm } from 'node:fs/promises';
+import { mkdir, readdir, rm, readFile, writeFile } from 'node:fs/promises';
+
 import { join } from 'node:path';
 
 const siteUrl = (process.env.SITE_URL || process.env.URL || 'https://devsolvev2.com').replace(/\/$/, '');
@@ -466,8 +467,53 @@ async function removeStaleSitemapIndexes() {
   }
 }
 
+// Drift guard: keep out/_redirects and out/robots.txt pointing at the CURRENT
+// versioned sitemap index. Bumping SITEMAP_INDEX_NAME (or the version suffix)
+// used to require a manual edit of both files; if you forgot, a legacy redirect
+// or the robots Sitemap line would aim at a purged (404) index — exactly the
+// "old sitemap still shows up" symptom. This rewrites them automatically.
+async function syncSitemapReferences() {
+  const indexPath = `/${SITEMAP_INDEX_NAME}`;
+  const indexUrl = `${siteUrl}/${SITEMAP_INDEX_NAME}`;
+
+  // _redirects: repoint any redirect TARGET that names a sitemap-index*.xml to
+  // the current index path. Comments and the /sitemap.xml→main-pages rule are
+  // left untouched (they don't contain "sitemap-index").
+  try {
+    const redirectsPath = join(outDir, '_redirects');
+    const original = await readFile(redirectsPath, 'utf8');
+    const updated = original
+      .split('\n')
+      .map((line) => {
+        if (line.trim().startsWith('#') || line.trim() === '') return line;
+        return line.replace(/\/sitemap-index[A-Za-z0-9._-]*\.xml/gi, indexPath);
+      })
+      .join('\n');
+    if (updated !== original) {
+      await writeFile(redirectsPath, updated, 'utf8');
+      console.log(`Synced out/_redirects sitemap-index target → ${indexPath}`);
+    }
+  } catch {
+    // _redirects absent in some build contexts — non-fatal.
+  }
+
+  // robots.txt: repoint the Sitemap: directive to the current index URL.
+  try {
+    const robotsPath = join(outDir, 'robots.txt');
+    const original = await readFile(robotsPath, 'utf8');
+    const updated = original.replace(/^Sitemap:\s*\S+\s*$/gim, `Sitemap: ${indexUrl}`);
+    if (updated !== original) {
+      await writeFile(robotsPath, updated, 'utf8');
+      console.log(`Synced out/robots.txt Sitemap → ${indexUrl}`);
+    }
+  } catch {
+    // robots.txt absent — non-fatal.
+  }
+}
+
 async function main() {
   await mkdir(outDir, { recursive: true });
+
   await removeExistingProgrammaticSitemaps();
   await removeLegacySitemapXml();
   await removeStaleSitemapIndexes();
@@ -591,8 +637,12 @@ async function main() {
     freshestLastmod,
   );
 
+  // Keep _redirects + robots.txt aimed at the just-written versioned index.
+  await syncSitemapReferences();
+
 
   console.log(`Programmatic sitemap URLs generated: ${generatedUrlCount}`);
+
   console.log(`Programmatic sitemap files generated: ${safeProgrammatic.length}`);
   console.log(`Priority sitemap files referenced in index: ${safePriority.length}`);
   console.log(`Core sitemap files referenced in index: ${safeCore.join(', ')}`);
