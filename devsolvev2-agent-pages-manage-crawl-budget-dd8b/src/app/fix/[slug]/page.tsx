@@ -17,7 +17,6 @@ import {
   BookOpen,
   ThumbsUp,
   ThumbsDown,
-  Code2,
   Verified,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -297,8 +296,7 @@ export default async function FixPage({ params }: PageProps) {
               Minimal {library.name} {library.version} snippet that triggers the error.
               {codeVerified && (
                 <span className="block mt-1 text-green-600 text-[11px]">
-                  <Code2 className="h-3 w-3 inline mr-0.5" />
-                  This code has been tested and verified {verifiedPlatform ? `on ${verifiedPlatform}` : ''}.
+                  This code has been tested and verified{verifiedPlatform ? ` on ${verifiedPlatform}` : ''}.
                 </span>
               )}
             </CardDescription>
