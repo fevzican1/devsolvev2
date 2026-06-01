@@ -41,9 +41,33 @@ function buildSlug(clusterKey: string, intent: string, audience: string, task: s
     .join('-').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + `-${index}`;
 }
 
-function humanLabel(slug: string): string {
-  return slug.replace(/-\d+$/, '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+// Tokens that should render as upper-case acronyms rather than Title Case so
+// the labels read like real engineering guide titles ("JSON", not "Json").
+const ACRONYMS: Record<string, string> = {
+  json: 'JSON', jwt: 'JWT', api: 'API', url: 'URL', html: 'HTML',
+  uuid: 'UUID', css: 'CSS', sql: 'SQL', qa: 'QA', sre: 'SRE',
+};
+
+function prettifyToken(token: string): string {
+  const lower = token.toLowerCase();
+  if (ACRONYMS[lower]) return ACRONYMS[lower];
+  return token.charAt(0).toUpperCase() + token.slice(1);
 }
+
+function prettifyPhrase(phrase: string): string {
+  return phrase.split('-').filter(Boolean).map(prettifyToken).join(' ');
+}
+
+/**
+ * Build a human-readable, descriptive label from the structured slug parts.
+ * Produces a unique, sentence-like title (not a keyword salad) so the hub
+ * never renders multiple visually identical links — which previously read as
+ * machine-generated spam and hurt the page's quality signals.
+ */
+function humanLabel(intent: string, audience: string, tool: string): string {
+  return `${prettifyPhrase(intent)} — for a ${prettifyPhrase(audience)} (${prettifyPhrase(tool)})`;
+}
+
 
 /* Build-day rotation: rebuilds at every deploy. Builds on the same UTC day
  * produce identical output, which keeps the static cache stable. */
@@ -68,7 +92,9 @@ function pickFreshSlugs(seedSalt: string, count: number): Array<{ slug: string; 
   const perPair = AUDIENCES.length * TASKS.length * MODIFIER_COUNT;
   const total = pairs.length * perPair;
 
-  for (let slot = 0; slot < count * 3 && out.length < count; slot += 1) {
+  // Search a wider window than `count` so that, after de-duplicating by the
+  // VISIBLE label, we can still fill every slot with a distinct title.
+  for (let slot = 0; slot < count * 12 && out.length < count; slot += 1) {
     // 32-bit hash combining day + salt + slot for deterministic but
     // varied rotation. Same build day → same output.
     let h = 5381;
@@ -81,12 +107,19 @@ function pickFreshSlugs(seedSalt: string, count: number): Array<{ slug: string; 
     const rem2 = rem % (TASKS.length * MODIFIER_COUNT);
     const taskIdx = Math.floor(rem2 / MODIFIER_COUNT);
     const pair = pairs[pairIdx];
-    const slug = buildSlug(pair.cluster, pair.intent, AUDIENCES[audIdx], TASKS[taskIdx], pair.tool, absIdx);
-    if (seen.has(slug)) continue;
-    seen.add(slug);
-    out.push({ slug, label: humanLabel(slug) });
+    const audience = AUDIENCES[audIdx];
+    const task = TASKS[taskIdx];
+    const slug = buildSlug(pair.cluster, pair.intent, audience, task, pair.tool, absIdx);
+    const label = humanLabel(pair.intent, audience, pair.tool);
+    // De-duplicate on the rendered label (not the raw slug). Two slugs that
+    // differ only by their numeric modifier suffix used to render identical
+    // text — that repetition is exactly what read as spam on the homepage.
+    if (seen.has(label)) continue;
+    seen.add(label);
+    out.push({ slug, label });
   }
   return out;
+
 }
 
 interface FreshSlugsRotatorProps {

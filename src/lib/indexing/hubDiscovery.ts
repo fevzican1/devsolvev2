@@ -95,6 +95,7 @@ function buildHubLinkSnapshot(hubPath: string, count: number): HubLinkSnapshot {
 
   const links: DiscoveryLink[] = [];
   const selectedPaths = new Set<string>();
+  const selectedTitles = new Set<string>();
   const seed = fallbackSeedForHub(normalizedHubPath);
 
   let attempts = 0;
@@ -109,13 +110,26 @@ function buildHubLinkSnapshot(hubPath: string, count: number): HubLinkSnapshot {
     if (path === normalizedHubPath || selectedPaths.has(path)) continue;
     if (!isIndexableProgrammaticPath(path)) continue;
 
+    // Prefer the real, editorially generated page title (a readable sentence,
+    // unique per page) over a slug-derived keyword string. The previous
+    // slug-only label dropped the differentiating modifier suffix, so many
+    // distinct URLs rendered the SAME text — a repetitive, spammy-looking
+    // wall of links. De-duplicating by the visible title guarantees every
+    // entry in the hub is visually distinct.
+    const page = getProgrammaticPageBySlug(slug);
+    const title = page?.title?.trim() || programmaticLabelFromPath(path);
+    const titleKey = title.toLowerCase();
+    if (selectedTitles.has(titleKey)) continue;
+
     selectedPaths.add(path);
+    selectedTitles.add(titleKey);
     links.push({
       href: path,
-      title: programmaticLabelFromPath(path),
+      title,
       source: 'rotation',
     });
   }
+
 
   return {
     hubPath: normalizedHubPath,
