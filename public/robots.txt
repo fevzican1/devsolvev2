@@ -160,4 +160,9 @@ Disallow: /*?*ref=
 Disallow: /*?*utm_
 
 # Single sitemap-index entry — Google discovers every other sitemap from it.
-Sitemap: https://devsolvev2.com/sitemap-index.xml
+# NOTE: versioned filename. The previous sitemap-index.xml "froze" in Search
+# Console (sub-sitemaps stuck at 0). Publishing the index under a NEW URL forces
+# Google to run a fresh discovery pass. Keep this in sync with SITEMAP_INDEX_NAME
+# in scripts/generate-programmatic-sitemaps.mjs and resubmit it in GSC.
+Sitemap: https://devsolvev2.com/sitemap-index-2026-06-v2.xml
+

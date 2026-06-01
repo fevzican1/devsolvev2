@@ -22,7 +22,27 @@ const urlsPerSitemap = 50000;
 const minIndexScore = 82;
 const minSitemapScore = 82;
 const minWordCount = 900;
+// Corpus cap. Full corpus = 18,040,320 URLs. This is restored as the default
+// per the site owner's decision to keep all 18M pages in the sitemap. You can
+// shrink it for a phased recovery via PROGRAMMATIC_SITEMAP_LIMIT (e.g. 4000000
+// or 110000) without touching code — see docs/indexing-recovery-2026-06.md §3.
 const maxSitemapUrls = Number.parseInt(process.env.PROGRAMMATIC_SITEMAP_LIMIT || '18040320', 10);
+
+
+
+// ---------------------------------------------------------------------------
+// Sitemap-index filename (VERSIONED).
+//
+// When a sitemap index "freezes" in Google Search Console — sub-sitemaps stuck
+// at "0 discovered/indexed" no matter how many times you resubmit — the
+// fastest reliable un-stick is to publish the index under a BRAND-NEW URL and
+// submit that new URL. Google treats it as a never-seen resource and runs a
+// fresh discovery pass instead of replaying its stale, cached parse of the old
+// file. Bump the version suffix (or set SITEMAP_INDEX_NAME) on every such
+// recovery. The old name is purged below so it 404s and drops out of GSC.
+// ---------------------------------------------------------------------------
+const SITEMAP_INDEX_NAME = process.env.SITEMAP_INDEX_NAME || 'sitemap-index-2026-06-v2.xml';
+
 
 const clusters = [
   {
@@ -402,7 +422,8 @@ async function writeSitemapIndex(coreSitemaps, programmaticSitemaps, lastmodByFi
   const sitemapEntries = [...coreSitemaps, ...programmaticSitemaps];
 
   await Promise.all(
-    ['sitemap-index.xml'].map(async (filename) => {
+    [SITEMAP_INDEX_NAME].map(async (filename) => {
+
       const stream = createWriteStream(join(outDir, filename), { encoding: 'utf-8' });
 
       stream.write('<?xml version="1.0" encoding="UTF-8"?>\n');
@@ -429,10 +450,28 @@ async function writeSitemapIndex(coreSitemaps, programmaticSitemaps, lastmodByFi
   );
 }
 
+// Purge every previously-emitted sitemap index whose name differs from the
+// current SITEMAP_INDEX_NAME. This guarantees the old (frozen) index URL now
+// returns 404 — which is exactly what makes Google drop its stale parse and
+// honour the freshly-submitted index URL instead.
+async function removeStaleSitemapIndexes() {
+  try {
+    const files = await readdir(outDir);
+    const stale = files.filter(
+      (file) => /^sitemap-index.*\.xml$/i.test(file) && file !== SITEMAP_INDEX_NAME,
+    );
+    await Promise.all(stale.map((file) => rm(join(outDir, file), { force: true })));
+  } catch {
+    // Ignore when directory is not present yet.
+  }
+}
+
 async function main() {
   await mkdir(outDir, { recursive: true });
   await removeExistingProgrammaticSitemaps();
   await removeLegacySitemapXml();
+  await removeStaleSitemapIndexes();
+
 
   // Anchor "now" to a single moment so the run is deterministic for a given
   // process invocation, but moves forward with each rebuild (so Google sees a
@@ -557,7 +596,9 @@ async function main() {
   console.log(`Programmatic sitemap files generated: ${safeProgrammatic.length}`);
   console.log(`Priority sitemap files referenced in index: ${safePriority.length}`);
   console.log(`Core sitemap files referenced in index: ${safeCore.join(', ')}`);
-  console.log(`Sitemap index generated: sitemap-index.xml`);
+  console.log(`Sitemap index generated: ${SITEMAP_INDEX_NAME}`);
+  console.log(`  → submit this exact URL in GSC: ${siteUrl}/${SITEMAP_INDEX_NAME}`);
+
 }
 
 main().catch((error) => {

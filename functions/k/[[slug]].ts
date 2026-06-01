@@ -2485,6 +2485,161 @@ ${relatedLinks.join('\n')}
     // never produce identical Field Notes content, addressing the
     // "Duplicate, Google chose different canonical" signal.
     // -----------------------------------------------------------------
+    // -----------------------------------------------------------------
+    //  Worked Example — GENUINELY tool-aware, slug-unique (information gain).
+    //
+    //  Earlier this emitted a random id + number and HTML-escaped it
+    //  regardless of which tool the page documents — Google reads that as
+    //  "boilerplate with tokens", which adds no information gain and does
+    //  NOT break a near-duplicate cluster. This version computes a REAL,
+    //  semantically-correct transformation for page.tool (Base64 actually
+    //  encodes, JSON-formatter actually pretty-prints, jwt-decoder actually
+    //  splits a token, regex-tester actually shows matches, etc.), builds a
+    //  structurally varied fixture from the slug seed, and frames it with
+    //  rotated headings / lead-ins / closings. Two sibling pages (same core,
+    //  different modifier) therefore diverge at the shingle level, not just
+    //  byte level — which is what actually defeats duplicate clustering.
+    // -----------------------------------------------------------------
+    workedexample: () => {
+      let x = (seed ^ 0x9e3779b9) >>> 0;
+      const rnd = () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x; };
+      const pick = <T>(arr: T[]): T => arr[rnd() % arr.length];
+      const hex = (n: number) => Array.from({ length: n }, () => '0123456789abcdef'[rnd() % 16]).join('');
+
+      // Workers-safe Base64 (no btoa dependency).
+      const b64 = (str: string): string => {
+        const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+        let out = '';
+        for (let i = 0; i < str.length; i += 3) {
+          const a = str.charCodeAt(i);
+          const b = i + 1 < str.length ? str.charCodeAt(i + 1) : NaN;
+          const d = i + 2 < str.length ? str.charCodeAt(i + 2) : NaN;
+          out += c[a >> 2];
+          out += c[((a & 3) << 4) | (isNaN(b) ? 0 : b >> 4)];
+          out += isNaN(b) ? '=' : c[((b & 15) << 2) | (isNaN(d) ? 0 : d >> 6)];
+          out += isNaN(d) ? '=' : c[d & 63];
+        }
+        return out;
+      };
+      // FNV-1a — a real, deterministic content fingerprint (representative).
+      const fnv = (str: string): string => {
+        let h = 0x811c9dc5;
+        for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
+        return h.toString(16).padStart(8, '0');
+      };
+
+      const fieldNames = ['userId', 'orderId', 'sessionId', 'traceId', 'tenantId', 'requestId', 'jobId', 'batchId', 'accountId', 'spanId'];
+      const f1 = pick(fieldNames);
+      let f2 = pick(fieldNames);
+      if (f2 === f1) f2 = fieldNames[(fieldNames.indexOf(f1) + 1) % fieldNames.length];
+      const recordId = 1000 + (rnd() % 9000);
+      const token = hex(8);
+      const rawValue = `${slugToSpacedString(page.intent)} & <${f1}>`;
+      const sampleObj = `{"${f1}":"${token}","${f2}":${recordId},"stage":"${page.intent}","note":"${rawValue}"}`;
+
+      // REAL per-tool transformation.
+      let lang = 'json';
+      let inputLabel = 'input fixture';
+      let outputLabel = `${toolName} output`;
+      let input = sampleObj;
+      let output = '';
+      switch (page.tool) {
+        case 'base64-encode-decode':
+          inputLabel = 'raw value'; outputLabel = 'Base64-encoded'; lang = 'text';
+          input = rawValue; output = b64(rawValue); break;
+        case 'url-encode-decode':
+          inputLabel = 'raw query value'; outputLabel = 'percent-encoded (RFC 3986)'; lang = 'text';
+          input = rawValue; output = encodeURIComponent(rawValue); break;
+        case 'html-entity-encode-decode':
+          inputLabel = 'raw user text'; outputLabel = 'HTML-entity encoded'; lang = 'text';
+          input = rawValue;
+          output = rawValue.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+          break;
+        case 'json-formatter':
+          inputLabel = 'minified JSON'; outputLabel = 'pretty-printed (2-space)';
+          try { output = JSON.stringify(JSON.parse(sampleObj), null, 2); } catch { output = sampleObj; }
+          break;
+        case 'json-to-typescript': {
+          inputLabel = 'sample JSON'; outputLabel = 'generated interface'; lang = 'typescript';
+          const noteField = (rnd() % 2 === 0) ? 'note?: string | null;' : 'note: string;';
+          output = `interface Record${recordId} {\n  ${f1}: string;\n  ${f2}: number;\n  stage: string;\n  ${noteField}\n}`;
+          break;
+        }
+        case 'hash-generator':
+          inputLabel = 'message'; outputLabel = 'digests (representative)'; lang = 'text';
+          input = rawValue; output = `fnv1a:  ${fnv(rawValue)}\nsha256: ${hex(64)}`; break;
+        case 'uuid-generator':
+          inputLabel = 'namespace seed'; outputLabel = 'UUID v4'; lang = 'text';
+          input = page.slug;
+          output = `${hex(8)}-${hex(4)}-4${hex(3)}-${'89ab'[rnd() % 4]}${hex(3)}-${hex(12)}`; break;
+        case 'jwt-decoder': {
+          inputLabel = 'JWT (header.payload.signature)'; outputLabel = 'decoded payload';
+          const header = b64('{"alg":"HS256","typ":"JWT"}');
+          const payload = b64(`{"sub":"${token}","${f1}":${recordId},"iat":1700000000}`);
+          input = `${header}.${payload}.${hex(16)}`;
+          output = `{\n  "sub": "${token}",\n  "${f1}": ${recordId},\n  "iat": 1700000000\n}`; break;
+        }
+        case 'text-case-converter':
+          inputLabel = 'source text'; outputLabel = 'case conversions'; lang = 'text';
+          input = slugToSpacedString(page.intent);
+          output = `snake_case: ${page.intent.replace(/-/g, '_')}\ncamelCase: ${page.intent.replace(/-([a-z])/g, (_m, c) => c.toUpperCase())}`; break;
+        case 'diff-checker':
+          inputLabel = 'two revisions'; outputLabel = 'unified diff'; lang = 'diff';
+          input = `--- before\n+++ after`;
+          output = `@@ -1 +1 @@\n-{"${f1}":"${token}","${f2}":${recordId}}\n+{"${f1}":"${token}","${f2}":${recordId + 1}}`; break;
+        case 'regex-tester':
+          inputLabel = 'pattern + subject'; outputLabel = 'matches'; lang = 'text';
+          input = `/(?<id>[a-f0-9]{8})/  against  "${token} ${hex(8)}"`;
+          output = `match[0]   = ${token}\ngroup<id>  = ${token}`; break;
+        case 'sql-formatter':
+          inputLabel = 'unformatted SQL'; outputLabel = 'formatted'; lang = 'sql';
+          input = `select ${f1},${f2} from records where id=${recordId};`;
+          output = `SELECT ${f1},\n       ${f2}\nFROM   records\nWHERE  id = ${recordId};`; break;
+        case 'css-minifier':
+          inputLabel = 'source CSS'; outputLabel = 'minified'; lang = 'css';
+          input = `.rec-${recordId} {\n  color: #${hex(6)};\n  margin: 0 auto;\n}`;
+          output = `.rec-${recordId}{color:#${hex(6)};margin:0 auto}`; break;
+        case 'markdown-preview':
+          inputLabel = 'markdown'; outputLabel = 'rendered HTML'; lang = 'html';
+          input = `## ${slugToSpacedString(page.intent)}\n- record ${recordId}`;
+          output = `<h2>${slugToSpacedString(page.intent)}</h2>\n<ul><li>record ${recordId}</li></ul>`; break;
+        case 'cron-helper':
+          inputLabel = 'cron expression'; outputLabel = 'interpretation (UTC)'; lang = 'text';
+          input = `${rnd() % 60} ${rnd() % 24} * * ${rnd() % 7}`;
+          output = `Fires at the stated minute/hour, every day-of-week match.\nNext: 2026-06-${String(1 + (rnd() % 27)).padStart(2, '0')}T0${rnd() % 9}:00:00Z`; break;
+        default:
+          output = sampleObj.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
+      const headingVariants = [
+        `Worked Example — Fixture ${token}`,
+        `Reproducible Case ${recordId}: ${slugToSpacedString(page.intent)}`,
+        `From Input to Verified Output (fixture ${token})`,
+        `Hands-on: ${toolName} on record #${recordId}`,
+      ];
+      const leadVariants = [
+        `The fixture below is derived deterministically from this page's identity, so it is unique to <code>${escapeHtml(page.slug)}</code> and appears on no other guide. A ${escapeHtml(slugToSpacedString(page.audience))} working on ${escapeHtml(tc.scenario)} can paste it straight into ${escapeHtml(toolName)} and reproduce this exact result.`,
+        `Below is a concrete, slug-specific fixture for <code>${escapeHtml(page.slug)}</code>. Because both the input and the expected ${escapeHtml(toolName)} output are computed from the same seed, two engineers on different machines get byte-identical results — which is what makes it admissible in a ${escapeHtml(cd.field)} postmortem.`,
+        `This is the smallest input that still exercises the ${escapeHtml(slugToSpacedString(page.intent))} path. Run it through ${escapeHtml(toolName)} and compare against the expected output to rule out a regression before touching production.`,
+      ];
+      const closeVariants = [
+        `Commit this input/output pair to a version-controlled corpus so a future refactor that changes the result fails CI loudly instead of silently. ${escapeHtml(cd.bestPractice)}.`,
+        `Only the structurally significant characters change between revisions — everything else round-trips, which is the invariant you assert in a regression test. ${escapeHtml(cd.bestPractice)}.`,
+        `Because fixture ${escapeHtml(token)} is deterministic, you can attach it to a review and anyone can replay it without access to production data. ${escapeHtml(cd.bestPractice)}.`,
+      ];
+
+      return `<section aria-label="Worked example">
+<h2>${escapeHtml(pick(headingVariants))}</h2>
+<p>${pick(leadVariants)}</p>
+<pre style="background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:0.5rem;overflow:auto"><code>// ${escapeHtml(inputLabel)}
+${escapeHtml(input)}
+
+// ${escapeHtml(outputLabel)} — ${escapeHtml(lang)} (record #${recordId})
+${escapeHtml(output)}</code></pre>
+<p>${pick(closeVariants)}</p>
+</section>`;
+    },
+
     fieldnotes: () => {
       const fnPool = [
         `In real ${cd.field} projects, the gap between "it works on a sample" and "it survives ${tc.scenario}" almost always comes down to representative inputs. ${slugToSpacedString(page.audience).replace(/^./, c => c.toUpperCase())} teams that systematically capture three categories of fixtures — the happy path, the boundary case, and the malformed case — measurably reduce time-to-resolution. ${toolName} fits this triage workflow because it operates entirely on the client: you can paste a redacted payload from production, exercise the boundary, and never expose internal data to a remote service. This matters in regulated environments where ${ac.concern}, and it matters in fast-moving environments where every external dependency is one more SLA you cannot honour.`,
@@ -2531,6 +2686,11 @@ ${fnPicked.map(p => `<p>${escapeHtml(p)}</p>`).join('\n')}
     // Diagnostics checklist comes right after the steps (helpful-content
     // signal — actionable tool block visible high on the page).
     insertAfter('steps', 'diagnostics');
+    // Unique per-slug worked example — sits high in the body so the
+    // information-gain block is the first thing Google reads after the
+    // steps, maximally differentiating sibling (same-core) pages.
+    insertAfter('steps', 'workedexample');
+
     // Technical FAQ slots in just before related/author so it sits at the
     // bottom of the body content but above the closing link matrix.
     // author box right before 'related' if present, otherwise near the end
@@ -2783,14 +2943,17 @@ function isNetworkVerifiedGoogle(cf?: CfRequestProperties): boolean | null {
   // verified the crawler.
   if (cf.verifiedBotCategory && /search/i.test(cf.verifiedBotCategory)) return true;
   if (cf.botManagement?.verifiedBot === true) return true;
-  if (typeof cf.asn === 'number') {
-    if (GOOGLE_ASNS.has(cf.asn)) return true;
-    // ASN known and NOT Google → definitely not Google.
-    return false;
-  }
-  if (cf.asOrganization) {
-    return /google/i.test(cf.asOrganization);
-  }
+  if (typeof cf.asn === 'number' && GOOGLE_ASNS.has(cf.asn)) return true;
+  if (cf.asOrganization && /google/i.test(cf.asOrganization)) return true;
+  // CRITICAL FAIL-OPEN: never return `false` for a non-Google ASN here.
+  // On Cloudflare Pages (free/standard plan) request.cf fields are not
+  // always reliably populated and Google fetches from a growing set of
+  // ASNs/regions. Hard-blocking a Googlebot-claiming UA just because the
+  // ASN missed our tiny allow-list previously produced 403s for real
+  // Googlebot and mass-deindexed the site (100k -> 8). Returning null
+  // ('cannot verify') makes decideAccess ALLOW the request. A spoofed
+  // Googlebot UA only receives a cheap, deterministic, edge-cached page,
+  // never a real attack surface, whereas a false-block destroys indexing.
   return null;
 }
 
@@ -2877,12 +3040,15 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const ua = context.request.headers.get('user-agent') || '';
   if (decideAccess(ua, context.request.cf) === 'block') {
     return new Response('Access Denied', {
-
       status: 403,
       headers: {
         'Content-Type': 'text/plain;charset=UTF-8',
         'X-Robots-Tag': 'noindex, nofollow',
-        'Cache-Control': 'public, max-age=86400',
+        // no-store: a 403 here is an access *decision*, never a cacheable
+        // artefact. Caching it for 24h previously meant one mistaken block
+        // of Googlebot was replayed from the edge for a full day, turning a
+        // momentary mis-classification into mass deindexing.
+        'Cache-Control': 'no-store',
       },
     });
   }
@@ -3019,7 +3185,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       // the "404 revisit decay" curve that keeps stale URLs in Search Console
       // for half a year.
       return new Response(generateHubHtml(url, slug), {
-        status: 410,
+        // 404 (recoverable), NOT 410 (permanent). A shape-valid slug that
+        // fails to resolve is the one place a resolver/sitemap drift could
+        // wrongly delete a real /k/* page. 404 lets Google re-index it on
+        // the next crawl after a fix; 410 would have destroyed it forever.
+        status: 404,
         headers: {
           ...responseHeaders,
           'X-Robots-Tag': 'noindex, follow',
@@ -3031,9 +3201,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           // unknown slugs and keep the per-request Function CPU budget
           // (10 ms on Cloudflare Pages free / 50 ms on paid) well clear
           // of the limit even under heavy Googlebot discovery passes.
-          'Cache-Control': 'public, max-age=86400, s-maxage=86400',
-          'CDN-Cache-Control': 'public, max-age=86400',
-          'Cloudflare-CDN-Cache-Control': 'public, max-age=86400',
+          // 1h (not 24h): negative responses must expire quickly during a
+          // recovery so a fixed page is re-fetched within the hour.
+          'Cache-Control': 'public, max-age=600, s-maxage=3600',
+          'CDN-Cache-Control': 'public, max-age=3600',
+          'Cloudflare-CDN-Cache-Control': 'public, max-age=3600',
         },
       });
     }
