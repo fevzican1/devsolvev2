@@ -109,6 +109,279 @@ const modifierPatterns = modifierExecutionStyles.flatMap((style) =>
   modifierDeliveryContexts.map((context) => `${style}-${context}`),
 );
 
+/* ------------------------------------------------------------------ */
+/*  Modifier semantic profiles — the real fix for "162 near-duplicate */
+/*  sibling pages".                                                    */
+/*                                                                     */
+/*  The 162 modifiers are the product of 9 *execution styles* (HOW the */
+/*  work is performed) x 18 *delivery contexts* (WHY / for which       */
+/*  business outcome). Previously the modifier appeared on the page    */
+/*  only as a substituted phrase (e.g. "for audit readiness"), so the  */
+/*  162 siblings of a single core differed by one clause — exactly the */
+/*  "scaled content / Google chose a different canonical" pattern.     */
+/*                                                                     */
+/*  These two tables give every execution style and every delivery     */
+/*  context a genuinely distinct body of FACTUAL content (mechanics,   */
+/*  honest trade-off, what to verify, who cares, what evidence it      */
+/*  produces, what breaks without it). The Execution Context section   */
+/*  builder weaves them together so each of the 162 combinations emits */
+/*  materially different, useful prose — real information gain, not a   */
+/*  reworded template. Everything is static data interpolated at render*/
+/*  time over values already computed in the same pass, so the         */
+/*  Cloudflare Function does no extra work and the page stays edge-     */
+/*  cacheable (s-maxage=1y, immutable) exactly as before.              */
+/* ------------------------------------------------------------------ */
+interface ModifierExecutionProfile {
+  label: string;
+  noun: string;
+  how: string;
+  constraint: string;
+  verify: string;
+}
+
+const MODIFIER_EXECUTION_PROFILES: Record<string, ModifierExecutionProfile> = {
+  'without-installing-cli-tools': {
+    label: 'without installing CLI tools',
+    noun: 'zero-install workflow',
+    how: 'the entire workflow runs from a browser tab, so there is no binary to download, no package manager to keep current, and no PATH or permission to configure on a locked-down or shared machine',
+    constraint: 'you trade the scripting reach of a native CLI for instant portability, so genuinely large batch jobs are still better handed to a server-side tool',
+    verify: 'confirm the browser result matches what your existing CLI or CI toolchain would produce — the goal is parity without the install step, not a different answer',
+  },
+  'directly-in-your-browser': {
+    label: 'directly in your browser',
+    noun: 'client-side run',
+    how: 'every transformation executes client-side inside the page, so the payload you paste never leaves the device and the result appears with no round trip to any server',
+    constraint: 'throughput is bounded by the tab’s available memory, so multi-gigabyte inputs should be streamed through a server-side parser instead',
+    verify: 'open the browser network panel and confirm that no outbound request fires while you process the data',
+  },
+  'with-step-by-step-instructions': {
+    label: 'with step-by-step instructions',
+    noun: 'guided procedure',
+    how: 'the task is broken into an explicit, ordered procedure that a newcomer can follow without prior context, with each step naming its expected output',
+    constraint: 'the structured walkthrough is optimised for correctness and teachability rather than the raw speed an expert reaches from muscle memory',
+    verify: 'have a second person reproduce the result from the written steps alone — if they can, the procedure is complete and unambiguous',
+  },
+  'with-safe-local-processing': {
+    label: 'with safe local processing',
+    noun: 'local sandbox',
+    how: 'each transformation stays inside a local sandbox, so an unredacted or sensitive payload is never transmitted, logged, or persisted off-device',
+    constraint: 'local processing protects confidentiality but cannot, on its own, prove provenance — pair it with a signed checksum when you need attestable integrity',
+    verify: 'diff the output against a known-good baseline locally, since there is no server-side log to fall back on after the fact',
+  },
+  'while-keeping-data-private': {
+    label: 'while keeping data private',
+    noun: 'privacy-first run',
+    how: 'the input is processed with no telemetry, analytics, account, or storage, so nothing about the content is recorded or shared with a third party',
+    constraint: 'privacy-by-default means there is no server-side history to recover a previous run from, so keep your own copy of any input you may need again',
+    verify: 'treat the absence of any cookie, account prompt, or upload as the privacy guarantee, and confirm it before pasting regulated data',
+  },
+  'for-quick-prototyping': {
+    label: 'for quick prototyping',
+    noun: 'fast prototype loop',
+    how: 'a tight paste-run-tweak loop lets you validate an idea in seconds before committing to a full implementation',
+    constraint: 'speed is prioritised over exhaustive edge-case coverage, so promote a result to production only after re-running it against representative data',
+    verify: 'treat the prototype output as a hypothesis and re-test it with a realistic, larger sample before you depend on it',
+  },
+  'during-code-review': {
+    label: 'during code review',
+    noun: 'inline review check',
+    how: 'the check fits into the review loop so a reviewer can verify a diff’s payload or transformation inline, before the change is approved and merged',
+    constraint: 'an inline check catches what is visible in the diff; it does not replace the integration tests that exercise the change end to end',
+    verify: 'paste both the before and the after value and confirm the transformation is exactly the one the pull request claims to make',
+  },
+  'as-part-of-ci-cd-pipeline': {
+    label: 'as part of a CI/CD pipeline',
+    noun: 'pipeline gate',
+    how: 'the step produces a deterministic, scriptable result that a pipeline can assert on, so the same input always yields the same output across runs and agents',
+    constraint: 'a pipeline gate is only as good as the fixtures it checks — a stale fixture passes a broken build, so the corpus must be kept representative',
+    verify: 'wire the expected output into an assertion and let the build fail loudly the moment a future change alters it',
+  },
+  'with-automated-validation': {
+    label: 'with automated validation',
+    noun: 'pass/fail validation',
+    how: 'the task is framed as a pass/fail check rather than a manual eyeball, so correctness becomes machine-verifiable and repeatable',
+    constraint: 'automated validation only catches the conditions you encode; an unasserted field can still drift silently between releases',
+    verify: 'assert on the structurally significant fields rather than the whole blob, so the check stays stable as cosmetic details change',
+  },
+};
+
+interface ModifierDeliveryProfile {
+  label: string;
+  goal: string;
+  stakeholder: string;
+  artifact: string;
+  risk: string;
+}
+
+const MODIFIER_DELIVERY_PROFILES: Record<string, ModifierDeliveryProfile> = {
+  'for-time-sensitive-incidents': {
+    label: 'for time-sensitive incidents',
+    goal: 'shorten time-to-resolution while an outage is still active',
+    stakeholder: 'the on-call engineer',
+    artifact: 'a reproducible repro the next responder can replay verbatim',
+    risk: 'a slow or non-reproducible diagnosis that keeps the incident open longer',
+  },
+  'for-team-onboarding': {
+    label: 'for team onboarding',
+    goal: 'get a new teammate productive without relying on tribal knowledge',
+    stakeholder: 'the onboarding lead',
+    artifact: 'a self-contained example a newcomer can run unaided on day one',
+    risk: 'critical know-how that lives only in one senior engineer’s head',
+  },
+  'for-audit-readiness': {
+    label: 'for audit readiness',
+    goal: 'produce evidence a reviewer will accept without further questions',
+    stakeholder: 'the compliance owner',
+    artifact: 'an input-output pair with a documented, repeatable algorithm',
+    risk: 'a finding you cannot defend because the result cannot be reproduced',
+  },
+  'for-cross-region-teams': {
+    label: 'for cross-region teams',
+    goal: 'guarantee identical results across time zones, locales, and machines',
+    stakeholder: 'the distributed engineering team',
+    artifact: 'a byte-identical output any region can independently reproduce',
+    risk: 'locale- or environment-specific drift between offices that nobody notices',
+  },
+  'for-legacy-system-migrations': {
+    label: 'for legacy-system migrations',
+    goal: 'move data between an old and a new system without silent loss',
+    stakeholder: 'the migration owner',
+    artifact: 'a round-trip proof that no field was dropped or reshaped',
+    risk: 'data loss discovered only after cutover, when rollback is expensive',
+  },
+  'for-large-enterprise-workflows': {
+    label: 'for large enterprise workflows',
+    goal: 'standardise one step so dozens of teams perform it the same way',
+    stakeholder: 'the platform owner',
+    artifact: 'a single canonical procedure teams can adopt as-is',
+    risk: 'every team solving the same problem slightly differently and incompatibly',
+  },
+  'for-api-contract-validation': {
+    label: 'for API contract validation',
+    goal: 'prove a payload matches the documented contract before it ships',
+    stakeholder: 'the API integrator',
+    artifact: 'a validated request/response pair tied to the schema',
+    risk: 'a contract violation that breaks downstream consumers in production',
+  },
+  'for-weekly-ops-routines': {
+    label: 'for weekly ops routines',
+    goal: 'make a recurring chore fast, boring, and repeatable',
+    stakeholder: 'the operations engineer',
+    artifact: 'a checklist-driven run that produces the same shape every week',
+    risk: 'a manual routine that quietly drifts from one week to the next',
+  },
+  'for-compliance-reporting': {
+    label: 'for compliance reporting',
+    goal: 'generate a report a regulator or external party will accept',
+    stakeholder: 'the compliance officer',
+    artifact: 'a traceable, dated record of exactly how the data was transformed',
+    risk: 'a report that cannot be tied back to its source data under scrutiny',
+  },
+  'for-incident-postmortems': {
+    label: 'for incident postmortems',
+    goal: 'explain what actually happened, backed by evidence',
+    stakeholder: 'the postmortem author',
+    artifact: 'the exact input and output that reproduce the failure on demand',
+    risk: 'a postmortem that blames a symptom instead of the real root cause',
+  },
+  'for-capacity-planning': {
+    label: 'for capacity planning',
+    goal: 'size resources from the real shape of production data',
+    stakeholder: 'the capacity planner',
+    artifact: 'a representative payload whose size and structure inform the forecast',
+    risk: 'over- or under-provisioning built on guessed rather than measured inputs',
+  },
+  'for-release-management': {
+    label: 'for release management',
+    goal: 'ship a release whose artifacts are verified before they go out',
+    stakeholder: 'the release manager',
+    artifact: 'a checksum or diff that proves the artifact is the intended build',
+    risk: 'shipping a corrupted or wrong build because nothing checked it',
+  },
+  'for-vendor-integration': {
+    label: 'for vendor integration',
+    goal: 'connect to a third party whose data format you do not control',
+    stakeholder: 'the integration engineer',
+    artifact: 'a worked example pinned to the vendor’s exact payload shape',
+    risk: 'an integration that silently breaks on the vendor’s next format change',
+  },
+  'for-data-governance': {
+    label: 'for data governance',
+    goal: 'enforce how sensitive fields are handled at every step',
+    stakeholder: 'the data steward',
+    artifact: 'a documented, repeatable handling of regulated fields',
+    risk: 'ungoverned data flowing into a place policy says it must never reach',
+  },
+  'for-service-mesh-debugging': {
+    label: 'for service-mesh debugging',
+    goal: 'trace a request as it crosses service boundaries',
+    stakeholder: 'the site-reliability engineer',
+    artifact: 'a decoded payload that pinpoints which hop changed the data',
+    risk: 'blaming the wrong service for a bug that actually lives between them',
+  },
+  'for-cost-optimization': {
+    label: 'for cost optimization',
+    goal: 'cut waste from a step without compromising correctness',
+    stakeholder: 'the cost owner',
+    artifact: 'a smaller payload or shorter path that still passes validation',
+    risk: 'a "saving" that quietly drops a field something downstream depends on',
+  },
+  'for-performance-benchmarking': {
+    label: 'for performance benchmarking',
+    goal: 'compare options fairly on one fixed, shared input',
+    stakeholder: 'the performance engineer',
+    artifact: 'a fixed fixture every benchmark run shares so results are comparable',
+    risk: 'benchmarks that cannot be compared because each run used a different input',
+  },
+  'for-disaster-recovery': {
+    label: 'for disaster recovery',
+    goal: 'rebuild correct state from first principles after a failure',
+    stakeholder: 'the disaster-recovery owner',
+    artifact: 'a deterministic recipe that regenerates the result without the original system',
+    risk: 'an unrecoverable state because the process was never reproducible',
+  },
+};
+
+const FALLBACK_EXECUTION_PROFILE: ModifierExecutionProfile = {
+  label: 'in a browser-local workflow',
+  noun: 'browser-local workflow',
+  how: 'the work runs entirely in your browser with no install and no upload',
+  constraint: 'very large batch jobs are still better suited to a server-side tool',
+  verify: 'confirm the result matches what your existing toolchain would produce',
+};
+
+const FALLBACK_DELIVERY_PROFILE: ModifierDeliveryProfile = {
+  label: 'for everyday engineering work',
+  goal: 'get a correct, repeatable result quickly',
+  stakeholder: 'the engineer on the task',
+  artifact: 'a reproducible input-output pair',
+  risk: 'a result nobody can reproduce later',
+};
+
+/**
+ * Splits a composite modifier (e.g. `during-code-review-for-audit-readiness`)
+ * back into its execution-style and delivery-context halves. Because
+ * `modifierPatterns` is built deterministically as `${style}-${context}`,
+ * the index lookup is exact and unambiguous (note that one execution style —
+ * `for-quick-prototyping` — itself starts with "for-", so a naive split on
+ * "-for-" would be wrong; the index lookup avoids that trap entirely).
+ */
+function splitModifier(modifier: string): {
+  execution: ModifierExecutionProfile;
+  delivery: ModifierDeliveryProfile;
+} {
+  const idx = modifierPatterns.indexOf(modifier);
+  if (idx >= 0 && modifierDeliveryContexts.length > 0) {
+    const style = modifierExecutionStyles[Math.floor(idx / modifierDeliveryContexts.length)];
+    const context = modifierDeliveryContexts[idx % modifierDeliveryContexts.length];
+    return {
+      execution: MODIFIER_EXECUTION_PROFILES[style] ?? FALLBACK_EXECUTION_PROFILE,
+      delivery: MODIFIER_DELIVERY_PROFILES[context] ?? FALLBACK_DELIVERY_PROFILE,
+    };
+  }
+  return { execution: FALLBACK_EXECUTION_PROFILE, delivery: FALLBACK_DELIVERY_PROFILE };
+}
+
 interface ToolIntentPair { cluster: ClusterDef; tool: string; intent: string; }
 const toolIntentPairs: ToolIntentPair[] = [];
 for (const cluster of clusters) {
@@ -2654,6 +2927,60 @@ ${escapeHtml(output)}</code></pre>
 ${fnPicked.map(p => `<p>${escapeHtml(p)}</p>`).join('\n')}
 </section>`;
     },
+    // Execution Context — the per-MODIFIER information-gain block. The direct
+    // antidote to "162 near-duplicate siblings": splitModifier() recovers the
+    // execution style (HOW) and delivery context (WHY) encoded in the slug and
+    // weaves their factual profiles into genuinely distinct prose, so two
+    // siblings that share a core but differ by modifier diverge by a whole
+    // multi-paragraph section of real content. Pure string interpolation over
+    // static tables — no fetch, no extra Function work; page stays edge-cached.
+    executioncontext: () => {
+      const { execution, delivery } = splitModifier(page.modifier);
+      const audienceSpaced = slugToSpacedString(page.audience);
+      const intentSpaced = slugToSpacedString(page.intent);
+      const cap = (s: string) => s.replace(/^./, (c) => c.toUpperCase());
+
+      const heading = [
+        `Execution Context: ${cap(execution.label)} ${delivery.label}`,
+        `Why ${toolName} ${delivery.label} — ${execution.label}`,
+        `${cap(execution.label)} ${delivery.label}`,
+      ][seed % 3];
+
+      const howIntro = [
+        `Working ${execution.label} means ${execution.how}.`,
+        `When you reach for ${toolName} ${execution.label}, ${execution.how}.`,
+        `Doing ${intentSpaced} ${execution.label} works because ${execution.how}.`,
+      ][(seed >>> 2) % 3];
+
+      const whyIntro = [
+        `The reason a ${audienceSpaced} chooses this path ${delivery.label} is concrete: the goal is to ${delivery.goal}.`,
+        `${cap(delivery.label.replace(/^for /, 'For '))}, the objective is to ${delivery.goal}.`,
+        `This page is written ${delivery.label}, where the point is to ${delivery.goal}.`,
+      ][(seed >>> 4) % 3];
+
+      const stakeholderClause = `For ${delivery.stakeholder}, the deliverable that matters is ${delivery.artifact}; without it, the failure mode is ${delivery.risk}.`;
+
+      const synthesis = `Combining the two: ${toolName} gives a ${audienceSpaced} a ${execution.noun} that produces ${delivery.artifact}. ${cap(execution.constraint)} — that limit is acceptable here precisely because the aim is to ${delivery.goal}, not to replace heavier infrastructure. ${cd.bestPractice}.`;
+
+      const checklist = [
+        cap(execution.verify) + '.',
+        `Capture ${delivery.artifact} so ${delivery.stakeholder} can rely on it later.`,
+        `Re-run before you trust it, so you avoid ${delivery.risk}.`,
+      ];
+
+      return `<section aria-label="Execution context">
+<h2>${escapeHtml(heading)}</h2>
+<p>${escapeHtml(howIntro)} ${escapeHtml(cap(execution.constraint))}.</p>
+<p>${escapeHtml(whyIntro)} ${escapeHtml(stakeholderClause)}</p>
+<p>${escapeHtml(synthesis)}</p>
+<div class="card" style="border-color:#bae6fd;background:#f0f9ff">
+<div class="card-title"><span role="img" aria-label="Checklist">📋</span> Confirm before you rely on it</div>
+<ul style="padding-left:1.25rem">
+${checklist.map((c) => `<li>${escapeHtml(c)}</li>`).join('\n')}
+</ul>
+</div>
+</section>`;
+    },
   };
 
   // Always include 'why' even if not explicitly listed, to keep value
@@ -2712,6 +3039,16 @@ ${fnPicked.map(p => `<p>${escapeHtml(p)}</p>`).join('\n')}
     const tfIdx = o.indexOf('techfaq');
     if (tfIdx >= 0) o.splice(tfIdx, 0, 'fieldnotes');
     else o.push('fieldnotes');
+    // Execution Context — per-modifier info-gain block. Placed right after the
+    // worked example so the two strongest sibling-differentiating sections
+    // (unique fixture + unique modifier prose) sit together in the body.
+    const weIdx = o.indexOf('workedexample');
+    if (weIdx >= 0) o.splice(weIdx + 1, 0, 'executioncontext');
+    else {
+      const stepsIdx2 = o.indexOf('steps');
+      if (stepsIdx2 >= 0) o.splice(stepsIdx2 + 1, 0, 'executioncontext');
+      else o.push('executioncontext');
+    }
     o.push('linkmatrix');
     return o;
   })();
