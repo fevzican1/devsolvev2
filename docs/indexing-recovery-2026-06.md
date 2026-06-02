@@ -176,3 +176,75 @@ Saldırıya tepki olarak eklenen sert bot-guard tam da indekslemeyi öldüren pa
 Yukarıdaki fail-open + no-store değişiklikleri güvenliği **bozmaz**: sahte Googlebot yalnızca
 statik, hesaplaması ucuz, edge-cache'li bir sayfa görür; gerçek koruma (rate-limit, WAF,
 edge cache) yerinde kalır.
+
+
+---
+
+## 7) Güncelleme (2026-06): Modifier başına "Execution Context" bölümü + çeşitlendirilmiş öncelikli sitemap
+
+Site sahibinin kararı nettir: **korpüs 110k'ya düşürülmez; ~18M sayfanın tamamına
+yakınının dizine eklenmesi hedeflenir.** Bu hedefe modifier tekrarını *içerik
+kalitesini artırarak* (Google'ı kandırmadan, sahte içerik basmadan) ve Cloudflare
+fonksiyonunu fazladan tetiklemeden yaklaşıyoruz.
+
+**Ne yapıldı (`functions/k/[[slug]].ts`):**
+- 162 modifier = 9 *execution style* (NASIL çalıştırılıyor) × 18 *delivery context*
+  (HANGİ iş çıktısı için). Her execution style ve her delivery context için
+  **gerçek, birbirinden farklı** bilgi profili tablosu eklendi
+  (`MODIFIER_EXECUTION_PROFILES`, `MODIFIER_DELIVERY_PROFILES`): mekanik, dürüst
+  ödünleşim, neyin doğrulanacağı, kimin umursadığı, üretilen kanıt, kaçınılan risk.
+- Yeni **`executioncontext`** bölümü `splitModifier()` ile slug'daki modifier'ı iki
+  yarısına ayırır ve bu profilleri birleştirerek her sayfaya modifier'a özgü, çok
+  paragraflı, faydalı içerik üretir. Aynı çekirdeğin 162 kardeş sayfası artık tek bir
+  ifadeyle değil, **bütün bir bölümle** ayrışır → "scaled content / Google farklı
+  canonical seçti" sinyali içerik düzeyinde kırılır.
+- Tamamen deterministik: statik tablolar üzerinde, aynı render geçişinde zaten
+  hesaplanmış değerlerle string interpolasyonu. Ek fetch / I-O **yok**; sayfa
+  `s-maxage=31536000, immutable` ile edge'de cache'lenmeye devam eder, dolayısıyla
+  fonksiyon ek iş yapmaz ve **fazladan tetiklenmez**.
+- Doğrulandı (yerel render harness): tek çekirdeğin 162 modifier varyantı →
+  **162/162 benzersiz** Execution Context bölümü ve başlığı; sayfa başına ~+290 kelime.
+
+**Crawl stratejisi (`scripts/generate-priority-sitemap.mjs`):**
+- Öncelikli ("taze tier") sitemap'in modifier seçimi "ilk 24" yerine **9 execution
+  style'ın hepsinden 3'er iyi dağıtılmış delivery context** içeren çeşitli bir örnekle
+  değiştirildi (`PRIORITY_MODIFIER_INDICES`). Böylece Google'ın hızlı taradığı örnek,
+  modifier çeşitliliğinin tamamını temsil eder (eskiden yalnızca ilk 2 execution style
+  görünür, bu da "hepsi aynı" izlenimini pekiştirirdi).
+- **Korpüs küçülmez:** ana sitemap hâlâ 18.040.320 URL ilan eder; bu değişiklik yalnızca
+  *hangi* yüksek-değerli sayfaların öncelikli taze `lastmod` aldığını değiştirir.
+
+
+---
+
+## 8) Güncelleme (2026-06): Dikey benzerlik (çekirdek çakışması) — tüm 16 araçta çözüldü
+
+Bölüm 7 yatay benzerliği (aynı çekirdeğin 162 modifier kardeşi) çözdü. Geriye kalan
+risk **dikey benzerlikti**: aynı aracın farklı *intent* kardeşleri (ör.
+`json-validate-json-*` ↔ `json-format-json-*`, ya da `encode-data` ↔ `decode-data`)
+aynı havuzlardan beslenip neredeyse aynı teknik çekirdeği üretiyordu.
+
+**Ne yapıldı (`functions/_shared/intentExamples.ts` — "shared module pattern"):**
+- 120 intent'in tamamı (10 cluster × 12 intent) **intent'e özgü, deterministik bir
+  Worked Example üreticisine** eşlendi. `switch(page.tool)` artık yalnızca yedek; asıl
+  içerik **intent** ekseninden geliyor.
+- Her cluster içinde 12 intent → **12 farklı operasyon** (girdi/çıktı + açıklama +
+  "doğru sonuç neye benzer" kontrol noktası). Örnekler: validate → bozuk JSON + tam hata
+  koordinatı; format → minified→pretty; minify → pretty→minified; encode → Base64;
+  decode → Base64 çözme; jwt verify → payload decode; hash → digest; cron → zamanlama
+  yorumu; sanitize → `<script>` temizleme; vb. **16 aracın tamamı** kapsanır.
+- `functions/k/[[slug]].ts` içindeki Worked Example, intent operasyon başlığını, kısa
+  açıklamayı ve kontrol noktasını metne dokur — böylece yalnızca kod bloğu değil, çevre
+  metin de intent'e göre farklılaşır.
+
+**Doğrulama:**
+- Birim testi: 10 cluster'ın **her birinde 12/12** benzersiz girdi/çıktı ve operasyon;
+  120/120 intent için üretici mevcut, eksik yok.
+- Gerçek render: 4 farklı araçta 19 kardeş sayfa → hepsi **200**, **19/19 benzersiz**
+  Worked Example. Bilinmeyen slug → 404; bozuk slug → 410; büyük harf → 301 (kanonik'e).
+  500 yok (intent üreticisi try/catch ile per-tool yedeğe düşer).
+- `canonical-spotcheck` ve `indexability-audit`: temiz (0 kritik).
+
+**Maliyet/garanti:** tümüyle deterministik, statik tablolar üzerinde hesap; ek fetch/I-O
+yok; sayfa `s-maxage=31536000, immutable` ile edge'de cache'lenir → Cloudflare fonksiyonu
+fazladan **tetiklenmez**. Korpüs **18.040.320** olarak korunur.

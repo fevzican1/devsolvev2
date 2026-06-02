@@ -17,9 +17,10 @@
  *     organic-search demand based on long-running query telemetry).
  *   - Tool ∈ PRIMARY_TOOLS (the six tools that are the most frequently
  *     entered through hub pages and external links).
- *   - Modifier ∈ first PRIORITY_MODIFIER_COUNT modifiers (modifiers earlier
- *     in the list use vocabulary that aligns with the highest-volume
- *     "tool + use-case" search queries).
+ *   - Modifier ∈ PRIORITY_MODIFIER_INDICES — a diverse sample of 3 delivery
+ *     contexts for each of the 9 execution styles, so the fast-crawl sample
+ *     represents the full modifier space rather than skewing to the first two
+ *     execution styles (which "first N modifiers" did).
  *
  * The selected slugs are deterministic from the cluster/tool/intent/
  * audience/task/modifier arrays defined in scripts/generate-programmatic-
@@ -106,7 +107,30 @@ const PRIORITY_TASKS = new Set([
   'debug-production-issue', 'prepare-api-response', 'sanitize-user-input',
   'validate-auth-token', 'document-api-endpoint', 'prepare-query-parameters',
 ]);
-const PRIORITY_MODIFIER_COUNT = 24; // first 24 modifiers from the canonical order
+// Diverse modifier sample (crawl-strategy fix).
+// ---------------------------------------------------------------------------
+// The previous selection was "first 24 modifiers". Because modifiers are
+// generated as execution-style (9) x delivery-context (18), the first 24 are
+// all from just the first TWO execution styles (indices 0-17 = style 0, 18-23
+// = first 6 of style 1). That made the priority / "fresh tier" set Google sees
+// look near-identical, reinforcing the very duplicate-cluster impression we
+// are trying to dispel. Instead we pick a representative spread: 3 well-spaced
+// delivery contexts for each of the 9 execution styles, so all nine HOWs and a
+// varied set of WHYs appear in the fast-crawl sample. This does NOT shrink the
+// corpus — the main sitemap still advertises all 18,040,320 URLs; it only
+// changes WHICH high-value pages get the priority lastmod so the sample is
+// representative of the full modifier diversity.
+const PRIORITY_MODIFIER_INDICES = (() => {
+  const set = new Set();
+  const contextCount = modifierDeliveryContexts.length; // 18
+  for (let s = 0; s < modifierExecutionStyles.length; s += 1) { // 9 styles
+    for (const offset of [0, 5, 11]) { // 3 spread-out delivery contexts each
+      const c = (s * 2 + offset) % contextCount;
+      set.add(s * contextCount + c);
+    }
+  }
+  return set;
+})();
 
 const PRIORITY_LASTMOD = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(); // 6 hours ago — "fresh tier"
 
@@ -179,7 +203,7 @@ async function main() {
               if (!PRIMARY_TOOLS.has(tool)) continue;
               if (!PRIORITY_AUDIENCES.has(audience)) continue;
               if (!PRIORITY_TASKS.has(task)) continue;
-              if (m >= PRIORITY_MODIFIER_COUNT) continue;
+              if (!PRIORITY_MODIFIER_INDICES.has(m)) continue;
 
               const slug = buildSlug(cluster.key, intent, audience, task, tool, indexForGenerator);
               writeUrl(currentFile.stream, `${siteUrl}/k/${slug}`, PRIORITY_LASTMOD);
