@@ -176,3 +176,40 @@ Saldırıya tepki olarak eklenen sert bot-guard tam da indekslemeyi öldüren pa
 Yukarıdaki fail-open + no-store değişiklikleri güvenliği **bozmaz**: sahte Googlebot yalnızca
 statik, hesaplaması ucuz, edge-cache'li bir sayfa görür; gerçek koruma (rate-limit, WAF,
 edge cache) yerinde kalır.
+
+
+---
+
+## 7) Güncelleme (2026-06): Modifier başına "Execution Context" bölümü + çeşitlendirilmiş öncelikli sitemap
+
+Site sahibinin kararı nettir: **korpüs 110k'ya düşürülmez; ~18M sayfanın tamamına
+yakınının dizine eklenmesi hedeflenir.** Bu hedefe modifier tekrarını *içerik
+kalitesini artırarak* (Google'ı kandırmadan, sahte içerik basmadan) ve Cloudflare
+fonksiyonunu fazladan tetiklemeden yaklaşıyoruz.
+
+**Ne yapıldı (`functions/k/[[slug]].ts`):**
+- 162 modifier = 9 *execution style* (NASIL çalıştırılıyor) × 18 *delivery context*
+  (HANGİ iş çıktısı için). Her execution style ve her delivery context için
+  **gerçek, birbirinden farklı** bilgi profili tablosu eklendi
+  (`MODIFIER_EXECUTION_PROFILES`, `MODIFIER_DELIVERY_PROFILES`): mekanik, dürüst
+  ödünleşim, neyin doğrulanacağı, kimin umursadığı, üretilen kanıt, kaçınılan risk.
+- Yeni **`executioncontext`** bölümü `splitModifier()` ile slug'daki modifier'ı iki
+  yarısına ayırır ve bu profilleri birleştirerek her sayfaya modifier'a özgü, çok
+  paragraflı, faydalı içerik üretir. Aynı çekirdeğin 162 kardeş sayfası artık tek bir
+  ifadeyle değil, **bütün bir bölümle** ayrışır → "scaled content / Google farklı
+  canonical seçti" sinyali içerik düzeyinde kırılır.
+- Tamamen deterministik: statik tablolar üzerinde, aynı render geçişinde zaten
+  hesaplanmış değerlerle string interpolasyonu. Ek fetch / I-O **yok**; sayfa
+  `s-maxage=31536000, immutable` ile edge'de cache'lenmeye devam eder, dolayısıyla
+  fonksiyon ek iş yapmaz ve **fazladan tetiklenmez**.
+- Doğrulandı (yerel render harness): tek çekirdeğin 162 modifier varyantı →
+  **162/162 benzersiz** Execution Context bölümü ve başlığı; sayfa başına ~+290 kelime.
+
+**Crawl stratejisi (`scripts/generate-priority-sitemap.mjs`):**
+- Öncelikli ("taze tier") sitemap'in modifier seçimi "ilk 24" yerine **9 execution
+  style'ın hepsinden 3'er iyi dağıtılmış delivery context** içeren çeşitli bir örnekle
+  değiştirildi (`PRIORITY_MODIFIER_INDICES`). Böylece Google'ın hızlı taradığı örnek,
+  modifier çeşitliliğinin tamamını temsil eder (eskiden yalnızca ilk 2 execution style
+  görünür, bu da "hepsi aynı" izlenimini pekiştirirdi).
+- **Korpüs küçülmez:** ana sitemap hâlâ 18.040.320 URL ilan eder; bu değişiklik yalnızca
+  *hangi* yüksek-değerli sayfaların öncelikli taze `lastmod` aldığını değiştirir.
