@@ -17,6 +17,7 @@ import {
   CONTENT_SIGNAL_VALUE,
 } from '../../src/lib/seo/contentSignal';
 import { escapeHtml } from '../_shared/sectionFallback';
+import { buildIntentExample } from '../_shared/intentExamples';
 
 // Cloudflare Pages Function types (inline to avoid external dependency)
 interface CfRequestProperties {
@@ -2810,6 +2811,23 @@ ${relatedLinks.join('\n')}
       const rawValue = `${slugToSpacedString(page.intent)} & <${f1}>`;
       const sampleObj = `{"${f1}":"${token}","${f2}":${recordId},"stage":"${page.intent}","note":"${rawValue}"}`;
 
+      // Intent-conditional worked example — fixes VERTICAL similarity across
+      // ALL 16 tools (not just JSON): sibling intents of the same tool now
+      // emit genuinely different inputs / outputs / prose. The modifier axis
+      // is handled by splitModifier(); this handles the intent axis. Pure
+      // computation over the already-derived seed primitives — no fetch, no
+      // extra Function work, fully edge-cacheable.
+      const intentExample = buildIntentExample({
+        intent: page.intent,
+        intentSpaced: slugToSpacedString(page.intent),
+        toolName,
+        token,
+        recordId,
+        f1,
+        f2,
+        hex,
+        b64,
+      });
       // REAL per-tool transformation.
       let lang = 'json';
       let inputLabel = 'input fixture';
@@ -2884,6 +2902,16 @@ ${relatedLinks.join('\n')}
           output = sampleObj.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       }
 
+      // The intent example, when present, overrides the per-tool fallback so
+      // two sibling intents of the same tool never share a code block.
+      if (intentExample) {
+        lang = intentExample.lang;
+        inputLabel = intentExample.inputLabel;
+        outputLabel = intentExample.outputLabel;
+        input = intentExample.input;
+        output = intentExample.output;
+      }
+
       const headingVariants = [
         `Worked Example — Fixture ${token}`,
         `Reproducible Case ${recordId}: ${slugToSpacedString(page.intent)}`,
@@ -2902,14 +2930,14 @@ ${relatedLinks.join('\n')}
       ];
 
       return `<section aria-label="Worked example">
-<h2>${escapeHtml(pick(headingVariants))}</h2>
-<p>${pick(leadVariants)}</p>
+<h2>${escapeHtml(intentExample ? intentExample.operation.replace(/^./, (c) => c.toUpperCase()) + ' — fixture ' + token : pick(headingVariants))}</h2>
+<p>${intentExample ? escapeHtml(intentExample.blurb) + ' ' : ''}${pick(leadVariants)}</p>
 <pre style="background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:0.5rem;overflow:auto"><code>// ${escapeHtml(inputLabel)}
 ${escapeHtml(input)}
 
 // ${escapeHtml(outputLabel)} — ${escapeHtml(lang)} (record #${recordId})
 ${escapeHtml(output)}</code></pre>
-<p>${pick(closeVariants)}</p>
+<p>${intentExample ? escapeHtml('What a correct result looks like: ' + intentExample.checkpoint) + ' ' : ''}${pick(closeVariants)}</p>
 </section>`;
     },
 
