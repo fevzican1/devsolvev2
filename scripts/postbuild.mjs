@@ -61,6 +61,13 @@ try {
 }
 
 try {
+  console.log('Running slug parity & resolution drift guard...');
+  execSync(`node ${join(__dirname, 'slug-parity-check.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('Slug parity guard reported drift — see logs above (mass-deindex risk)');
+}
+
+try {
   console.log('Generating quality report...');
   execSync(`node ${join(__dirname, 'quality-report.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
