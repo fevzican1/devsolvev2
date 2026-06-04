@@ -82,7 +82,14 @@ function checkStaticPages() {
   }
   const files = collectHtmlFiles(outDir);
   // Skip 404.html / cmd-center / api — these are intentionally noindex.
-  const filtered = files.filter((f) => !/(\\|\/)(404|cmd-center|api)(\\|\/|\.html)/i.test(f));
+  // Also skip platform-internal artifacts whose basename starts with `__`
+  // (e.g. Cloudflare/Netlify form-detection files). They are never linked,
+  // never in the sitemap, and carry no canonical by design.
+  const filtered = files.filter(
+    (f) =>
+      !/(\\|\/)(404|cmd-center|api)(\\|\/|\.html)/i.test(f) &&
+      !/(\\|\/)__[^\\/]*\.html$/i.test(f),
+  );
   for (const file of filtered) {
     const html = readFileSync(file, 'utf8');
     const match = html.match(/<link[^>]+rel=["']canonical["'][^>]*href=["']([^"']+)["']/i);
@@ -112,7 +119,15 @@ function checkStaticPages() {
 /* ----------------------------------------------------------- */
 function sampleProgrammaticSlugs() {
   if (!existsSync(outDir)) return [];
-  const sitemapFiles = readdirSync(outDir).filter((f) => /^sitemap-programmatic-\d{4}\.xml$/i.test(f));
+  // Match every programmatic URL sitemap variant. The generator renamed the
+  // chunked files from `sitemap-programmatic-NNNN.xml` to tier-prefixed
+  // `sitemap-tier{1,2,3}-NNNN.xml` and added `sitemap-priority-NNNN.xml`.
+  // The previous pattern only matched the legacy name, so this whole /k/*
+  // canonical check silently skipped on every build. Matching all variants
+  // restores the guard.
+  const sitemapFiles = readdirSync(outDir).filter((f) =>
+    /^sitemap-(?:programmatic|tier[123]|priority)-\d{4}\.xml$/i.test(f),
+  );
   if (sitemapFiles.length === 0) return [];
   // Spread sample across the first, middle and last few sitemap files so the
   // check sees freshly-listed slugs AND deep-tail slugs.
@@ -162,14 +177,25 @@ function checkProgrammaticSlugs() {
 /*  3. Verify no `/sitemap.xml` legacy URL leaks into the index */
 /* ----------------------------------------------------------- */
 function checkLegacySitemapLeak() {
-  const indexPath = join(outDir, 'sitemap-index.xml');
-  if (!existsSync(indexPath)) return;
-  const xml = readFileSync(indexPath, 'utf8');
-  if (/\/sitemap\.xml<\/loc>/i.test(xml)) {
-    record(false, 'sitemap-index.xml', 'no legacy /sitemap.xml entry', 'found',
-      'Remove or regenerate sitemap-index.xml; Googlebot will 301-loop on /sitemap.xml.');
-  } else {
-    record(true, 'sitemap-index.xml', 'no legacy /sitemap.xml entry', 'none found');
+  if (!existsSync(outDir)) return;
+  // The sitemap index is published under a VERSIONED filename
+  // (e.g. sitemap-index-2026-06-v2.xml), not the fixed `sitemap-index.xml`.
+  // Discover whichever index file(s) are present so the leak check follows
+  // the version bump instead of silently skipping.
+  const indexFiles = readdirSync(outDir).filter((f) => /^sitemap-index.*\.xml$/i.test(f));
+  if (indexFiles.length === 0) {
+    record(false, 'sitemap-index', 'a versioned sitemap-index*.xml present', 'none found',
+      'No sitemap index emitted — generate-programmatic-sitemaps.mjs must produce SITEMAP_INDEX_NAME.');
+    return;
+  }
+  for (const file of indexFiles) {
+    const xml = readFileSync(join(outDir, file), 'utf8');
+    if (/\/sitemap\.xml<\/loc>/i.test(xml)) {
+      record(false, file, 'no legacy /sitemap.xml entry', 'found',
+        'Remove or regenerate the sitemap index; Googlebot will 301-loop on /sitemap.xml.');
+    } else {
+      record(true, file, 'no legacy /sitemap.xml entry', 'none found');
+    }
   }
 }
 
