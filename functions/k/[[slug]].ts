@@ -3225,7 +3225,9 @@ function generateHubHtml(url: URL, requestedSlug?: string): string {
 const BLOCKED_BOT_PATTERNS: readonly string[] = [
   // Kullanıcı tarafından açıkça belirtilenler
   'gptbot', 'ahrefsbot', 'ahrefssiteaudit', 'semrushbot', 'yandexbot', 'yandex.com/bots',
-  'bingbot', 'bingpreview', 'adidxbot', 'msnbot',
+  // NOTE: Bing (bingbot/bingpreview/adidxbot/msnbot) and DuckDuckGo
+  // (duckduckbot) are intentionally NOT blocked — they are now welcomed search
+  // engines (see ALLOWED_SEARCH_ENGINE_MARKERS / decideAccess).
   'meta-webindexer', 'meta-externalagent', 'meta-externalfetcher', 'facebookexternalhit', 'facebookbot',
   // AI / LLM tarayıcıları
   'chatgpt-user', 'oai-searchbot', 'openai', 'anthropic-ai', 'claude-web', 'claudebot',
@@ -3245,6 +3247,24 @@ const BLOCKED_BOT_PATTERNS: readonly string[] = [
   'censys', 'shodan', 'binlar', 'spbot', 'mauibot', 'researchscan',
 ];
 
+/* ------------------------------------------------------------------ */
+/*  Welcomed non-Google search engines                                 */
+/*                                                                     */
+/*  Bing (and DuckDuckGo, which is powered by Bing's index) are now    */
+/*  actively courted to accelerate indexing of the 18M-page corpus.    */
+/*  We notify them via IndexNow (scripts/indexnow-ping.mjs); these     */
+/*  markers ensure their crawlers are never 403'd at the edge so they  */
+/*  can actually fetch the pages they were told about.                 */
+/* ------------------------------------------------------------------ */
+const ALLOWED_SEARCH_ENGINE_MARKERS: readonly string[] = [
+  'bingbot', 'bingpreview', 'adidxbot', 'msnbot',
+  'duckduckbot', 'duckduckgo-favicons-bot',
+];
+
+function uaClaimsAllowedSearchEngine(lowerUa: string): boolean {
+  return ALLOWED_SEARCH_ENGINE_MARKERS.some((m) => lowerUa.includes(m));
+}
+
 function isBlockedUserAgent(ua: string): boolean {
   if (!ua) return true; // UA başlığı yoksa engelle — gerçek tarayıcılar her zaman UA gönderir
   const lower = ua.toLowerCase();
@@ -3258,6 +3278,12 @@ function isBlockedUserAgent(ua: string): boolean {
       lower.includes('google-inspectiontool') || lower.includes('google-site-verification') ||
       lower.includes('feedfetcher-google') || lower.includes('apis-google') ||
       lower.includes('duplexweb-google') || lower.includes('googleother')) {
+    return false;
+  }
+
+  // Beyaz liste: Bing ve DuckDuckGo arama crawler'ları da HER ZAMAN geçmeli.
+  // (bingbot, bingpreview, adidxbot, msnbot, duckduckbot)
+  if (ALLOWED_SEARCH_ENGINE_MARKERS.some((m) => lower.includes(m))) {
     return false;
   }
 
@@ -3365,6 +3391,11 @@ function decideAccess(ua: string, cf?: CfRequestProperties): AccessDecision {
     // verified === false → spoofed Googlebot UA from non-Google network → block
     return verified === false ? 'block' : 'allow';
   }
+
+  // Bing / DuckDuckGo search crawlers are welcomed (IndexNow partners). They
+  // serve only the cheap, edge-cached deterministic page, so even a spoofed
+  // Bing UA gains no attack surface — and a false block would cost us indexing.
+  if (uaClaimsAllowedSearchEngine(lower)) return 'allow';
 
   if (isBlockedUserAgent(ua)) return 'block';
 

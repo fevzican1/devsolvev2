@@ -131,11 +131,42 @@ User-agent: MegaIndex
 Disallow: /
 
 # ---------------------------------------------------------------------------
-# Other search engines — disallowed per site policy (Google-only indexing)
+# Bing & DuckDuckGo crawlers — explicitly allowed (IndexNow partners)
 # ---------------------------------------------------------------------------
+# Policy update: we now actively court Bing and DuckDuckGo (DuckDuckGo is
+# powered by Bing's index) to accelerate indexing of the programmatic corpus.
+# IndexNow notifications (see the key file referenced below) tell Bing exactly
+# which URLs to crawl; these Allow rules let its crawlers actually fetch them.
+# DuckDuckGo additionally runs DuckDuckBot for its own crawls.
 User-agent: Bingbot
-Disallow: /
+Allow: /
+Disallow: /cmd-center
+Disallow: /api/
 
+User-agent: bingbot
+Allow: /
+Disallow: /cmd-center
+Disallow: /api/
+
+User-agent: msnbot
+Allow: /
+Disallow: /cmd-center
+Disallow: /api/
+
+User-agent: adidxbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+Disallow: /cmd-center
+Disallow: /api/
+
+User-agent: DuckDuckGo-Favicons-Bot
+Allow: /
+
+# ---------------------------------------------------------------------------
+# Other search engines — disallowed per site policy
+# ---------------------------------------------------------------------------
 User-agent: YandexBot
 Disallow: /
 
@@ -158,6 +189,11 @@ Disallow: /*?*sort=
 Disallow: /*?*filter=
 Disallow: /*?*ref=
 Disallow: /*?*utm_
+
+# IndexNow ownership key (Bing / DuckDuckGo). The key file is served at the
+# site root and its body equals the key itself:
+#   https://devsolvev2.com/ee5098cac2284d92b6ee1c9fca52a120.txt
+# scripts/indexnow-ping.mjs submits the URL corpus to api.indexnow.org.
 
 # Single sitemap-index entry — Google discovers every other sitemap from it.
 # NOTE: versioned filename. The previous sitemap-index.xml "froze" in Search
