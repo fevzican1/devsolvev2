@@ -96,13 +96,15 @@ try {
 }
 
 // IndexNow ping runs LAST — only after the canonical spot-check and slug-parity
-// guards above have validated the sitemaps. This notifies Bing / DuckDuckGo
-// (and every IndexNow engine) of the full URL corpus. It talks directly to
-// api.indexnow.org, so it incurs ZERO Cloudflare Worker cost. It is best-effort:
+// guards above have validated the sitemaps. It notifies Bing / DuckDuckGo (and
+// every IndexNow engine) INCREMENTALLY: small, paced batches and a rolling daily
+// slice rather than a bulk dump, per Bing's "avoid bulk submission mode"
+// guidance (prevents origin crawl spikes + indexing delays). It talks directly
+// to api.indexnow.org, so it incurs ZERO Cloudflare Worker cost. Best-effort:
 // a failure here never breaks the deploy (set INDEXNOW_DISABLED=1 to skip, or
 // INDEXNOW_DRY_RUN=1 to scan without sending).
 try {
-  console.log('Pinging IndexNow (Bing / DuckDuckGo) with the URL corpus...');
+  console.log('Pinging IndexNow (Bing / DuckDuckGo) — incremental rolling slice...');
   execSync(`node ${join(__dirname, 'indexnow-ping.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
   console.log('IndexNow ping completed with warnings — see logs above');

@@ -16,7 +16,7 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['json-to-typescript', 'base64-encode-decode', 'diff-checker'],
     clusterKeys: ['json', 'formatting', 'validation', 'data'],
     programmaticLinkCountTarget: 20,
-    description: 'Learn effective techniques for validating and formatting JSON data in development workflows.',
+    description: 'Validate, format, and pretty-print JSON with confidence: catch syntax errors early, normalise structure for clean diffs, and keep large payloads readable.',
   },
   {
     slug: 'jwt-decoding-browser',
@@ -25,7 +25,7 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['base64-encode-decode', 'hash-generator', 'json-formatter'],
     clusterKeys: ['jwt', 'security', 'tokens', 'authentication'],
     programmaticLinkCountTarget: 15,
-    description: 'Understand how to decode and inspect JWT tokens locally without signature verification.',
+    description: 'Decode and inspect JWT headers, payloads, and claims locally in your browser — no server calls — to debug auth flows and spot expired or malformed tokens.',
   },
   {
     slug: 'hashing-integrity',
@@ -34,7 +34,7 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['uuid-generator', 'jwt-decoder', 'base64-encode-decode'],
     clusterKeys: ['hashing', 'security', 'integrity', 'checksum'],
     programmaticLinkCountTarget: 18,
-    description: 'Explore how cryptographic hashing works and when to use it for data integrity verification.',
+    description: 'Understand how cryptographic hashing verifies data integrity: when to choose SHA-256 versus SHA-512, how checksums detect tampering, and the real limits of hashing.',
   },
   {
     slug: 'regex-testing-debugging',
@@ -43,7 +43,7 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['text-case-converter', 'diff-checker', 'json-formatter'],
     clusterKeys: ['regex', 'patterns', 'text', 'validation'],
     programmaticLinkCountTarget: 22,
-    description: 'Master the process of testing and debugging regular expressions effectively.',
+    description: 'Test and debug regular expressions step by step: master greedy versus lazy matching, capture groups, and pitfalls, then validate patterns against real sample text.',
   },
   {
     slug: 'url-encoding-pitfalls',
@@ -52,7 +52,7 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['base64-encode-decode', 'html-entity-encode-decode', 'json-formatter'],
     clusterKeys: ['url', 'encoding', 'web', 'api'],
     programmaticLinkCountTarget: 16,
-    description: 'Common mistakes with URL encoding and practical solutions for web development.',
+    description: 'Avoid common URL-encoding mistakes: percent-encoding reserved characters, double-encoding bugs, and query-string edge cases that quietly break links and APIs in production.',
   },
   {
     slug: 'base64-usage',
@@ -61,7 +61,7 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['url-encode-decode', 'jwt-decoder', 'hash-generator'],
     clusterKeys: ['base64', 'encoding', 'binary', 'data'],
     programmaticLinkCountTarget: 14,
-    description: 'Learn proper Base64 usage and avoid common encoding pitfalls.',
+    description: 'Learn when Base64 actually helps — data URIs, tokens, binary-safe transport — and the mistakes that bloat payloads or corrupt UTF-8 data, with practical browser examples.',
   },
   {
     slug: 'text-transformations',
@@ -70,7 +70,7 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['regex-tester', 'diff-checker', 'url-encode-decode'],
     clusterKeys: ['text', 'case', 'formatting', 'string'],
     programmaticLinkCountTarget: 18,
-    description: 'Techniques for transforming text between different formats and conventions.',
+    description: 'Transform text between cases, slugs, and normalised forms correctly: handle Unicode, whitespace, and edge characters so identifiers and URLs stay consistent.',
   },
   {
     slug: 'diffing-techniques',
@@ -79,7 +79,7 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['text-case-converter', 'json-formatter', 'regex-tester'],
     clusterKeys: ['diff', 'comparison', 'debugging', 'review'],
     programmaticLinkCountTarget: 15,
-    description: 'How to effectively compare text and identify differences in code reviews.',
+    description: 'Compare text effectively for code reviews and debugging: line, word, and character diffs, how to read them fast, and how to spot meaningful changes amid the noise.',
   },
   {
     slug: 'markdown-preview-safety',
@@ -88,7 +88,7 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['html-entity-encode-decode', 'json-formatter', 'text-case-converter'],
     clusterKeys: ['markdown', 'rendering', 'security', 'html'],
     programmaticLinkCountTarget: 12,
-    description: 'Safely render Markdown content while preventing XSS vulnerabilities.',
+    description: 'Render Markdown safely in client-side apps: sanitise HTML, prevent XSS from untrusted input, and preview content reliably without exposing users to injected scripts.',
   },
   {
     slug: 'sql-formatting',
@@ -97,7 +97,7 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['json-formatter', 'css-minifier', 'diff-checker'],
     clusterKeys: ['sql', 'formatting', 'database', 'conventions'],
     programmaticLinkCountTarget: 20,
-    description: 'Establish consistent SQL formatting standards for better code readability.',
+    description: 'Establish consistent, readable SQL formatting: indentation, keyword casing, and clause alignment that make queries easier to review, diff, and maintain across a team.',
   },
   {
     slug: 'minification-basics',
@@ -106,7 +106,7 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['sql-formatter', 'json-formatter', 'html-entity-encode-decode'],
     clusterKeys: ['minification', 'css', 'optimization', 'performance'],
     programmaticLinkCountTarget: 14,
-    description: 'Understanding the scope and limitations of basic CSS minification.',
+    description: 'Understand what basic CSS minification does — stripping whitespace and comments to cut payload size — and the limits where a real build step is needed instead.',
   },
   {
     slug: 'json-to-types',
@@ -115,7 +115,7 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['json-formatter', 'regex-tester', 'diff-checker'],
     clusterKeys: ['json', 'typescript', 'types', 'conversion'],
     programmaticLinkCountTarget: 16,
-    description: 'Generate TypeScript interfaces from JSON samples and understand the limitations.',
+    description: 'Generate TypeScript interfaces from JSON samples and learn where inference falls short: optional fields, unions, and nested shapes you still refine by hand.',
   },
   {
     slug: 'api-contract-validation-deep-dive',

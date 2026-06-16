@@ -733,7 +733,7 @@ export default async function ProgrammaticPage({ params }: PageProps) {
             <ul className="space-y-2 text-sm">
               {semanticProgrammaticLinks.slice(0, 6).map((item) => (
                 <li key={item.slug}>
-                  <Link href={`/k/${item.slug}`} className="text-muted-foreground hover:text-foreground">
+                  <Link href={`/k/${item.slug}`} prefetch={false} className="text-muted-foreground hover:text-foreground">
                     {item.title}
                   </Link>
                 </li>

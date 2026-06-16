@@ -1,17 +1,20 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { Suspense } from 'react';
-import { Building2, Target } from 'lucide-react';
+import { Building2, Target, Shield, FileCheck, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
+import { TrustSignals } from '@/components/layout/TrustSignals';
 import { externalUrls, siteConfig } from '@/config/site';
 import { absoluteUrl } from '@/lib/seo/url';
+import { monetizationConfig } from '@/config/monetization';
 
 
 export const metadata: Metadata = buildMetadata({
   title: 'About DevSolve — Privacy-First Browser Developer Tools Platform',
   description:
-    'DevSolve is a technical platform providing free, privacy-first, browser-based developer tools and practical implementation guides. All data processing happens locally.',
+    'DevSolve is a technical platform providing free, privacy-first, browser-based developer tools, in-depth implementation guides, and transparent editorial standards for engineering teams and affiliate partners.',
   path: '/about',
 });
 
@@ -62,28 +65,55 @@ export default function AboutPage() {
             <p className="mt-6 text-lg leading-8 text-muted-foreground">
               DevSolve provides browser-based developer tools and implementation guides built for fast,
               practical workflows. The product is designed to keep data processing local where possible,
-              reduce friction in daily engineering tasks, and publish clear, actionable documentation.
+              reduce friction in daily engineering tasks, and publish clear, actionable documentation with
+              full editorial transparency — a standard we maintain for readers, search engines, and
+              affiliate program reviewers alike.
             </p>
           </section>
 
-          <section className="grid gap-6 md:grid-cols-2">
+          <section className="grid gap-6 md:grid-cols-3">
             <Card className="h-full">
               <CardHeader>
-                <CardTitle className="text-2xl">Privacy-First by Default</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Shield className="h-5 w-5 text-primary" />
+                  Privacy-First by Default
+                </CardTitle>
               </CardHeader>
               <CardContent className="text-base leading-7 text-muted-foreground">
-                Core tools are built to process user input directly in the browser. This minimizes
-                unnecessary data transfer and supports safer workflows when working with sensitive payloads.
+                Core tools process user input directly in the browser. This minimizes unnecessary data
+                transfer and supports safer workflows when working with sensitive payloads such as JWTs,
+                API keys, or production configuration samples.
               </CardContent>
             </Card>
 
             <Card className="h-full">
               <CardHeader>
-                <CardTitle className="text-2xl">Quality and Clarity</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <FileCheck className="h-5 w-5 text-primary" />
+                  Quality and Clarity
+                </CardTitle>
               </CardHeader>
               <CardContent className="text-base leading-7 text-muted-foreground">
-                Every guide and utility is structured to prioritize accuracy, transparent trade-offs,
-                and real implementation constraints rather than generic marketing claims.
+                Every guide and utility prioritizes accuracy, transparent trade-offs, and real implementation
+                constraints. Programmatic pages carry unique worked examples and context per URL — not
+                recycled boilerplate — so each page adds genuine information value.
+              </CardContent>
+            </Card>
+
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Users className="h-5 w-5 text-primary" />
+                  Publisher Standards
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-base leading-7 text-muted-foreground">
+                DevSolve follows a written{' '}
+                <Link href="/legal/publisher-ethics" className="text-primary hover:underline">
+                  Publisher Ethics Policy
+                </Link>{' '}
+                covering affiliate transparency, traffic quality, and content integrity — aligned with
+                major commerce-network requirements.
               </CardContent>
             </Card>
           </section>
@@ -98,10 +128,31 @@ export default function AboutPage() {
             <CardContent>
               <p className="text-base leading-7 text-muted-foreground">
                 DevSolve helps engineering teams move from issue to resolution faster with reliable tools,
-                trustworthy documentation, and strict editorial transparency.
+                trustworthy documentation, and strict editorial transparency. For business, partnership, or
+                affiliate inquiries, visit our{' '}
+                <Link href="/contact" className="text-primary hover:underline">contact page</Link>.
               </p>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl">Affiliate &amp; Monetization Disclosure</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-base leading-7 text-muted-foreground">
+              <p>{monetizationConfig.disclosure.affiliateText}</p>
+              <p>
+                Full policy details:{' '}
+                <Link href="/legal/publisher-ethics" className="text-primary hover:underline">Publisher Ethics</Link>
+                {' · '}
+                <Link href="/legal/privacy" className="text-primary hover:underline">Privacy Policy</Link>
+                {' · '}
+                <Link href="/legal/cookies" className="text-primary hover:underline">Cookie Policy</Link>.
+              </p>
+            </CardContent>
+          </Card>
+
+          <TrustSignals compact />
 
           <Suspense fallback={null}>
             <HubDiscoveryLinks hubPath="/about" heading="Related Technical Guides" />
