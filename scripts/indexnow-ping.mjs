@@ -33,7 +33,12 @@
  *   - Runs entirely at BUILD time (locally or in CI), reading the static
  *     sitemap files already written to out/.
  *   - Talks DIRECTLY to api.indexnow.org — it never invokes a Cloudflare
- *     Pages Function, so there is ZERO Cloudflare Worker cost.
+ *     Pages Function, so there is ZERO Cloudflare Worker cost from this script.
+ *   - When Bing later crawls notified URLs, each /k/* slug triggers at most
+ *     ONE cold Function invocation per Cloudflare PoP, then the 1-year edge
+ *     cache (set in functions/k/[[slug]].ts) serves all repeat crawls from CDN.
+ *   - Next.js hub pages use prefetch={false} on every /k/* link so browsing
+ *     static pages never silently pre-warms Function quota.
  *   - Memory-safe: sitemap files are read line-by-line (streamed), never
  *     slurped whole, so 18M URLs across hundreds of files stay flat on RAM.
  *
@@ -52,7 +57,7 @@
  *                        falls back to public/).
  *   INDEXNOW_ENDPOINT    IndexNow hub URL.
  *   INDEXNOW_BATCH_SIZE  URLs per request (default 500; hard cap 10000).
- *   INDEXNOW_MAX_PER_RUN Rolling slice size per run (default 25000; 0 = submit
+ *   INDEXNOW_MAX_PER_RUN Rolling slice size per run (default 100000; 0 = submit
  *                        the entire corpus in one run — NOT recommended).
  *   INDEXNOW_DELAY_MS    Pause between requests in ms (default 700).
  *   INDEXNOW_DRY_RUN=1   Scan + report but send nothing (no network).
@@ -77,7 +82,7 @@ const INDEXNOW_ENDPOINT = process.env.INDEXNOW_ENDPOINT || 'https://api.indexnow
 
 // Anti-bulk defaults: small batches, paced, rolling slice.
 const BATCH_SIZE = clampInt(process.env.INDEXNOW_BATCH_SIZE, 500, 1, 10000);
-const MAX_PER_RUN = clampInt(process.env.INDEXNOW_MAX_PER_RUN, 25000, 0, 18_100_000);
+const MAX_PER_RUN = clampInt(process.env.INDEXNOW_MAX_PER_RUN, 100000, 0, 18_100_000);
 const DELAY_MS = clampInt(process.env.INDEXNOW_DELAY_MS, 700, 0, 60_000);
 const MAX_RETRIES = 4;
 const DRY_RUN = process.env.INDEXNOW_DRY_RUN === '1' || process.env.INDEXNOW_DRY_RUN === 'true';
