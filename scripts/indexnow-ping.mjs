@@ -1,15 +1,32 @@
 #!/usr/bin/env node
 /**
  * IndexNow Ping — notify Bing / DuckDuckGo (and every other IndexNow-
- * participating engine: Yandex, Seznam, Naver) about the full URL corpus.
+ * participating engine: Yandex, Seznam, Naver) about the URL corpus, the way
+ * Bing actually wants it: incrementally and gently.
  *
  * WHY THIS SCRIPT EXISTS
  * ----------------------
  * Google is slow to discover the 18M programmatic /k/* pages. Bing operates
- * the IndexNow protocol: a single authenticated POST tells Bing exactly which
+ * the IndexNow protocol: a small authenticated POST tells Bing exactly which
  * URLs to crawl, and the api.indexnow.org hub fans the notification out to all
  * participating engines (DuckDuckGo is powered by Bing's index, so a Bing ping
  * gets us DuckDuckGo coverage for free).
+ *
+ * ⚠️  ANTI-"BULK PROCESSING MODE" DESIGN (Bing Webmaster guidance)
+ * ----------------------------------------------------------------
+ * Bing Webmaster Tools warns: "Avoid IndexNow Bulk Submission Mode to prevent
+ * excessive server load and possible indexing delays." Dumping the entire 18M
+ * corpus (or 10,000-URL mega-payloads) on every build pushes Bing into the slow
+ * bulk queue AND triggers an aggressive crawl wave that hammers the origin.
+ *
+ * So this script deliberately:
+ *   1. Submits SMALL batches (default 500 URLs/request, never the 10k max).
+ *   2. Sends them SEQUENTIALLY with a pacing delay between requests (default
+ *      700ms) — no concurrency burst.
+ *   3. Submits only a ROLLING SLICE per run (default 25,000 URLs), rotated
+ *      deterministically by date, so the full corpus is covered over many runs
+ *      instead of being re-dumped in one shot every deploy. Bing keeps a steady
+ *      trickle of fresh URLs and the origin never sees a crawl spike.
  *
  * COST MODEL
  * ----------
@@ -27,17 +44,19 @@
  * public/${KEY}.txt and is copied verbatim into out/ by the Next.js static
  * export, so it is reachable at https://<domain>/${KEY}.txt.
  *
- * CONFIGURATION (env overrides, sane defaults baked in)
- * -----------------------------------------------------
- *   INDEXNOW_KEY        IndexNow / Bing key (default below).
- *   SITE_URL            Canonical origin, no trailing slash.
- *   INDEXNOW_DIR        Directory holding the generated sitemaps (default out/,
- *                       falls back to public/).
- *   INDEXNOW_ENDPOINT   IndexNow hub URL.
- *   INDEXNOW_CHUNK      Max URLs per request (IndexNow hard limit is 10000).
- *   INDEXNOW_CONCURRENCY Parallel in-flight requests (default 4).
- *   INDEXNOW_DRY_RUN=1  Scan + report but send nothing (no network).
- *   INDEXNOW_DISABLED=1 Skip entirely (e.g. on preview deploys).
+ * CONFIGURATION (env overrides, sane non-bulk defaults baked in)
+ * -------------------------------------------------------------
+ *   INDEXNOW_KEY         IndexNow / Bing key (default below).
+ *   SITE_URL             Canonical origin, no trailing slash.
+ *   INDEXNOW_DIR         Directory holding the generated sitemaps (default out/,
+ *                        falls back to public/).
+ *   INDEXNOW_ENDPOINT    IndexNow hub URL.
+ *   INDEXNOW_BATCH_SIZE  URLs per request (default 500; hard cap 10000).
+ *   INDEXNOW_MAX_PER_RUN Rolling slice size per run (default 25000; 0 = submit
+ *                        the entire corpus in one run — NOT recommended).
+ *   INDEXNOW_DELAY_MS    Pause between requests in ms (default 700).
+ *   INDEXNOW_DRY_RUN=1   Scan + report but send nothing (no network).
+ *   INDEXNOW_DISABLED=1  Skip entirely (e.g. on preview deploys).
  *
  * Run manually:
  *   node scripts/indexnow-ping.mjs
@@ -55,8 +74,11 @@ const API_KEY = (process.env.INDEXNOW_KEY || 'ee5098cac2284d92b6ee1c9fca52a120')
 const DOMAIN = (process.env.SITE_URL || 'https://devsolvev2.com').replace(/\/+$/, '');
 const HOST = DOMAIN.replace(/^https?:\/\//, '');
 const INDEXNOW_ENDPOINT = process.env.INDEXNOW_ENDPOINT || 'https://api.indexnow.org/indexnow';
-const MAX_URLS_PER_CHUNK = clampInt(process.env.INDEXNOW_CHUNK, 10000, 1, 10000);
-const CONCURRENCY = clampInt(process.env.INDEXNOW_CONCURRENCY, 4, 1, 16);
+
+// Anti-bulk defaults: small batches, paced, rolling slice.
+const BATCH_SIZE = clampInt(process.env.INDEXNOW_BATCH_SIZE, 500, 1, 10000);
+const MAX_PER_RUN = clampInt(process.env.INDEXNOW_MAX_PER_RUN, 25000, 0, 18_100_000);
+const DELAY_MS = clampInt(process.env.INDEXNOW_DELAY_MS, 700, 0, 60_000);
 const MAX_RETRIES = 4;
 const DRY_RUN = process.env.INDEXNOW_DRY_RUN === '1' || process.env.INDEXNOW_DRY_RUN === 'true';
 const DISABLED = process.env.INDEXNOW_DISABLED === '1' || process.env.INDEXNOW_DISABLED === 'true';
@@ -81,10 +103,15 @@ function clampInt(raw, fallback, min, max) {
   return Math.min(max, Math.max(min, n));
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function safeText(response) {
+  try { return await response.text(); } catch { return '(no body)'; }
+}
+
 /* ========================================================================== */
-/*  SINGLE IndexNow SUBMISSION (with retry + backoff)                          */
+/*  SINGLE IndexNow SUBMISSION (small batch, with retry + backoff)             */
 /* ========================================================================== */
-async function pingIndexNow(urlList, attempt = 1) {
+async function pingBatch(urlList, attempt = 1) {
   if (DRY_RUN) {
     console.log(`🧪 [dry-run] would submit ${urlList.length} URLs (e.g. ${urlList[0]})`);
     return { ok: true, count: urlList.length };
@@ -106,7 +133,6 @@ async function pingIndexNow(urlList, attempt = 1) {
 
     // 200 OK and 202 Accepted both mean the batch was received.
     if (response.status === 200 || response.status === 202) {
-      console.log(`✅ [IndexNow] ${urlList.length} URLs accepted (HTTP ${response.status}).`);
       return { ok: true, count: urlList.length };
     }
 
@@ -115,7 +141,7 @@ async function pingIndexNow(urlList, attempt = 1) {
       const waitMs = 1000 * 2 ** (attempt - 1);
       console.warn(`⏳ [IndexNow] HTTP ${response.status} — retry ${attempt}/${MAX_RETRIES} in ${waitMs}ms`);
       await sleep(waitMs);
-      return pingIndexNow(urlList, attempt + 1);
+      return pingBatch(urlList, attempt + 1);
     }
 
     const detail = (await safeText(response)).slice(0, 300);
@@ -126,48 +152,10 @@ async function pingIndexNow(urlList, attempt = 1) {
       const waitMs = 1000 * 2 ** (attempt - 1);
       console.warn(`🚨 [IndexNow] Network error (${error.message}) — retry ${attempt}/${MAX_RETRIES} in ${waitMs}ms`);
       await sleep(waitMs);
-      return pingIndexNow(urlList, attempt + 1);
+      return pingBatch(urlList, attempt + 1);
     }
     console.error(`🚨 [IndexNow] Network error after ${MAX_RETRIES} retries:`, error.message);
     return { ok: false, count: urlList.length };
-  }
-}
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-async function safeText(response) {
-  try { return await response.text(); } catch { return '(no body)'; }
-}
-
-/* ========================================================================== */
-/*  BOUNDED CONCURRENCY POOL                                                   */
-/*                                                                            */
-/*  We hand the pool COPIES of each full chunk and let up to CONCURRENCY      */
-/*  requests fly in parallel. The producer (the sitemap scanner) awaits a     */
-/*  free slot before building the next chunk, so peak memory is bounded by    */
-/*  CONCURRENCY * MAX_URLS_PER_CHUNK URLs — never the whole 18M corpus.       */
-/* ========================================================================== */
-class PingPool {
-  constructor(limit) {
-    this.limit = limit;
-    this.active = new Set();
-    this.ok = 0;
-    this.failed = 0;
-  }
-
-  async submit(urlList) {
-    while (this.active.size >= this.limit) {
-      await Promise.race(this.active);
-    }
-    const task = pingIndexNow(urlList)
-      .then((res) => {
-        if (res.ok) this.ok += res.count; else this.failed += res.count;
-      })
-      .finally(() => this.active.delete(task));
-    this.active.add(task);
-  }
-
-  async drain() {
-    await Promise.all(this.active);
   }
 }
 
@@ -186,6 +174,10 @@ async function* iterateLocs(filePath) {
   }
 }
 
+function isOwnOrigin(url) {
+  return url === DOMAIN || url.startsWith(`${DOMAIN}/`);
+}
+
 function resolveSitemapDir() {
   for (const dir of CANDIDATE_DIRS) {
     if (dir && existsSync(dir)) {
@@ -196,9 +188,42 @@ function resolveSitemapDir() {
   return null;
 }
 
+function listSitemapFiles(dir) {
+  return readdirSync(dir)
+    .filter((f) => URL_SITEMAP_RE.test(f) && !INDEX_SITEMAP_RE.test(f))
+    .sort();
+}
+
+// Pass 1: count own-origin URLs (streamed, flat memory) so we can compute the
+// deterministic rolling window for this run.
+async function countOwnOriginUrls(dir, files) {
+  let total = 0;
+  for (const file of files) {
+    for await (const url of iterateLocs(join(dir, file))) {
+      if (isOwnOrigin(url)) total += 1;
+    }
+  }
+  return total;
+}
+
+// Deterministic daily rotation: a different contiguous slice each calendar day
+// so the whole corpus is covered over time without ever re-dumping it at once.
+function computeWindow(total) {
+  if (MAX_PER_RUN <= 0 || total <= MAX_PER_RUN) {
+    return { start: 0, end: total, sliceIndex: 0, totalSlices: 1 };
+  }
+  const epoch = Date.UTC(2026, 0, 1);
+  const dayIndex = Math.floor((Date.now() - epoch) / 86_400_000);
+  const totalSlices = Math.ceil(total / MAX_PER_RUN);
+  const sliceIndex = ((dayIndex % totalSlices) + totalSlices) % totalSlices;
+  const start = sliceIndex * MAX_PER_RUN;
+  return { start, end: Math.min(start + MAX_PER_RUN, total), sliceIndex, totalSlices };
+}
+
 async function run() {
-  console.log('🚀 IndexNow notification started.');
+  console.log('🚀 IndexNow notification started (incremental / non-bulk mode).');
   console.log(`   host=${HOST}  key=${API_KEY.slice(0, 6)}…  endpoint=${INDEXNOW_ENDPOINT}`);
+  console.log(`   batch=${BATCH_SIZE}  maxPerRun=${MAX_PER_RUN || 'ALL'}  delay=${DELAY_MS}ms`);
 
   if (DISABLED) {
     console.log('⏭️  INDEXNOW_DISABLED set — skipping (no-op).');
@@ -215,47 +240,64 @@ async function run() {
     return;
   }
 
-  const files = readdirSync(dir)
-    .filter((f) => URL_SITEMAP_RE.test(f) && !INDEX_SITEMAP_RE.test(f))
-    .sort();
-
+  const files = listSitemapFiles(dir);
   if (files.length === 0) {
     console.warn(`⚠️  No matching sitemap files in ${dir} — skipping.`);
     return;
   }
-  console.log(`   Scanning ${files.length} sitemap files in ${dir}${DRY_RUN ? ' (DRY RUN)' : ''}.`);
 
-  const pool = new PingPool(CONCURRENCY);
-  let chunk = [];
-  let totalProcessed = 0;
-  let skippedForeign = 0;
+  const total = await countOwnOriginUrls(dir, files);
+  if (total === 0) {
+    console.warn(`⚠️  No own-origin URLs found in ${files.length} sitemaps — skipping.`);
+    return;
+  }
+  const { start, end, sliceIndex, totalSlices } = computeWindow(total);
+  console.log(
+    `   Corpus=${total} URLs across ${files.length} sitemaps in ${dir}` +
+    `${DRY_RUN ? ' (DRY RUN)' : ''}. Submitting slice ${sliceIndex + 1}/${totalSlices} ` +
+    `(URLs ${start}…${end}).`,
+  );
+
+  // Pass 2: stream again, collect only the rolling-window URLs into small
+  // batches, and send each batch sequentially with a pacing delay.
+  let globalIndex = 0;
+  let batch = [];
+  let sent = 0;
+  let ok = 0;
+  let failed = 0;
+  let first = true;
+
+  const flush = async () => {
+    if (batch.length === 0) return;
+    const payload = batch;
+    batch = [];
+    if (!first && DELAY_MS > 0 && !DRY_RUN) await sleep(DELAY_MS);
+    first = false;
+    const res = await pingBatch(payload);
+    if (res.ok) ok += res.count; else failed += res.count;
+    sent += payload.length;
+    if (!DRY_RUN) {
+      console.log(`✅ [IndexNow] batch sent: ${payload.length} URLs (progress ${sent}/${end - start}).`);
+    }
+  };
 
   for (const file of files) {
     for await (const url of iterateLocs(join(dir, file))) {
-      // Security: only ever submit URLs on our own origin. A poisoned sitemap
-      // entry pointing elsewhere would otherwise leak our key against a 3rd
-      // party host (IndexNow rejects cross-host batches anyway).
-      if (!url.startsWith(`${DOMAIN}/`) && url !== DOMAIN) {
-        skippedForeign += 1;
-        continue;
-      }
-      chunk.push(url);
-      totalProcessed += 1;
-      if (chunk.length === MAX_URLS_PER_CHUNK) {
-        await pool.submit(chunk);
-        chunk = [];
-      }
+      if (!isOwnOrigin(url)) continue;
+      const idx = globalIndex++;
+      if (idx < start) continue;
+      if (idx >= end) break;
+      batch.push(url);
+      if (batch.length >= BATCH_SIZE) await flush();
     }
+    if (globalIndex >= end) break;
   }
-
-  if (chunk.length > 0) await pool.submit(chunk);
-  await pool.drain();
+  await flush();
 
   console.log('----------------------------------------------------------------');
-  console.log(`🏁 IndexNow finished. processed=${totalProcessed} accepted=${pool.ok} failed=${pool.failed}` +
-    (skippedForeign ? ` skipped_foreign=${skippedForeign}` : ''));
-  // Non-fatal: a partial failure must never break a deploy. postbuild already
-  // wraps this in try/catch, but we also avoid a non-zero exit on send errors.
+  console.log(`🏁 IndexNow finished. submitted=${sent} accepted=${ok} failed=${failed} ` +
+    `(slice ${sliceIndex + 1}/${totalSlices} of ${total} total URLs).`);
+  // Non-fatal: a partial failure must never break a deploy.
 }
 
 run().catch((error) => {
