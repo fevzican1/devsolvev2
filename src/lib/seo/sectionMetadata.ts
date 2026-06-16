@@ -12,7 +12,7 @@ export const TOOLS_SECTION_METADATA = {
 export const GUIDES_SECTION_METADATA = {
   title: 'Developer Guides — Best Practices, Tutorials & Workflows',
   description:
-    `In-depth technical guides across ${guideRegistry.length}+ developer workflows, with practical best practices and real examples.`,
+    `In-depth technical guides across ${guideRegistry.length}+ developer workflows — JSON, JWTs, regex, encoding, and hashing — with practical best practices, common pitfalls, and real, copy-ready examples.`,
   path: '/guides',
   keywords: ['developer guides', 'programming tutorials', 'json best practices', 'regex guide', 'jwt tutorial', 'coding workflows'],
 };
