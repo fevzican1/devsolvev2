@@ -94,6 +94,7 @@ export function ProgrammaticHubPage({ requestedSlug }: ProgrammaticHubPageProps)
                 <Link
                   key={item.slug}
                   href={`/k/${item.slug}`}
+                  prefetch={false}
                   className="rounded-lg border p-4 transition-colors hover:border-primary hover:bg-muted/40"
                 >
                   <p className="text-sm font-medium">{item.label}</p>

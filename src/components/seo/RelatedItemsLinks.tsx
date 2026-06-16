@@ -37,6 +37,7 @@ export function RelatedItemsLinks({
           <li key={item.href}>
             <Link
               href={item.href}
+              prefetch={item.href.startsWith('/k/') ? false : undefined}
               className="block rounded-lg border bg-background px-4 py-3 text-sm hover:border-primary/40 hover:text-primary"
             >
               <span className="block font-medium">{item.label}</span>
