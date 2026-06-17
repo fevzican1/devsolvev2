@@ -19,14 +19,21 @@
  * corpus (or 10,000-URL mega-payloads) on every build pushes Bing into the slow
  * bulk queue AND triggers an aggressive crawl wave that hammers the origin.
  *
- * So this script deliberately:
- *   1. Submits SMALL batches (default 500 URLs/request, never the 10k max).
+ * So this script deliberately STREAMS (the mode Bing recommends) instead of
+ * bulk-dumping:
+ *   1. Submits SMALL batches (default 100 URLs/request, far below the 10k max).
  *   2. Sends them SEQUENTIALLY with a pacing delay between requests (default
- *      700ms) — no concurrency burst.
- *   3. Submits only a ROLLING SLICE per run (default 25,000 URLs), rotated
- *      deterministically by date, so the full corpus is covered over many runs
- *      instead of being re-dumped in one shot every deploy. Bing keeps a steady
- *      trickle of fresh URLs and the origin never sees a crawl spike.
+ *      2000ms) — no concurrency burst, load spread over time.
+ *   3. Submits only a TINY ROLLING SLICE per run (default 2,000 URLs), rotated
+ *      deterministically by date — a gentle trickle, never the whole corpus.
+ *   4. Prefers the PRIORITY sitemap as its source (see listSitemapFiles): it
+ *      streams only the highest-value URLs. Bulk DISCOVERY of all 18M pages is
+ *      the SITEMAP's job (the index now advertises the full corpus); IndexNow
+ *      is only a freshness/priority notifier, so Bing never sees a bulk dump.
+ *
+ * Why Bing still flagged "bulk submission mode" before: re-submitting tens of
+ * thousands of deterministic, UNCHANGED URLs on every deploy looks like bulk to
+ * Bing regardless of batching. The fix is volume + source, both tightened here.
  *
  * COST MODEL
  * ----------
@@ -56,10 +63,12 @@
  *   INDEXNOW_DIR         Directory holding the generated sitemaps (default out/,
  *                        falls back to public/).
  *   INDEXNOW_ENDPOINT    IndexNow hub URL.
- *   INDEXNOW_BATCH_SIZE  URLs per request (default 500; hard cap 10000).
- *   INDEXNOW_MAX_PER_RUN Rolling slice size per run (default 25000; 0 = submit
- *                        the entire corpus in one run — NOT recommended).
- *   INDEXNOW_DELAY_MS    Pause between requests in ms (default 1500).
+ *   INDEXNOW_BATCH_SIZE  URLs per request (default 100; hard cap 10000).
+ *   INDEXNOW_MAX_PER_RUN Rolling slice size per run (default 2000; 0 = submit
+ *                        the entire corpus in one run — NOT recommended, Bing
+ *                        treats it as bulk-submission mode).
+ *   INDEXNOW_DELAY_MS    Pause between requests in ms (default 2000).
+ *   INDEXNOW_SOURCE=all  Submit from ALL sitemaps instead of priority-only.
  *   INDEXNOW_DRY_RUN=1   Scan + report but send nothing (no network).
  *   INDEXNOW_DISABLED=1  Skip entirely (e.g. on preview deploys).
  *
@@ -80,10 +89,12 @@ const DOMAIN = (process.env.SITE_URL || 'https://devsolvev2.com').replace(/\/+$/
 const HOST = DOMAIN.replace(/^https?:\/\//, '');
 const INDEXNOW_ENDPOINT = process.env.INDEXNOW_ENDPOINT || 'https://api.indexnow.org/indexnow';
 
-// Anti-bulk defaults: small batches, paced, rolling slice.
-const BATCH_SIZE = clampInt(process.env.INDEXNOW_BATCH_SIZE, 250, 1, 10000);
-const MAX_PER_RUN = clampInt(process.env.INDEXNOW_MAX_PER_RUN, 25000, 0, 18_100_000);
-const DELAY_MS = clampInt(process.env.INDEXNOW_DELAY_MS, 1500, 0, 60_000);
+// Streaming-compliant defaults (Bing WMT flags "bulk submission mode"): small
+// batches, a tiny per-run trickle, slower pacing. The full 18M corpus is
+// discovered via the SITEMAP; IndexNow only streams a small high-value set.
+const BATCH_SIZE = clampInt(process.env.INDEXNOW_BATCH_SIZE, 100, 1, 10000);
+const MAX_PER_RUN = clampInt(process.env.INDEXNOW_MAX_PER_RUN, 2000, 0, 18_100_000);
+const DELAY_MS = clampInt(process.env.INDEXNOW_DELAY_MS, 2000, 0, 60_000);
 const MAX_RETRIES = 4;
 const DRY_RUN = process.env.INDEXNOW_DRY_RUN === '1' || process.env.INDEXNOW_DRY_RUN === 'true';
 const DISABLED = process.env.INDEXNOW_DISABLED === '1' || process.env.INDEXNOW_DISABLED === 'true';
@@ -194,9 +205,17 @@ function resolveSitemapDir() {
 }
 
 function listSitemapFiles(dir) {
-  return readdirSync(dir)
+  const all = readdirSync(dir)
     .filter((f) => URL_SITEMAP_RE.test(f) && !INDEX_SITEMAP_RE.test(f))
     .sort();
+
+  // Streaming source preference (Bing anti-bulk): notify only about the
+  // highest-value PRIORITY URLs. Bing discovers the full 18M corpus from the
+  // sitemap index; IndexNow should stream a small curated set, not the whole
+  // corpus. Set INDEXNOW_SOURCE=all to override (submit from every sitemap).
+  if ((process.env.INDEXNOW_SOURCE || '').toLowerCase() === 'all') return all;
+  const priority = all.filter((f) => /^sitemap-priority-\d{4}\.xml$/i.test(f));
+  return priority.length > 0 ? priority : all;
 }
 
 // Pass 1: count own-origin URLs (streamed, flat memory) so we can compute the
