@@ -18,6 +18,12 @@ import {
 } from '../../src/lib/seo/contentSignal';
 import { getAuthorityReferences } from '../../src/lib/seo/authorityReferences';
 import {
+  ORG_ID_FRAGMENT,
+  WEBSITE_ID_FRAGMENT,
+  buildOrganizationNode,
+  buildWebSiteNode,
+} from '../../src/lib/seo/organization';
+import {
   buildPageTitle,
   ensureSeoDescription,
   ensureSeoTitle,
@@ -2475,12 +2481,12 @@ ${diagnosticsSelected.map((item) => `<li style="margin-bottom:0.55rem"><label st
       name: authorBox.editor.name,
       jobTitle: authorBox.editor.role,
     },
-    publisher: {
-      '@type': 'Organization',
-      name: 'DevSolve',
-      url: siteUrl,
-      logo: { '@type': 'ImageObject', url: `${siteUrl}/favicon.svg` },
-    },
+    // Reference the single shared Organization + WebSite entities by @id
+    // (defined once in the @graph below) instead of inlining an anonymous
+    // duplicate per page. This consolidates authority/E-E-A-T onto one durable
+    // brand entity — the honest, code-level substitute for "add backlinks".
+    publisher: { '@id': `${siteUrl}/${ORG_ID_FRAGMENT}` },
+    isPartOf: { '@id': `${siteUrl}/${WEBSITE_ID_FRAGMENT}` },
     mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },
     about: { '@type': 'Thing', name: page.intent.replace(/-/g, ' ') },
     articleSection: tone.heading,
@@ -2526,6 +2532,12 @@ ${diagnosticsSelected.map((item) => `<li style="margin-bottom:0.55rem"><label st
   const unifiedSchemaGraph = JSON.stringify({
     '@context': 'https://schema.org',
     '@graph': [
+      // Organization + WebSite — the single brand entity every page's
+      // TechArticle.publisher / isPartOf points at by @id. Emitting them in the
+      // graph (rather than only referencing them) lets Google resolve the
+      // references and attach the corpus's authority to one durable identity.
+      buildOrganizationNode({ siteUrl }),
+      buildWebSiteNode({ siteUrl }),
       // TechArticle (already a fully formed object)
       Object.assign(JSON.parse(articleJsonLd), {
         '@id': `${canonicalUrl}#article`,
@@ -2598,12 +2610,15 @@ ${diagnosticsSelected.map((item) => `<li style="margin-bottom:0.55rem"><label st
 <meta name="msnbot" content="${robotsContent}"/>
 <meta name="${CONTENT_SIGNAL_META_NAME}" content="${CONTENT_SIGNAL_VALUE}"/>
 <link rel="canonical" href="${canonicalUrl}"/>
+<link rel="alternate" type="application/rss+xml" title="DevSolve — Fresh Guides" href="${siteUrl}/feed.xml"/>
 <meta property="og:type" content="article"/>
 <meta property="og:url" content="${canonicalUrl}"/>
 <meta property="og:title" content="${escapeHtml(pageTitle)}"/>
 <meta property="og:description" content="${escapeHtml(metaDescription)}"/>
 <meta property="og:site_name" content="DevSolve"/>
 <meta property="og:locale" content="en_US"/>
+<meta property="og:image" content="${siteUrl}/opengraph-image.svg"/>
+<meta property="og:image:alt" content="DevSolve — ${escapeHtml(page.title)}"/>
 <meta property="article:published_time" content="${datePublished}"/>
 <meta property="article:modified_time" content="${dateModified}"/>
 <meta name="date" content="${datePublished.slice(0, 10)}"/>
@@ -2614,6 +2629,8 @@ ${diagnosticsSelected.map((item) => `<li style="margin-bottom:0.55rem"><label st
 <meta name="twitter:card" content="summary_large_image"/>
 <meta name="twitter:title" content="${escapeHtml(pageTitle)}"/>
 <meta name="twitter:description" content="${escapeHtml(metaDescription)}"/>
+<meta name="twitter:image" content="${siteUrl}/twitter-image.svg"/>
+<meta name="twitter:image:alt" content="DevSolve — ${escapeHtml(page.title)}"/>
 <script type="application/ld+json">${unifiedSchemaGraph}</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -3203,10 +3220,24 @@ function generateHubHtml(url: URL, requestedSlug?: string): string {
 <meta name="msnbot" content="${ROBOTS_INDEX_FOLLOW}"/>
 <meta name="${CONTENT_SIGNAL_META_NAME}" content="${CONTENT_SIGNAL_VALUE}"/>
 <link rel="canonical" href="${canonicalUrl}"/>
+<link rel="alternate" type="application/rss+xml" title="DevSolve — Fresh Guides" href="${url.origin}/feed.xml"/>
 <meta property="og:type" content="website"/>
+<meta property="og:site_name" content="DevSolve"/>
 <meta property="og:title" content="${escapeHtml(pageTitle)}"/>
 <meta property="og:description" content="${escapeHtml(description)}"/>
 <meta property="og:url" content="${canonicalUrl}"/>
+<meta property="og:image" content="${url.origin}/opengraph-image.svg"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="${escapeHtml(pageTitle)}"/>
+<meta name="twitter:description" content="${escapeHtml(description)}"/>
+<meta name="twitter:image" content="${url.origin}/twitter-image.svg"/>
+<script type="application/ld+json">${JSON.stringify({
+  '@context': 'https://schema.org',
+  '@graph': [
+    buildOrganizationNode({ siteUrl: url.origin }),
+    buildWebSiteNode({ siteUrl: url.origin }),
+  ],
+})}</script>
 <style>${HUB_PAGE_STYLES}</style>
 </head>
 <body>
@@ -3250,7 +3281,13 @@ const BLOCKED_BOT_PATTERNS: readonly string[] = [
   // NOTE: Bing (bingbot/bingpreview/adidxbot/msnbot) and DuckDuckGo
   // (duckduckbot) are intentionally NOT blocked — they are now welcomed search
   // engines (see ALLOWED_SEARCH_ENGINE_MARKERS / decideAccess).
-  'meta-webindexer', 'meta-externalagent', 'meta-externalfetcher', 'facebookexternalhit', 'facebookbot',
+  // NOTE: Meta's AI crawlers (meta-externalagent / meta-externalfetcher /
+  // meta-webindexer) stay blocked, but facebookexternalhit / facebookbot are
+  // NOT here — they are link-preview unfurlers (see SOCIAL_PREVIEW_MARKERS).
+  // Blocking them killed Open Graph cards on every Facebook / Instagram /
+  // WhatsApp share, removing a free organic-distribution + referral-backlink
+  // channel. They only ever receive the cheap, edge-cached deterministic page.
+  'meta-webindexer', 'meta-externalagent', 'meta-externalfetcher',
   // AI / LLM tarayıcıları
   'chatgpt-user', 'oai-searchbot', 'openai', 'anthropic-ai', 'claude-web', 'claudebot',
   'perplexitybot', 'perplexity-user', 'youbot', 'cohere-ai', 'cohere-training-data-crawler',
@@ -3285,6 +3322,45 @@ const ALLOWED_SEARCH_ENGINE_MARKERS: readonly string[] = [
 
 function uaClaimsAllowedSearchEngine(lowerUa: string): boolean {
   return ALLOWED_SEARCH_ENGINE_MARKERS.some((m) => lowerUa.includes(m));
+}
+
+/* ------------------------------------------------------------------ */
+/*  Welcomed social / link-preview (unfurl) crawlers                   */
+/*                                                                     */
+/*  These are NOT search-index crawlers and NOT AI trainers. They are  */
+/*  the bots that fetch a URL the moment a human pastes it into X,      */
+/*  LinkedIn, Slack, Discord, Telegram, WhatsApp, Facebook, Reddit,    */
+/*  Mastodon, etc. and turn it into a rich Open-Graph card.            */
+/*                                                                     */
+/*  Why this matters for indexing: the site cannot fabricate genuine   */
+/*  third-party backlinks from code, but it CAN make sure that every   */
+/*  time a real person shares a /k/ page it produces a clickable card  */
+/*  instead of a dead 403. Rich cards drive shares, referral clicks    */
+/*  and the natural inbound links that actually move domain authority — */
+/*  the single biggest lever for getting an 18M-page corpus indexed and */
+/*  KEEPING it indexed. These bots only ever receive the cheap,        */
+/*  edge-cached deterministic HTML, so they add ZERO Cloudflare cost.  */
+/*                                                                     */
+/*  Apple's mainline `Applebot` (Siri / Spotlight / Safari Suggestions */
+/*  search index) is welcomed; its AI-training sibling Applebot-Extended */
+/*  stays blocked (handled explicitly below).                          */
+/* ------------------------------------------------------------------ */
+const SOCIAL_PREVIEW_MARKERS: readonly string[] = [
+  'twitterbot', 'facebookexternalhit', 'facebookcatalog',
+  'linkedinbot', 'slackbot', 'slack-imgproxy', 'discordbot',
+  'telegrambot', 'whatsapp', 'redditbot', 'pinterest', 'pinterestbot',
+  'embedly', 'iframely', 'skypeuripreview', 'mastodon', 'pleroma',
+  'akkoma', 'misskey', 'flipboard', 'nuzzel', 'tumblr', 'vkshare',
+  'bitlybot', 'snapchat', 'line-podcast', 'kakaotalk-scrap',
+  'google-amphtml',
+];
+
+function uaClaimsSocialPreview(lowerUa: string): boolean {
+  // Apple's AI-training crawler must never be treated as a friendly bot, even
+  // though it shares the "applebot" token with the welcomed search crawler.
+  if (lowerUa.includes('applebot-extended')) return false;
+  if (lowerUa.includes('applebot')) return true;
+  return SOCIAL_PREVIEW_MARKERS.some((m) => lowerUa.includes(m));
 }
 
 function isBlockedUserAgent(ua: string): boolean {
@@ -3418,6 +3494,14 @@ function decideAccess(ua: string, cf?: CfRequestProperties): AccessDecision {
   // serve only the cheap, edge-cached deterministic page, so even a spoofed
   // Bing UA gains no attack surface — and a false block would cost us indexing.
   if (uaClaimsAllowedSearchEngine(lower)) return 'allow';
+
+  // Social / link-preview unfurlers (X, LinkedIn, Slack, Discord, Telegram,
+  // WhatsApp, Facebook, Reddit, Mastodon, …) + Apple's mainline search bot.
+  // They turn every shared /k/ URL into a rich card → real shares, referral
+  // traffic and organic backlinks. They only ever see the edge-cached page,
+  // so welcoming them costs nothing and a false block silently kills the
+  // site's only code-controllable inbound-link channel.
+  if (uaClaimsSocialPreview(lower)) return 'allow';
 
   if (isBlockedUserAgent(ua)) return 'block';
 
