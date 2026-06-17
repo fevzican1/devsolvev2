@@ -57,9 +57,38 @@ export function ensureSeoTitle(raw: string, minLength = 30): string {
   return `${text} — DevSolve Technical Guide`;
 }
 
-export function buildPageTitle(title: string, siteName = 'DevSolve'): string {
+/**
+ * Builds the document <title>. Bing Webmaster Tools flags "Title too long" for
+ * titles beyond ~60 characters (and search engines truncate the SERP display
+ * around there). The combinatorial /k titles (intent + audience + tool) easily
+ * exceed that, so we cap the FINAL title — brand suffix included — at
+ * `maxLength`, trimming the descriptive core at a word boundary while always
+ * keeping the "— DevSolve" brand. The on-page <h1> (page.h1) is NOT affected,
+ * so the visible heading and schema headline keep their full descriptive form.
+ */
+export function buildPageTitle(
+  title: string,
+  siteName = 'DevSolve',
+  maxLength = 60,
+): string {
+  const brand = ` — ${siteName}`;
   const safe = ensureSeoTitle(title);
-  return `${safe} — ${siteName}`;
+  const full = `${safe}${brand}`;
+  if (full.length <= maxLength) return full;
+
+  // Too long → keep the brand, trim the descriptive core to fit.
+  const budget = Math.max(20, maxLength - brand.length);
+  const core = clampAtWord(safe, budget);
+  const clamped = `${core}${brand}`;
+  return clamped.length <= maxLength ? clamped : clampAtWord(clamped, maxLength);
+}
+
+/** Hard cut at a word boundary, no ellipsis — clean enough for a <title>. */
+function clampAtWord(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  const slice = text.slice(0, maxLength);
+  const lastSpace = slice.lastIndexOf(' ');
+  return (lastSpace > 20 ? slice.slice(0, lastSpace) : slice).trim();
 }
 
 function truncateAtWord(text: string, maxLength: number): string {
