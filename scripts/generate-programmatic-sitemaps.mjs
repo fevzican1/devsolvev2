@@ -538,10 +538,19 @@ async function main() {
   await removeStaleSitemapIndexes();
 
 
-  // Anchor "now" to a single moment so the run is deterministic for a given
-  // process invocation, but moves forward with each rebuild (so Google sees a
-  // moving freshness window every deploy).
-  const nowMs = Date.now();
+  // STABLE lastmod anchor (no longer Date.now()).
+  //
+  // Anchoring to Date.now() restamped all 18M URLs as freshly modified on every
+  // deploy — a fabricated freshness signal that Google/Bing distrust at scale
+  // and a documented contributor to mass de-indexing. We now anchor to the
+  // stable content-update date (CONTENT_UPDATED_AT, overridable via
+  // SITE_CONTENT_UPDATED_AT), so each chunk's <lastmod> is deterministic and
+  // identical across every build. lastmod only moves when the owner bumps the
+  // content date — i.e. when the content has ACTUALLY changed. Override with
+  // SITEMAP_LASTMOD_ANCHOR only for an intentional, real corpus-wide refresh.
+  const anchorRaw = process.env.SITEMAP_LASTMOD_ANCHOR || CONTENT_UPDATED_AT;
+  const parsedAnchor = Date.parse(anchorRaw);
+  const nowMs = Number.isFinite(parsedAnchor) ? parsedAnchor : Date.parse(CONTENT_UPDATED_AT);
   let generatedUrlCount = 0;
   let globalIndex = 0;
   let chunkIndex = 1;
