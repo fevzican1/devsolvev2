@@ -165,6 +165,48 @@ User-agent: DuckDuckGo-Favicons-Bot
 Allow: /
 
 # ---------------------------------------------------------------------------
+# Social / link-preview (unfurl) crawlers — explicitly allowed
+# ---------------------------------------------------------------------------
+# These are NOT search-index or AI-training crawlers; they fetch a URL the
+# instant a human shares it (X, LinkedIn, Slack, Discord, Telegram, WhatsApp,
+# Facebook, Reddit, Mastodon, Apple) and render a rich Open Graph card. Rich
+# cards drive shares + referral clicks + organic inbound links — the only
+# code-controllable backlink channel — and they only ever fetch the cheap,
+# edge-cached page (zero Cloudflare cost). They are mirrored in the edge
+# bot-guard (SOCIAL_PREVIEW_MARKERS in functions/k/[[slug]].ts).
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: Slackbot
+Allow: /
+
+User-agent: Discordbot
+Allow: /
+
+User-agent: TelegramBot
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+User-agent: redditbot
+Allow: /
+
+User-agent: Pinterest
+Allow: /
+
+User-agent: Applebot
+Allow: /
+Disallow: /cmd-center
+Disallow: /api/
+
+# ---------------------------------------------------------------------------
 # Other search engines — disallowed per site policy
 # ---------------------------------------------------------------------------
 User-agent: YandexBot
@@ -201,4 +243,10 @@ Disallow: /*?*utm_
 # Google to run a fresh discovery pass. Keep this in sync with SITEMAP_INDEX_NAME
 # in scripts/generate-programmatic-sitemaps.mjs and resubmit it in GSC/Bing WMT.
 Sitemap: https://devsolvev2.com/sitemap-index-2026-06-v3.xml
+
+# RSS syndication feed (out/feed.xml). Google & Bing accept RSS/Atom feeds as a
+# supplementary "what's new" sitemap, which speeds discovery of fresh URLs and
+# opens a real syndication/backlink channel. Generated as a static file at build
+# time (scripts/generate-feed.mjs) — zero Cloudflare Function cost.
+Sitemap: https://devsolvev2.com/feed.xml
 
