@@ -144,7 +144,7 @@ export async function getOrRefreshHubLinks(options: {
   count?: number;
   refreshMinutes?: number;
 }): Promise<HubLinkSnapshot> {
-  const count = Math.min(500, Math.max(1, options.count ?? 20));
+  const count = Math.min(500, Math.max(1, options.count ?? 30));
   return buildHubLinkSnapshot(options.hubPath, count);
 }
 
@@ -155,12 +155,12 @@ export async function refreshHubLinks(options: {
   refreshMinutes?: number;
   force?: boolean;
 }): Promise<HubLinkSnapshot> {
-  const count = Math.min(500, Math.max(1, options.count ?? 20));
+  const count = Math.min(500, Math.max(1, options.count ?? 30));
   return buildHubLinkSnapshot(options.hubPath, count);
 }
 
 export async function getHubLinkSnapshot(hubPath: string): Promise<HubLinkSnapshot | null> {
-  return buildHubLinkSnapshot(hubPath, 20);
+  return buildHubLinkSnapshot(hubPath, 30);
 }
 
 export async function writeDiscoveredPriorityUrls(_options: {

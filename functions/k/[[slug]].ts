@@ -16,6 +16,13 @@ import {
   CONTENT_SIGNAL_META_NAME,
   CONTENT_SIGNAL_VALUE,
 } from '../../src/lib/seo/contentSignal';
+import { getAuthorityReferences } from '../../src/lib/seo/authorityReferences';
+import {
+  buildPageTitle,
+  ensureSeoDescription,
+  ensureSeoTitle,
+  ROBOTS_INDEX_FOLLOW,
+} from '../../src/lib/seo/seoText';
 import { escapeHtml } from '../_shared/sectionFallback';
 import { buildIntentExample } from '../_shared/intentExamples';
 
@@ -1000,10 +1007,12 @@ function resolvePageFromSlug(slug: string): PageData | undefined {
   // Build title
   const templates = titleTemplates[clusterKey];
   const titleTemplate = templates[seed % templates.length];
-  const title = titleTemplate
-    .replace('{intent}', slugToSpacedString(pair.intent))
-    .replace('{audience}', slugToSpacedString(audience))
-    .replace('{tool}', toolName);
+  const title = ensureSeoTitle(
+    titleTemplate
+      .replace('{intent}', slugToSpacedString(pair.intent))
+      .replace('{audience}', slugToSpacedString(audience))
+      .replace('{tool}', toolName),
+  );
 
   // Build H1
   const h1Temps = h1Templates[clusterKey];
@@ -1030,7 +1039,7 @@ function resolvePageFromSlug(slug: string): PageData | undefined {
     `${slugToSpacedString(pair.intent)} — the ${slugToSpacedString(audience)} way: browser-based, locally processed, privacy-safe. ${toolName} guide for ${tc.scenario} in ${cd.field}.`,
     `Quick and reliable ${slugToSpacedString(pair.intent)} for ${slugToSpacedString(audience)} roles: ${toolName} guide covering ${tc.scenario}, key pitfalls, and how to ${tc.outcome} confidently.`,
   ];
-  const description = descVariants[seed % descVariants.length];
+  const description = ensureSeoDescription(descVariants[seed % descVariants.length]);
 
   // Build intro
   const introVariants = [
@@ -1729,10 +1738,9 @@ function generateHtml(page: PageData): string {
 
   const siteUrl = 'https://devsolvev2.com';
   const canonicalUrl = `${siteUrl}/k/${page.slug}`;
-  // Every /k page is indexable: noindex is never emitted because the template
-  // is engineered to produce unique, deep, schema-rich TechArticle content
-  // for every possible slug (including synthesised slugs).
-  const robotsContent = 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1';
+  const robotsContent = ROBOTS_INDEX_FOLLOW;
+  const pageTitle = buildPageTitle(page.title);
+  const metaDescription = ensureSeoDescription(page.description);
   const toolName = getToolName(page.tool);
   const cd = clusterDomain[page.clusterKey];
   const tc = taskContext[page.task] || { scenario: 'completing a development task', urgency: 'important', outcome: 'achieve the result' };
@@ -1828,7 +1836,7 @@ ${linkMatrix.discovery.map((l) => `<li><a href="/k/${l.slug}" rel="related" clas
   const svgFlowchartHtml = buildSvgFlowchart(seed, page, toolName);
   const authorBox = buildAuthorBox(seed, page);
 
-  for (let i = 0; i < 12; i += 1) {
+  for (let i = 0; i < 18; i += 1) {
 
 
     const relIdx = (seed + i * 7919) % TOTAL_POSSIBLE;
@@ -2433,7 +2441,7 @@ ${diagnosticsSelected.map((item) => `<li style="margin-bottom:0.55rem"><label st
     '@context': 'https://schema.org',
     '@type': 'TechArticle',
     headline: page.h1,
-    description: page.description,
+    description: metaDescription,
     url: canonicalUrl,
     identifier: docIdentifier,
     wordCount,
@@ -2541,7 +2549,7 @@ ${diagnosticsSelected.map((item) => `<li style="margin-bottom:0.55rem"><label st
         '@type': 'HowTo',
         '@id': `${canonicalUrl}#howto`,
         name: page.h1,
-        description: page.description,
+        description: metaDescription,
         step: page.steps.map((step, index) => ({
           '@type': 'HowToStep',
           position: index + 1,
@@ -2580,18 +2588,20 @@ ${diagnosticsSelected.map((item) => `<li style="margin-bottom:0.55rem"><label st
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>${escapeHtml(page.title)} — DevSolve</title>
-<meta name="description" content="${escapeHtml(page.description)}"/>
+<title>${escapeHtml(pageTitle)}</title>
+<meta name="description" content="${escapeHtml(metaDescription)}"/>
 <meta name="keywords" content="${keywordsStr}"/>
 <meta name="author" content="DevSolve"/>
 <meta name="robots" content="${robotsContent}"/>
 <meta name="googlebot" content="${robotsContent}"/>
+<meta name="bingbot" content="${robotsContent}"/>
+<meta name="msnbot" content="${robotsContent}"/>
 <meta name="${CONTENT_SIGNAL_META_NAME}" content="${CONTENT_SIGNAL_VALUE}"/>
 <link rel="canonical" href="${canonicalUrl}"/>
 <meta property="og:type" content="article"/>
 <meta property="og:url" content="${canonicalUrl}"/>
-<meta property="og:title" content="${escapeHtml(page.title)} — DevSolve"/>
-<meta property="og:description" content="${escapeHtml(page.description)}"/>
+<meta property="og:title" content="${escapeHtml(pageTitle)}"/>
+<meta property="og:description" content="${escapeHtml(metaDescription)}"/>
 <meta property="og:site_name" content="DevSolve"/>
 <meta property="og:locale" content="en_US"/>
 <meta property="article:published_time" content="${datePublished}"/>
@@ -2602,8 +2612,8 @@ ${diagnosticsSelected.map((item) => `<li style="margin-bottom:0.55rem"><label st
 <meta itemprop="dateModified" content="${dateModified}"/>
 <meta property="article:section" content="${escapeHtml(page.clusterKey)}"/>
 <meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:title" content="${escapeHtml(page.title)} — DevSolve"/>
-<meta name="twitter:description" content="${escapeHtml(page.description)}"/>
+<meta name="twitter:title" content="${escapeHtml(pageTitle)}"/>
+<meta name="twitter:description" content="${escapeHtml(metaDescription)}"/>
 <script type="application/ld+json">${unifiedSchemaGraph}</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -3084,7 +3094,16 @@ ${checklist.map((c) => `<li>${escapeHtml(c)}</li>`).join('\n')}
   return order.map(key => (sectionBuilders[key] ? sectionBuilders[key]() : '')).join('\n');
 })()}
 
-
+${(() => {
+  const refs = getAuthorityReferences(page.clusterKey, seed);
+  return `<section aria-label="Authoritative references" class="card">
+<div class="card-title"><span role="img" aria-label="Book">📚</span> Authoritative References</div>
+<p style="color:#475569;font-size:0.95rem">Primary sources for this ${escapeHtml(cd.field)} topic — factual grounding for ${escapeHtml(slugToSpacedString(page.audience))} workflows.</p>
+<ul style="margin-top:0.75rem;padding-left:1.25rem">
+${refs.map((ref) => `<li style="margin-bottom:0.75rem"><a href="${escapeHtml(ref.href)}" rel="noopener noreferrer" style="color:#2563eb;font-weight:500">${escapeHtml(ref.label)}</a><span style="display:block;font-size:0.85rem;color:#64748b;margin-top:0.15rem">${escapeHtml(ref.note)}</span></li>`).join('\n')}
+</ul>
+</section>`;
+})()}
 
 <div class="card" style="margin-top:2rem">
 <div class="card-title"><span role="img" aria-label="Link">🔗</span> Quick Navigation</div>
@@ -3157,8 +3176,9 @@ p{line-height:1.7;color:#475569}
 
 function generateHubHtml(url: URL, requestedSlug?: string): string {
   const canonicalUrl = `${url.origin}/k`;
-  const title = buildProgrammaticHubTitle(requestedSlug);
-  const description = buildProgrammaticHubDescription(requestedSlug);
+  const title = ensureSeoTitle(buildProgrammaticHubTitle(requestedSlug));
+  const description = ensureSeoDescription(buildProgrammaticHubDescription(requestedSlug));
+  const pageTitle = buildPageTitle(title);
   const sampleLinks = getHubSampleLinks()
     .map((entry) => `
       <a href="/k/${entry.slug}" class="sample-link">
@@ -3176,13 +3196,15 @@ function generateHubHtml(url: URL, requestedSlug?: string): string {
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>${escapeHtml(title)} | DevSolve</title>
+<title>${escapeHtml(pageTitle)}</title>
 <meta name="description" content="${escapeHtml(description)}"/>
-<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
+<meta name="robots" content="${ROBOTS_INDEX_FOLLOW}"/>
+<meta name="bingbot" content="${ROBOTS_INDEX_FOLLOW}"/>
+<meta name="msnbot" content="${ROBOTS_INDEX_FOLLOW}"/>
 <meta name="${CONTENT_SIGNAL_META_NAME}" content="${CONTENT_SIGNAL_VALUE}"/>
 <link rel="canonical" href="${canonicalUrl}"/>
 <meta property="og:type" content="website"/>
-<meta property="og:title" content="${escapeHtml(title)}"/>
+<meta property="og:title" content="${escapeHtml(pageTitle)}"/>
 <meta property="og:description" content="${escapeHtml(description)}"/>
 <meta property="og:url" content="${canonicalUrl}"/>
 <style>${HUB_PAGE_STYLES}</style>

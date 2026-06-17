@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { siteConfig } from '@/config/site';
 import { CONTENT_SIGNAL_VALUE } from '@/lib/seo/contentSignal';
+import { ensureSeoDescription, ROBOTS_INDEX_FOLLOW } from '@/lib/seo/seoText';
 import { absoluteUrl } from '@/lib/seo/url';
 
 type MetadataInput = {
@@ -23,10 +24,11 @@ export function buildMetadata({
   articleSection,
 }: MetadataInput): Metadata {
   const url = absoluteUrl(path);
+  const safeDescription = ensureSeoDescription(description ?? siteConfig.description);
 
   return {
     title,
-    description,
+    description: safeDescription,
     alternates: {
       canonical: url,
     },
@@ -35,7 +37,7 @@ export function buildMetadata({
       type: articleSection ? 'article' : 'website',
       url,
       title: title ?? siteConfig.name,
-      description,
+      description: safeDescription,
       siteName: siteConfig.name,
       locale: 'en_US',
       ...(datePublished ? { publishedTime: datePublished } : {}),
@@ -53,11 +55,13 @@ export function buildMetadata({
     twitter: {
       card: 'summary_large_image',
       title: title ?? siteConfig.name,
-      description,
+      description: safeDescription,
       images: [absoluteUrl('/twitter-image')],
     },
     other: {
       'content-signal': CONTENT_SIGNAL_VALUE,
+      bingbot: ROBOTS_INDEX_FOLLOW,
+      msnbot: ROBOTS_INDEX_FOLLOW,
     },
     robots: {
       index: true,

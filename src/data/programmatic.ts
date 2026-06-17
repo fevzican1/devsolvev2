@@ -1,5 +1,6 @@
 import { toolRegistry } from '@/tools/registry';
 import { hashString } from '@/lib/utils';
+import { ensureSeoDescription, ensureSeoTitle } from '@/lib/seo/seoText';
 import { siteConfig } from '@/config/site';
 import { monetizationConfig } from '@/config/monetization';
 
@@ -439,10 +440,12 @@ const titleTemplates: Record<ClusterKey, string[]> = {
 function buildTitle(tool: string, intent: string, audience: string, clusterKey: ClusterKey, seed: number): string {
   const templates = titleTemplates[clusterKey];
   const template = templates[seed % templates.length];
-  return template
-    .replace('{intent}', label(intent))
-    .replace('{audience}', label(audience))
-    .replace('{tool}', getToolName(tool));
+  return ensureSeoTitle(
+    template
+      .replace('{intent}', label(intent))
+      .replace('{audience}', label(audience))
+      .replace('{tool}', getToolName(tool)),
+  );
 }
 
 const h1Templates: Record<ClusterKey, string[]> = {
@@ -1405,7 +1408,7 @@ function buildDescription(
     `Quick and reliable ${label(intent)} for ${label(audience)} roles: ${toolName} guide covering ${tc.scenario}, key pitfalls, and how to ${tc.outcome} confidently.`,
   ];
 
-  return descriptionVariants[seed % descriptionVariants.length];
+  return ensureSeoDescription(descriptionVariants[seed % descriptionVariants.length]);
 }
 
 export function getPageByIndex(index: number): ProgrammaticPage | undefined {

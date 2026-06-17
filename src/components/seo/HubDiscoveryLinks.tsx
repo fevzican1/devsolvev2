@@ -14,7 +14,7 @@ export async function HubDiscoveryLinks({
   const snapshot = await getOrRefreshHubLinks({
     hubPath,
     siteUrl: siteConfig.siteUrl,
-    count: 20,
+    count: 30,
     refreshMinutes: 180,
   });
 

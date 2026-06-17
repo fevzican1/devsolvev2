@@ -24,6 +24,7 @@ const footerLinks = {
   ],
   legal: [
     { href: '/about', label: 'About DevSolve' },
+    { href: '/k', label: 'Technical Library (/k)' },
     { href: '/contact', label: 'Contact Us' },
     { href: '/legal/publisher-ethics', label: 'Publisher Ethics Policy' },
     { href: '/legal/privacy', label: 'Privacy Policy' },
