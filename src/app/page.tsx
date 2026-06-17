@@ -13,6 +13,10 @@ import { TrustSignals } from '@/components/layout/TrustSignals';
 import { platformExternalUrls } from '@/config/monetization';
 
 export const metadata: Metadata = buildMetadata({
+  // Explicit, self-contained title so the homepage always emits a strong <title>
+  // tag (Bing flagged "title tag missing") instead of relying on the layout
+  // default being merged in. Rendered as "… | DevSolve" via the layout template.
+  title: 'Free Privacy-First Developer Tools & Guides',
   description:
     'Free browser-based developer tools for JSON formatting, JWT decoding, regex testing, Base64 encoding, and more. All processing happens locally — your data never leaves your browser.',
   path: '/',
