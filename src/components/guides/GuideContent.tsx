@@ -7,7 +7,10 @@ interface GuideContentProps {
 }
 
 export function GuideContent({ content }: GuideContentProps) {
-  const rendered = renderMarkdown(content);
+  // Demote headings one level: the guide page template already renders the
+  // single <h1> (the guide title), so a markdown body that opens with `# …`
+  // must not emit a second <h1> (Bing: "More than one h1 tag").
+  const rendered = renderMarkdown(content, { demoteHeadings: true });
 
   if (!rendered) {
     return (

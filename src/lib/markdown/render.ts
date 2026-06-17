@@ -57,11 +57,35 @@ function sanitizeHtml(html: string): string {
   });
 }
 
-export function renderMarkdown(markdown: string): string {
+/**
+ * Shift every heading down one level (h1→h2, h2→h3, … h5→h6, h6 stays h6) in a
+ * single pass. Used for embedded page content (e.g. guide bodies) where the
+ * page template already renders the one true <h1>: a markdown body that starts
+ * with `# Title` would otherwise emit a SECOND <h1>, which Bing flags as "More
+ * than one h1 tag". Demoting preserves the heading hierarchy while guaranteeing
+ * the page keeps exactly one <h1> (the template's).
+ */
+function demoteHeadings(html: string): string {
+  return html.replace(
+    /<(\/?)(h)([1-5])(\b[^>]*)>/gi,
+    (_match, slash: string, _tag: string, level: string, rest: string) =>
+      `<${slash}h${Number(level) + 1}${rest}>`,
+  );
+}
+
+interface RenderMarkdownOptions {
+  /** Demote all headings one level so embedded content never emits an <h1>. */
+  demoteHeadings?: boolean;
+}
+
+export function renderMarkdown(markdown: string, options: RenderMarkdownOptions = {}): string {
   if (!markdown) return '';
 
   try {
-    const html = marked.parse(markdown, { async: false }) as string;
+    let html = marked.parse(markdown, { async: false }) as string;
+    if (options.demoteHeadings) {
+      html = demoteHeadings(html);
+    }
     return sanitizeHtml(html);
   } catch (error) {
     console.error('Markdown render error:', error);
@@ -69,6 +93,6 @@ export function renderMarkdown(markdown: string): string {
   }
 }
 
-export function renderMarkdownSync(markdown: string): string {
-  return renderMarkdown(markdown);
+export function renderMarkdownSync(markdown: string, options: RenderMarkdownOptions = {}): string {
+  return renderMarkdown(markdown, options);
 }

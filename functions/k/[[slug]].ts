@@ -2202,24 +2202,31 @@ ${Array.from({ length: 5 }, (_, i) => `<li>${escapeHtml(takeawaysPool[(tkStart +
 
 
   // ------------------------------------------------------------------
-  //  Deterministic temporal signals
-  //  - datePublished: seeded from the slug hash, distributed across the
-  //    last 365 days. Stable per slug for cache friendliness.
-  //  - dateModified: dynamic within the trailing 48 hours, snapped to a
-  //    6-hour bucket so adjacent edge-cache hits stay byte-identical.
+  //  Deterministic, STABLE temporal signals (anchored, not Date.now()).
+  //
+  //  Previously datePublished/dateModified were derived from Date.now() and
+  //  dateModified claimed the page was "modified within the last 48 hours".
+  //  Because /k content is 100% deterministic and never actually changes
+  //  between deploys, that was a FABRICATED freshness signal: every redeploy
+  //  (and every cold render on a new PoP) restamped 18M pages as freshly
+  //  modified. Google/Bing distrust mass-fabricated lastmod/dateModified and
+  //  it can suppress or drop pages. We now anchor both dates to the stable
+  //  CONTENT_UPDATED_AT constant, so each slug's dates are deterministic AND
+  //  identical across every build and PoP. They only move when the site owner
+  //  bumps CONTENT_UPDATED_AT (a REAL content refresh) — kept in sync with the
+  //  sitemap generator's SITE_CONTENT_UPDATED_AT.
   // ------------------------------------------------------------------
-  const _nowMs = Date.now();
+  const anchorMs = Date.parse(CONTENT_UPDATED_AT);
   const ONE_YEAR_MS = 365 * 86_400_000;
-  const TWO_DAYS_MS = 48 * 3_600_000;
-  const SIX_HOURS_MS = 6 * 3_600_000;
-  const nowBucket = Math.floor(_nowMs / SIX_HOURS_MS) * SIX_HOURS_MS;
+  // datePublished: deterministic point in the year before the content anchor.
   const pubOffsetMs = seed % ONE_YEAR_MS;
-  const datePublished = new Date(_nowMs - ONE_YEAR_MS + pubOffsetMs).toISOString();
-  const modOffsetMs = ((seed * 2654435761) >>> 0) % TWO_DAYS_MS;
-  const dateModified = new Date(nowBucket - modOffsetMs).toISOString();
-  // Keep the historical anchor referenced so the constant remains alive
-  // for the sitemap generator (no behavioural impact at the page level).
-  void CONTENT_UPDATED_AT;
+  const pubMs = anchorMs - ONE_YEAR_MS + pubOffsetMs;
+  const datePublished = new Date(pubMs).toISOString();
+  // dateModified: deterministic point in [datePublished, anchor], so it is
+  // always >= datePublished and <= the content anchor, and stable across builds.
+  const span = Math.max(0, anchorMs - pubMs);
+  const modOffsetMs = span > 0 ? (((seed * 2654435761) >>> 0) % span) : 0;
+  const dateModified = new Date(pubMs + modOffsetMs).toISOString();
 
   // Deterministic document identifier — surfaces in JSON-LD as the
   // schema.org `identifier` field. Combined with self-canonical URL it gives
