@@ -244,24 +244,30 @@ function tierForChunk(chunkIndex) {
 }
 
 /**
- * Sitemap inclusion gate — steers crawl budget toward indexable pages.
+ * Sitemap inclusion gate.
  *
- * Tier 1–2 (~1.2M URLs): every modifier variant is submitted — these are the
- * highest-priority crawl targets with fresh lastmod signals.
+ * SITE OWNER'S DECISION (2026-06): advertise the FULL corpus — all
+ * 18,040,320 /k/* URLs — in the sitemap. Every modifier variant in every tier
+ * is emitted; nothing is withheld from discovery.
  *
- * Tier 3 long-tail: only the FIRST modifier per core combination enters the
- * sitemap (~104k per chunk group instead of ~16.8M duplicates). The remaining
- * 161 modifier variants stay live at their own URLs with self-canonical tags
- * and are discoverable via the internal link matrix, but we stop flooding Bing
- * with near-duplicate sitemap entries that trigger "guideline excluded" and
- * "discovered — currently not indexed" at scale.
+ * History / why this used to return false: a previous revision pruned Tier 3
+ * (chunks 25+) down to only the FIRST of the 162 modifier variants per core
+ * combination. That capped the whole programmatic sitemap at ~1.3M URLs / ~27
+ * files even though `PROGRAMMATIC_SITEMAP_LIMIT` was 18,040,320 — which looked
+ * (correctly) like "missing 17M pages". The pages were never deleted (the
+ * Pages Function still serves all 18M), but Google/Bing could only DISCOVER
+ * ~1.3M of them via the sitemap; the rest depended solely on the internal link
+ * graph. The owner has explicitly chosen full-corpus discovery, so the gate is
+ * now a pass-through.
+ *
+ * Trade-off (kept honest, see docs): submitting 18M near-duplicate URLs maxes
+ * out discovery but Google will still only INDEX the subset that clears its
+ * quality bar. The tier system below still steers crawl budget (priority /
+ * changefreq / lastmod) toward the strongest pages first — it just no longer
+ * removes any URL from the sitemap. To re-enable a smaller, phased sitemap
+ * WITHOUT touching code, set PROGRAMMATIC_SITEMAP_LIMIT (e.g. 4000000).
  */
-function isQualityEligible(_slug, modifier, chunkIndex) {
-  const tier = tierForChunk(chunkIndex);
-  if (tier >= 3) {
-    const modifierIndex = modifiers.indexOf(modifier);
-    if (modifierIndex !== 0) return false;
-  }
+function isQualityEligible(_slug, _modifier, _chunkIndex) {
   return true;
 }
 

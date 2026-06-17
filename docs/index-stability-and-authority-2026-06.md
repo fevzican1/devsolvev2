@@ -160,7 +160,51 @@ Yerel render harness (atılabilir) ile doğrulandı — **hepsi PASS**:
 
 ---
 
-## 6) Yapılmayanlar ve neden (dürüstlük)
+## 6) Sitemap'in 1.3M'e düşmesi — neden ve düzeltme (2026-06)
+
+**Belirti:** Programatik sitemap **~1.300.000 URL / 27 dosya** gösteriyordu,
+oysa korpüs 18.040.320. "Sayfalar silindi mi?" sorusu buradan geldi.
+
+**Teşhis:** Sayfalar **silinmedi.** Pages Function hâlâ 18M sayfanın tamamını
+200 ile sunuyor. Sorun yalnızca **sitemap üreticisindeydi**:
+`generate-programmatic-sitemaps.mjs` içindeki `isQualityEligible()` kapısı,
+**Tier 3** (chunk 25+) için her çekirdeğin **162 modifier varyantından yalnızca
+ilkini** sitemap'e yazıyordu. Sonuç:
+
+```
+Tier 1–2 (chunk 1–24) : tüm modifier'lar      → 1.200.000 URL
+Tier 3   (chunk 25+)  : 162'de 1 modifier     → ~104.000 URL
+                                         TOPLAM ≈ 1.304.000 URL ≈ 27 dosya
+```
+
+`PROGRAMMATIC_SITEMAP_LIMIT` 18.040.320 olsa bile bu kapı sitemap'i ~1.3M'de
+tıkıyordu; kalan ~17M sayfa yalnızca iç-link grafiğiyle keşfedilebiliyordu (bu
+yüzden "eksik/silinmiş" gibi görünüyordu).
+
+**Düzeltme:** Site sahibinin net kararı üzerine `isQualityEligible()` artık
+**her zaman `true`** döner — **tüm 18.040.320 URL** sitemap'e yazılır
+(≈ 361 `sitemap-tier{1,2,3}-XXXX.xml` dosyası). Tier sistemi korunur (priority /
+changefreq / lastmod ile crawl budget'ı güçlü sayfalara yönlendirir) ama artık
+**hiçbir URL'yi sitemap'ten çıkarmaz.**
+
+**Doğrulama:** Sınırlı koşu (limit=1.3M) sonrası Tier-3 dosyalarındaki index'ler
+artık **ardışık** (…-1250000, -1250001, -1250002…), yani 162'de 1 değil tüm
+modifier'lar yazılıyor. `slug-parity-check`: 300 canlı slug örneği, **0
+çözümsüz** → hepsi worker'da 200 döner.
+
+**Dürüst uyarı (maliyet/ölçek):**
+- Tam 18M sitemap ≈ **361 dosya / ~5 GB XML** üretir. Cloudflare Pages
+  sınırları içinde kalır (dosya başına ~14 MB < 25 MiB; ~376 dosya < 20.000)
+  ama **build çıktısı ve deploy yükü büyür.** Statik dosyalardır; Function
+  maliyeti **yok**.
+- 18M URL'i sitemap'e **yazmak** ≠ Google'ın hepsini **dizine eklemesi**.
+  Keşif maksimize edildi; indeksleme yine kalite eşiğini geçen alt kümeyle
+  sınırlı kalır. Daha küçük/faz faz sitemap istenirse **kod değişmeden**
+  `PROGRAMMATIC_SITEMAP_LIMIT=4000000` gibi bir env ile ayarlanır.
+
+---
+
+## 7) Yapılmayanlar ve neden (dürüstlük)
 
 - **Sahte backlink / link satın alma:** yapılmadı — politika ihlali, dizinden
   düşürür. İstenen sonucun (kalıcı indeksleme) tam tersini üretir.
