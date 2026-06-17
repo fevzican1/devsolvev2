@@ -23,6 +23,20 @@
 export const ORG_ID_FRAGMENT = '#organization';
 export const WEBSITE_ID_FRAGMENT = '#website';
 
+/**
+ * Verified, OWNED brand profiles. These are real accounts the site owner
+ * controls and that link back to devsolvev2.com, so declaring them as `sameAs`
+ * tells Google/Bing "this website and these accounts are the same entity" —
+ * the strongest code-level authority/entity-consolidation signal available
+ * (and a legitimate substitute for fabricated backlinks). The back-link must
+ * exist on both ends: each profile's website field points to devsolvev2.com.
+ */
+export const BRAND_SAME_AS: readonly string[] = [
+  'https://github.com/fevzican1',
+  'https://www.linkedin.com/in/fevzican-aytekin-0b5501105',
+  'https://x.com/devsolveai',
+];
+
 export interface BrandEntityOptions {
   siteUrl: string;
   /**
@@ -32,7 +46,8 @@ export interface BrandEntityOptions {
    * code-level authority/entity-consolidation signal available.
    *
    * IMPORTANT (transparency): only add a URL you genuinely control. Fabricated
-   * sameAs links are an E-E-A-T risk, not a boost. Empty by default on purpose.
+   * sameAs links are an E-E-A-T risk, not a boost. Defaults to BRAND_SAME_AS
+   * (the owner's verified GitHub / LinkedIn / X profiles).
    */
   sameAs?: readonly string[];
 }
@@ -42,7 +57,7 @@ export interface BrandEntityOptions {
  * `publisher` at THIS node instead of inlining an anonymous duplicate.
  */
 export function buildOrganizationNode(opts: BrandEntityOptions): Record<string, unknown> {
-  const { siteUrl, sameAs = [] } = opts;
+  const { siteUrl, sameAs = BRAND_SAME_AS } = opts;
   const node: Record<string, unknown> = {
     '@type': 'Organization',
     '@id': `${siteUrl}/${ORG_ID_FRAGMENT}`,

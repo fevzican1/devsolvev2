@@ -9,6 +9,7 @@ import { platformExternalUrls } from '@/config/monetization';
 import { toolRegistry } from '@/tools/registry';
 import { CodeBlocksEnhancer } from '@/components/content/CodeBlocksEnhancer';
 import { CONTENT_SIGNAL_VALUE } from '@/lib/seo/contentSignal';
+import { BRAND_SAME_AS } from '@/lib/seo/organization';
 
 const googleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
 
@@ -143,11 +144,10 @@ const organizationJsonLd = {
     contactType: 'customer support',
     url: `${siteConfig.siteUrl}/contact`,
   },
-  sameAs: [
-    `${siteConfig.siteUrl}/about`,
-    `${siteConfig.siteUrl}/guides`,
-    `${siteConfig.siteUrl}/tools`,
-  ],
+  // Verified, owned external profiles (entity consolidation for Google/Bing).
+  // sameAs is for OFF-site identities, so we point at the real GitHub / X /
+  // LinkedIn accounts rather than internal pages.
+  sameAs: [...BRAND_SAME_AS],
 };
 
 const itemListJsonLd = {
