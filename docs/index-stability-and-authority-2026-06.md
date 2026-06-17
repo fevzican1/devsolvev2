@@ -204,6 +204,52 @@ modifier'lar yazılıyor. `slug-parity-check`: 300 canlı slug örneği, **0
 
 ---
 
+## 6.7) Bing Webmaster Tools bulguları → kök neden ayrımı (2026-06)
+
+Bing WMT'den gelen uyarılar iki gruba ayrılır. **Karıştırılmamalı:** biri
+de-index'in GERÇEK kök nedeni, diğeri kozmetik SEO ipucu.
+
+### A) De-index'in GERÇEK kök nedeni (Bing'in kendi sözleriyle)
+1. **"Yüksek kaliteli alan adlarından yeterli gelen bağlantı (backlink) yok."**
+   → Bu, 18M programatik sayfanın dizinde *tutulmamasının* 1 numaralı sebebidir.
+   Kod backlink üretemez (uydurma = spam = daha hızlı düşüş). Repo tarafındaki
+   maksimum (entity/Organization, sosyal kart, RSS — bu PR'da) uygulandı; ötesi
+   **kazanılması gereken** gerçek otoritedir.
+2. **`/k/...` sayfaları için "içerik kalitesi düşük."** → 18M near-duplicate
+   kombinasyonunda Bing en güçlü alt kümeyi tutar, gerisini ölçekli-içerik
+   sayıp temizler. 18M'i sitemap'e koymak bunu *azaltmaz*. Kod tarafında
+   denetlendi: bayrak verilen 3 sayfa (`technical-writer`) için audience/task/
+   cluster context map'lerinde **eksik anahtar yok** (20/20, 16/16, 10/10) —
+   yani "thin content" bir kod bug'ı değil; Bing'in ölçek yargısı.
+
+> Yani: meta açıklama / başlık düzeltmeleri **de-index'i durdurmaz.** Onları
+> düzeltmek SEO hijyenidir; de-index'in kökü **otorite + ölçekli-içerik**dir.
+
+### B) Kozmetik SEO ipuçları — bu turda düzeltildi (kod)
+3. **"Birçok sayfada meta açıklama çok kısa."** → `ensureSeoDescription` artık
+   her açıklamayı **[150, 165]** karakter bandına garanti eder (uzun girdi
+   kelime sınırında kısalır; kısa girdi **tam cümlelerle** doldurulur, asla
+   kırık parça bırakmaz). Hem Next sayfaları hem Cloudflare worker bunu kullanır
+   → tüm `/k/*`, tool, guide, hub açıklamaları artık yeterli uzunlukta. Saf
+   deterministik string işi; **0 ek Cloudflare maliyeti.**
+4. **"Ana sayfa başlık etiketi eksik."** → Ana sayfaya açık bir `title` eklendi
+   (layout merge'ine güvenmek yerine), `… | DevSolve` olarak render olur.
+
+### C) "Ana sayfa bir yönlendirme, dizine eklenemez" — büyük olasılıkla ALTYAPI
+Bu repoda `/` için **hiçbir yönlendirme yok** (`_redirects` yalnızca sitemap
+URL'leri içindir; `next.config` `trailingSlash:false`; `/k/*` dışında Pages
+Function yok). Bing'in "yönlendirme, hedef `https://devsolvev2.com/`" demesi
+büyük olasılıkla **apex/www veya trailing-slash kanonikleştirmesi**dir
+(Cloudflare seviyesinde). **Yapılması gereken (kod dışı, sahibi):**
+- Bing WMT → URL Inspection → `https://devsolvev2.com/` için **Live fetch**:
+  200 mü, 30x mı dönüyor?
+- Cloudflare → Rules → **Redirect Rules / Bulk Redirects** ve **www↔apex** +
+  "Always Use HTTPS" ayarlarını kontrol et. `https://devsolvev2.com/` (kanonik
+  form) **doğrudan 200** dönmeli; yalnızca alternatif formlar (http, www,
+  trailing-slash) ona 301 ile akmalı.
+
+---
+
 ## 7) Yapılmayanlar ve neden (dürüstlük)
 
 - **Sahte backlink / link satın alma:** yapılmadı — politika ihlali, dizinden
