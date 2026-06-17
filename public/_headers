@@ -57,6 +57,14 @@
   Cloudflare-CDN-Cache-Control: max-age=86400
   Content-Type: application/xml; charset=utf-8
 
+# RSS syndication feed (static, generated at build by scripts/generate-feed.mjs).
+# Served straight from the edge cache like any sitemap — zero Function cost.
+/feed.xml
+  Cache-Control: public, max-age=3600, s-maxage=3600
+  CDN-Cache-Control: max-age=3600
+  Cloudflare-CDN-Cache-Control: max-age=3600
+  Content-Type: application/rss+xml; charset=utf-8
+
 # /k/* responses are produced by the Pages Function (functions/k/[[slug]].ts)
 # which sets its OWN Cache-Control per response type:
 #   - 200 OK canonical → max-age=31536000, immutable (cached 1 year at edge)

@@ -8,6 +8,7 @@
     "postbuild": "node scripts/postbuild.mjs",
     "sitemap:core": "next-sitemap --config next-sitemap.config.mjs",
     "sitemap:programmatic": "node scripts/generate-programmatic-sitemaps.mjs",
+    "feed": "node scripts/generate-feed.mjs",
     "start": "next start",
     "lint": "next lint",
     "typecheck:app": "tsc --noEmit",

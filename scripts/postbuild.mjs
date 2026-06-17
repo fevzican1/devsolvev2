@@ -53,6 +53,17 @@ try {
   console.log('Programmatic sitemap generation completed with warnings');
 }
 
+// RSS syndication feed — a STATIC file built from the already-generated,
+// parity-checked priority/programmatic sitemaps (so it can never drift from the
+// resolver). Feeds are a first-class discovery signal for Google & Bing and a
+// real syndication/backlink channel, at zero Cloudflare Function cost.
+try {
+  console.log('Generating RSS syndication feed (out/feed.xml)...');
+  execSync(`node ${join(__dirname, 'generate-feed.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('Feed generation completed with warnings');
+}
+
 try {
   console.log('Running canonical spot-check on generated sitemaps...');
   execSync(`node ${join(__dirname, 'canonical-spotcheck.mjs')}`, { stdio: 'inherit' });
