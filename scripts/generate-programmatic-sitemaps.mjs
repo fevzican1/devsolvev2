@@ -42,7 +42,7 @@ const maxSitemapUrls = Number.parseInt(process.env.PROGRAMMATIC_SITEMAP_LIMIT ||
 // file. Bump the version suffix (or set SITEMAP_INDEX_NAME) on every such
 // recovery. The old name is purged below so it 404s and drops out of GSC.
 // ---------------------------------------------------------------------------
-const SITEMAP_INDEX_NAME = process.env.SITEMAP_INDEX_NAME || 'sitemap-index-2026-06-v2.xml';
+const SITEMAP_INDEX_NAME = process.env.SITEMAP_INDEX_NAME || 'sitemap-index-2026-06-v3.xml';
 
 
 const clusters = [
@@ -211,15 +211,6 @@ function buildSlug(clusterKey, intent, audience, task, tool, index) {
     .replace(/^-|-$/g, '');
 }
 
-// Every programmatic page is engineered to clear the publication-quality
-// threshold (score ≥ 82, word count ≥ 900) by construction. The template
-// produces deep, fully unique TechArticle content for every slug, so this
-// gate always returns true — no URL is dropped from the sitemap, ensuring
-// all 18M pages are submitted to Google for indexing.
-function isQualityEligible(_slug, _modifier) {
-  return true;
-}
-
 /**
  * Three-tier sitemap layout
  * ─────────────────────────
@@ -250,6 +241,28 @@ function tierForChunk(chunkIndex) {
   if (chunkIndex <= TIER1_MAX_CHUNK) return 1;
   if (chunkIndex <= TIER2_MAX_CHUNK) return 2;
   return 3;
+}
+
+/**
+ * Sitemap inclusion gate — steers crawl budget toward indexable pages.
+ *
+ * Tier 1–2 (~1.2M URLs): every modifier variant is submitted — these are the
+ * highest-priority crawl targets with fresh lastmod signals.
+ *
+ * Tier 3 long-tail: only the FIRST modifier per core combination enters the
+ * sitemap (~104k per chunk group instead of ~16.8M duplicates). The remaining
+ * 161 modifier variants stay live at their own URLs with self-canonical tags
+ * and are discoverable via the internal link matrix, but we stop flooding Bing
+ * with near-duplicate sitemap entries that trigger "guideline excluded" and
+ * "discovered — currently not indexed" at scale.
+ */
+function isQualityEligible(_slug, modifier, chunkIndex) {
+  const tier = tierForChunk(chunkIndex);
+  if (tier >= 3) {
+    const modifierIndex = modifiers.indexOf(modifier);
+    if (modifierIndex !== 0) return false;
+  }
+  return true;
 }
 
 function tierMeta(tier) {
@@ -548,7 +561,7 @@ async function main() {
               const slug = buildSlug(cluster.key, intent, audience, task, tool, globalIndex);
               globalIndex += 1;
 
-              if (!isQualityEligible(slug, modifier)) continue;
+              if (!isQualityEligible(slug, modifier, chunkIndex)) continue;
 
               const perChunkLastmod = chunkLastmod.get(currentFile.filename);
               // Spread URLs within a chunk over a few seconds so even URLs

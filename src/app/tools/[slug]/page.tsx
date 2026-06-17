@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { Shield, AlertTriangle, ArrowRight, FileText, Wrench, HelpCircle, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,7 @@ import { externalUrls } from '@/config/site';
 import { TOOLS_SECTION_METADATA } from '@/lib/seo/sectionMetadata';
 import { absoluteUrl } from '@/lib/seo/url';
 import { RelatedItemsLinks } from '@/components/seo/RelatedItemsLinks';
+import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -375,6 +377,9 @@ export default async function ToolPage({ params }: PageProps) {
           )}
         </div>
         <RelatedItemsLinks title="Explore Related Pages" items={smartRelatedLinks} />
+        <Suspense fallback={null}>
+          <HubDiscoveryLinks hubPath={`/tools/${slug}`} heading="Deep-Dive Technical Guides" />
+        </Suspense>
         </article>
       </div>
     </div>

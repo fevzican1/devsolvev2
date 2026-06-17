@@ -57,9 +57,9 @@
  *                        falls back to public/).
  *   INDEXNOW_ENDPOINT    IndexNow hub URL.
  *   INDEXNOW_BATCH_SIZE  URLs per request (default 500; hard cap 10000).
- *   INDEXNOW_MAX_PER_RUN Rolling slice size per run (default 100000; 0 = submit
+ *   INDEXNOW_MAX_PER_RUN Rolling slice size per run (default 25000; 0 = submit
  *                        the entire corpus in one run — NOT recommended).
- *   INDEXNOW_DELAY_MS    Pause between requests in ms (default 700).
+ *   INDEXNOW_DELAY_MS    Pause between requests in ms (default 1500).
  *   INDEXNOW_DRY_RUN=1   Scan + report but send nothing (no network).
  *   INDEXNOW_DISABLED=1  Skip entirely (e.g. on preview deploys).
  *
@@ -81,9 +81,9 @@ const HOST = DOMAIN.replace(/^https?:\/\//, '');
 const INDEXNOW_ENDPOINT = process.env.INDEXNOW_ENDPOINT || 'https://api.indexnow.org/indexnow';
 
 // Anti-bulk defaults: small batches, paced, rolling slice.
-const BATCH_SIZE = clampInt(process.env.INDEXNOW_BATCH_SIZE, 500, 1, 10000);
-const MAX_PER_RUN = clampInt(process.env.INDEXNOW_MAX_PER_RUN, 100000, 0, 18_100_000);
-const DELAY_MS = clampInt(process.env.INDEXNOW_DELAY_MS, 700, 0, 60_000);
+const BATCH_SIZE = clampInt(process.env.INDEXNOW_BATCH_SIZE, 250, 1, 10000);
+const MAX_PER_RUN = clampInt(process.env.INDEXNOW_MAX_PER_RUN, 25000, 0, 18_100_000);
+const DELAY_MS = clampInt(process.env.INDEXNOW_DELAY_MS, 1500, 0, 60_000);
 const MAX_RETRIES = 4;
 const DRY_RUN = process.env.INDEXNOW_DRY_RUN === '1' || process.env.INDEXNOW_DRY_RUN === 'true';
 const DISABLED = process.env.INDEXNOW_DISABLED === '1' || process.env.INDEXNOW_DISABLED === 'true';

@@ -83,6 +83,8 @@ export const metadata: Metadata = {
   },
   other: {
     'content-signal': CONTENT_SIGNAL_VALUE,
+    bingbot: 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
+    msnbot: 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
   },
   robots: {
     index: true,
@@ -141,7 +143,11 @@ const organizationJsonLd = {
     contactType: 'customer support',
     url: `${siteConfig.siteUrl}/contact`,
   },
-  sameAs: [],
+  sameAs: [
+    `${siteConfig.siteUrl}/about`,
+    `${siteConfig.siteUrl}/guides`,
+    `${siteConfig.siteUrl}/tools`,
+  ],
 };
 
 const itemListJsonLd = {
