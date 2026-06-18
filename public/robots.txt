@@ -15,6 +15,7 @@ User-agent: Googlebot
 Allow: /
 Disallow: /cmd-center
 Disallow: /api/
+Disallow: /cdn-cgi/
 
 User-agent: Googlebot-Image
 Allow: /
@@ -142,16 +143,19 @@ User-agent: Bingbot
 Allow: /
 Disallow: /cmd-center
 Disallow: /api/
+Disallow: /cdn-cgi/
 
 User-agent: bingbot
 Allow: /
 Disallow: /cmd-center
 Disallow: /api/
+Disallow: /cdn-cgi/
 
 User-agent: msnbot
 Allow: /
 Disallow: /cmd-center
 Disallow: /api/
+Disallow: /cdn-cgi/
 
 User-agent: adidxbot
 Allow: /
@@ -160,6 +164,7 @@ User-agent: DuckDuckBot
 Allow: /
 Disallow: /cmd-center
 Disallow: /api/
+Disallow: /cdn-cgi/
 
 User-agent: DuckDuckGo-Favicons-Bot
 Allow: /
@@ -227,6 +232,7 @@ Allow: /
 Disallow: /cmd-center
 Disallow: /cmd-center/
 Disallow: /api/
+Disallow: /cdn-cgi/
 Disallow: /*?*sort=
 Disallow: /*?*filter=
 Disallow: /*?*ref=

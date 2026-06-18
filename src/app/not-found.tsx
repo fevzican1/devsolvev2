@@ -3,10 +3,17 @@ import Link from 'next/link';
 import { FileQuestion, Home, Wrench, FileText, Compass, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { buildMetadata } from '@/lib/seo/metadata';
+
+const baseMetadata = buildMetadata({
+  title: 'Page Not Found',
+  description:
+    'The page you are looking for could not be found. Browse our free browser-based developer tools and technical guides.',
+  path: '/404',
+});
 
 export const metadata: Metadata = {
-  title: 'Page Not Found — DevSolve Developer Tools',
-  description: 'The page you are looking for could not be found. Browse our free browser-based developer tools and technical guides.',
+  ...baseMetadata,
   // The 404 page must NEVER be indexed. Telling Google `index: true`
   // on a not-found template causes Search Console to report the page
   // as "Soft 404" — Google can see the same boilerplate served from
