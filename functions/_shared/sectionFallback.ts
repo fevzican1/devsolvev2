@@ -2,6 +2,7 @@ import {
   CONTENT_SIGNAL_META_NAME,
   CONTENT_SIGNAL_VALUE,
 } from '../../src/lib/seo/contentSignal';
+import { ensureSeoDescription } from '../../src/lib/seo/seoText';
 
 export interface SectionFallbackLink {
   href: string;
@@ -28,6 +29,7 @@ export function escapeHtml(value: string): string {
 
 export function buildSectionFallbackHtml(config: SectionFallbackConfig, siteUrl: string): string {
   const canonicalUrl = `${siteUrl}${config.canonicalPath}`;
+  const metaDescription = ensureSeoDescription(config.description);
   const requestedPathNote = config.requestedPath
     ? `<p>The requested path <strong>${escapeHtml(config.requestedPath)}</strong> now displays the section hub instead of returning a redirect or HTTP error.</p>`
     : '';
@@ -46,13 +48,13 @@ export function buildSectionFallbackHtml(config: SectionFallbackConfig, siteUrl:
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>${escapeHtml(config.title)} | DevSolve</title>
-<meta name="description" content="${escapeHtml(config.description)}"/>
+<meta name="description" content="${escapeHtml(metaDescription)}"/>
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"/>
 <meta name="${CONTENT_SIGNAL_META_NAME}" content="${CONTENT_SIGNAL_VALUE}"/>
 <link rel="canonical" href="${canonicalUrl}"/>
 <meta property="og:type" content="website"/>
 <meta property="og:title" content="${escapeHtml(config.title)}"/>
-<meta property="og:description" content="${escapeHtml(config.description)}"/>
+<meta property="og:description" content="${escapeHtml(metaDescription)}"/>
 <meta property="og:url" content="${canonicalUrl}"/>
 <style>
 body{margin:0;font-family:Inter,Arial,sans-serif;background:#f8fafc;color:#0f172a}

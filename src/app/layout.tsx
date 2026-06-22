@@ -134,7 +134,9 @@ const itemListJsonLd = {
   '@context': externalUrls.schemaOrg,
   '@type': 'ItemList',
   name: 'Developer Tools',
-  description: 'Free browser-based developer tools for formatting, validation, encoding, and debugging',
+  description: ensureSeoDescription(
+    'Free browser-based developer tools for formatting, validation, encoding, and debugging workflows.',
+  ),
   numberOfItems: toolRegistry.length,
   itemListElement: toolRegistry.map((tool, index) => ({
     '@type': 'ListItem',

@@ -121,4 +121,18 @@ try {
   console.log('IndexNow ping completed with warnings — see logs above');
 }
 
+try {
+  console.log('Verifying SEO meta description lengths...');
+  execSync(`node ${join(__dirname, 'verify-seo-descriptions.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('SEO description verification failed — see logs above');
+}
+
+try {
+  console.log('Scanning exported HTML for short meta descriptions...');
+  execSync(`node ${join(__dirname, 'scan-out-meta-descriptions.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('Meta description scan reported issues — see out/reports/meta-descriptions.txt');
+}
+
 console.log('Postbuild tasks completed!');

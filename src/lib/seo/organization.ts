@@ -20,6 +20,8 @@
  * Pages Function does no extra work and the page stays edge-cacheable.
  */
 
+import { ensureSeoDescription } from './seoText';
+
 export const ORG_ID_FRAGMENT = '#organization';
 export const WEBSITE_ID_FRAGMENT = '#website';
 
@@ -46,9 +48,12 @@ export const BRAND_CORE_PROFILES: readonly string[] = [
  * back to devsolvev2.com. Add URLs here only after the listing is live and
  * the profile's website field points at the canonical domain.
  */
+/** Live PH product (slug: devsolve-v2, tagline: privacy-first browser developer tools). */
+export const BRAND_PRODUCT_HUNT_URL = 'https://www.producthunt.com/products/devsolve-v2';
+
 export const BRAND_DIRECTORY_PROFILES: readonly string[] = [
   'https://www.saashub.com/devsolvev2',
-  'https://www.producthunt.com/products/devsolve-v2',
+  BRAND_PRODUCT_HUNT_URL,
 ];
 
 export const BRAND_SAME_AS: readonly string[] = [
@@ -146,7 +151,9 @@ export function buildWebSiteNode(opts: BrandEntityOptions): Record<string, unkno
     url: siteUrl,
     name: 'DevSolve',
     alternateName: 'DevSolve Developer Tools',
-    description: 'Free browser-based developer tools and engineering guides.',
+    description: ensureSeoDescription(
+      'Free browser-based developer tools and in-depth engineering guides for JSON, JWT, regex, encoding, and everyday developer workflows.',
+    ),
     publisher: { '@id': `${siteUrl}/${ORG_ID_FRAGMENT}` },
     inLanguage: 'en',
     potentialAction: {

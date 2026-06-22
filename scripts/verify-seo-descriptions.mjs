@@ -91,6 +91,10 @@ const samples = [
   ['json-validation-formatting', 'Validate, format, and pretty-print JSON with confidence: catch syntax errors early, normalise structure for clean diffs, and keep large payloads readable in reviews.'],
   ['jwt-decoding-browser', 'Decode JWT headers, payloads, and claims locally in your browser. Debug auth flows, verify expirations, and catch malformed tokens safely with zero server uploads.'],
   ['contact', 'Contact DevSolve for product support, partnership inquiries, policy questions, or business communication. We typically respond within two business days on weekdays.'],
+  ['homepage', 'Free browser-based developer tools for JSON formatting, JWT decoding, regex testing, Base64 encoding, and more. All processing happens locally — your data never leaves your browser.'],
+  ['cmd-center', 'Internal DevSolve operations dashboard for monitoring site health, indexing status, and deployment metrics. Not intended for public search indexing.'],
+  ['cookies', 'DevSolve cookie and local storage policy. Minimal cookies for essential functionality, transparent analytics, and full browser control.'],
+  ['site-config', 'Free browser-based developer tools for JSON formatting, JWT decoding, regex testing, Base64 encoding and more. All processing happens locally — your data never leaves your machine.'],
 ];
 
 let failed = false;
