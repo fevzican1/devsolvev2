@@ -28,10 +28,14 @@ export function buildMetadata({
   // Cap every <title> at 60 chars (brand included) so Bing's "Title too long"
   // warning never fires. Using { absolute } bypasses the layout's
   // "%s | DevSolve" template — buildPageTitle already appends " — DevSolve".
-  const pageTitle = title ? buildPageTitle(title) : undefined;
+  // Always emit a title — never rely on layout merge (Bing flagged missing
+  // homepage <title> when only the layout default was present in static export).
+  const pageTitle = buildPageTitle(
+    title ?? 'Free Privacy-First Developer Tools & Guides',
+  );
 
   return {
-    title: pageTitle ? { absolute: pageTitle } : undefined,
+    title: { absolute: pageTitle },
     description: safeDescription,
     alternates: {
       canonical: url,

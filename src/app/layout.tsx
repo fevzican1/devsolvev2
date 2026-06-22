@@ -9,17 +9,24 @@ import { platformExternalUrls } from '@/config/monetization';
 import { toolRegistry } from '@/tools/registry';
 import { CodeBlocksEnhancer } from '@/components/content/CodeBlocksEnhancer';
 import { CONTENT_SIGNAL_VALUE } from '@/lib/seo/contentSignal';
-import { BRAND_SAME_AS } from '@/lib/seo/organization';
+import {
+  BRAND_SAME_AS,
+  buildOrganizationNode,
+  buildWebSiteNode,
+} from '@/lib/seo/organization';
+import { buildPageTitle, ensureSeoDescription, ROBOTS_INDEX_FOLLOW } from '@/lib/seo/seoText';
 
 const googleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
+const defaultPageTitle = buildPageTitle('Free Privacy-First Developer Tools & Guides');
+const defaultDescription = ensureSeoDescription(siteConfig.description);
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.siteUrl),
   title: {
-    default: `${siteConfig.name} — Free Privacy-First Developer Tools & Guides`,
+    default: defaultPageTitle,
     template: `%s | ${siteConfig.name}`,
   },
-  description: siteConfig.description,
+  description: defaultDescription,
   applicationName: siteConfig.name,
   keywords: [
     'developer tools',
@@ -49,6 +56,9 @@ export const metadata: Metadata = {
       'en': '/',
       'x-default': '/',
     },
+    types: {
+      'application/rss+xml': `${siteConfig.siteUrl}/feed.xml`,
+    },
   },
   icons: {
     icon: '/favicon.svg',
@@ -63,8 +73,8 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     url: siteConfig.siteUrl,
-    title: `${siteConfig.name} — Free Privacy-First Developer Tools`,
-    description: siteConfig.description,
+    title: defaultPageTitle,
+    description: defaultDescription,
     siteName: siteConfig.name,
     locale: 'en_US',
     images: [
@@ -78,14 +88,15 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${siteConfig.name} — Free Developer Tools`,
-    description: siteConfig.description,
+    title: defaultPageTitle,
+    description: defaultDescription,
     images: ['/twitter-image.svg'],
   },
   other: {
     'content-signal': CONTENT_SIGNAL_VALUE,
-    bingbot: 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
-    msnbot: 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
+    'saashub-verification': '7scl5mzbiksx',
+    bingbot: ROBOTS_INDEX_FOLLOW,
+    msnbot: ROBOTS_INDEX_FOLLOW,
   },
   robots: {
     index: true,
@@ -111,43 +122,12 @@ export const viewport: Viewport = {
   themeColor: '#0f172a',
 };
 
-const websiteJsonLd = {
+const brandGraphJsonLd = {
   '@context': externalUrls.schemaOrg,
-  '@type': 'WebSite',
-  name: siteConfig.name,
-  alternateName: 'DevSolve Developer Tools',
-  url: siteConfig.siteUrl,
-  description: siteConfig.description,
-  inLanguage: 'en',
-  potentialAction: {
-    '@type': 'SearchAction',
-    target: {
-      '@type': 'EntryPoint',
-      urlTemplate: `${siteConfig.siteUrl}/tools?q={search_term_string}`,
-    },
-    'query-input': 'required name=search_term_string',
-  },
-};
-
-const organizationJsonLd = {
-  '@context': externalUrls.schemaOrg,
-  '@type': 'Organization',
-  name: siteConfig.name,
-  url: siteConfig.siteUrl,
-  logo: {
-    '@type': 'ImageObject',
-    url: `${siteConfig.siteUrl}/favicon.svg`,
-  },
-  description: siteConfig.description,
-  contactPoint: {
-    '@type': 'ContactPoint',
-    contactType: 'customer support',
-    url: `${siteConfig.siteUrl}/contact`,
-  },
-  // Verified, owned external profiles (entity consolidation for Google/Bing).
-  // sameAs is for OFF-site identities, so we point at the real GitHub / X /
-  // LinkedIn accounts rather than internal pages.
-  sameAs: [...BRAND_SAME_AS],
+  '@graph': [
+    buildOrganizationNode({ siteUrl: siteConfig.siteUrl }),
+    buildWebSiteNode({ siteUrl: siteConfig.siteUrl }),
+  ],
 };
 
 const itemListJsonLd = {
@@ -171,6 +151,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {BRAND_SAME_AS.map((href) => (
+          <link key={href} rel="me" href={href} />
+        ))}
+      </head>
       <body className="font-sans antialiased">
         <ThemeProvider>
           <CodeBlocksEnhancer />
@@ -183,11 +168,8 @@ export default function RootLayout({
             <Footer />
           </div>
         </ThemeProvider>
-        <Script id="ld-website" type="application/ld+json" strategy="beforeInteractive">
-          {JSON.stringify(websiteJsonLd)}
-        </Script>
-        <Script id="ld-organization" type="application/ld+json" strategy="beforeInteractive">
-          {JSON.stringify(organizationJsonLd)}
+        <Script id="ld-brand-graph" type="application/ld+json" strategy="beforeInteractive">
+          {JSON.stringify(brandGraphJsonLd)}
         </Script>
         <Script id="ld-itemlist" type="application/ld+json" strategy="beforeInteractive">
           {JSON.stringify(itemListJsonLd)}

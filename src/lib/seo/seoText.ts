@@ -25,20 +25,29 @@ const DESCRIPTION_FILLERS: readonly string[] = [
 
 export function ensureSeoDescription(
   raw: string,
-  minLength = 150,
+  minLength = 155,
   maxLength = 165,
+  targetLength = 158,
 ): string {
   let text = (raw || '').replace(/\s+/g, ' ').trim();
 
-  // Already long enough → only trim an over-long input at a word boundary.
-  if (text.length >= minLength) {
-    return text.length <= maxLength ? text : truncateAtWord(text, maxLength);
+  // Too short → pad with complete clauses until inside the target window.
+  if (text.length < minLength) {
+    for (const filler of DESCRIPTION_FILLERS) {
+      if (text.length >= minLength) break;
+      text = `${text}${filler}`.replace(/\s+/g, ' ').trim();
+    }
   }
 
-  // Too short → pad with complete clauses until inside the target window.
-  for (const filler of DESCRIPTION_FILLERS) {
-    if (text.length >= minLength) break;
-    text = `${text}${filler}`.replace(/\s+/g, ' ').trim();
+  // Borderline (meets old 150-char floor but below Bing's 155–160 sweet spot) →
+  // pad once more so stale crawlers never see a "too short" meta description.
+  if (text.length >= minLength && text.length < targetLength) {
+    for (const filler of DESCRIPTION_FILLERS) {
+      const candidate = `${text}${filler}`.replace(/\s+/g, ' ').trim();
+      if (candidate.length > maxLength) continue;
+      text = candidate;
+      if (text.length >= targetLength) break;
+    }
   }
 
   // Defensive baseline (e.g. an empty raw description) so we never emit a short tag.
@@ -48,7 +57,8 @@ export function ensureSeoDescription(
       .trim();
   }
 
-  return text.length <= maxLength ? text : truncateAtWord(text, maxLength);
+  if (text.length <= maxLength) return text;
+  return truncateAtWord(text, maxLength);
 }
 
 export function ensureSeoTitle(raw: string, minLength = 30): string {

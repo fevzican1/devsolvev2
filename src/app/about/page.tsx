@@ -9,6 +9,7 @@ import { TrustSignals } from '@/components/layout/TrustSignals';
 import { externalUrls, siteConfig } from '@/config/site';
 import { absoluteUrl } from '@/lib/seo/url';
 import { monetizationConfig } from '@/config/monetization';
+import { BRAND_SAME_AS, getBrandProfileLinks } from '@/lib/seo/organization';
 
 
 export const metadata: Metadata = buildMetadata({
@@ -39,6 +40,7 @@ export default function AboutPage() {
       name: siteConfig.name,
       url: absoluteUrl('/'),
       description: siteConfig.description,
+      sameAs: [...BRAND_SAME_AS],
     },
   };
 
@@ -132,6 +134,33 @@ export default function AboutPage() {
                 affiliate inquiries, visit our{' '}
                 <Link href="/contact" className="text-primary hover:underline">contact page</Link>.
               </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl">Official Profiles &amp; Listings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-base leading-7 text-muted-foreground">
+              <p>
+                DevSolve maintains verified profiles on the platforms below. Each profile links back to{' '}
+                <Link href="/" className="text-primary hover:underline">{siteConfig.siteUrl.replace('https://', '')}</Link>{' '}
+                so search engines can confirm brand ownership (entity consolidation).
+              </p>
+              <ul className="space-y-2">
+                {getBrandProfileLinks().map(({ label, href }) => (
+                  <li key={href}>
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="me noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </CardContent>
           </Card>
 

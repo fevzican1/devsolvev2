@@ -20,6 +20,7 @@ import { getAuthorityReferences } from '../../src/lib/seo/authorityReferences';
 import {
   ORG_ID_FRAGMENT,
   WEBSITE_ID_FRAGMENT,
+  BRAND_SAME_AS,
   buildOrganizationNode,
   buildWebSiteNode,
 } from '../../src/lib/seo/organization';
@@ -31,6 +32,19 @@ import {
 } from '../../src/lib/seo/seoText';
 import { escapeHtml } from '../_shared/sectionFallback';
 import { buildIntentExample } from '../_shared/intentExamples';
+
+function footerSocialLabel(href: string): string {
+  if (href.includes('linkedin.com')) return 'LinkedIn';
+  if (href.includes('x.com') || href.includes('twitter.com')) return 'X';
+  if (href.includes('/devsolvev2')) return 'GitHub Repo';
+  if (href.includes('github.com')) return 'GitHub';
+  return 'Profile';
+}
+
+// Pre-rendered once per worker — zero per-request cost; reinforces sameAs on 18M+ /k pages.
+const FOOTER_SOCIAL_LINKS_HTML = BRAND_SAME_AS.map((href) =>
+  `<a href="${escapeHtml(href)}" rel="me noopener noreferrer" target="_blank">${footerSocialLabel(href)}</a>`,
+).join(' · ');
 
 // Cloudflare Pages Function types (inline to avoid external dependency)
 interface CfRequestProperties {
@@ -3146,6 +3160,7 @@ ${refs.map((ref) => `<li style="margin-bottom:0.75rem"><a href="${escapeHtml(ref
 </main>
 <footer>
 <p>© 2026 DevSolve — Privacy-First Developer Tools &amp; Guides</p>
+<p style="margin-top:0.5rem">${FOOTER_SOCIAL_LINKS_HTML}</p>
 <p style="margin-top:0.5rem"><a href="/about">About</a> · <a href="/contact">Contact</a> · <a href="/legal/privacy">Privacy</a></p>
 </footer>
 </body>

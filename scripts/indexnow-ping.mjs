@@ -119,10 +119,12 @@ function clampInt(raw, fallback, min, max) {
   return Math.min(max, Math.max(min, n));
 }
 
-// Bing WMT flagged sample URLs — always submitted first each run so Bingbot
-// receives an explicit crawl signal for URLs it already reported as "not yet
-// crawled" or "content quality". Static list, 20 URLs, zero Function cost.
+// Bing WMT seed URLs — always submitted first each run so flagged pages get
+// an immediate crawl signal without waiting for the daily slice rotation.
 const BING_SEED_URLS = [
+  `${DOMAIN}/`,
+  `${DOMAIN}/guides/jwt-decoding-browser`,
+  `${DOMAIN}/about`,
   `${DOMAIN}/k/json-generate-json-schema-api-consumer-resolve-merge-conflict-json-to-typescript-1150412`,
   `${DOMAIN}/k/formatting-validate-markdown-syntax-technical-writer-prepare-api-response-sql-formatter-7123065`,
   `${DOMAIN}/k/api-construct-query-string-technical-writer-document-api-endpoint-url-encode-decode-10079551`,

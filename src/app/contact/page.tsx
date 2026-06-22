@@ -8,6 +8,7 @@ import { ContactForm } from '@/components/contact/ContactForm';
 import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
 import { externalUrls, siteConfig } from '@/config/site';
 import { absoluteUrl } from '@/lib/seo/url';
+import { BRAND_SAME_AS } from '@/lib/seo/organization';
 
 
 export const metadata: Metadata = buildMetadata({
@@ -37,6 +38,7 @@ export default function ContactPage() {
       '@type': 'Organization',
       name: siteConfig.name,
       url: absoluteUrl('/'),
+      sameAs: [...BRAND_SAME_AS],
       contactPoint: {
         '@type': 'ContactPoint',
         contactType: 'customer support',
