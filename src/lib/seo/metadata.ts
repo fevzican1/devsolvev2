@@ -25,10 +25,13 @@ export function buildMetadata({
 }: MetadataInput): Metadata {
   const url = absoluteUrl(path);
   const safeDescription = ensureSeoDescription(description ?? siteConfig.description);
-  const safeTitle = title ? buildPageTitle(title) : undefined;
+  // Cap every <title> at 60 chars (brand included) so Bing's "Title too long"
+  // warning never fires. Using { absolute } bypasses the layout's
+  // "%s | DevSolve" template — buildPageTitle already appends " — DevSolve".
+  const pageTitle = title ? buildPageTitle(title) : undefined;
 
   return {
-    ...(safeTitle ? { title: { absolute: safeTitle } } : { title }),
+    title: pageTitle ? { absolute: pageTitle } : undefined,
     description: safeDescription,
     alternates: {
       canonical: url,
@@ -37,7 +40,7 @@ export function buildMetadata({
     openGraph: {
       type: articleSection ? 'article' : 'website',
       url,
-      title: safeTitle ?? title ?? siteConfig.name,
+      title: pageTitle ?? siteConfig.name,
       description: safeDescription,
       siteName: siteConfig.name,
       locale: 'en_US',
@@ -49,13 +52,13 @@ export function buildMetadata({
           url: absoluteUrl('/opengraph-image'),
           width: 1200,
           height: 630,
-          alt: title ? `${title} — ${siteConfig.name}` : `${siteConfig.name} social preview`,
+          alt: pageTitle ? `${pageTitle} social preview` : `${siteConfig.name} social preview`,
         },
       ],
     },
     twitter: {
       card: 'summary_large_image',
-      title: safeTitle ?? title ?? siteConfig.name,
+      title: pageTitle ?? siteConfig.name,
       description: safeDescription,
       images: [absoluteUrl('/twitter-image')],
     },

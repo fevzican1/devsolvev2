@@ -113,3 +113,8 @@
 
 /api/*
   X-Robots-Tag: noindex, nofollow
+
+# Cloudflare bot-management / challenge pages — not site content. Bing WMT
+# crawls these and reports missing meta description / long titles.
+/cdn-cgi/*
+  X-Robots-Tag: noindex, nofollow
