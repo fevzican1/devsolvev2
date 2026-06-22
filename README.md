@@ -47,7 +47,9 @@ read the **[technical guides](https://devsolvev2.com/guides)**.
 - Website: <https://devsolvev2.com>
 - Tools: <https://devsolvev2.com/tools>
 - Guides: <https://devsolvev2.com/guides>
+- GitHub: <https://github.com/fevzican1/devsolvev2>
 - X / Twitter: <https://x.com/devsolveai>
+- LinkedIn: <https://www.linkedin.com/in/fevzican-aytekin-0b5501105>
 - LinkedIn: <https://www.linkedin.com/in/fevzican-aytekin-0b5501105>
 
 ## License

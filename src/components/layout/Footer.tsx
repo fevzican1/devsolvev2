@@ -2,16 +2,20 @@ import Link from 'next/link';
 import { Code2, Github, Linkedin, Twitter } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import { monetizationConfig } from '@/config/monetization';
-import { BRAND_SAME_AS } from '@/lib/seo/organization';
+import { getBrandProfileLinks } from '@/lib/seo/organization';
 
 // Visible, verifiable links to the brand's owned profiles. rel="me" declares
 // an identity relationship (reinforces the JSON-LD sameAs for crawlers), and
 // the reciprocal link (profile → devsolvev2.com → profile) confirms ownership.
-const socialLinks = [
-  { label: 'GitHub', Icon: Github, href: BRAND_SAME_AS.find((u) => u.includes('github.com')) ?? '#' },
-  { label: 'LinkedIn', Icon: Linkedin, href: BRAND_SAME_AS.find((u) => u.includes('linkedin.com')) ?? '#' },
-  { label: 'X (Twitter)', Icon: Twitter, href: BRAND_SAME_AS.find((u) => u.includes('x.com')) ?? '#' },
-];
+const socialLinks = getBrandProfileLinks().map(({ label, href }) => ({
+  label,
+  href,
+  Icon: label.includes('GitHub')
+    ? Github
+    : label.includes('LinkedIn')
+      ? Linkedin
+      : Twitter,
+}));
 
 const footerLinks = {
   tools: [
@@ -61,18 +65,19 @@ export function Footer() {
             <p className="text-xs text-muted-foreground mb-4">
               All tools run locally in your browser.
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               {socialLinks.map(({ label, Icon, href }) => (
                 <a
-                  key={label}
+                  key={href}
                   href={href}
                   aria-label={`DevSolve on ${label}`}
                   title={`DevSolve on ${label}`}
                   target="_blank"
                   rel="me noopener noreferrer"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-4 w-4" />
+                  <span>{label}</span>
                 </a>
               ))}
             </div>

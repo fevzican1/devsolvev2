@@ -31,11 +31,51 @@ export const WEBSITE_ID_FRAGMENT = '#website';
  * (and a legitimate substitute for fabricated backlinks). The back-link must
  * exist on both ends: each profile's website field points to devsolvev2.com.
  */
-export const BRAND_SAME_AS: readonly string[] = [
+/** Public source repo — README links to devsolvev2.com (real github.com backlink when public). */
+export const BRAND_GITHUB_REPO = 'https://github.com/fevzican1/devsolvev2';
+
+export const BRAND_CORE_PROFILES: readonly string[] = [
   'https://github.com/fevzican1',
   'https://www.linkedin.com/in/fevzican-aytekin-0b5501105',
   'https://x.com/devsolveai',
+  BRAND_GITHUB_REPO,
 ];
+
+/**
+ * Verified directory/listing pages (Product Hunt, SaaSHub, etc.) that link
+ * back to devsolvev2.com. Add URLs here only after the listing is live and
+ * the profile's website field points at the canonical domain.
+ */
+export const BRAND_DIRECTORY_PROFILES: readonly string[] = [];
+
+export const BRAND_SAME_AS: readonly string[] = [
+  ...BRAND_CORE_PROFILES,
+  ...BRAND_DIRECTORY_PROFILES,
+];
+
+export interface BrandProfileLink {
+  label: string;
+  href: string;
+}
+
+/** Visible profile links for footer, About page, and edge-rendered footers. */
+export function getBrandProfileLinks(): BrandProfileLink[] {
+  const links: BrandProfileLink[] = [
+    { label: 'GitHub Profile', href: 'https://github.com/fevzican1' },
+    { label: 'GitHub Repository', href: BRAND_GITHUB_REPO },
+    { label: 'LinkedIn', href: 'https://www.linkedin.com/in/fevzican-aytekin-0b5501105' },
+    { label: 'X (Twitter)', href: 'https://x.com/devsolveai' },
+  ];
+  for (const href of BRAND_DIRECTORY_PROFILES) {
+    const label = href.includes('producthunt.com')
+      ? 'Product Hunt'
+      : href.includes('saashub.com')
+        ? 'SaaSHub'
+        : 'Official Listing';
+    links.push({ label, href });
+  }
+  return links;
+}
 
 export interface BrandEntityOptions {
   siteUrl: string;
@@ -82,6 +122,7 @@ export function buildOrganizationNode(opts: BrandEntityOptions): Record<string, 
       'data validation', 'web security', 'developer tooling',
     ],
     slogan: 'Privacy-First Developer Tools & Guides',
+    codeRepository: BRAND_GITHUB_REPO,
   };
   if (sameAs.length > 0) {
     node.sameAs = [...sameAs];
@@ -101,8 +142,17 @@ export function buildWebSiteNode(opts: BrandEntityOptions): Record<string, unkno
     '@id': `${siteUrl}/${WEBSITE_ID_FRAGMENT}`,
     url: siteUrl,
     name: 'DevSolve',
+    alternateName: 'DevSolve Developer Tools',
     description: 'Free browser-based developer tools and engineering guides.',
     publisher: { '@id': `${siteUrl}/${ORG_ID_FRAGMENT}` },
     inLanguage: 'en',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${siteUrl}/tools?q={search_term_string}`,
+      },
+      'query-input': 'required name=search_term_string',
+    },
   };
 }

@@ -12,6 +12,8 @@ import { monetizationConfig } from '@/config/monetization';
 import { loadGuideContentCached } from '@/lib/guides/loader';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { absoluteUrl } from '@/lib/seo/url';
+import { ensureSeoDescription } from '@/lib/seo/seoText';
+import { ORG_ID_FRAGMENT, BRAND_SAME_AS } from '@/lib/seo/organization';
 import { externalUrls, siteConfig } from '@/config/site';
 import {
   CommercialOpportunityLinks,
@@ -112,11 +114,13 @@ export default async function GuidePage({ params }: PageProps) {
     ],
   };
 
+  const seoDescription = ensureSeoDescription(guide.description);
+
   const articleJsonLd = {
     '@context': externalUrls.schemaOrg,
     '@type': 'TechArticle',
     headline: guide.title,
-    description: guide.description,
+    description: seoDescription,
     url: absoluteUrl(`/guides/${slug}`),
     datePublished: siteConfig.launchDate,
     dateModified: new Date().toISOString(),
@@ -127,8 +131,10 @@ export default async function GuidePage({ params }: PageProps) {
     },
     publisher: {
       '@type': 'Organization',
+      '@id': `${siteConfig.siteUrl}/${ORG_ID_FRAGMENT}`,
       name: siteConfig.name,
       url: absoluteUrl('/'),
+      sameAs: [...BRAND_SAME_AS],
       logo: {
         '@type': 'ImageObject',
         url: absoluteUrl('/favicon.svg'),
