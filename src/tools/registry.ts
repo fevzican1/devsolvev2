@@ -16,7 +16,7 @@ export const toolRegistry: ToolDefinition[] = [
     slug: 'json-formatter',
     name: 'JSON Formatter & Validator',
     shortDescription: 'Format, validate, and pretty-print JSON data instantly',
-    description: 'Parse, format, and validate JSON data with syntax highlighting and error detection. Instantly beautify minified JSON or validate structure — all processing happens locally in your browser with zero data transmission.',
+    description: 'Parse, format, and validate JSON with syntax highlighting and error detection. Beautify minified JSON and debug payloads locally in your browser without any uploads.',
     category: 'formatting',
     keywords: ['json', 'format', 'validate', 'parse', 'pretty print'],
     limitations: [
@@ -64,7 +64,7 @@ export const toolRegistry: ToolDefinition[] = [
     slug: 'url-encode-decode',
     name: 'URL Encode/Decode',
     shortDescription: 'Encode and decode URL components with percent-encoding',
-    description: 'Safely encode and decode URL components using encodeURIComponent/decodeURIComponent. Handle special characters, query parameters, and path segments correctly. All processing happens locally in your browser.',
+    description: 'Encode and decode URL components with encodeURIComponent in your browser. Handle query parameters, path segments, and special characters with local-only processing.',
     category: 'encoding',
     keywords: ['url', 'encode', 'decode', 'uri', 'percent encoding'],
     limitations: [
@@ -144,7 +144,7 @@ export const toolRegistry: ToolDefinition[] = [
     slug: 'html-entity-encode-decode',
     name: 'HTML Entity Encode/Decode',
     shortDescription: 'Convert special characters to HTML entities and back',
-    description: 'Encode special characters to HTML entities and decode them back safely. Prevent XSS attacks and display special characters correctly in web pages. All processing happens locally in your browser.',
+    description: 'Encode special characters to HTML entities and decode them back safely. Prevent XSS risks and display Unicode correctly in web pages with local browser processing.',
     category: 'encoding',
     keywords: ['html', 'entity', 'encode', 'decode', 'escape'],
     limitations: [
@@ -160,7 +160,7 @@ export const toolRegistry: ToolDefinition[] = [
     slug: 'text-case-converter',
     name: 'Text Case Converter',
     shortDescription: 'Convert text to camelCase, snake_case, UPPERCASE & more',
-    description: 'Convert text between lowercase, uppercase, title case, camelCase, snake_case, and kebab-case. Essential for naming conventions across different programming languages. All processing happens locally in your browser.',
+    description: 'Convert text between camelCase, snake_case, kebab-case, title case, and more locally. Essential naming conventions for JavaScript, Python, SQL, and API design teams.',
     category: 'text',
     keywords: ['case', 'lowercase', 'uppercase', 'title', 'snake', 'kebab'],
     limitations: [

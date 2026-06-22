@@ -50,7 +50,8 @@ read the **[technical guides](https://devsolvev2.com/guides)**.
 - GitHub: <https://github.com/fevzican1/devsolvev2>
 - X / Twitter: <https://x.com/devsolveai>
 - LinkedIn: <https://www.linkedin.com/in/fevzican-aytekin-0b5501105>
-- LinkedIn: <https://www.linkedin.com/in/fevzican-aytekin-0b5501105>
+- SaaSHub: <https://www.saashub.com/devsolvev2>
+- Product Hunt: <https://www.producthunt.com/products/devsolve-v2>
 
 ## License
 

@@ -46,7 +46,10 @@ export const BRAND_CORE_PROFILES: readonly string[] = [
  * back to devsolvev2.com. Add URLs here only after the listing is live and
  * the profile's website field points at the canonical domain.
  */
-export const BRAND_DIRECTORY_PROFILES: readonly string[] = [];
+export const BRAND_DIRECTORY_PROFILES: readonly string[] = [
+  'https://www.saashub.com/devsolvev2',
+  'https://www.producthunt.com/products/devsolve-v2',
+];
 
 export const BRAND_SAME_AS: readonly string[] = [
   ...BRAND_CORE_PROFILES,

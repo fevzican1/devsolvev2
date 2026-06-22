@@ -123,8 +123,17 @@ function clampInt(raw, fallback, min, max) {
 // an immediate crawl signal without waiting for the daily slice rotation.
 const BING_SEED_URLS = [
   `${DOMAIN}/`,
-  `${DOMAIN}/guides/jwt-decoding-browser`,
   `${DOMAIN}/about`,
+  `${DOMAIN}/contact`,
+  `${DOMAIN}/tools/url-encode-decode`,
+  `${DOMAIN}/tools/html-entity-encode-decode`,
+  `${DOMAIN}/tools/text-case-converter`,
+  `${DOMAIN}/tools/json-formatter`,
+  `${DOMAIN}/guides/jwt-decoding-browser`,
+  `${DOMAIN}/guides/sql-formatting`,
+  `${DOMAIN}/guides/markdown-preview-safety`,
+  `${DOMAIN}/guides/hashing-integrity`,
+  `${DOMAIN}/guides/json-validation-formatting`,
   `${DOMAIN}/k/json-generate-json-schema-api-consumer-resolve-merge-conflict-json-to-typescript-1150412`,
   `${DOMAIN}/k/formatting-validate-markdown-syntax-technical-writer-prepare-api-response-sql-formatter-7123065`,
   `${DOMAIN}/k/api-construct-query-string-technical-writer-document-api-endpoint-url-encode-decode-10079551`,

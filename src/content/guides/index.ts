@@ -16,7 +16,7 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['json-to-typescript', 'base64-encode-decode', 'diff-checker'],
     clusterKeys: ['json', 'formatting', 'validation', 'data'],
     programmaticLinkCountTarget: 20,
-    description: 'Validate, format, and pretty-print JSON with confidence: catch syntax errors early, normalise structure for clean diffs, and keep large payloads readable.',
+    description: 'Validate, format, and pretty-print JSON with confidence: catch syntax errors early, normalise structure for clean diffs, and keep large payloads readable in reviews.',
   },
   {
     slug: 'jwt-decoding-browser',
@@ -25,7 +25,7 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['base64-encode-decode', 'hash-generator', 'json-formatter'],
     clusterKeys: ['jwt', 'security', 'tokens', 'authentication'],
     programmaticLinkCountTarget: 15,
-    description: 'Decode and inspect JWT headers, payloads, and claims locally in your browser with zero server uploads — debug auth flows, verify expirations, and catch malformed or tampered tokens safely.',
+    description: 'Decode JWT headers, payloads, and claims locally in your browser. Debug auth flows, verify expirations, and catch malformed tokens safely with zero server uploads.',
   },
   {
     slug: 'hashing-integrity',
@@ -88,7 +88,7 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['html-entity-encode-decode', 'json-formatter', 'text-case-converter'],
     clusterKeys: ['markdown', 'rendering', 'security', 'html'],
     programmaticLinkCountTarget: 12,
-    description: 'Render Markdown safely in client-side apps: sanitise HTML, prevent XSS from untrusted input, and preview content reliably without exposing users to injected scripts.',
+    description: 'Render Markdown safely in client-side apps and sanitise HTML output locally. Prevent XSS from untrusted input and preview content reliably without unsafe scripts.',
   },
   {
     slug: 'sql-formatting',
@@ -97,7 +97,7 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['json-formatter', 'css-minifier', 'diff-checker'],
     clusterKeys: ['sql', 'formatting', 'database', 'conventions'],
     programmaticLinkCountTarget: 20,
-    description: 'Establish consistent, readable SQL formatting: indentation, keyword casing, and clause alignment that make queries easier to review, diff, and maintain across a team.',
+    description: 'Learn SQL formatting rules for readable queries: consistent indentation, keyword casing, and clause alignment that help teams review, diff, and maintain SQL faster.',
   },
   {
     slug: 'minification-basics',

@@ -14,7 +14,7 @@ import { BRAND_SAME_AS } from '@/lib/seo/organization';
 export const metadata: Metadata = buildMetadata({
   title: 'Contact DevSolve — Support, Partnerships & Inquiries',
   description:
-    'Get in touch with DevSolve for product support, partnership inquiries, policy questions, or business communication. Typical response within 2 business days.',
+    'Contact DevSolve for product support, partnership inquiries, policy questions, or business communication. We typically respond within two business days on weekdays.',
   path: '/contact',
 });
 
