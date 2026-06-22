@@ -92,6 +92,9 @@ export const metadata: Metadata = {
     description: siteConfig.description,
     images: ['/twitter-image.svg'],
   },
+  other: {
+    'saashub-verification': '7scl5mzbiksx',
+  },
   robots: {
     index: true,
     follow: true,
