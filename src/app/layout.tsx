@@ -94,6 +94,7 @@ export const metadata: Metadata = {
   },
   other: {
     'content-signal': CONTENT_SIGNAL_VALUE,
+    'saashub-verification': '7scl5mzbiksx',
     bingbot: ROBOTS_INDEX_FOLLOW,
     msnbot: ROBOTS_INDEX_FOLLOW,
   },
