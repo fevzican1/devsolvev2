@@ -92,20 +92,47 @@ const modifiers = modifierExecutionStyles.flatMap((s) => modifierDeliveryContext
 /* --------------------------------------------------------------- */
 /*  Priority selection                                              */
 /* --------------------------------------------------------------- */
-const HIGH_VALUE_CLUSTERS = new Set(['json', 'security', 'encoding', 'formatting', 'api', 'debugging']);
+const HIGH_VALUE_CLUSTERS = new Set([
+  'json', 'security', 'encoding', 'formatting', 'api', 'debugging',
+  // Bing WMT "not yet crawled" + "content quality" samples skew heavily toward
+  // web/automation clusters — excluding them from the priority tier meant
+  // Bingbot never received a crawl signal for those URLs despite the main
+  // sitemap listing all 18M. Include every cluster so the fast-crawl tier
+  // is representative of the full corpus.
+  'web', 'automation', 'data', 'text',
+]);
 const PRIMARY_TOOLS = new Set([
   'json-formatter', 'json-to-typescript', 'jwt-decoder',
   'base64-encode-decode', 'regex-tester', 'hash-generator',
+  // Tools appearing in Bing WMT flagged URL samples (web/formatting/automation).
+  'html-entity-encode-decode', 'css-minifier', 'markdown-preview',
+  'url-encode-decode', 'uuid-generator', 'cron-helper', 'sql-formatter',
 ]);
-// Top 6 audiences correspond to the highest converting roles in publisher
-// telemetry for developer-tool sites.
+// Top audiences + every role that appears in Bing WMT sample URLs.
 const PRIORITY_AUDIENCES = new Set([
   'backend-engineer', 'frontend-developer', 'fullstack-developer',
   'devops-engineer', 'security-conscious-developer', 'api-consumer',
+  'technical-writer', 'site-reliability-engineer', 'integration-engineer',
+  'mobile-developer', 'database-administrator', 'cloud-architect', 'ops-engineer',
 ]);
 const PRIORITY_TASKS = new Set([
   'debug-production-issue', 'prepare-api-response', 'sanitize-user-input',
   'validate-auth-token', 'document-api-endpoint', 'prepare-query-parameters',
+  // Tasks from Bing WMT "not yet crawled" / "content quality" samples.
+  'migrate-legacy-system', 'prepare-deployment-artifact', 'clean-up-payload',
+  'inspect-encoded-payload', 'trace-request', 'review-config-change', 'resolve-merge-conflict',
+]);
+
+/**
+ * Global indices from Bing Webmaster Tools sample URLs (content quality +
+ * not yet crawled). Always written to the priority sitemap regardless of the
+ * cluster/audience filter so Bingbot receives an explicit crawl signal for
+ * URLs it already flagged — zero Cloudflare Function cost (static XML only).
+ */
+const BING_FLAGGED_INDICES = new Set([
+  1150412, 7123065, 10079551, 17605058, 17596019, 17699736, 16921447, 16402654,
+  16600672, 10117136, 16148495, 16126541, 16128559, 16936654, 17076643, 16983769,
+  17699852, 16646668, 16501563, 16364610,
 ]);
 // Diverse modifier sample (crawl-strategy fix).
 // ---------------------------------------------------------------------------
@@ -138,7 +165,7 @@ const PRIORITY_MODIFIER_INDICES = (() => {
 // relatively fresher than the long-tail WITHOUT restamping it on every deploy —
 // a fabricated freshness signal Google/Bing distrust. Bump SITE_CONTENT_UPDATED_AT
 // (kept in sync with the worker + programmatic generator) for a real refresh.
-const CONTENT_UPDATED_AT = process.env.SITE_CONTENT_UPDATED_AT || '2026-05-18T00:00:00.000Z';
+const CONTENT_UPDATED_AT = process.env.SITE_CONTENT_UPDATED_AT || '2026-06-22T00:00:00.000Z';
 const PRIORITY_LASTMOD = (() => {
   const anchor = Date.parse(process.env.SITEMAP_LASTMOD_ANCHOR || CONTENT_UPDATED_AT);
   return new Date(Number.isFinite(anchor) ? anchor : Date.parse(CONTENT_UPDATED_AT)).toISOString();
@@ -208,12 +235,16 @@ async function main() {
               const indexForGenerator = globalIndex++;
               if (urlsWritten >= MAX_PRIORITY_URLS) break outer;
 
-              // Priority filter
-              if (!HIGH_VALUE_CLUSTERS.has(cluster.key)) continue;
-              if (!PRIMARY_TOOLS.has(tool)) continue;
-              if (!PRIORITY_AUDIENCES.has(audience)) continue;
-              if (!PRIORITY_TASKS.has(task)) continue;
-              if (!PRIORITY_MODIFIER_INDICES.has(m)) continue;
+              const isBingFlagged = BING_FLAGGED_INDICES.has(indexForGenerator);
+
+              // Priority filter — bypass for Bing WMT flagged indices.
+              if (!isBingFlagged) {
+                if (!HIGH_VALUE_CLUSTERS.has(cluster.key)) continue;
+                if (!PRIMARY_TOOLS.has(tool)) continue;
+                if (!PRIORITY_AUDIENCES.has(audience)) continue;
+                if (!PRIORITY_TASKS.has(task)) continue;
+                if (!PRIORITY_MODIFIER_INDICES.has(m)) continue;
+              }
 
               const slug = buildSlug(cluster.key, intent, audience, task, tool, indexForGenerator);
               writeUrl(currentFile.stream, `${siteUrl}/k/${slug}`, PRIORITY_LASTMOD);

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 const siteUrl = (process.env.SITE_URL || process.env.URL || 'https://devsolvev2.com').replace(/\/$/, '');
 // Fixed content-update date — must match siteConfig.contentUpdatedAt so that
 // sitemap lastmod and page dateModified are consistent for Google.
-const CONTENT_UPDATED_AT = process.env.SITE_CONTENT_UPDATED_AT || '2026-05-18T00:00:00.000Z';
+const CONTENT_UPDATED_AT = process.env.SITE_CONTENT_UPDATED_AT || '2026-06-22T00:00:00.000Z';
 // Domain "production epoch" — the day devsolvev2.com first went live. Any
 // staggered <lastmod> below this value is non-sensical (the site didn't exist
 // yet) and Google will flag it as fabricated. Any value above the current

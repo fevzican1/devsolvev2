@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { siteConfig } from '@/config/site';
 import { CONTENT_SIGNAL_VALUE } from '@/lib/seo/contentSignal';
-import { ensureSeoDescription, ROBOTS_INDEX_FOLLOW } from '@/lib/seo/seoText';
+import { buildPageTitle, ensureSeoDescription, ROBOTS_INDEX_FOLLOW } from '@/lib/seo/seoText';
 import { absoluteUrl } from '@/lib/seo/url';
 
 type MetadataInput = {
@@ -25,9 +25,10 @@ export function buildMetadata({
 }: MetadataInput): Metadata {
   const url = absoluteUrl(path);
   const safeDescription = ensureSeoDescription(description ?? siteConfig.description);
+  const safeTitle = title ? buildPageTitle(title) : undefined;
 
   return {
-    title,
+    ...(safeTitle ? { title: { absolute: safeTitle } } : { title }),
     description: safeDescription,
     alternates: {
       canonical: url,
@@ -36,7 +37,7 @@ export function buildMetadata({
     openGraph: {
       type: articleSection ? 'article' : 'website',
       url,
-      title: title ?? siteConfig.name,
+      title: safeTitle ?? title ?? siteConfig.name,
       description: safeDescription,
       siteName: siteConfig.name,
       locale: 'en_US',
@@ -54,7 +55,7 @@ export function buildMetadata({
     },
     twitter: {
       card: 'summary_large_image',
-      title: title ?? siteConfig.name,
+      title: safeTitle ?? title ?? siteConfig.name,
       description: safeDescription,
       images: [absoluteUrl('/twitter-image')],
     },

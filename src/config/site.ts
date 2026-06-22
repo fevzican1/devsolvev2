@@ -22,7 +22,7 @@ export const siteConfig = {
   },
 
   launchDate: '2026-01-15T00:00:00Z',
-  contentUpdatedAt: '2026-05-18T00:00:00Z',
+  contentUpdatedAt: '2026-06-22T00:00:00Z',
 
   features: {
     darkMode: true,
