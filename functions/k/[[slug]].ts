@@ -58,7 +58,7 @@ const DEFAULT_LOCALE = 'en-US';
 
 // Must match siteConfig.contentUpdatedAt — update here and in src/config/site.ts together.
 // The sitemap generator reads the same value via SITE_CONTENT_UPDATED_AT env var.
-const CONTENT_UPDATED_AT = '2026-05-18T00:00:00Z';
+const CONTENT_UPDATED_AT = '2026-06-22T00:00:00Z';
 
 /* ------------------------------------------------------------------ */
 /*  Core data arrays — must match src/data/programmatic.ts exactly     */
@@ -2679,6 +2679,11 @@ footer a{color:#2563eb;text-decoration:none}
 </div>
 
 <h1 itemprop="headline">${escapeHtml(page.h1)}</h1>
+<p style="font-size:0.85rem;color:#64748b;margin-bottom:0.75rem">
+<time datetime="${datePublished}" itemprop="datePublished">Published ${escapeHtml(datePublished.slice(0, 10))}</time>
+ · <time datetime="${dateModified}" itemprop="dateModified">Updated ${escapeHtml(dateModified.slice(0, 10))}</time>
+ · <span itemprop="author" itemscope itemtype="https://schema.org/Organization"><span itemprop="name">DevSolve Editorial Team</span></span>
+</p>
 
 <div style="margin-bottom:1rem">
 <span class="badge"><span role="img" aria-label="Lock">🔒</span> Runs locally in your browser</span>

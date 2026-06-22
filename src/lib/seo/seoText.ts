@@ -57,6 +57,14 @@ export function ensureSeoTitle(raw: string, minLength = 30): string {
   return `${text} — DevSolve Technical Guide`;
 }
 
+/** Strip trailing em-dashes / hyphens so brand suffix never produces "— — DevSolve". */
+function normalizeTitleCore(text: string): string {
+  return text
+    .replace(/\s—\sDevSolve Technical Guide$/i, '')
+    .replace(/[\s—–\-]+$/g, '')
+    .trim();
+}
+
 /**
  * Builds the document <title>. Bing Webmaster Tools flags "Title too long" for
  * titles beyond ~60 characters (and search engines truncate the SERP display
@@ -72,13 +80,13 @@ export function buildPageTitle(
   maxLength = 60,
 ): string {
   const brand = ` — ${siteName}`;
-  const safe = ensureSeoTitle(title);
+  const safe = normalizeTitleCore(ensureSeoTitle(title));
   const full = `${safe}${brand}`;
   if (full.length <= maxLength) return full;
 
   // Too long → keep the brand, trim the descriptive core to fit.
   const budget = Math.max(20, maxLength - brand.length);
-  const core = clampAtWord(safe, budget);
+  const core = normalizeTitleCore(clampAtWord(safe, budget));
   const clamped = `${core}${brand}`;
   return clamped.length <= maxLength ? clamped : clampAtWord(clamped, maxLength);
 }

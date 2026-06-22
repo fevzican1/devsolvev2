@@ -119,6 +119,32 @@ function clampInt(raw, fallback, min, max) {
   return Math.min(max, Math.max(min, n));
 }
 
+// Bing WMT flagged sample URLs — always submitted first each run so Bingbot
+// receives an explicit crawl signal for URLs it already reported as "not yet
+// crawled" or "content quality". Static list, 20 URLs, zero Function cost.
+const BING_SEED_URLS = [
+  `${DOMAIN}/k/json-generate-json-schema-api-consumer-resolve-merge-conflict-json-to-typescript-1150412`,
+  `${DOMAIN}/k/formatting-validate-markdown-syntax-technical-writer-prepare-api-response-sql-formatter-7123065`,
+  `${DOMAIN}/k/api-construct-query-string-technical-writer-document-api-endpoint-url-encode-decode-10079551`,
+  `${DOMAIN}/k/web-encode-url-parameters-site-reliability-engineer-prepare-api-response-markdown-preview-17605058`,
+  `${DOMAIN}/k/web-encode-url-parameters-technical-writer-migrate-legacy-system-markdown-preview-17596019`,
+  `${DOMAIN}/k/web-minify-stylesheet-technical-writer-migrate-legacy-system-markdown-preview-17699736`,
+  `${DOMAIN}/k/web-preview-content-markup-technical-writer-inspect-encoded-payload-css-minifier-16921447`,
+  `${DOMAIN}/k/web-protect-against-xss-technical-writer-clean-up-payload-html-entity-encode-decode-16402654`,
+  `${DOMAIN}/k/web-compress-web-assets-integration-engineer-migrate-legacy-system-html-entity-encode-decode-16600672`,
+  `${DOMAIN}/k/api-authenticate-api-request-api-consumer-sanitize-user-input-url-encode-decode-10117136`,
+  `${DOMAIN}/k/automation-configure-periodic-cleanup-mobile-developer-clean-up-payload-uuid-generator-16148495`,
+  `${DOMAIN}/k/automation-configure-periodic-cleanup-frontend-developer-prepare-deployment-artifact-uuid-generator-16126541`,
+  `${DOMAIN}/k/automation-configure-periodic-cleanup-fullstack-developer-validate-auth-token-uuid-generator-16128559`,
+  `${DOMAIN}/k/web-preview-content-markup-cloud-architect-sanitize-user-input-css-minifier-16936654`,
+  `${DOMAIN}/k/web-minify-stylesheet-technical-writer-sanitize-user-input-css-minifier-17076643`,
+  `${DOMAIN}/k/web-encode-url-parameters-site-reliability-engineer-trace-request-css-minifier-16983769`,
+  `${DOMAIN}/k/web-minify-stylesheet-technical-writer-prepare-deployment-artifact-markdown-preview-17699852`,
+  `${DOMAIN}/k/web-validate-markup-output-fullstack-developer-inspect-encoded-payload-html-entity-encode-decode-16646668`,
+  `${DOMAIN}/k/web-render-dynamic-content-ops-engineer-inspect-encoded-payload-html-entity-encode-decode-16501563`,
+  `${DOMAIN}/k/web-encode-url-parameters-database-administrator-review-config-change-html-entity-encode-decode-16364610`,
+];
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function safeText(response) {
   try { return await response.text(); } catch { return '(no body)'; }
@@ -284,12 +310,15 @@ async function run() {
 
   // Pass 2: stream again, collect only the rolling-window URLs into small
   // batches, and send each batch sequentially with a pacing delay.
+  // Bing WMT seed URLs are submitted first (deduped) so flagged pages get
+  // an immediate crawl signal without waiting for the daily slice rotation.
   let globalIndex = 0;
-  let batch = [];
+  let batch = [...BING_SEED_URLS];
   let sent = 0;
   let ok = 0;
   let failed = 0;
   let first = true;
+  const seen = new Set(BING_SEED_URLS);
 
   const flush = async () => {
     if (batch.length === 0) return;
@@ -311,6 +340,8 @@ async function run() {
       const idx = globalIndex++;
       if (idx < start) continue;
       if (idx >= end) break;
+      if (seen.has(url)) continue;
+      seen.add(url);
       batch.push(url);
       if (batch.length >= BATCH_SIZE) await flush();
     }

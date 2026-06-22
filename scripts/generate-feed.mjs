@@ -68,21 +68,36 @@ function labelForSlug(slug) {
 async function collectUrls() {
   if (!existsSync(outDir)) return [];
   const files = await readdir(outDir);
-  // Prefer the priority ("fresh tier") sitemaps; fall back to programmatic.
   const priority = files.filter((f) => /^sitemap-priority-\d{4}\.xml$/i.test(f)).sort();
   const programmatic = files.filter((f) => /^sitemap-programmatic-\d{4}\.xml$/i.test(f)).sort();
-  const chosen = priority.length > 0 ? priority : programmatic;
+  const tier = files.filter((f) => /^sitemap-tier1-\d{4}\.xml$/i.test(f)).sort();
+  const chosen = priority.length > 0 ? priority : (tier.length > 0 ? tier : programmatic);
   if (chosen.length === 0) return [];
 
   const urls = [];
-  for (const f of chosen) {
+  const seen = new Set();
+
+  // Sample across multiple sitemap chunks so the feed spans clusters (web,
+  // automation, json, …) instead of only the first 1000 lexicographic URLs.
+  const stride = Math.max(1, Math.floor(chosen.length / 12));
+  const sampledFiles = [];
+  for (let i = 0; i < chosen.length && sampledFiles.length < 12; i += stride) {
+    sampledFiles.push(chosen[i]);
+  }
+  if (sampledFiles.length === 0) sampledFiles.push(chosen[0]);
+
+  for (const f of sampledFiles) {
     if (urls.length >= FEED_MAX_ITEMS) break;
     const xml = await readFile(join(outDir, f), 'utf8');
     const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+    const perFile = Math.ceil(FEED_MAX_ITEMS / sampledFiles.length);
+    let taken = 0;
     for (const loc of locs) {
-      if (urls.length >= FEED_MAX_ITEMS) break;
-      if (!/\/k\//.test(loc)) continue;
+      if (urls.length >= FEED_MAX_ITEMS || taken >= perFile) break;
+      if (!/\/k\//.test(loc) || seen.has(loc)) continue;
+      seen.add(loc);
       urls.push(loc);
+      taken += 1;
     }
   }
   return urls;
