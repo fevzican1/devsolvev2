@@ -48,8 +48,9 @@ export const BRAND_CORE_PROFILES: readonly string[] = [
  * back to devsolvev2.com. Add URLs here only after the listing is live and
  * the profile's website field points at the canonical domain.
  */
-/** Live PH product (slug: devsolve-v2, tagline: privacy-first browser developer tools). */
-export const BRAND_PRODUCT_HUNT_URL = 'https://www.producthunt.com/products/devsolve-v2';
+/** Live PH product (devsolve-2 launch: devsolve-v2, tagline: privacy-first browser developer tools). */
+export const BRAND_PRODUCT_HUNT_URL =
+  'https://www.producthunt.com/products/devsolve-2?launch=devsolve-v2';
 
 export const BRAND_DIRECTORY_PROFILES: readonly string[] = [
   'https://www.saashub.com/devsolvev2',
