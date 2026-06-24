@@ -42,7 +42,7 @@ export default function ToolsPage() {
     '@context': externalUrls.schemaOrg,
     '@type': 'CollectionPage',
     name: 'Free Online Developer Tools',
-    description: 'Browse 15+ free browser-based developer tools for formatting, validation, encoding, and debugging workflows.',
+    description: 'Browse 16+ free browser-based developer tools for formatting, validation, encoding, and debugging workflows.',
     url: absoluteUrl('/tools'),
     mainEntity: {
       '@type': 'ItemList',

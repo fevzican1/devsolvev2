@@ -237,6 +237,22 @@ export const toolRegistry: ToolDefinition[] = [
     isHeavy: true,
   },
   {
+    slug: 'devsolveai',
+    name: 'DevSolveAI Assistant',
+    shortDescription: 'Local AI helper for DevSolve tools — runs in your browser',
+    description: 'Ask DevSolveAI about any DevSolve tool, diagnose JSON errors, get regex suggestions, inspect JWT structure, and find the right utility for your task. Fully local — no server or Cloudflare Function calls.',
+    category: 'validation',
+    keywords: ['ai', 'assistant', 'help', 'local', 'devsolveai', 'diagnose'],
+    limitations: [
+      'Rule-based local assistant — not a cloud LLM',
+      'Does not verify JWT signatures or execute code',
+      'Complex architectural questions may need human review',
+    ],
+    relatedTools: ['json-formatter', 'regex-tester', 'jwt-decoder'],
+    relatedGuides: ['json-validation-formatting'],
+    isHeavy: false,
+  },
+  {
     slug: 'json-to-typescript',
     name: 'JSON to TypeScript (Basic)',
     shortDescription: 'Generate TypeScript interfaces from JSON data automatically',
