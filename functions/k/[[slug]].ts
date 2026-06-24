@@ -30,6 +30,7 @@ import {
   ensureSeoTitle,
   ROBOTS_INDEX_FOLLOW,
 } from '../../src/lib/seo/seoText';
+import { ACCESS_DENIED_HEADERS, decideAccess } from '../_shared/botGuard';
 import { escapeHtml } from '../_shared/sectionFallback';
 import { buildIntentExample } from '../_shared/intentExamples';
 
@@ -3362,18 +3363,38 @@ function cachePut(request: Request, response: Response, context: EventContext<En
 
 /* ------------------------------------------------------------------ */
 /*  Cloudflare Pages Function handler                                  */
-/*  Bot/scraper blocking lives in functions/_middleware.ts — blocked  */
-/*  clients never reach this handler (no HTML generation CPU spent).   */
 /* ------------------------------------------------------------------ */
 
 export const onRequest: PagesFunction<Env> = async (context) => {
-  // Non-document methods never need HTML generation — reject cheaply.
   if (context.request.method !== 'GET' && context.request.method !== 'HEAD') {
     return new Response('Method Not Allowed', {
       status: 405,
       headers: {
         Allow: 'GET, HEAD',
         'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+      },
+    });
+  }
+
+  const ua = context.request.headers.get('user-agent') || '';
+  if (decideAccess(ua, context.request.cf, {
+    secChUa: context.request.headers.get('sec-ch-ua'),
+    secChUaMobile: context.request.headers.get('sec-ch-ua-mobile'),
+  }) === 'block') {
+    return new Response('Access Denied', {
+      status: 403,
+      headers: ACCESS_DENIED_HEADERS,
+    });
+  }
+
+  const earlyUrl = new URL(context.request.url);
+  if (earlyUrl.hostname.includes('pages.dev')) {
+    return new Response('Siktir Git', {
+      status: 403,
+      headers: {
+        'Content-Type': 'text/plain;charset=UTF-8',
+        'X-Robots-Tag': 'noindex, nofollow',
+        'Cache-Control': 'public, max-age=86400',
       },
     });
   }
@@ -3395,8 +3416,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     [CONTENT_SIGNAL_HEADER]: CONTENT_SIGNAL_VALUE,
   };
 
-  // Workers Cache API — serves warm responses even when dashboard Cache Rules
-  // are missing or misconfigured (common cause of Function budget burn).
+  // Workers Cache API — check BEFORE bot guard so warm edge hits skip UA logic.
   const cacheRequest = new Request(context.request.url, { method: 'GET' });
   const cachedResponse = await matchWorkerCache(cacheRequest);
   if (cachedResponse) {

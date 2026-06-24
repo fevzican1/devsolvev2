@@ -1,12 +1,16 @@
 /**
- * Edge bot guard — runs in `functions/_middleware.ts` BEFORE any Pages Function
- * handler so blocked clients never invoke the heavy /k/* HTML generator.
+ * Strict allowlist for /k/* — ONLY:
+ *   • Google search crawlers
+ *   • Bing search crawlers
+ *   • DuckDuckGo crawlers
+ *   • Verified real human browsers (header-checked Chromium, Firefox, Safari)
  *
- * Policy (site owner requirement):
- *   • ALLOW — Google search crawlers (fail-open when cf ASN cannot be verified)
- *   • ALLOW — Bing search crawlers (bingbot / bingpreview / adidxbot / msnbot)
- *   • ALLOW — mainstream human browsers (Chrome, Firefox, Safari, Edge, …)
- *   • BLOCK — every other bot, scraper, headless client, social unfurler, AI crawler
+ * Everything else is blocked: AI scrapers, social unfurlers, Apple/Meta/Baidu
+ * bots, fake Chrome UAs, headless clients, curl/python/etc.
+ *
+ * Pages Function code still counts as 1 invocation per /k/* request that
+ * reaches it. To block attackers with ZERO Function invocations, deploy the
+ * matching WAF rule: `node scripts/deploy-waf-bot-block.mjs`
  */
 
 export interface CfRequestProperties {
@@ -16,34 +20,12 @@ export interface CfRequestProperties {
   botManagement?: { verifiedBot?: boolean; score?: number };
 }
 
+export interface GuardHeaders {
+  secChUa: string | null;
+  secChUaMobile: string | null;
+}
+
 export type AccessDecision = 'allow' | 'block';
-
-const BLOCKED_BOT_PATTERNS: readonly string[] = [
-  'gptbot', 'ahrefsbot', 'ahrefssiteaudit', 'semrushbot', 'yandexbot', 'yandex.com/bots',
-  'meta-webindexer', 'meta-externalagent', 'meta-externalfetcher',
-  'facebookexternalhit', 'facebookcatalog', 'twitterbot', 'linkedinbot',
-  'slackbot', 'slack-imgproxy', 'discordbot', 'telegrambot', 'whatsapp', 'redditbot',
-  'pinterest', 'pinterestbot', 'embedly', 'iframely', 'skypeuripreview',
-  'mastodon', 'pleroma', 'akkoma', 'misskey', 'flipboard', 'nuzzel', 'tumblr', 'vkshare',
-  'bitlybot', 'snapchat', 'line-podcast', 'kakaotalk-scrap', 'google-amphtml',
-  'chatgpt-user', 'oai-searchbot', 'openai', 'anthropic-ai', 'claude-web', 'claudebot',
-  'perplexitybot', 'perplexity-user', 'youbot', 'cohere-ai', 'cohere-training-data-crawler',
-  'google-extended',
-  'bytespider', 'amazonbot', 'applebot', 'applebot-extended', 'diffbot', 'omgilibot', 'omgili',
-  'ccbot', 'common crawl', 'commoncrawl', 'duckduckbot', 'duckduckgo-favicons-bot',
-  'mj12bot', 'dotbot', 'blexbot', 'petalbot', 'dataforseobot', 'seznambot', 'aspiegelbot',
-  'sogou', 'exabot', 'megaindex', 'serpstatbot', 'barkrowler', 'zoominfobot',
-  'seekport', 'linkdexbot', 'rogerbot', 'sistrix', 'pingdom', 'screaming frog',
-  'netcraftsurveyagent', 'gigabot', 'leikibot', 'palo alto', 'wpscan',
-  'scrapy', 'httrack', 'wget', 'curl/', 'libwww-perl', 'python-requests', 'python-urllib',
-  'go-http-client', 'java/', 'okhttp', 'node-fetch', 'axios/', 'phantomjs', 'headlesschrome',
-  'puppeteer', 'playwright', 'selenium', 'masscan', 'nikto', 'nmap', 'sqlmap', 'fuzz', 'zgrab',
-  'censys', 'shodan', 'binlar', 'spbot', 'mauibot', 'researchscan',
-];
-
-const BING_UA_MARKERS: readonly string[] = [
-  'bingbot', 'bingpreview', 'adidxbot', 'msnbot',
-];
 
 const GOOGLE_UA_MARKERS: readonly string[] = [
   'googlebot', 'adsbot-google', 'mediapartners-google', 'storebot-google',
@@ -51,26 +33,61 @@ const GOOGLE_UA_MARKERS: readonly string[] = [
   'apis-google', 'duplexweb-google', 'googleother',
 ];
 
+const BING_UA_MARKERS: readonly string[] = [
+  'bingbot', 'bingpreview', 'adidxbot', 'msnbot',
+];
+
+const DUCKDUCK_UA_MARKERS: readonly string[] = [
+  'duckduckbot', 'duckduckgo-favicons-bot',
+];
+
+/** Always block — includes the attack sources called out by site owner. */
+const HARD_BLOCK_PATTERNS: readonly string[] = [
+  // Meta / Apple / Baidu / Claude / AI
+  'meta-webindexer', 'meta-externalagent', 'meta-externalfetcher', 'facebookexternalhit',
+  'facebookcatalog', 'facebookbot',
+  'applebot', 'applebot-extended', 'apple-pubsub',
+  'baidu', 'baiduspider', 'yandexbot', 'yandex.com/bots', 'sogou', 'sogou web spider',
+  'chatgpt-user', 'oai-searchbot', 'openai', 'anthropic-ai', 'claude-web', 'claudebot',
+  'claude-searchbot', 'searchbot', 'gptbot', 'google-extended',
+  'perplexitybot', 'perplexity-user', 'youbot', 'cohere-ai', 'cohere-training-data-crawler',
+  'bytespider', 'amazonbot', 'diffbot', 'omgilibot', 'omgili', 'ccbot',
+  'common crawl', 'commoncrawl',
+  // SEO / scraper / social
+  'ahrefsbot', 'ahrefssiteaudit', 'semrushbot', 'mj12bot', 'dotbot', 'blexbot', 'petalbot',
+  'dataforseobot', 'seznambot', 'aspiegelbot', 'exabot', 'megaindex', 'serpstatbot',
+  'barkrowler', 'zoominfobot', 'seekport', 'linkdexbot', 'rogerbot', 'sistrix',
+  'twitterbot', 'linkedinbot', 'slackbot', 'slack-imgproxy', 'discordbot', 'telegrambot',
+  'redditbot', 'pinterest', 'pinterestbot', 'embedly', 'iframely', 'mastodon',
+  // Fake browser / automation
+  'chrome-extension', 'headlesschrome', 'headless', 'phantomjs', 'puppeteer', 'playwright',
+  'selenium', 'electron/', 'scrapy', 'httrack', 'wget', 'curl/', 'libwww-perl',
+  'python-requests', 'python-urllib', 'go-http-client', 'java/', 'okhttp', 'node-fetch',
+  'axios/', 'masscan', 'nikto', 'nmap', 'sqlmap', 'fuzz', 'zgrab', 'censys', 'shodan',
+  'pingdom', 'screaming frog', 'netcraftsurveyagent', 'gigabot', 'leikibot', 'wpscan',
+  'binlar', 'spbot', 'mauibot', 'researchscan', 'palo alto',
+];
+
 const GOOGLE_ASNS: ReadonlySet<number> = new Set([15169, 396982]);
 
-function uaClaimsGoogle(lowerUa: string): boolean {
-  return GOOGLE_UA_MARKERS.some((m) => lowerUa.includes(m));
+function lowerIncludesAny(lower: string, markers: readonly string[]): boolean {
+  return markers.some((m) => lower.includes(m));
 }
 
-function uaClaimsBing(lowerUa: string): boolean {
-  return BING_UA_MARKERS.some((m) => lowerUa.includes(m));
+function matchesHardBlock(lower: string): boolean {
+  return HARD_BLOCK_PATTERNS.some((p) => lower.includes(p));
 }
 
-function isBlockedUserAgent(ua: string): boolean {
-  if (!ua) return true;
-  const lower = ua.toLowerCase();
+function uaClaimsGoogle(lower: string): boolean {
+  return lowerIncludesAny(lower, GOOGLE_UA_MARKERS);
+}
 
-  if (uaClaimsGoogle(lower) || uaClaimsBing(lower)) return false;
+function uaClaimsBing(lower: string): boolean {
+  return lowerIncludesAny(lower, BING_UA_MARKERS);
+}
 
-  for (const pattern of BLOCKED_BOT_PATTERNS) {
-    if (lower.includes(pattern)) return true;
-  }
-  return false;
+function uaClaimsDuckDuckGo(lower: string): boolean {
+  return lowerIncludesAny(lower, DUCKDUCK_UA_MARKERS);
 }
 
 function isNetworkVerifiedGoogle(cf?: CfRequestProperties): boolean | null {
@@ -79,27 +96,67 @@ function isNetworkVerifiedGoogle(cf?: CfRequestProperties): boolean | null {
   if (cf.botManagement?.verifiedBot === true) return true;
   if (typeof cf.asn === 'number' && GOOGLE_ASNS.has(cf.asn)) return true;
   if (cf.asOrganization && /google/i.test(cf.asOrganization)) return true;
-  // Fail-open: a false block deindexes the site; a spoofed Googlebot only gets
-  // cheap edge-cached HTML, not an attack surface.
   return null;
 }
 
-function looksLikeRealBrowser(lowerUa: string): boolean {
-  if (!lowerUa.includes('mozilla/')) return false;
-  return (
-    lowerUa.includes('chrome/') || lowerUa.includes('crios/') ||
-    lowerUa.includes('firefox/') || lowerUa.includes('fxios/') ||
-    lowerUa.includes('safari/') || lowerUa.includes('edg/') ||
-    lowerUa.includes('edga/') || lowerUa.includes('edgios/') ||
-    lowerUa.includes('opr/') || lowerUa.includes('opera') ||
-    lowerUa.includes('samsungbrowser/')
-  );
+/**
+ * Real human browser — rejects Chrome UA strings without sec-ch-ua (typical
+ * of scrapers pretending to be desktop Chrome / extension abuse).
+ */
+function looksLikeRealHumanBrowser(ua: string, headers: GuardHeaders): boolean {
+  const lower = ua.toLowerCase();
+  if (!lower.includes('mozilla/')) return false;
+
+  if (matchesHardBlock(lower)) return false;
+
+  // iOS in-app browsers (Instagram, Facebook, TikTok link taps) — real users,
+  // not crawlers. Typical pattern: iPhone/iPad + AppleWebKit + Mobile.
+  if (/(?:iphone|ipad|ipod)/.test(lower) && lower.includes('applewebkit/') && lower.includes('mobile/')) {
+    if (/(?:bot|crawler|spider|facebookexternalhit|meta-webindexer|applebot|baiduspider)/.test(lower)) {
+      return false;
+    }
+    return true;
+  }
+
+  // Android WebView / in-app browsers (Chrome WebView token " wv" or Mobile Safari-like)
+  if (lower.includes('android') && lower.includes('applewebkit/') && lower.includes('mobile')) {
+    if (/(?:bot|crawler|spider|baiduspider|semrushbot|ahrefsbot)/.test(lower)) return false;
+    return true;
+  }
+
+  // Firefox / Firefox iOS
+  if (lower.includes('firefox/') || lower.includes('fxios/')) {
+    return lower.includes('gecko/');
+  }
+
+  // Safari (not Chromium pretending to be Safari)
+  if (lower.includes('safari/') && !/(?:chrome\/|chromium\/|crios\/|edg\/|opr\/)/.test(lower)) {
+    return lower.includes('applewebkit/') && lower.includes('version/');
+  }
+
+  // iOS Chrome
+  if (lower.includes('crios/')) return true;
+
+  // Chromium family — require Client Hints on desktop; allow Android Chrome / Samsung
+  if (/(?:chrome\/|edg\/|edga\/|edgios\/|opr\/|samsungbrowser\/)/.test(lower)) {
+    const secChUa = headers.secChUa?.trim() ?? '';
+    if (secChUa.length > 2) return true;
+    if (lower.includes('android')) return true;
+    return false;
+  }
+
+  return false;
 }
 
-export function decideAccess(ua: string, cf?: CfRequestProperties): AccessDecision {
+export function decideAccess(
+  ua: string,
+  cf?: CfRequestProperties,
+  headers: GuardHeaders = { secChUa: null, secChUaMobile: null },
+): AccessDecision {
   if (!ua) return 'block';
 
   const lower = ua.toLowerCase();
+  if (matchesHardBlock(lower)) return 'block';
 
   if (uaClaimsGoogle(lower)) {
     const verified = isNetworkVerifiedGoogle(cf);
@@ -107,12 +164,9 @@ export function decideAccess(ua: string, cf?: CfRequestProperties): AccessDecisi
   }
 
   if (uaClaimsBing(lower)) return 'allow';
+  if (uaClaimsDuckDuckGo(lower)) return 'allow';
 
-  if (isBlockedUserAgent(ua)) return 'block';
-
-  if (looksLikeRealBrowser(lower)) return 'allow';
-
-  if (isNetworkVerifiedGoogle(cf) === true) return 'allow';
+  if (looksLikeRealHumanBrowser(ua, headers)) return 'allow';
 
   return 'block';
 }
