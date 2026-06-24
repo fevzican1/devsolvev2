@@ -1599,3 +1599,156 @@ export function getAllProgrammaticSlugs(): string[] {
   }
   return slugs;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Priority slug selection — MUST stay in sync with                    */
+/*  scripts/generate-priority-sitemap.mjs                              */
+/* ------------------------------------------------------------------ */
+
+const HIGH_VALUE_CLUSTERS = new Set<ClusterKey>([
+  'json', 'security', 'encoding', 'formatting', 'api', 'debugging',
+  'web', 'automation', 'data', 'text',
+]);
+
+const PRIMARY_TOOLS = new Set([
+  'json-formatter', 'json-to-typescript', 'jwt-decoder',
+  'base64-encode-decode', 'regex-tester', 'hash-generator',
+  'html-entity-encode-decode', 'css-minifier', 'markdown-preview',
+  'url-encode-decode', 'uuid-generator', 'cron-helper', 'sql-formatter',
+]);
+
+const PRIORITY_AUDIENCES = new Set([
+  'backend-engineer', 'frontend-developer', 'fullstack-developer',
+  'devops-engineer', 'security-conscious-developer', 'api-consumer',
+  'technical-writer', 'site-reliability-engineer', 'integration-engineer',
+  'mobile-developer', 'database-administrator', 'cloud-architect', 'ops-engineer',
+]);
+
+const PRIORITY_TASKS = new Set([
+  'debug-production-issue', 'prepare-api-response', 'sanitize-user-input',
+  'validate-auth-token', 'document-api-endpoint', 'prepare-query-parameters',
+  'migrate-legacy-system', 'prepare-deployment-artifact', 'clean-up-payload',
+  'inspect-encoded-payload', 'trace-request', 'review-config-change', 'resolve-merge-conflict',
+]);
+
+const BING_FLAGGED_INDICES = new Set([
+  1150412, 7123065, 10079551, 17605058, 17596019, 17699736, 16921447, 16402654,
+  16600672, 10117136, 16148495, 16126541, 16128559, 16936654, 17076643, 16983769,
+  17699852, 16646668, 16501563, 16364610,
+]);
+
+const PRIORITY_MODIFIER_INDICES = (() => {
+  const set = new Set<number>();
+  const contextCount = modifierDeliveryContexts.length;
+  for (let s = 0; s < modifierExecutionStyles.length; s += 1) {
+    for (const offset of [0, 5, 11]) {
+      const c = (s * 2 + offset) % contextCount;
+      set.add(s * contextCount + c);
+    }
+  }
+  return set;
+})();
+
+function isPriorityProgrammaticIndex(
+  globalIndex: number,
+  clusterKey: ClusterKey,
+  tool: string,
+  audience: string,
+  task: string,
+  modifierIndex: number,
+): boolean {
+  if (BING_FLAGGED_INDICES.has(globalIndex)) return true;
+
+  return (
+    HIGH_VALUE_CLUSTERS.has(clusterKey)
+    && PRIMARY_TOOLS.has(tool)
+    && PRIORITY_AUDIENCES.has(audience)
+    && PRIORITY_TASKS.has(task)
+    && PRIORITY_MODIFIER_INDICES.has(modifierIndex)
+  );
+}
+
+/**
+ * Collect slugs for build-time SSG — same selection as the priority sitemap tier.
+ * Pre-rendering these paths means Cloudflare serves HTML from `out/` with zero
+ * Pages Function invocations (Googlebot included).
+ */
+export function collectPrioritySlugs(limit: number): string[] {
+  if (limit <= 0) return [];
+
+  const slugs: string[] = [];
+  let globalIndex = 0;
+
+  outer:
+  for (const cluster of clusters) {
+    for (const tool of cluster.tools) {
+      for (const intent of cluster.intents) {
+        for (const audience of audiences) {
+          for (const task of tasks) {
+            for (let modifierIndex = 0; modifierIndex < modifierPatterns.length; modifierIndex += 1) {
+              const indexForGenerator = globalIndex;
+              globalIndex += 1;
+
+              if (
+                !isPriorityProgrammaticIndex(
+                  indexForGenerator,
+                  cluster.key,
+                  tool,
+                  audience,
+                  task,
+                  modifierIndex,
+                )
+              ) {
+                continue;
+              }
+
+              const slug = getSlugByIndex(indexForGenerator);
+              if (slug) {
+                slugs.push(slug);
+                if (slugs.length >= limit) break outer;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return slugs;
+}
+
+/** Total priority-tier slugs (same selection as the priority sitemap). */
+export function countPrioritySlugs(): number {
+  let count = 0;
+  let globalIndex = 0;
+
+  for (const cluster of clusters) {
+    for (const tool of cluster.tools) {
+      for (const intent of cluster.intents) {
+        for (const audience of audiences) {
+          for (const task of tasks) {
+            for (let modifierIndex = 0; modifierIndex < modifierPatterns.length; modifierIndex += 1) {
+              const indexForGenerator = globalIndex;
+              globalIndex += 1;
+
+              if (
+                isPriorityProgrammaticIndex(
+                  indexForGenerator,
+                  cluster.key,
+                  tool,
+                  audience,
+                  task,
+                  modifierIndex,
+                )
+              ) {
+                count += 1;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return count;
+}

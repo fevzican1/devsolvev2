@@ -30,7 +30,8 @@ interface PageProps {
 }
 
 export const dynamic = 'force-static';
-export const revalidate = false;
+
+// Pure SSG at build time (`output: 'export'`).
 
 export async function generateStaticParams() {
   return guideRegistry.map((guide) => ({ slug: guide.slug }));
