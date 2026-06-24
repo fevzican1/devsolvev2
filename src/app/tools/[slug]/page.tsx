@@ -23,6 +23,7 @@ import { TOOLS_SECTION_METADATA } from '@/lib/seo/sectionMetadata';
 import { absoluteUrl } from '@/lib/seo/url';
 import { RelatedItemsLinks } from '@/components/seo/RelatedItemsLinks';
 import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
+import { ToolAiHelper } from '@/components/ai/ToolAiHelper';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -178,6 +179,7 @@ export default async function ToolPage({ params }: PageProps) {
         <Card className="mb-8">
           <CardContent className="pt-6">
             <ToolRenderer slug={slug} />
+            <ToolAiHelper toolSlug={slug} toolName={tool.name} />
           </CardContent>
         </Card>
 

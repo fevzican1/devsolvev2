@@ -67,6 +67,12 @@ type PagesFunction<Env = unknown> = (context: EventContext<Env>) => Response | P
 
 interface Env {}
 
+/** Cloudflare Workers expose `caches.default` (not in standard lib.dom CacheStorage). */
+interface WorkersCacheStorage extends CacheStorage {
+  readonly default: Cache;
+}
+declare const caches: WorkersCacheStorage;
+
 const LEGACY_PROGRAMMATIC_SLUG_PATTERN = /^(.*)-([0-9]+)$/;
 const DEFAULT_LOCALE = 'en-US';
 
@@ -3292,6 +3298,68 @@ function generateHubHtml(url: URL, requestedSlug?: string): string {
 </html>`;
 }
 
+/**
+ * Ultra-light error shell for 404/410/500 responses.
+ * Replaces generateHubHtml() on error paths — same HTTP status + X-Robots-Tag
+ * semantics, ~100× less CPU than the full hub template (no sample links,
+ * JSON-LD graph, or getHubSampleLinks() work). Edge cache headers on these
+ * responses are unchanged, so bot floods still hit cache after first PoP miss.
+ */
+function generateMinimalErrorHtml(
+  url: URL,
+  options: { status: 404 | 410 | 500; requestedSlug?: string },
+): string {
+  const titles: Record<typeof options.status, string> = {
+    404: 'Page not found',
+    410: 'Page permanently unavailable',
+    500: 'Temporary error',
+  };
+  const messages: Record<typeof options.status, string> = {
+    404: 'This /k/ URL is not in the current programmatic library. It may appear after a future deploy.',
+    410: 'This URL does not match the canonical /k/ slug format and will not be published.',
+    500: 'Something went wrong rendering this page. Please retry in a moment.',
+  };
+  const title = titles[options.status];
+  const slugNote = options.requestedSlug
+    ? `<p>Requested: <code>/k/${escapeHtml(options.requestedSlug)}</code></p>`
+    : '';
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>${escapeHtml(title)} | DevSolve</title>
+<meta name="robots" content="noindex, follow"/>
+<meta name="${CONTENT_SIGNAL_META_NAME}" content="${CONTENT_SIGNAL_VALUE}"/>
+<link rel="canonical" href="${url.origin}/k"/>
+<style>body{font-family:system-ui,sans-serif;max-width:40rem;margin:3rem auto;padding:0 1rem;color:#334155;line-height:1.6}code{background:#f1f5f9;padding:0.15rem 0.35rem;border-radius:0.25rem;font-size:0.9em}a{color:#2563eb}</style>
+</head>
+<body>
+<h1>${escapeHtml(title)}</h1>
+<p>${escapeHtml(messages[options.status])}</p>
+${slugNote}
+<p><a href="/k">Browse /k library</a> · <a href="/tools">Developer tools</a> · <a href="/tools/devsolveai">DevSolveAI</a></p>
+</body>
+</html>`;
+}
+
+/** Workers Cache API — second layer when dashboard Cache Rules lag behind. */
+async function matchWorkerCache(request: Request): Promise<Response | null> {
+  try {
+    const hit = await caches.default.match(request);
+    return hit ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function cachePut(request: Request, response: Response, context: EventContext<Env>): void {
+  context.waitUntil(
+    caches.default.put(request, response.clone()).catch(() => undefined),
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Cloudflare Pages Function handler                                  */
 /* ------------------------------------------------------------------ */
@@ -3544,6 +3612,17 @@ function decideAccess(ua: string, cf?: CfRequestProperties): AccessDecision {
 
 
 export const onRequest: PagesFunction<Env> = async (context) => {
+  // Non-document methods never need HTML generation — reject cheaply.
+  if (context.request.method !== 'GET' && context.request.method !== 'HEAD') {
+    return new Response('Method Not Allowed', {
+      status: 405,
+      headers: {
+        Allow: 'GET, HEAD',
+        'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+      },
+    });
+  }
+
   // ---- .pages.dev preview domainini engelle (canonical = devsolvev2.com) ----
   // Cloudflare Pages'ın *.pages.dev preview hostname'i SEO için zararlı
   // (duplicate content / saldırı yüzeyi). Tüm istekleri 403 ile reddediyoruz.
@@ -3599,16 +3678,35 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     [CONTENT_SIGNAL_HEADER]: CONTENT_SIGNAL_VALUE,
   };
 
+  // Workers Cache API — serves warm responses even when dashboard Cache Rules
+  // are missing or misconfigured (common cause of Function budget burn).
+  const cacheRequest = new Request(context.request.url, { method: 'GET' });
+  const cachedResponse = await matchWorkerCache(cacheRequest);
+  if (cachedResponse) {
+    if (context.request.method === 'HEAD') {
+      return new Response(null, {
+        status: cachedResponse.status,
+        headers: cachedResponse.headers,
+      });
+    }
+    return cachedResponse;
+  }
+
   try {
     const url = new URL(context.request.url);
     const pathParts = url.pathname.split('/').filter(Boolean);
     const slug = pathParts[0] === 'k' ? pathParts.slice(1).join('/') : '';
 
     if (!slug) {
-      return new Response(generateHubHtml(url), {
+      const hubResponse = new Response(generateHubHtml(url), {
         status: 200,
         headers: responseHeaders,
       });
+      cachePut(cacheRequest, hubResponse, context);
+      if (context.request.method === 'HEAD') {
+        return new Response(null, { status: 200, headers: responseHeaders });
+      }
+      return hubResponse;
     }
 
     // ------------------------------------------------------------------
@@ -3630,7 +3728,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       // /task/modifier — it is structurally invalid and will never exist. 410
       // tells Google to drop the URL from the index *immediately* rather than
       // retry it on the normal 404-revisit cadence (which can take 6+ months).
-      return new Response(generateHubHtml(url, slug.slice(0, 80)), {
+      return new Response(generateMinimalErrorHtml(url, { status: 410, requestedSlug: slug.slice(0, 80) }), {
         status: 410,
         headers: {
           ...responseHeaders,
@@ -3668,7 +3766,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       // by buildSlug() in any past or future build). 410 short-circuits
       // Googlebot's revisit schedule and removes the URL from the index
       // within days instead of months.
-      return new Response(generateHubHtml(url, normalisedSlug), {
+      return new Response(generateMinimalErrorHtml(url, { status: 410, requestedSlug: normalisedSlug }), {
         status: 410,
         headers: {
           ...responseHeaders,
@@ -3713,7 +3811,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       // happily re-discover it through the sitemap — but until then we avoid
       // the "404 revisit decay" curve that keeps stale URLs in Search Console
       // for half a year.
-      return new Response(generateHubHtml(url, slug), {
+      const notFoundResponse = new Response(generateMinimalErrorHtml(url, { status: 404, requestedSlug: slug }), {
         // 404 (recoverable), NOT 410 (permanent). A shape-valid slug that
         // fails to resolve is the one place a resolver/sitemap drift could
         // wrongly delete a real /k/* page. 404 lets Google re-index it on
@@ -3737,6 +3835,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           'Cloudflare-CDN-Cache-Control': 'public, max-age=3600',
         },
       });
+      cachePut(cacheRequest, notFoundResponse, context);
+      return notFoundResponse;
     }
 
     if (page.slug !== slug) {
@@ -3757,17 +3857,22 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    return new Response(generateHtml(page), {
+    const okResponse = new Response(generateHtml(page), {
       status: 200,
       headers: responseHeaders,
     });
+    cachePut(cacheRequest, okResponse, context);
+    if (context.request.method === 'HEAD') {
+      return new Response(null, { status: 200, headers: responseHeaders });
+    }
+    return okResponse;
   } catch (error) {
     console.error('Programmatic /k fallback handler error', error);
     const url = new URL(context.request.url);
     // On unexpected handler failure, surface a real 500 rather than a
     // synthesised 200 — Google must be able to distinguish "page exists
     // but currently broken" from "page exists and is healthy".
-    return new Response(generateHubHtml(url), {
+    return new Response(generateMinimalErrorHtml(url, { status: 500 }), {
       status: 500,
       headers: {
         ...responseHeaders,

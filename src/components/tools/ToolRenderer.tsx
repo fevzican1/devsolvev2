@@ -19,6 +19,7 @@ const toolComponents: Record<string, React.ComponentType> = {
   'sql-formatter': dynamic(() => import('@/tools/components/SqlFormatter').then(m => m.SqlFormatter), { loading: LoadingFallback }),
   'css-minifier': dynamic(() => import('@/tools/components/CssMinifier').then(m => m.CssMinifier), { loading: LoadingFallback }),
   'json-to-typescript': dynamic(() => import('@/tools/components/JsonToTypescript').then(m => m.JsonToTypescript), { loading: LoadingFallback }),
+  'devsolveai': dynamic(() => import('@/tools/components/DevSolveAiAssistant').then(m => m.DevSolveAiAssistant), { loading: LoadingFallback }),
 };
 
 function LoadingFallback() {

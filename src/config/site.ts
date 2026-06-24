@@ -27,6 +27,7 @@ export const siteConfig = {
   features: {
     darkMode: true,
     cookieConsent: true,
+    devSolveAi: true,
   },
 } as const;
 

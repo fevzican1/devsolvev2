@@ -34,7 +34,7 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-const DEFAULT_STATIC_PROGRAMMATIC_PATHS = 300;
+const DEFAULT_STATIC_PROGRAMMATIC_PATHS = 500;
 const MAX_STATIC_PROGRAMMATIC_PATHS = 5000;
 
 function parsePositiveInt(value: string | undefined): number | null {
