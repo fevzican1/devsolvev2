@@ -3728,7 +3728,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       // /task/modifier — it is structurally invalid and will never exist. 410
       // tells Google to drop the URL from the index *immediately* rather than
       // retry it on the normal 404-revisit cadence (which can take 6+ months).
-      return new Response(generateMinimalErrorHtml(url, { status: 410, requestedSlug: slug.slice(0, 80) }), {
+      const goneLongResponse = new Response(generateMinimalErrorHtml(url, { status: 410, requestedSlug: slug.slice(0, 80) }), {
         status: 410,
         headers: {
           ...responseHeaders,
@@ -3738,6 +3738,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           'Cloudflare-CDN-Cache-Control': 'public, max-age=86400',
         },
       });
+      cachePut(cacheRequest, goneLongResponse, context);
+      return goneLongResponse;
     }
 
     // Case-insensitive 301 — external links and address-bar typos with
@@ -3766,7 +3768,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       // by buildSlug() in any past or future build). 410 short-circuits
       // Googlebot's revisit schedule and removes the URL from the index
       // within days instead of months.
-      return new Response(generateMinimalErrorHtml(url, { status: 410, requestedSlug: normalisedSlug }), {
+      const goneShapeResponse = new Response(generateMinimalErrorHtml(url, { status: 410, requestedSlug: normalisedSlug }), {
         status: 410,
         headers: {
           ...responseHeaders,
@@ -3776,6 +3778,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           'Cloudflare-CDN-Cache-Control': 'public, max-age=86400',
         },
       });
+      cachePut(cacheRequest, goneShapeResponse, context);
+      return goneShapeResponse;
     }
 
     // Resolve to a real canonical or legacy page. If the slug matches no
