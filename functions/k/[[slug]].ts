@@ -16,6 +16,7 @@ import {
   CONTENT_SIGNAL_META_NAME,
   CONTENT_SIGNAL_VALUE,
 } from '../../src/lib/seo/contentSignal';
+import { EDGE_ISR_REVALIDATE_SECONDS } from '../../src/config/staticGeneration';
 import { getAuthorityReferences } from '../../src/lib/seo/authorityReferences';
 import {
   ORG_ID_FRAGMENT,
@@ -73,6 +74,19 @@ interface WorkersCacheStorage extends CacheStorage {
   readonly default: Cache;
 }
 declare const caches: WorkersCacheStorage;
+
+/** Edge ISR cache headers — keep in sync with src/config/staticGeneration.ts */
+function buildEdgeIsrCacheControl(): {
+  cacheControl: string;
+  cdnCacheControl: string;
+} {
+  const ttl = EDGE_ISR_REVALIDATE_SECONDS;
+  const swr = Math.max(ttl * 24, 86_400);
+  return {
+    cacheControl: `public, max-age=${ttl}, s-maxage=${ttl}, stale-while-revalidate=${swr}`,
+    cdnCacheControl: `public, max-age=${ttl}, stale-while-revalidate=${swr}`,
+  };
+}
 
 const LEGACY_PROGRAMMATIC_SLUG_PATTERN = /^(.*)-([0-9]+)$/;
 const DEFAULT_LOCALE = 'en-US';
@@ -3399,18 +3413,15 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     });
   }
 
+  const edgeIsr = buildEdgeIsrCacheControl();
   const responseHeaders = {
     'Content-Type': 'text/html;charset=UTF-8',
-    // s-maxage instructs Cloudflare's edge to cache this response for 1 year.
-    // After the first Worker invocation per PoP, every subsequent request is
-    // served directly from Cloudflare's free CDN — zero additional Worker calls.
-    // Aggressive edge cache: browser AND Cloudflare edge cache for 1 year.
-    // After the first cold render per PoP, every subsequent request — by
-    // Googlebot or user — is served directly from Cloudflare's CDN with zero
-    // Worker CPU spent. `immutable` tells browsers never to revalidate.
-    'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable',
-    'CDN-Cache-Control': 'public, max-age=31536000, immutable',
-    'Cloudflare-CDN-Cache-Control': 'public, max-age=31536000, immutable',
+    // Edge ISR: first request renders HTML; edge caches for EDGE_ISR_REVALIDATE_SECONDS.
+    // Subsequent requests (Googlebot included) are served from CDN — zero Worker CPU.
+    // stale-while-revalidate serves cached HTML while refreshing in the background.
+    'Cache-Control': edgeIsr.cacheControl,
+    'CDN-Cache-Control': edgeIsr.cdnCacheControl,
+    'Cloudflare-CDN-Cache-Control': edgeIsr.cdnCacheControl,
 
     'X-Robots-Tag': 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
     [CONTENT_SIGNAL_HEADER]: CONTENT_SIGNAL_VALUE,

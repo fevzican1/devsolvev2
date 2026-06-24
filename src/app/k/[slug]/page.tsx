@@ -4,7 +4,15 @@ import { Shield, ArrowRight, Wrench, AlertTriangle, CheckCircle, Lightbulb, Help
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { resolveProgrammaticPageBySlug, getTotalPageCount, getProgrammaticLastModified, getSlugByIndex } from '@/data/programmatic';
+import {
+  resolveProgrammaticPageBySlug,
+  getProgrammaticLastModified,
+  collectPrioritySlugs,
+  countPrioritySlugs,
+  getTotalPageCount,
+  getSlugByIndex,
+} from '@/data/programmatic';
+import { resolveStaticProgrammaticPathLimit } from '@/config/staticGeneration';
 import { getToolBySlug, toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
 import { siteConfig, externalUrls } from '@/config/site';
@@ -26,35 +34,13 @@ import {
 import { RelatedItemsLinks } from '@/components/seo/RelatedItemsLinks';
 import { ProgrammaticHubPage } from '@/components/programmatic/ProgrammaticHubPage';
 
+// Pure SSG at build time (`output: 'export'`). Long-tail /k/* uses edge ISR via
+// functions/k/[[slug]].ts — see src/config/staticGeneration.ts.
 export const dynamic = 'force-static';
-export const dynamicParams = true;
-export const revalidate = false;
+export const dynamicParams = false;
 
 interface PageProps {
   params: Promise<{ slug: string }>;
-}
-
-const DEFAULT_STATIC_PROGRAMMATIC_PATHS = 500;
-const MAX_STATIC_PROGRAMMATIC_PATHS = 5000;
-
-function parsePositiveInt(value: string | undefined): number | null {
-  if (!value) return null;
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return null;
-  return parsed;
-}
-
-function resolveStaticProgrammaticPathLimit() {
-  const envLimit = parsePositiveInt(
-    process.env.PROGRAMMATIC_STATIC_BUILD_LIMIT ??
-    process.env.NEXT_PUBLIC_PROGRAMMATIC_STATIC_BUILD_LIMIT,
-  );
-
-  if (envLimit === null) {
-    return Math.min(getTotalPageCount(), DEFAULT_STATIC_PROGRAMMATIC_PATHS);
-  }
-
-  return Math.min(getTotalPageCount(), Math.min(envLimit, MAX_STATIC_PROGRAMMATIC_PATHS));
 }
 
 function humanizeProgrammaticSlug(slug: string): string {
@@ -187,17 +173,9 @@ function getProgrammaticDiscoveryLinks(currentSlug: string, count = 12) {
 }
 
 export async function generateStaticParams() {
-  const limit = resolveStaticProgrammaticPathLimit();
-  const params: Array<{ slug: string }> = [];
-
-  for (let index = 0; index < limit; index += 1) {
-    const slug = getSlugByIndex(index);
-    if (slug) {
-      params.push({ slug });
-    }
-  }
-
-  return params;
+  const totalPriority = countPrioritySlugs();
+  const limit = resolveStaticProgrammaticPathLimit(totalPriority);
+  return collectPrioritySlugs(limit).map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

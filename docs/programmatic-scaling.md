@@ -10,48 +10,62 @@ CDN as the storage layer.
 
 ---
 
-## 1. How it works — On-Demand Edge SSG
+## 1. How it works — Hybrid SSG + Edge ISR
 
 ```
-First request (cold edge PoP):
-  User/Googlebot → devsolvev2.com/k/<slug>
+Priority tier (~750K URLs in sitemap-priority-*.xml):
+  next build pre-renders up to 5,000 highest-value slugs → out/k/<slug>.html
       ↓
-  Cloudflare checks edge cache → MISS
+  Cloudflare serves static HTML directly — ZERO Function invocations ✔
+
+Long-tail /k/* (remaining ~18M slugs):
+  First request per PoP (cold edge):
       ↓
   Cloudflare Pages Function (functions/k/[[slug]].ts)
       ↓  generates HTML deterministically from slug
-  Response: HTML + Cache-Control: public, s-maxage=31536000, immutable
+  Response: HTML + Cache-Control: s-maxage=3600, stale-while-revalidate
       ↓
-  Cloudflare edge stores the page for 1 year ✔
+  Cloudflare edge stores the page; subsequent requests hit CDN ✔
 
-Every subsequent request (warm edge PoP):
+Every warm request (priority static OR cached long-tail):
   User/Googlebot → devsolvev2.com/k/<slug>
       ↓
-  Cloudflare checks edge cache → HIT
+  Static asset or edge cache HIT
       ↓
-  Static HTML served directly from CDN
-  Zero Worker invocations. Zero CPU cost. ✔
+  Zero Worker invocations ✔
 ```
 
-**Key property:** Pages are generated lazily on first access and then frozen at
-the Cloudflare edge for 1 year.  The 18 M pages are never uploaded or stored
-anywhere manually — Cloudflare's 300+ global PoPs act as the distributed cache.
+**Build-time SSG** covers the URLs Google crawls first (priority sitemap tier).
+**Edge ISR** (`EDGE_ISR_REVALIDATE_SECONDS` in `src/config/staticGeneration.ts`)
+handles the long tail without pre-uploading 18M HTML files.
 
 ---
 
-## 2. Cache-Control header
+## 1b. Deprecated — pure on-demand edge SSG (pre-2026-06)
 
-`functions/k/[[slug]].ts` emits:
+Earlier versions relied entirely on lazy Worker rendering with `immutable` 1-year
+cache. The hybrid model above pre-renders the priority tier at build time so
+Googlebot never depends on a cold Function miss for the URLs in
+`sitemap-priority-*.xml`.
+
+---
+
+## 2. Cache-Control header (long-tail edge ISR)
+
+`functions/k/[[slug]].ts` emits (TTL from `EDGE_ISR_REVALIDATE_SECONDS`, default 3600):
 
 ```
-Cache-Control: public, s-maxage=31536000, immutable
+Cache-Control: public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400
 ```
 
 | Directive | Meaning |
 |-----------|---------|
 | `public` | Response is cacheable by shared (proxy/CDN) caches |
-| `s-maxage=31536000` | CDN/Cloudflare edge TTL = 1 year (365 days) |
-| `immutable` | Content will not change; no conditional revalidation needed |
+| `s-maxage=3600` | CDN/Cloudflare edge TTL = 1 hour |
+| `stale-while-revalidate=86400` | Serve stale HTML while refreshing in background (ISR equivalent) |
+
+Priority-tier pages pre-rendered at build time inherit Next.js static asset caching
+and never invoke the Function.
 
 ---
 
@@ -67,7 +81,7 @@ You must add a **Cache Rule** in the Cloudflare Dashboard to force edge caching:
 | Rule name | `K-pages — Edge Cache 1 Year` |
 | When | `URI Path` wildcard matches `/k/*` |
 | Cache eligibility | **Eligible for cache** |
-| Edge Cache TTL | **Override origin → 1 year** |
+| Edge Cache TTL | **Override origin → 1 hour** (match `EDGE_ISR_REVALIDATE_SECONDS`) |
 | Browser Cache TTL | **Respect origin `Cache-Control` header** |
 
 > This is the only dashboard step required.  After this rule is active, every
