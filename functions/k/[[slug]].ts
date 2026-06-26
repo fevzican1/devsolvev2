@@ -1680,6 +1680,9 @@ function buildInternalLinkMatrix(seed: number, currentSlug: string): {
 
   // Guide backlink — connect this /k/ page back to a relevant editorial guide.
   // Extracts cluster and intent from the slug for mapping.
+  // SYNC NOTE: Keep CLUSTER_TO_GUIDE in sync with src/config/clusterMapping.ts.
+  // This is intentionally inlined because the edge function cannot import from
+  // src/ (different tsconfig, Workers runtime, no Node.js modules).
   const slugParts = currentSlug.split('-');
   if (slugParts.length >= 2) {
     const clusterKey = slugParts[0];

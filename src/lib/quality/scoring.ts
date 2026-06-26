@@ -155,8 +155,8 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
   if (wordCount < 900) {
     issues.push('Estimated content length is below the 900-word quality floor');
   }
-  if (layerDiversity < 5) {
-    issues.push('Low SPE layer diversity — fewer than 3 layers populated');
+  if (layerDiversity < 7) {
+    issues.push('Low SPE layer diversity — fewer than 4 of 7 layers sufficiently populated');
   }
 
   return {
