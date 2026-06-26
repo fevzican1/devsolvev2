@@ -153,13 +153,8 @@ export const RAMP_LEVELS: readonly RampLevelConfig[] = [
 export function resolveRampLevelFromFile(): RampLevel | undefined {
   try {
     // Dynamic require so that edge-runtime bundlers can tree-shake this path.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
-    // @ts-ignore — require is only available in Node.js build context, not on edge runtime
     const fs = require('fs') as typeof import('fs');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
-    // @ts-ignore — require is only available in Node.js build context, not on edge runtime
     const path = require('path') as typeof import('path');
-    // @ts-ignore — process is available in Node.js / Next.js build context
     const filePath = path.join(process.cwd(), '.ramp-level');
     const raw = fs.readFileSync(filePath, 'utf8').trim();
     const parsed = parseInt(raw, 10);
