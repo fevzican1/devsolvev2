@@ -22,6 +22,8 @@ import {
   ORG_ID_FRAGMENT,
   WEBSITE_ID_FRAGMENT,
   BRAND_SAME_AS,
+  BRAND_GITHUB_REPO,
+  BRAND_PRODUCT_HUNT_URL,
   buildOrganizationNode,
   buildWebSiteNode,
 } from '../../src/lib/seo/organization';
@@ -38,6 +40,8 @@ import { buildIntentExample } from '../_shared/intentExamples';
 function footerSocialLabel(href: string): string {
   if (href.includes('linkedin.com')) return 'LinkedIn';
   if (href.includes('x.com') || href.includes('twitter.com')) return 'X';
+  if (href.includes('producthunt.com')) return 'Product Hunt';
+  if (href.includes('saashub.com')) return 'SaaSHub';
   if (href.includes('/devsolvev2')) return 'GitHub Repo';
   if (href.includes('github.com')) return 'GitHub';
   return 'Profile';
@@ -47,6 +51,18 @@ function footerSocialLabel(href: string): string {
 const FOOTER_SOCIAL_LINKS_HTML = BRAND_SAME_AS.map((href) =>
   `<a href="${escapeHtml(href)}" rel="me noopener noreferrer" target="_blank">${footerSocialLabel(href)}</a>`,
 ).join(' · ');
+
+const BRAND_LISTINGS_HTML = `<section aria-label="Official DevSolve listings" class="card" style="margin-top:1.5rem;border-color:#dbeafe;background:#f8fafc">
+<div class="card-title"><span role="img" aria-label="Verified">✅</span> Official DevSolve Profiles &amp; Listings</div>
+<p style="color:#475569;font-size:0.95rem">Verified brand profiles that link back to devsolvev2.com — the same entity references declared in our structured data (<code>sameAs</code>).</p>
+<ul style="margin-top:0.75rem;padding-left:1.25rem">
+<li style="margin-bottom:0.5rem"><a href="${escapeHtml(BRAND_GITHUB_REPO)}" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">GitHub Repository</a> <span style="color:#64748b;font-size:0.85rem">— open-source project linking to devsolvev2.com</span></li>
+<li style="margin-bottom:0.5rem"><a href="https://github.com/fevzican1" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">GitHub Profile</a></li>
+<li style="margin-bottom:0.5rem"><a href="${escapeHtml(BRAND_PRODUCT_HUNT_URL)}" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">Product Hunt</a> <span style="color:#64748b;font-size:0.85rem">— privacy-first browser developer tools listing</span></li>
+<li style="margin-bottom:0.5rem"><a href="https://www.saashub.com/devsolvev2" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">SaaSHub</a></li>
+<li><a href="https://www.linkedin.com/in/fevzican-aytekin-0b5501105" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">LinkedIn</a> · <a href="https://x.com/devsolveai" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">X (Twitter)</a></li>
+</ul>
+</section>`;
 
 // Cloudflare Pages Function types (inline to avoid external dependency)
 interface CfRequestProperties {
@@ -1064,7 +1080,7 @@ function resolvePageFromSlug(slug: string): PageData | undefined {
 
   // Build description
   const descVariants = [
-    `${title} — practical, browser-based workflow for real-world ${slugToSpacedString(clusterKey)} engineering tasks, ${slugToSpacedString(modifier)}. Learn how to ${tc.outcome} with ${toolName}.`,
+    `${slugToSpacedString(pair.intent)} for ${slugToSpacedString(audience)} teams — practical, browser-based ${slugToSpacedString(clusterKey)} workflow ${slugToSpacedString(modifier)}. Learn how to ${tc.outcome} with ${toolName}.`,
     `Step-by-step guide to ${slugToSpacedString(pair.intent)} using ${toolName} for ${slugToSpacedString(audience)} professionals. Covers ${tc.scenario} with best practices for ${cd.field}.`,
     `How ${slugToSpacedString(audience)} teams use ${toolName} to ${slugToSpacedString(pair.intent)} ${slugToSpacedString(modifier)}. Includes troubleshooting tips, alternative solutions, and expert recommendations.`,
     `Complete walkthrough: ${slugToSpacedString(pair.intent)} with ${toolName} for ${slugToSpacedString(audience)} workflows. All processing runs locally in your browser — your data stays private.`,
@@ -1080,7 +1096,7 @@ function resolvePageFromSlug(slug: string): PageData | undefined {
     `${slugToSpacedString(pair.intent)} — the ${slugToSpacedString(audience)} way: browser-based, locally processed, privacy-safe. ${toolName} guide for ${tc.scenario} in ${cd.field}.`,
     `Quick and reliable ${slugToSpacedString(pair.intent)} for ${slugToSpacedString(audience)} roles: ${toolName} guide covering ${tc.scenario}, key pitfalls, and how to ${tc.outcome} confidently.`,
   ];
-  const description = ensureSeoDescription(descVariants[seed % descVariants.length]);
+  const description = descVariants[seed % descVariants.length];
 
   // Build intro
   const introVariants = [
@@ -3169,6 +3185,8 @@ ${refs.map((ref) => `<li style="margin-bottom:0.75rem"><a href="${escapeHtml(ref
 </section>`;
 })()}
 
+${BRAND_LISTINGS_HTML}
+
 <div class="card" style="margin-top:2rem">
 <div class="card-title"><span role="img" aria-label="Link">🔗</span> Quick Navigation</div>
 <p>
@@ -3634,3 +3652,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     });
   }
 };
+
+export { generateHtml, resolvePageFromSlug, getSlugByIndex };
+export function getTotalPageCount(): number {
+  return TOTAL_POSSIBLE;
+}

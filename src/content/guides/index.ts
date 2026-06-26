@@ -25,7 +25,8 @@ export const guideRegistry: GuideMetadata[] = [
     relatedToolSlugs: ['base64-encode-decode', 'hash-generator', 'json-formatter'],
     clusterKeys: ['jwt', 'security', 'tokens', 'authentication'],
     programmaticLinkCountTarget: 15,
-    description: 'Decode JWT headers, payloads, and claims locally in your browser. Debug auth flows, verify expirations, and catch malformed tokens safely with zero server uploads.',
+    description:
+      'Learn to decode JWT headers, payloads, and registered claims entirely in your browser. Inspect exp, aud, and iss, debug auth flows, and catch malformed tokens safely — no uploads or tracking.',
   },
   {
     slug: 'hashing-integrity',
