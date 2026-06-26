@@ -1,0 +1,98 @@
+name: Ramp Auto-Advance
+# Automatically checks GSC gate criteria and advances the ramp level when met.
+# Commits the new .ramp-level to the default branch and triggers a Cloudflare
+# Pages deploy via Deploy Hook.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # Every Monday 06:00 UTC
+  workflow_dispatch: {}     # Allow manual trigger
+
+permissions:
+  contents: write           # Needed to push .ramp-level update
+
+jobs:
+  check-and-advance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Fetch full history so git push works on the default branch
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Check GSC gate
+        id: gate
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          SITE_URL: https://devsolvev2.com
+        run: |
+          # Run the gate check and capture JSON output
+          GSC_OUTPUT=$(node scripts/check-gsc-gate.mjs)
+          echo "GSC output: $GSC_OUTPUT"
+
+          # Parse fields from JSON
+          GATE_PASS=$(echo "$GSC_OUTPUT" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(String(d.gatePass))")
+          CURRENT_LEVEL=$(echo "$GSC_OUTPUT" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(String(d.currentLevel))")
+          NEXT_LEVEL=$(echo "$GSC_OUTPUT" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(d.nextLevel !== null ? String(d.nextLevel) : 'null')")
+          REASON=$(echo "$GSC_OUTPUT" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(d.reason)")
+
+          echo "gate_pass=$GATE_PASS"     >> $GITHUB_OUTPUT
+          echo "current_level=$CURRENT_LEVEL" >> $GITHUB_OUTPUT
+          echo "next_level=$NEXT_LEVEL"   >> $GITHUB_OUTPUT
+          echo "reason=$REASON"           >> $GITHUB_OUTPUT
+
+      - name: Advance ramp level
+        if: steps.gate.outputs.gate_pass == 'true' && steps.gate.outputs.next_level != 'null'
+        run: |
+          NEXT=${{ steps.gate.outputs.next_level }}
+          echo "Gate passed — advancing .ramp-level from ${{ steps.gate.outputs.current_level }} to $NEXT"
+          echo "$NEXT" > .ramp-level
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .ramp-level
+          git commit -m "chore(ramp): auto-advance level ${{ steps.gate.outputs.current_level }} → $NEXT [skip ci]" \
+            -m "GSC gate passed:" \
+            -m "${{ steps.gate.outputs.reason }}"
+          git push
+
+      - name: Trigger Cloudflare Pages deploy
+        if: steps.gate.outputs.gate_pass == 'true' && steps.gate.outputs.next_level != 'null'
+        env:
+          CLOUDFLARE_DEPLOY_HOOK_URL: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$CLOUDFLARE_DEPLOY_HOOK_URL" ]; then
+            echo "CLOUDFLARE_DEPLOY_HOOK_URL secret is not set — skipping deploy trigger."
+            echo "Add it in: Settings → Secrets → Actions → CLOUDFLARE_DEPLOY_HOOK_URL"
+            exit 0
+          fi
+          echo "Triggering Cloudflare Pages deploy..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$CLOUDFLARE_DEPLOY_HOOK_URL")
+          if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
+            echo "Deploy hook triggered successfully (HTTP $HTTP_STATUS)"
+          else
+            echo "Deploy hook returned HTTP $HTTP_STATUS — check CLOUDFLARE_DEPLOY_HOOK_URL"
+            exit 1
+          fi
+
+      - name: Log gate result (no advance)
+        if: steps.gate.outputs.gate_pass != 'true'
+        run: |
+          echo "Gate not passed — ramp level stays at ${{ steps.gate.outputs.current_level }}"
+          echo "Reason: ${{ steps.gate.outputs.reason }}"
+
+      - name: Log already at max level
+        if: steps.gate.outputs.next_level == 'null'
+        run: |
+          echo "Already at maximum ramp level (${{ steps.gate.outputs.current_level }}) — nothing to advance."
