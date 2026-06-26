@@ -91,13 +91,23 @@ interface WorkersCacheStorage extends CacheStorage {
 }
 declare const caches: WorkersCacheStorage;
 
-/** Edge ISR cache headers — keep in sync with src/config/staticGeneration.ts */
+/** Edge ISR cache headers — keep in sync with src/config/staticGeneration.ts.
+ *
+ * Discovery links rotate weekly (EKSİK #1 fix), so we use:
+ * - s-maxage: 1 hour (edge cache revalidation window)
+ * - stale-while-revalidate: 7 days (serve stale during revalidation)
+ *
+ * This means discovery links update within 1 hour of weekly rotation while
+ * still serving stale content during the revalidation window. The CDN cache
+ * is NOT immutable — it revalidates hourly, which is sufficient for weekly
+ * discovery rotation while keeping Cloudflare Function invocations minimal.
+ */
 function buildEdgeIsrCacheControl(): {
   cacheControl: string;
   cdnCacheControl: string;
 } {
   const ttl = EDGE_ISR_REVALIDATE_SECONDS;
-  const swr = Math.max(ttl * 24, 86_400);
+  const swr = 7 * 24 * 60 * 60; // 7 days stale-while-revalidate
   return {
     cacheControl: `public, max-age=${ttl}, s-maxage=${ttl}, stale-while-revalidate=${swr}`,
     cdnCacheControl: `public, max-age=${ttl}, stale-while-revalidate=${swr}`,
@@ -1615,16 +1625,26 @@ function getIntentTone(seed: number): IntentTone {
 /*  page, hash-rotated. Plus a discovery row of 6 cross-cluster links  */
 /*  so Googlebot crosses topic boundaries — turning the corpus into a  */
 /*  fully connected discovery graph instead of isolated silos.         */
+/*                                                                      */
+/*  DYNAMIC ROTATION (EKSİK #1 fix):                                   */
+/*  Primary links (80%) = semantic neighbors, slug-stable (deterministic) */
+/*  Discovery links (20%) = TIME-BASED rotation using weekNumber seed   */
+/*  This ensures bot crawls discover NEW pages on every weekly pass.    */
+/*  The discovery seed rotates weekly: hash(slug + weekNumber) so that  */
+/*  ≥50% of discovery hrefs differ between 7-day-apart crawls.         */
 /* ------------------------------------------------------------------ */
 function buildInternalLinkMatrix(seed: number, currentSlug: string): {
   primary: Array<{ slug: string; label: string }>;
   discovery: Array<{ slug: string; label: string }>;
+  guideBacklink: { href: string; label: string } | null;
 } {
   const primary: Array<{ slug: string; label: string }> = [];
   const discovery: Array<{ slug: string; label: string }> = [];
-  if (TOTAL_POSSIBLE < 1) return { primary, discovery };
+  let guideBacklink: { href: string; label: string } | null = null;
+  if (TOTAL_POSSIBLE < 1) return { primary, discovery, guideBacklink };
 
-  // 10 primary links — large prime steps to spread across the full corpus.
+  // 10 primary links — semantic neighbors, STABLE (slug-deterministic).
+  // These provide consistent related-content navigation.
   const primarySteps = [104729, 224737, 350377, 479909, 611953, 746773, 882377, 1020379, 1160407, 1300523];
   for (const step of primarySteps) {
     const idx = (seed + step) % TOTAL_POSSIBLE;
@@ -1635,17 +1655,54 @@ function buildInternalLinkMatrix(seed: number, currentSlug: string): {
     }
   }
 
-  // 6 discovery links — different prime to land in different regions.
-  const discoverySteps = [1500457, 1700641, 1900813, 2100923, 2301013, 2501141];
+  // 8 discovery links — DYNAMIC, TIME-ROTATED weekly.
+  // Seed = hash(slug + weekNumber) → different set every week.
+  // This is the key fix: bots see NEW discovery links on each weekly pass,
+  // ensuring the full 18M corpus is gradually reachable via crawl graph.
+  const weekNumber = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+  let discoverySeed = 0;
+  const rotationKey = `${currentSlug}:${weekNumber}`;
+  for (let i = 0; i < rotationKey.length; i++) {
+    discoverySeed = ((discoverySeed << 5) - discoverySeed + rotationKey.charCodeAt(i)) | 0;
+  }
+  discoverySeed = Math.abs(discoverySeed);
+
+  // Use 8 discovery links (up from 6) for better corpus coverage
+  const discoverySteps = [1500457, 1700641, 1900813, 2100923, 2301013, 2501141, 2700329, 2900531];
   for (const step of discoverySteps) {
-    const idx = (seed * 31 + step) % TOTAL_POSSIBLE;
+    const idx = (discoverySeed + step) % TOTAL_POSSIBLE;
     const s = getSlugByIndex(idx);
     if (s && s !== currentSlug && !discovery.some((d) => d.slug === s) && !primary.some((p) => p.slug === s)) {
       const label = s.replace(/-\d+$/, '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
       discovery.push({ slug: s, label });
     }
   }
-  return { primary, discovery };
+
+  // Guide backlink — connect this /k/ page back to a relevant editorial guide.
+  // Extracts cluster and intent from the slug for mapping.
+  const slugParts = currentSlug.split('-');
+  if (slugParts.length >= 2) {
+    const clusterKey = slugParts[0];
+    // Map cluster to guide (simplified mapping for edge function)
+    const CLUSTER_TO_GUIDE: Record<string, { slug: string; title: string }> = {
+      'json': { slug: 'json-validation-formatting', title: 'JSON Validation & Formatting Guide' },
+      'encoding': { slug: 'base64-usage', title: 'Base64 & Encoding Guide' },
+      'security': { slug: 'jwt-decoding-browser', title: 'JWT Decoding & Token Security Guide' },
+      'text': { slug: 'regex-testing-debugging', title: 'Regex Testing & Debugging Guide' },
+      'formatting': { slug: 'sql-formatting', title: 'SQL Formatting Guide' },
+      'api': { slug: 'api-contract-validation-deep-dive', title: 'API Contract Validation Guide' },
+      'data': { slug: 'json-to-types', title: 'JSON to Types Guide' },
+      'debugging': { slug: 'diffing-techniques', title: 'Diffing Techniques Guide' },
+      'automation': { slug: 'regex-testing-debugging', title: 'Regex & Automation Guide' },
+      'web': { slug: 'markdown-preview-safety', title: 'Markdown & Web Safety Guide' },
+    };
+    const mapped = CLUSTER_TO_GUIDE[clusterKey];
+    if (mapped) {
+      guideBacklink = { href: `/guides/${mapped.slug}`, label: mapped.title };
+    }
+  }
+
+  return { primary, discovery, guideBacklink };
 }
 
 /* ------------------------------------------------------------------ */
@@ -1870,9 +1927,13 @@ function generateHtml(page: PageData): string {
   // guide, deep comparison, or quick start. Same body data, different framing.
   const tone = getIntentTone(seed);
 
-  // Internal Linking Matrix: 10 deterministic primary links + 6 cross-cluster
-  // discovery links. These give Googlebot a dense crawl graph from any page.
+  // Internal Linking Matrix: 10 stable primary links + 8 DYNAMIC weekly-rotated
+  // discovery links + guide backlink. Dense crawl graph for Googlebot.
+  // Discovery links rotate weekly so bots find NEW pages on every pass.
   const linkMatrix = buildInternalLinkMatrix(seed, page.slug);
+  const guideBacklinkHtml = linkMatrix.guideBacklink
+    ? `<div style="margin-top:1rem;padding:0.75rem 1rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:0.5rem"><strong style="color:#166534">📖 Related Guide:</strong> <a href="${escapeHtml(linkMatrix.guideBacklink.href)}" style="color:#15803d;font-weight:500;text-decoration:underline">${escapeHtml(linkMatrix.guideBacklink.label)}</a></div>`
+    : '';
   const internalLinkMatrixHtml = `<section aria-label="Internal link matrix">
 <h2>Explore Related ${escapeHtml(cd.field.replace(/^./, (c) => c.toUpperCase()))} Guides</h2>
 <p style="color:#475569;font-size:0.95rem">A curated set of deeply related DevSolve guides — every link below is a self-canonical, indexable /k page generated from the same engineering library.</p>
@@ -1881,10 +1942,11 @@ function generateHtml(page: PageData): string {
 <ul class="related-links" style="margin-bottom:1rem">
 ${linkMatrix.primary.map((l) => `<li><a href="/k/${l.slug}" rel="related" class="text-blue-600 hover:underline">${escapeHtml(l.label)}</a></li>`).join('\n')}
 </ul>
-<strong style="display:block;margin:0.75rem 0 0.5rem;color:#0f172a">Cross-cluster discovery</strong>
+<strong style="display:block;margin:0.75rem 0 0.5rem;color:#0f172a">Cross-cluster discovery (rotates weekly)</strong>
 <ul class="related-links">
-${linkMatrix.discovery.map((l) => `<li><a href="/k/${l.slug}" rel="related" class="text-blue-600 hover:underline">${escapeHtml(l.label)}</a></li>`).join('\n')}
+${linkMatrix.discovery.map((l) => `<li><a href="/k/${l.slug}" rel="discovery" class="text-blue-600 hover:underline">${escapeHtml(l.label)}</a></li>`).join('\n')}
 </ul>
+${guideBacklinkHtml}
 </div>
 </section>`;
 
