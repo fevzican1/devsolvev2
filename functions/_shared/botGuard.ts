@@ -43,22 +43,23 @@ const DUCKDUCK_UA_MARKERS: readonly string[] = [
 
 /** Always block — includes the attack sources called out by site owner. */
 const HARD_BLOCK_PATTERNS: readonly string[] = [
-  // Meta / Apple / Baidu / Claude / AI
-  'meta-webindexer', 'meta-externalagent', 'meta-externalfetcher', 'facebookexternalhit',
+  // Meta crawlers (NOT the unfurl/preview bot — that is in SOCIAL_PREVIEW_MARKERS)
+  'meta-webindexer', 'meta-externalagent', 'meta-externalfetcher',
   'facebookcatalog', 'facebookbot',
+  // Apple / Baidu / Yandex
   'applebot', 'applebot-extended', 'apple-pubsub',
   'baidu', 'baiduspider', 'yandexbot', 'yandex.com/bots', 'sogou', 'sogou web spider',
+  // AI / LLM crawlers
   'chatgpt-user', 'oai-searchbot', 'openai', 'anthropic-ai', 'claude-web', 'claudebot',
   'claude-searchbot', 'searchbot', 'gptbot', 'google-extended',
   'perplexitybot', 'perplexity-user', 'youbot', 'cohere-ai', 'cohere-training-data-crawler',
   'bytespider', 'amazonbot', 'diffbot', 'omgilibot', 'omgili', 'ccbot',
   'common crawl', 'commoncrawl',
-  // SEO / scraper / social
+  // SEO / scraper bots
   'ahrefsbot', 'ahrefssiteaudit', 'semrushbot', 'mj12bot', 'dotbot', 'blexbot', 'petalbot',
   'dataforseobot', 'seznambot', 'aspiegelbot', 'exabot', 'megaindex', 'serpstatbot',
   'barkrowler', 'zoominfobot', 'seekport', 'linkdexbot', 'rogerbot', 'sistrix',
-  'twitterbot', 'linkedinbot', 'slackbot', 'slack-imgproxy', 'discordbot', 'telegrambot',
-  'redditbot', 'pinterest', 'pinterestbot', 'embedly', 'iframely', 'mastodon',
+  'embedly', 'iframely',
   // Fake browser / automation
   'chrome-extension', 'headlesschrome', 'headless', 'phantomjs', 'puppeteer', 'playwright',
   'selenium', 'electron/', 'scrapy', 'httrack', 'wget', 'curl/', 'libwww-perl',
@@ -66,6 +67,21 @@ const HARD_BLOCK_PATTERNS: readonly string[] = [
   'axios/', 'masscan', 'nikto', 'nmap', 'sqlmap', 'fuzz', 'zgrab', 'censys', 'shodan',
   'pingdom', 'screaming frog', 'netcraftsurveyagent', 'gigabot', 'leikibot', 'wpscan',
   'binlar', 'spbot', 'mauibot', 'researchscan', 'palo alto',
+];
+
+/**
+ * Social / link-preview (unfurl) crawlers — allowed to fetch pages so they can
+ * render rich Open Graph cards when a user shares a link on these platforms.
+ * These are NOT search-index or AI-training crawlers. They only ever fetch the
+ * cheap, edge-cached page (zero extra Cloudflare cost). Kept in sync with
+ * robots.txt which explicitly `Allow: /` for each of these user-agents.
+ */
+const SOCIAL_PREVIEW_MARKERS: readonly string[] = [
+  'twitterbot', 'facebookexternalhit',
+  'linkedinbot', 'slackbot', 'slack-imgproxy',
+  'discordbot', 'telegrambot', 'redditbot',
+  'pinterest', 'pinterestbot', 'mastodon',
+  'whatsapp',
 ];
 
 const GOOGLE_ASNS: ReadonlySet<number> = new Set([15169, 396982]);
@@ -88,6 +104,10 @@ function uaClaimsBing(lower: string): boolean {
 
 function uaClaimsDuckDuckGo(lower: string): boolean {
   return lowerIncludesAny(lower, DUCKDUCK_UA_MARKERS);
+}
+
+function isSocialPreviewBot(lower: string): boolean {
+  return lowerIncludesAny(lower, SOCIAL_PREVIEW_MARKERS);
 }
 
 function isNetworkVerifiedGoogle(cf?: CfRequestProperties): boolean | null {
@@ -165,6 +185,9 @@ export function decideAccess(
 
   if (uaClaimsBing(lower)) return 'allow';
   if (uaClaimsDuckDuckGo(lower)) return 'allow';
+
+  // Social / link-preview bots — allow rich card unfurling (matches robots.txt)
+  if (isSocialPreviewBot(lower)) return 'allow';
 
   if (looksLikeRealHumanBrowser(ua, headers)) return 'allow';
 
