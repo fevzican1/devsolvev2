@@ -12,6 +12,11 @@
  *
  * IMPORTANT: This file is read at BUILD TIME by scripts and at RUNTIME by
  * the edge function. Do NOT import heavy dependencies here.
+ *
+ * Ramp level priority order:
+ * 1. PROGRAMMATIC_RAMP_LEVEL env var (manual override — highest priority)
+ * 2. .ramp-level file (CI auto-updated — read at build time only, not edge)
+ * 3. defaultRampLevel = 0 (fallback)
  */
 
 import { siteConfig } from './site';
@@ -137,25 +142,58 @@ export const RAMP_LEVELS: readonly RampLevelConfig[] = [
 // ---------------------------------------------------------------------------
 
 /**
+ * Read the ramp level from the .ramp-level file at BUILD TIME only.
+ *
+ * This function uses `fs.readFileSync` and MUST NOT be called in edge runtime
+ * (Cloudflare Workers / functions/) where the Node.js `fs` module is unavailable.
+ * It is safe to call from Next.js build scripts and Node.js CLI scripts.
+ *
+ * Returns undefined if the file does not exist or contains an invalid value.
+ */
+export function resolveRampLevelFromFile(): RampLevel | undefined {
+  // Edge runtime (Cloudflare Workers) has no Node.js fs — skip file read there.
+  if (typeof process === 'undefined' || process.env.NEXT_RUNTIME === 'edge') {
+    return undefined;
+  }
+
+  try {
+    // Dynamic require so that edge-runtime bundlers can tree-shake this path.
+    const fs = require('fs') as typeof import('fs');
+    const path = require('path') as typeof import('path');
+    const filePath = path.join(process.cwd(), '.ramp-level');
+    const raw = fs.readFileSync(filePath, 'utf8').trim();
+    const parsed = parseInt(raw, 10);
+    if (parsed >= 0 && parsed <= 5) return parsed as RampLevel;
+  } catch {
+    // File missing or unreadable — fall through to default
+  }
+  return undefined;
+}
+
+/**
  * Resolve the current active ramp level.
  *
  * Priority order:
- * 1. PROGRAMMATIC_RAMP_LEVEL env var (explicit override)
- * 2. monetization.opsFlags.programmaticRampLevel (config file)
- * 3. Default: 0 (start conservative)
+ * 1. PROGRAMMATIC_RAMP_LEVEL env var (manual override — highest priority)
+ * 2. .ramp-level file (CI auto-updated — build-time only, not edge runtime)
+ * 3. defaultRampLevel = 0 (fallback)
  *
  * NOTE: In Faz 0 we START at level 0 (500K). The default was previously
  * level 5 (18M wide open) — this is the "musluk kapatma" fix.
  */
 export function resolveRampLevel(): RampLevel {
+  // 1. Explicit env override (manual / Cloudflare Dashboard / CI inject)
   const envLevel = process.env.PROGRAMMATIC_RAMP_LEVEL;
   if (envLevel !== undefined) {
     const parsed = parseInt(envLevel, 10);
     if (parsed >= 0 && parsed <= 5) return parsed as RampLevel;
   }
 
-  // Default to 0 — conservative start (500K)
-  // To advance, set PROGRAMMATIC_RAMP_LEVEL=1 after gate metrics are met
+  // 2. .ramp-level file (build-time only — skip on edge runtime)
+  const fileLevel = resolveRampLevelFromFile();
+  if (fileLevel !== undefined) return fileLevel;
+
+  // 3. Default to 0 — conservative start (500K)
   return 0;
 }
 

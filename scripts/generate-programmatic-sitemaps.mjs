@@ -1,4 +1,4 @@
-import { createWriteStream } from 'node:fs';
+import { createWriteStream, readFileSync } from 'node:fs';
 import { mkdir, readdir, rm, readFile, writeFile } from 'node:fs/promises';
 
 import { join } from 'node:path';
@@ -26,8 +26,30 @@ const minWordCount = 900;
 // Corpus cap. Controlled by the unified ramp controller (src/config/rampController.ts).
 // Default: Faz 0 = 500K URLs. To advance, set PROGRAMMATIC_RAMP_LEVEL=1..5 env var
 // after gate metrics (indexed ratio, crawled-not-indexed ratio) are met in GSC.
-// Legacy override: PROGRAMMATIC_SITEMAP_LIMIT still works for backward compatibility.
-const maxSitemapUrls = Number.parseInt(process.env.PROGRAMMATIC_SITEMAP_LIMIT || '500000', 10);
+// Priority order:
+//   1. PROGRAMMATIC_SITEMAP_LIMIT env (legacy override, backward compat)
+//   2. PROGRAMMATIC_RAMP_LEVEL env → ramp schedule lookup
+//   3. .ramp-level file (CI auto-updated, build-time read)
+//   4. Default: 500000 (Faz 0)
+const RAMP_SCHEDULE = [500000, 2000000, 5000000, 9000000, 14000000, 18040320];
+function resolveMaxSitemapUrls() {
+  if (process.env.PROGRAMMATIC_SITEMAP_LIMIT) {
+    const v = Number.parseInt(process.env.PROGRAMMATIC_SITEMAP_LIMIT, 10);
+    if (!Number.isNaN(v) && v > 0) return v;
+  }
+  if (process.env.PROGRAMMATIC_RAMP_LEVEL !== undefined) {
+    const lvl = Number.parseInt(process.env.PROGRAMMATIC_RAMP_LEVEL, 10);
+    if (lvl >= 0 && lvl <= 5) return RAMP_SCHEDULE[lvl];
+  }
+  // .ramp-level file (build-time read via readFileSync)
+  try {
+    const raw = readFileSync(join(process.cwd(), '.ramp-level'), 'utf8').trim();
+    const lvl = Number.parseInt(raw, 10);
+    if (lvl >= 0 && lvl <= 5) return RAMP_SCHEDULE[lvl];
+  } catch { /* file missing — fall through */ }
+  return 500000;
+}
+const maxSitemapUrls = resolveMaxSitemapUrls();
 
 
 
