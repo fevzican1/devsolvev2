@@ -28,10 +28,14 @@ const SHORT_DESCRIPTION_FILLERS: readonly string[] = [
   ' Free, local, and private.',
   ' Runs entirely in your browser.',
   ' No uploads or tracking.',
+  ' Trusted.',
 ];
 
 const FALLBACK_DESCRIPTION =
   'DevSolve offers free, privacy-first developer tools and in-depth technical guides for everyday engineering tasks. All processing runs locally in your browser today.';
+
+/** Headroom reserved when truncating so a short filler clause can still fit within maxLength. */
+const TRUNCATE_RESERVE_FOR_FILLER = 28;
 
 function normalizeDescriptionText(raw: string): string {
   return (raw || '')
@@ -70,8 +74,12 @@ function ensureTerminalPunctuation(text: string): string {
   return `${cleaned}.`;
 }
 
+function stripTrailingEllipsis(text: string): string {
+  return text.replace(/…$/, '').trim();
+}
+
 function padDescription(text: string, minLength: number, maxLength: number, targetLength: number): string {
-  let padded = text;
+  let padded = stripTrailingEllipsis(text);
   const fillerSets = [DESCRIPTION_FILLERS, SHORT_DESCRIPTION_FILLERS];
 
   for (const fillers of fillerSets) {
@@ -104,18 +112,38 @@ export function ensureSeoDescription(
   maxLength = 165,
   targetLength = 160,
 ): string {
-  let text = normalizeDescriptionText(raw);
+  const rawNormalized = normalizeDescriptionText(raw);
+  let text = rawNormalized;
+
+  if (!text) {
+    text = padDescription(FALLBACK_DESCRIPTION, minLength, maxLength, targetLength);
+    return ensureTerminalPunctuation(text.length <= maxLength ? text : truncateAtWord(text, maxLength));
+  }
 
   if (text.length > maxLength) {
     const sentenceFit = fitSentences(text, maxLength);
-    text = sentenceFit.length >= minLength ? sentenceFit : truncateAtWord(text, maxLength);
+    if (sentenceFit.length >= minLength) {
+      text = sentenceFit;
+    } else {
+      // Leave room for padDescription — truncating to maxLength-1 often yields 159
+      // chars, which cannot fit any filler within maxLength and wrongly triggers FALLBACK.
+      const truncateBudget = Math.max(80, maxLength - TRUNCATE_RESERVE_FOR_FILLER);
+      text = truncateAtWord(text, truncateBudget);
+    }
   }
 
   text = padDescription(text, minLength, maxLength, targetLength);
   text = ensureTerminalPunctuation(text);
 
   if (text.length < minLength) {
-    text = ensureTerminalPunctuation(FALLBACK_DESCRIPTION);
+    const truncateBudget = Math.max(80, maxLength - TRUNCATE_RESERVE_FOR_FILLER);
+    text = padDescription(truncateAtWord(rawNormalized, truncateBudget), minLength, maxLength, targetLength);
+    text = ensureTerminalPunctuation(text);
+  }
+
+  if (text.length < minLength) {
+    text = padDescription(FALLBACK_DESCRIPTION, minLength, maxLength, targetLength);
+    text = ensureTerminalPunctuation(text);
   }
 
   if (text.length > maxLength) {

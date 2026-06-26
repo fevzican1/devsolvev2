@@ -1391,7 +1391,7 @@ function buildDescription(
   const cd = clusterDomain[clusterKey];
 
   const descriptionVariants = [
-    `${title} — practical, browser-based workflow for real-world ${label(clusterKey)} engineering tasks, ${label(modifier)}. Learn how to ${tc.outcome} with ${toolName}.`,
+    `${label(intent)} for ${label(audience)} teams — practical, browser-based ${label(clusterKey)} workflow ${label(modifier)}. Learn how to ${tc.outcome} with ${toolName}.`,
     `Step-by-step guide to ${label(intent)} using ${toolName} for ${label(audience)} professionals. Covers ${tc.scenario} with best practices for ${cd.field}.`,
     `How ${label(audience)} teams use ${toolName} to ${label(intent)} ${label(modifier)}. Includes troubleshooting tips, alternative solutions, and expert recommendations.`,
     `Complete walkthrough: ${label(intent)} with ${toolName} for ${label(audience)} workflows. All processing runs locally in your browser — your data stays private.`,
