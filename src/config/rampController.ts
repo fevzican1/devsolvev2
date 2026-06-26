@@ -151,6 +151,11 @@ export const RAMP_LEVELS: readonly RampLevelConfig[] = [
  * Returns undefined if the file does not exist or contains an invalid value.
  */
 export function resolveRampLevelFromFile(): RampLevel | undefined {
+  // Edge runtime (Cloudflare Workers) has no Node.js fs — skip file read there.
+  if (typeof process === 'undefined' || process.env.NEXT_RUNTIME === 'edge') {
+    return undefined;
+  }
+
   try {
     // Dynamic require so that edge-runtime bundlers can tree-shake this path.
     const fs = require('fs') as typeof import('fs');

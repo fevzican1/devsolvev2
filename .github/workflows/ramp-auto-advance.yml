@@ -65,7 +65,7 @@ jobs:
           git commit -m "chore(ramp): auto-advance level ${{ steps.gate.outputs.current_level }} → $NEXT [skip ci]" \
             -m "GSC gate passed:" \
             -m "${{ steps.gate.outputs.reason }}"
-          git push
+          git push origin "HEAD:${{ github.ref_name }}"
 
       - name: Trigger Cloudflare Pages deploy
         if: steps.gate.outputs.gate_pass == 'true' && steps.gate.outputs.next_level != 'null'
