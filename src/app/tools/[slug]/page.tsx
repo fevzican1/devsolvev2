@@ -239,24 +239,6 @@ export default async function ToolPage({ params }: PageProps) {
           </CardContent>
         </Card>
 
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="text-lg">Community Feedback</CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">These are illustrative examples representing common user experiences, not verified reviews.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {dynamicContent.simulatedReviews.map((review, index) => (
-                <div key={`${review.role}-${index}`} className="rounded-md border p-3">
-                  <p className="text-sm font-medium">{review.role}</p>
-                  <p className="text-sm text-muted-foreground mt-1">{review.summary}</p>
-                  <p className="text-xs text-muted-foreground mt-2">Rating: {review.rating}/5</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
         <Card className="mb-8 border-primary/25 bg-primary/5">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">

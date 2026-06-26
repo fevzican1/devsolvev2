@@ -23,11 +23,11 @@ const urlsPerSitemap = 50000;
 const minIndexScore = 82;
 const minSitemapScore = 82;
 const minWordCount = 900;
-// Corpus cap. Full corpus = 18,040,320 URLs. This is restored as the default
-// per the site owner's decision to keep all 18M pages in the sitemap. You can
-// shrink it for a phased recovery via PROGRAMMATIC_SITEMAP_LIMIT (e.g. 4000000
-// or 110000) without touching code — see docs/indexing-recovery-2026-06.md §3.
-const maxSitemapUrls = Number.parseInt(process.env.PROGRAMMATIC_SITEMAP_LIMIT || '18040320', 10);
+// Corpus cap. Controlled by the unified ramp controller (src/config/rampController.ts).
+// Default: Faz 0 = 500K URLs. To advance, set PROGRAMMATIC_RAMP_LEVEL=1..5 env var
+// after gate metrics (indexed ratio, crawled-not-indexed ratio) are met in GSC.
+// Legacy override: PROGRAMMATIC_SITEMAP_LIMIT still works for backward compatibility.
+const maxSitemapUrls = Number.parseInt(process.env.PROGRAMMATIC_SITEMAP_LIMIT || '500000', 10);
 
 
 

@@ -3,10 +3,17 @@
  *   • Google search crawlers
  *   • Bing search crawlers
  *   • DuckDuckGo crawlers
+ *   • Social preview / unfurl bots (for link equity & referral traffic)
  *   • Verified real human browsers (header-checked Chromium, Firefox, Safari)
  *
- * Everything else is blocked: AI scrapers, social unfurlers, Apple/Meta/Baidu
- * bots, fake Chrome UAs, headless clients, curl/python/etc.
+ * Everything else is blocked: AI scrapers, SEO audit bots, fake Chrome UAs,
+ * headless clients, curl/python/etc.
+ *
+ * Social preview bots (Twitter, LinkedIn, Slack, Discord, etc.) are NOW ALLOWED
+ * because they drive shares, referral clicks, and organic inbound links — the
+ * only code-controllable backlink channel. They only fetch the cheap,
+ * edge-cached page at zero Cloudflare cost. Blocking them previously caused
+ * broken link previews which reduced shareability and inbound link acquisition.
  *
  * Pages Function code still counts as 1 invocation per /k/* request that
  * reaches it. To block attackers with ZERO Function invocations, deploy the
@@ -41,11 +48,27 @@ const DUCKDUCK_UA_MARKERS: readonly string[] = [
   'duckduckbot', 'duckduckgo-favicons-bot',
 ];
 
+/**
+ * Social preview / unfurl bot markers — these bots fetch a URL when a human
+ * shares it (Twitter, LinkedIn, Slack, Discord, Telegram, WhatsApp, Facebook,
+ * Reddit, Pinterest, Mastodon). They render Open Graph cards that drive shares
+ * and organic inbound links. Allowed because:
+ *   1. Zero cost (edge-cached response)
+ *   2. Drive referral traffic + backlinks
+ *   3. Only fire on human-shared URLs (not automated crawls)
+ */
+const SOCIAL_PREVIEW_MARKERS: readonly string[] = [
+  'twitterbot', 'facebookexternalhit', 'facebookcatalog',
+  'linkedinbot', 'slackbot', 'slack-imgproxy',
+  'discordbot', 'telegrambot', 'whatsapp',
+  'redditbot', 'pinterest', 'pinterestbot',
+  'embedly', 'iframely', 'mastodon',
+];
+
 /** Always block — includes the attack sources called out by site owner. */
 const HARD_BLOCK_PATTERNS: readonly string[] = [
   // Meta / Apple / Baidu / Claude / AI
-  'meta-webindexer', 'meta-externalagent', 'meta-externalfetcher', 'facebookexternalhit',
-  'facebookcatalog', 'facebookbot',
+  'meta-webindexer', 'meta-externalagent', 'meta-externalfetcher',
   'applebot', 'applebot-extended', 'apple-pubsub',
   'baidu', 'baiduspider', 'yandexbot', 'yandex.com/bots', 'sogou', 'sogou web spider',
   'chatgpt-user', 'oai-searchbot', 'openai', 'anthropic-ai', 'claude-web', 'claudebot',
@@ -53,12 +76,10 @@ const HARD_BLOCK_PATTERNS: readonly string[] = [
   'perplexitybot', 'perplexity-user', 'youbot', 'cohere-ai', 'cohere-training-data-crawler',
   'bytespider', 'amazonbot', 'diffbot', 'omgilibot', 'omgili', 'ccbot',
   'common crawl', 'commoncrawl',
-  // SEO / scraper / social
+  // SEO / scraper (NOT social unfurlers)
   'ahrefsbot', 'ahrefssiteaudit', 'semrushbot', 'mj12bot', 'dotbot', 'blexbot', 'petalbot',
   'dataforseobot', 'seznambot', 'aspiegelbot', 'exabot', 'megaindex', 'serpstatbot',
   'barkrowler', 'zoominfobot', 'seekport', 'linkdexbot', 'rogerbot', 'sistrix',
-  'twitterbot', 'linkedinbot', 'slackbot', 'slack-imgproxy', 'discordbot', 'telegrambot',
-  'redditbot', 'pinterest', 'pinterestbot', 'embedly', 'iframely', 'mastodon',
   // Fake browser / automation
   'chrome-extension', 'headlesschrome', 'headless', 'phantomjs', 'puppeteer', 'playwright',
   'selenium', 'electron/', 'scrapy', 'httrack', 'wget', 'curl/', 'libwww-perl',
@@ -88,6 +109,10 @@ function uaClaimsBing(lower: string): boolean {
 
 function uaClaimsDuckDuckGo(lower: string): boolean {
   return lowerIncludesAny(lower, DUCKDUCK_UA_MARKERS);
+}
+
+function isSocialPreviewBot(lower: string): boolean {
+  return lowerIncludesAny(lower, SOCIAL_PREVIEW_MARKERS);
 }
 
 function isNetworkVerifiedGoogle(cf?: CfRequestProperties): boolean | null {
@@ -165,6 +190,11 @@ export function decideAccess(
 
   if (uaClaimsBing(lower)) return 'allow';
   if (uaClaimsDuckDuckGo(lower)) return 'allow';
+
+  // Social preview bots — allowed for link equity and referral traffic.
+  // They only fire on human-shared URLs (not automated crawls) and fetch
+  // the cheap, edge-cached response at zero extra Cloudflare cost.
+  if (isSocialPreviewBot(lower)) return 'allow';
 
   if (looksLikeRealHumanBrowser(ua, headers)) return 'allow';
 

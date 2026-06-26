@@ -11,6 +11,7 @@ export interface QualityScore {
     depth: number;
     relevance: number;
     footprint: number;
+    layerDiversity: number;
   };
   issues: string[];
 }
@@ -31,13 +32,50 @@ export function estimateProgrammaticWordCount(page: ProgrammaticPage): number {
     ...page.faq.map((item) => `${item.question} ${item.answer}`),
     ...page.comparison.flatMap((row) => [row.item, row.pros, row.cons]),
     ...page.glossary.map((item) => `${item.term} ${item.definition}`),
-    ...page.simulatedReviews.map((item) => `${item.role} ${item.comment}`),
   ].join(' ');
 
   return corpus
     .replace(/<[^>]+>/g, ' ')
     .split(/\s+/)
     .filter(Boolean).length;
+}
+
+/**
+ * SPE Layer Diversity Score — measures how many of the 7 SPE content layers
+ * are meaningfully populated. Higher diversity = more unique page.
+ *
+ * Layer 1: Tool Deep-Dive (toolHistory + globalUseCases)
+ * Layer 2: Scenario Fixture (steps + comparison)
+ * Layer 3: Intent Operation (intent-specific content via keywords)
+ * Layer 4: Audience Workflow (audience-specific intro/steps)
+ * Layer 5: Task Troubleshooting (pitfalls + proTips + technicalAnalysis)
+ * Layer 6: Modifier Playbook (expertTips + faq variety)
+ * Layer 7: Interactive Tool State (glossary + slug complexity)
+ */
+function calculateLayerDiversity(page: ProgrammaticPage): number {
+  let layers = 0;
+
+  // Layer 1: Tool-specific content
+  if (page.toolHistory && page.toolHistory.length >= 2) layers++;
+  if (page.globalUseCases && page.globalUseCases.length >= 2) layers++;
+
+  // Layer 2: Scenario fixture (worked example)
+  if (page.steps.length >= 4 && page.comparison.length >= 2) layers++;
+
+  // Layer 3: Intent operation (specific keywords)
+  if (page.keywords.length >= 5) layers++;
+
+  // Layer 4: Audience workflow (intro length indicates audience-specific narrative)
+  if (page.intro.length >= 100) layers++;
+
+  // Layer 5: Troubleshooting (pitfalls + tips)
+  if (page.pitfalls.length >= 3 && (page.proTips?.length >= 2 || page.technicalAnalysis?.length >= 2)) layers++;
+
+  // Layer 6: Modifier playbook (expert + faq variety)
+  if (page.expertTips?.length >= 2 && page.faq?.length >= 3) layers++;
+
+  // Score: 0-7 layers → 0-15 points
+  return Math.round((layers / 7) * 15);
 }
 
 export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
@@ -97,7 +135,10 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
   };
   const relevance = relevanceFactors.hasPrimaryTool + relevanceFactors.hasClusterKey;
 
-  const totalScore = Math.min(100, uniqueness + usefulness + depth + relevance + footprint);
+  // SPE Layer Diversity — new metric for content uniqueness across 7 layers
+  const layerDiversity = calculateLayerDiversity(page);
+
+  const totalScore = Math.min(100, uniqueness + usefulness + depth + relevance + footprint + layerDiversity);
 
   if (totalScore < 78) {
     issues.push('Score below conservative indexing threshold');
@@ -114,6 +155,9 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
   if (wordCount < 900) {
     issues.push('Estimated content length is below the 900-word quality floor');
   }
+  if (layerDiversity < 7) {
+    issues.push('Low SPE layer diversity — fewer than 4 of 7 layers sufficiently populated');
+  }
 
   return {
     slug: page.slug,
@@ -125,6 +169,7 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
       depth,
       relevance,
       footprint,
+      layerDiversity,
     },
     issues,
   };
