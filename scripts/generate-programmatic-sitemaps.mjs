@@ -3,6 +3,10 @@ import { mkdir, readdir, rm, readFile, writeFile } from 'node:fs/promises';
 
 import { join } from 'node:path';
 
+import {
+  isSitemapQualityEligible,
+} from './lib/programmatic-quality.mjs';
+
 const siteUrl = (process.env.SITE_URL || process.env.URL || 'https://devsolvev2.com').replace(/\/$/, '');
 // Fixed content-update date — must match siteConfig.contentUpdatedAt so that
 // sitemap lastmod and page dateModified are consistent for Google.
@@ -288,9 +292,12 @@ function tierForChunk(chunkIndex) {
  * changefreq / lastmod) toward the strongest pages first — it just no longer
  * removes any URL from the sitemap. To re-enable a smaller, phased sitemap
  * WITHOUT touching code, set PROGRAMMATIC_SITEMAP_LIMIT (e.g. 4000000).
+ *
+ * Active gate: only PRIORITY_MODIFIER_INDICES (27/162) pass — eliminates
+ * near-duplicate modifier clusters that trigger Bing content-quality flags.
  */
-function isQualityEligible(_slug, _modifier, _chunkIndex) {
-  return true;
+function isQualityEligible(_slug, _modifier, _chunkIndex, globalIndex, modifierIndex) {
+  return isSitemapQualityEligible(globalIndex, modifierIndex);
 }
 
 function tierMeta(tier) {
@@ -592,13 +599,18 @@ async function main() {
       for (const intent of cluster.intents) {
         for (const audience of audiences) {
           for (const task of tasks) {
-            for (const modifier of modifiers) {
+            for (let modifierIndex = 0; modifierIndex < modifiers.length; modifierIndex += 1) {
+              const modifier = modifiers[modifierIndex];
               if (generatedUrlCount >= maxSitemapUrls) break;
 
               const slug = buildSlug(cluster.key, intent, audience, task, tool, globalIndex);
-              globalIndex += 1;
 
-              if (!isQualityEligible(slug, modifier, chunkIndex)) continue;
+              if (!isQualityEligible(slug, modifier, chunkIndex, globalIndex, modifierIndex)) {
+                globalIndex += 1;
+                continue;
+              }
+
+              globalIndex += 1;
 
               const perChunkLastmod = chunkLastmod.get(currentFile.filename);
               // Spread URLs within a chunk over a few seconds so even URLs

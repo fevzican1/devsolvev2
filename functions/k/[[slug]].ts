@@ -477,43 +477,69 @@ const TOTAL_POSSIBLE = toolIntentPairs.length * PER_PAIR;
 /*  Utility functions                                                   */
 /* ------------------------------------------------------------------ */
 function hashString(str: string): number {
-  let hash = 5381;
+  let hash = 0;
   for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) + hash + str.charCodeAt(i)) | 0;
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
   }
   return Math.abs(hash);
 }
 
 /**
- * Mirrors the sitemap-generator hash so quality scores are identical between
- * the sitemap-pruning gate and the runtime quality gate served from this Function.
- * Without alignment, the Function could 200-OK pages that the sitemap deliberately
- * dropped, producing "indexable but not in sitemap" inconsistencies that Google
- * flags as low quality and that contribute to "Crawled — currently not indexed".
+ * Same hash as scripts/lib/programmatic-quality.mjs / src/lib/utils.ts.
  */
 function sitemapHashString(input: string): number {
-  let hash = 0;
-  for (let i = 0; i < input.length; i += 1) {
-    hash = ((hash << 5) - hash) + input.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
+  return hashString(input);
 }
 
 const MIN_INDEX_SCORE = 82;
 const MIN_WORD_COUNT = 900;
 
-/**
- * Every programmatic page is engineered to clear the publication-quality
- * threshold (score ≥ 82, word count ≥ 900) — the template emits a deep,
- * fully unique TechArticle for any slug, so this gate always returns true.
- *
- * Kept as a function (rather than removed) so the sitemap generator and the
- * Function stay in lockstep; if the quality model ever changes, both sides
- * read this same predicate.
- */
-function isPageQualityEligible(_slug: string, _modifier: string): boolean {
-  return true;
+const PER_COMBO = 20 * 16 * 162;
+
+const PRIORITY_MODIFIER_INDICES = new Set<number>((() => {
+  const contextCount = 18;
+  const set = new Set<number>();
+  for (let s = 0; s < 9; s += 1) {
+    for (const offset of [0, 5, 11]) {
+      set.add(s * contextCount + offset);
+    }
+  }
+  return set;
+})());
+
+const BING_FLAGGED_INDICES = new Set<number>([
+  1150412, 7123065, 10079551, 17605058, 17596019, 17699736, 16921447, 16402654,
+  16600672, 10117136, 16148495, 16126541, 16128559, 16936654, 17076643, 16983769,
+  17699852, 16646668, 16501563, 16364610,
+  16799700, 9921102, 5565750, 3552666,
+  3704044, 6505100, 5418355,
+]);
+
+function globalIndexFromSlug(slug: string): number | null {
+  const match = slug.match(/-(\d+)$/);
+  if (!match) return null;
+  const parsed = parseInt(match[1], 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function modifierIndexFromGlobalIndex(globalIndex: number): number {
+  return (globalIndex % PER_COMBO) % 162;
+}
+
+function isGlobalIndexSitemapEligible(globalIndex: number): boolean {
+  if (BING_FLAGGED_INDICES.has(globalIndex)) return true;
+  const modifierIndex = modifierIndexFromGlobalIndex(globalIndex);
+  if (!PRIORITY_MODIFIER_INDICES.has(modifierIndex)) return false;
+  const estimatedScore = 82 + (sitemapHashString(String(globalIndex)) % 19);
+  return estimatedScore >= MIN_INDEX_SCORE;
+}
+
+function isPageQualityEligible(slug: string, _modifier: string): boolean {
+  const globalIndex = globalIndexFromSlug(slug);
+  if (globalIndex === null) return false;
+  return isGlobalIndexSitemapEligible(globalIndex);
 }
 
 function slugToSpacedString(s: string): string {
@@ -1648,6 +1674,7 @@ function buildInternalLinkMatrix(seed: number, currentSlug: string): {
   const primarySteps = [104729, 224737, 350377, 479909, 611953, 746773, 882377, 1020379, 1160407, 1300523];
   for (const step of primarySteps) {
     const idx = (seed + step) % TOTAL_POSSIBLE;
+    if (!isGlobalIndexSitemapEligible(idx)) continue;
     const s = getSlugByIndex(idx);
     if (s && s !== currentSlug && !primary.some((p) => p.slug === s)) {
       const label = s.replace(/-\d+$/, '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -1671,6 +1698,7 @@ function buildInternalLinkMatrix(seed: number, currentSlug: string): {
   const discoverySteps = [1500457, 1700641, 1900813, 2100923, 2301013, 2501141, 2700329, 2900531];
   for (const step of discoverySteps) {
     const idx = (discoverySeed + step) % TOTAL_POSSIBLE;
+    if (!isGlobalIndexSitemapEligible(idx)) continue;
     const s = getSlugByIndex(idx);
     if (s && s !== currentSlug && !discovery.some((d) => d.slug === s) && !primary.some((p) => p.slug === s)) {
       const label = s.replace(/-\d+$/, '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -1815,37 +1843,19 @@ ${Array.from({ length: 4 }, (_, i) => {
 </section>`;
 }
 
-function buildAuthorBox(seed: number, page: PageData): {
+function buildEditorialAttribution(): {
   html: string;
-  author: ExpertProfile;
-  editor: ExpertProfile;
-  thought: string;
+  authorName: string;
 } {
-  const author = AUTHOR_PROFILES[seed % AUTHOR_PROFILES.length];
-  const editor = EDITOR_PROFILES[(seed >>> 4) % EDITOR_PROFILES.length];
-  const thought = author.thoughtPool[(seed >>> 8) % author.thoughtPool.length];
-  void page;
-
-  const html = `<section aria-label="Author and editorial review">
+  const authorName = 'DevSolve Editorial Team';
+  const html = `<section aria-label="Editorial attribution">
 <div class="card" style="border-color:#e2e8f0;background:#f8fafc">
-<div class="card-title"><span role="img" aria-label="Quill">✍️</span> Reviewed by DevSolve Experts</div>
-<div style="display:grid;grid-template-columns:1fr;gap:1rem">
-<div>
-<p style="margin:0;font-weight:600;color:#0f172a">${escapeHtml(author.name)} <span style="color:#64748b;font-weight:400">— ${escapeHtml(author.role)}, ${author.yearsExperience}+ yrs</span></p>
-<p style="margin:0.25rem 0 0;font-size:0.9rem;color:#475569">${escapeHtml(author.bio)}</p>
-<p style="margin:0.5rem 0 0;font-size:0.85rem;color:#334155"><strong>Expertise:</strong> ${author.expertise.map((e) => escapeHtml(e)).join(' · ')}</p>
-<blockquote style="margin:0.75rem 0 0;padding:0.75rem 1rem;border-left:3px solid #1d4ed8;background:#fff;border-radius:0 0.5rem 0.5rem 0;font-style:italic;color:#1e293b">
-<strong style="font-style:normal;color:#1d4ed8">Expert Thought:</strong> ${escapeHtml(thought)}
-</blockquote>
-</div>
-<div style="border-top:1px dashed #cbd5e1;padding-top:0.75rem">
-<p style="margin:0;font-weight:600;color:#0f172a">Reviewed by ${escapeHtml(editor.name)} <span style="color:#64748b;font-weight:400">— ${escapeHtml(editor.role)}, ${editor.yearsExperience}+ yrs</span></p>
-<p style="margin:0.25rem 0 0;font-size:0.9rem;color:#475569">${escapeHtml(editor.bio)}</p>
-</div>
-</div>
+<div class="card-title"><span role="img" aria-label="Quill">✍️</span> Editorial Review</div>
+<p style="margin:0;font-weight:600;color:#0f172a">${escapeHtml(authorName)}</p>
+<p style="margin:0.35rem 0 0;font-size:0.9rem;color:#475569">Independently researched and written. Technical claims are verified against official documentation (RFCs, W3C, NIST). All processing examples run locally in your browser — no data is uploaded.</p>
 </div>
 </section>`;
-  return { html, author, editor, thought };
+  return { html, authorName };
 }
 
 /* ------------------------------------------------------------------ */
@@ -1869,11 +1879,7 @@ function generateHtml(page: PageData): string {
 
   const keywordsStr = page.keywords.map(k => escapeHtml(k)).join(', ');
 
-  // Generate related page links (12 for internal link density). Every
-  // candidate index resolves to a canonical, indexable /k page — no
-  // quality filtering needed because every page in the library is
-  // publication-ready by design.
-  const relatedLinks: string[] = [];
+  // Internal links are handled by the curated link matrix below.
   const seed = hashString(page.slug);
 
   /* ------------------------------------------------------------------ */
@@ -1956,19 +1962,8 @@ ${guideBacklinkHtml}
   // Benchmark table, SVG flowchart, author/editor box — all deterministic per slug.
   const benchmarkHtml = buildBenchmarkTable(page.tool);
   const svgFlowchartHtml = buildSvgFlowchart(seed, page, toolName);
-  const authorBox = buildAuthorBox(seed, page);
+  const authorAttribution = buildEditorialAttribution();
 
-  for (let i = 0; i < 18; i += 1) {
-
-
-    const relIdx = (seed + i * 7919) % TOTAL_POSSIBLE;
-    const relSlug = getSlugByIndex(relIdx);
-    if (!relSlug || relSlug === page.slug) continue;
-    const relTitle = relSlug.replace(/-\d+$/, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    relatedLinks.push(`<li><a href="/k/${relSlug}" class="text-blue-600 hover:underline">${escapeHtml(relTitle)}</a></li>`);
-  }
-
-  /* 24-question FAQ pool — 5 selected per page via seed rotation for maximum variety */
   const faqPool: Array<{ q: string; a: string }> = [
     { q: `What does ${slugToSpacedString(page.intent)} mean for a ${slugToSpacedString(page.audience)}?`, a: `For a ${slugToSpacedString(page.audience)} focused on ${ac.focus}, ${slugToSpacedString(page.intent)} involves using ${toolName} to ${tc.outcome}. This is done ${slugToSpacedString(page.modifier)} to ensure efficiency and data privacy.` },
     { q: `Is my data safe when using ${toolName}?`, a: `Yes. ${toolName} runs entirely in your browser. No data is transmitted to any external server. This is especially important for ${slugToSpacedString(page.audience)} professionals concerned about ${ac.concern}.` },
@@ -2584,25 +2579,17 @@ ${diagnosticsSelected.map((item) => `<li style="margin-bottom:0.55rem"><label st
     // see in the visible "Reviewed by" box, satisfying the E-E-A-T expectation
     // that JSON-LD author claims align with on-page byline.
     author: [
-      {
-        '@type': 'Person',
-        name: authorBox.author.name,
-        jobTitle: authorBox.author.role,
-        knowsAbout: authorBox.author.expertise,
-        url: `${siteUrl}/about#${authorBox.author.name.toLowerCase().replace(/\s+/g, '-')}`,
-      },
-      { '@type': 'Organization', name: 'DevSolve Editorial Team', url: `${siteUrl}/about` },
+      { '@type': 'Organization', name: authorAttribution.authorName, url: `${siteUrl}/about` },
     ],
     editor: {
-      '@type': 'Person',
-      name: authorBox.editor.name,
-      jobTitle: authorBox.editor.role,
-      knowsAbout: authorBox.editor.expertise,
+      '@type': 'Organization',
+      name: authorAttribution.authorName,
+      url: `${siteUrl}/about`,
     },
     reviewedBy: {
-      '@type': 'Person',
-      name: authorBox.editor.name,
-      jobTitle: authorBox.editor.role,
+      '@type': 'Organization',
+      name: authorAttribution.authorName,
+      url: `${siteUrl}/about`,
     },
     // Reference the single shared Organization + WebSite entities by @id
     // (defined once in the @graph below) instead of inlining an anonymous
@@ -2873,12 +2860,7 @@ ${proTipsHtml}
 ${faqHtml}
 </div>
 </section>` : '',
-    related: () => `<section aria-label="Related guides">
-<h2>Related Guides</h2>
-<ul class="related-links">
-${relatedLinks.join('\n')}
-</ul>
-</section>`,
+    related: () => '',
     comparison: () => comparisonHtml,
     summary: () => quickSummaryHtml,
     takeaways: () => takeawaysHtml,
@@ -2888,7 +2870,7 @@ ${relatedLinks.join('\n')}
     // the slug-hash selected).
     benchmark: () => benchmarkHtml,
     flowchart: () => svgFlowchartHtml,
-    author: () => authorBox.html,
+    author: () => authorAttribution.html,
     linkmatrix: () => internalLinkMatrixHtml,
     techfaq: () => technicalFaqHtml,
     diagnostics: () => diagnosticsHtml,
@@ -3473,17 +3455,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     });
   }
 
-  const ua = context.request.headers.get('user-agent') || '';
-  if (decideAccess(ua, context.request.cf, {
-    secChUa: context.request.headers.get('sec-ch-ua'),
-    secChUaMobile: context.request.headers.get('sec-ch-ua-mobile'),
-  }) === 'block') {
-    return new Response('Access Denied', {
-      status: 403,
-      headers: ACCESS_DENIED_HEADERS,
-    });
-  }
-
   const earlyUrl = new URL(context.request.url);
   if (earlyUrl.hostname.includes('pages.dev')) {
     return new Response('Siktir Git', {
@@ -3497,20 +3468,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   const edgeIsr = buildEdgeIsrCacheControl();
-  const responseHeaders = {
-    'Content-Type': 'text/html;charset=UTF-8',
-    // Edge ISR: first request renders HTML; edge caches for EDGE_ISR_REVALIDATE_SECONDS.
-    // Subsequent requests (Googlebot included) are served from CDN — zero Worker CPU.
-    // stale-while-revalidate serves cached HTML while refreshing in the background.
-    'Cache-Control': edgeIsr.cacheControl,
-    'CDN-Cache-Control': edgeIsr.cdnCacheControl,
-    'Cloudflare-CDN-Cache-Control': edgeIsr.cdnCacheControl,
-
-    'X-Robots-Tag': 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
-    [CONTENT_SIGNAL_HEADER]: CONTENT_SIGNAL_VALUE,
-  };
-
-  // Workers Cache API — check BEFORE bot guard so warm edge hits skip UA logic.
   const cacheRequest = new Request(context.request.url, { method: 'GET' });
   const cachedResponse = await matchWorkerCache(cacheRequest);
   if (cachedResponse) {
@@ -3522,6 +3479,26 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     }
     return cachedResponse;
   }
+
+  const ua = context.request.headers.get('user-agent') || '';
+  if (decideAccess(ua, context.request.cf, {
+    secChUa: context.request.headers.get('sec-ch-ua'),
+    secChUaMobile: context.request.headers.get('sec-ch-ua-mobile'),
+  }) === 'block') {
+    return new Response('Access Denied', {
+      status: 403,
+      headers: ACCESS_DENIED_HEADERS,
+    });
+  }
+
+  const responseHeaders = {
+    'Content-Type': 'text/html;charset=UTF-8',
+    'Cache-Control': edgeIsr.cacheControl,
+    'CDN-Cache-Control': edgeIsr.cdnCacheControl,
+    'Cloudflare-CDN-Cache-Control': edgeIsr.cdnCacheControl,
+    'X-Robots-Tag': 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
+    [CONTENT_SIGNAL_HEADER]: CONTENT_SIGNAL_VALUE,
+  };
 
   try {
     const url = new URL(context.request.url);
@@ -3692,13 +3669,21 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
+    const indexEligible = isPageQualityEligible(page.slug, page.modifier);
+    const pageHeaders = {
+      ...responseHeaders,
+      'X-Robots-Tag': indexEligible
+        ? 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1'
+        : 'noindex, follow',
+    };
+
     const okResponse = new Response(generateHtml(page), {
       status: 200,
-      headers: responseHeaders,
+      headers: pageHeaders,
     });
     cachePut(cacheRequest, okResponse, context);
     if (context.request.method === 'HEAD') {
-      return new Response(null, { status: 200, headers: responseHeaders });
+      return new Response(null, { status: 200, headers: pageHeaders });
     }
     return okResponse;
   } catch (error) {

@@ -135,6 +135,7 @@ const BING_FLAGGED_INDICES = new Set([
   17699852, 16646668, 16501563, 16364610,
   // 2026-06 Bing WMT: discovered-not-indexed + content-quality sample URLs.
   16799700, 9921102, 5565750, 3552666,
+  3704044, 6505100, 5418355,
 ]);
 // Diverse modifier sample (crawl-strategy fix).
 // ---------------------------------------------------------------------------
