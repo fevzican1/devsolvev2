@@ -12,9 +12,12 @@ import { siteConfig } from '../src/config/site.ts';
 import {
   BING_FLAGGED_INDICES,
   isSitemapQualityEligible,
+  isQualityEligibleWithContent,
   modifierIndexFromGlobalIndex,
   MIN_WORD_COUNT,
+  MIN_META_DESCRIPTION_LENGTH,
 } from './lib/programmatic-quality.mjs';
+import { ensureSeoDescription } from '../src/lib/seo/seoText.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const reportsDir = join(__dirname, '..', 'out', 'reports');
@@ -44,13 +47,28 @@ for (let index = 0; index < totalPages; index += sampleStride) {
   if (quality.score < siteConfig.programmaticQuality.minIndexScore) belowScore += 1;
 
   const modifierIndex = modifierIndexFromGlobalIndex(index);
-  if (!isSitemapQualityEligible(index, modifierIndex)) nonPriorityModifier += 1;
+  const metaDescription = ensureSeoDescription(page.description);
+  const gateEligible = isQualityEligibleWithContent(
+    page.slug,
+    '',
+    {
+      metaDescription,
+      wordCount: quality.wordCount,
+      hasSimulatedReviews: false,
+    },
+    index,
+    Math.floor(index / (20 * 16 * 162)),
+    modifierIndex,
+    page.primaryTool,
+    page.intent,
+  );
+  if (!gateEligible) nonPriorityModifier += 1;
 
-  if (quality.score >= siteConfig.programmaticQuality.minIndexScore && quality.wordCount >= MIN_WORD_COUNT) {
+  if (gateEligible && quality.score >= siteConfig.programmaticQuality.minIndexScore) {
     indexableCount += 1;
   }
   if (shouldIncludeInSitemap(quality.score, siteConfig.programmaticQuality.minSitemapScore, quality.wordCount)
-      && isSitemapQualityEligible(index, modifierIndex)) {
+      && gateEligible) {
     sitemapIncludedCount += 1;
   }
 
@@ -59,8 +77,9 @@ for (let index = 0; index < totalPages; index += sampleStride) {
       slug: page.slug,
       score: quality.score,
       wordCount: quality.wordCount,
+      metaLength: metaDescription.length,
       issues: quality.issues,
-      sitemapEligible: isSitemapQualityEligible(index, modifierIndex),
+      sitemapEligible: gateEligible,
       bingFlagged: BING_FLAGGED_INDICES.has(index),
     });
   }
@@ -74,6 +93,7 @@ const report = {
     minIndexScore: siteConfig.programmaticQuality.minIndexScore,
     minSitemapScore: siteConfig.programmaticQuality.minSitemapScore,
     minWordCount: MIN_WORD_COUNT,
+    minMetaDescriptionLength: MIN_META_DESCRIPTION_LENGTH,
   },
   summary: {
     totalGenerated: totalPages,

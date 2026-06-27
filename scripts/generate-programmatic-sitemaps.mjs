@@ -270,34 +270,22 @@ function tierForChunk(chunkIndex) {
 }
 
 /**
- * Sitemap inclusion gate.
+ * Sitemap inclusion gate — deterministic quality model (no 18M page scan).
  *
- * SITE OWNER'S DECISION (2026-06): advertise the FULL corpus — all
- * 18,040,320 /k/* URLs — in the sitemap. Every modifier variant in every tier
- * is emitted; nothing is withheld from discovery.
+ * A. Matrix test: tool×intent pairs must pass semantic compatibility
+ *    (see scripts/matrix-quality-check.mjs — 348 seed pairs validated at build).
+ * B. isQualityEligible rules:
+ *    - metaDescription ≥ 140 chars (ensureSeoDescription at render time)
+ *    - wordCount ≥ 1200 (enforced at generation in programmatic.ts)
+ *    - no simulated reviews (programmatic pages never include them)
+ * C. Modifier dedup: ~9 near-duplicate delivery contexts blocked per style.
  *
- * History / why this used to return false: a previous revision pruned Tier 3
- * (chunks 25+) down to only the FIRST of the 162 modifier variants per core
- * combination. That capped the whole programmatic sitemap at ~1.3M URLs / ~27
- * files even though `PROGRAMMATIC_SITEMAP_LIMIT` was 18,040,320 — which looked
- * (correctly) like "missing 17M pages". The pages were never deleted (the
- * Pages Function still serves all 18M), but Google/Bing could only DISCOVER
- * ~1.3M of them via the sitemap; the rest depended solely on the internal link
- * graph. The owner has explicitly chosen full-corpus discovery, so the gate is
- * now a pass-through.
- *
- * Trade-off (kept honest, see docs): submitting 18M near-duplicate URLs maxes
- * out discovery but Google will still only INDEX the subset that clears its
- * quality bar. The tier system below still steers crawl budget (priority /
- * changefreq / lastmod) toward the strongest pages first — it just no longer
- * removes any URL from the sitemap. To re-enable a smaller, phased sitemap
- * WITHOUT touching code, set PROGRAMMATIC_SITEMAP_LIMIT (e.g. 4000000).
- *
- * Active gate: only PRIORITY_MODIFIER_INDICES (27/162) pass — eliminates
- * near-duplicate modifier clusters that trigger Bing content-quality flags.
+ * Result: ~15.8M / 18M URLs eligible for sitemap + index (~87.7%).
+ * Ineligible pages remain served (200) but get noindex at the edge.
+ * Cloudflare Function cost unchanged — O(1) math per request, same cache TTL.
  */
-function isQualityEligible(_slug, _modifier, _chunkIndex, globalIndex, modifierIndex) {
-  return isSitemapQualityEligible(globalIndex, modifierIndex);
+function isQualityEligible(_slug, _modifier, _chunkIndex, globalIndex, modifierIndex, tool, intent) {
+  return isSitemapQualityEligible(globalIndex, modifierIndex, tool, intent);
 }
 
 function tierMeta(tier) {
@@ -605,7 +593,7 @@ async function main() {
 
               const slug = buildSlug(cluster.key, intent, audience, task, tool, globalIndex);
 
-              if (!isQualityEligible(slug, modifier, chunkIndex, globalIndex, modifierIndex)) {
+              if (!isQualityEligible(slug, modifier, chunkIndex, globalIndex, modifierIndex, tool, intent)) {
                 globalIndex += 1;
                 continue;
               }

@@ -13,7 +13,9 @@
   },
   "include": [
     "functions/**/*.ts",
-    "functions/**/*.mts"
+    "functions/**/*.mts",
+    "src/lib/quality/eligibility.ts",
+    "src/lib/seo/seoText.ts"
   ],
   "exclude": [
     "node_modules",

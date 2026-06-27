@@ -152,8 +152,8 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
   if (page.slug.length > 160) {
     issues.push('Slug is overly long or complex');
   }
-  if (wordCount < 900) {
-    issues.push('Estimated content length is below the 900-word quality floor');
+  if (wordCount < 1200) {
+    issues.push('Estimated content length is below the 1200-word quality floor');
   }
   if (layerDiversity < 7) {
     issues.push('Low SPE layer diversity — fewer than 4 of 7 layers sufficiently populated');
@@ -176,11 +176,11 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
 }
 
 export function shouldIndex(score: number, minScore: number, wordCount?: number): boolean {
-  if (typeof wordCount === 'number' && wordCount < 900) return false;
+  if (typeof wordCount === 'number' && wordCount < 1200) return false;
   return score >= minScore;
 }
 
 export function shouldIncludeInSitemap(score: number, minScore: number, wordCount?: number): boolean {
-  if (typeof wordCount === 'number' && wordCount < 900) return false;
+  if (typeof wordCount === 'number' && wordCount < 1200) return false;
   return score >= minScore;
 }
