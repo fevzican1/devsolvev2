@@ -18,6 +18,9 @@ export const siteConfig = {
   programmaticQuality: {
     minIndexScore: 82,
     minSitemapScore: 90,
+    minMetaDescriptionLength: 140,
+    minWordCount: 1200,
+    targetEligiblePages: 15_814_080,
     maxSitemapUrls: 18040320,
   },
 

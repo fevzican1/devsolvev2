@@ -17,6 +17,11 @@ import {
   CONTENT_SIGNAL_VALUE,
 } from '../../src/lib/seo/contentSignal';
 import { EDGE_ISR_REVALIDATE_SECONDS } from '../../src/config/staticGeneration';
+import {
+  isPageQualityEligible as checkPageQualityEligible,
+  isSitemapQualityEligible,
+  modifierIndexFromGlobalIndex,
+} from '../../src/lib/quality/eligibility';
 import { getAuthorityReferences } from '../../src/lib/seo/authorityReferences';
 import {
   ORG_ID_FRAGMENT,
@@ -486,60 +491,16 @@ function hashString(str: string): number {
   return Math.abs(hash);
 }
 
-/**
- * Same hash as scripts/lib/programmatic-quality.mjs / src/lib/utils.ts.
- */
-function sitemapHashString(input: string): number {
-  return hashString(input);
-}
-
-const MIN_INDEX_SCORE = 82;
-const MIN_WORD_COUNT = 900;
-
-const PER_COMBO = 20 * 16 * 162;
-
-const PRIORITY_MODIFIER_INDICES = new Set<number>((() => {
-  const contextCount = 18;
-  const set = new Set<number>();
-  for (let s = 0; s < 9; s += 1) {
-    for (const offset of [0, 5, 11]) {
-      set.add(s * contextCount + offset);
-    }
-  }
-  return set;
-})());
-
-const BING_FLAGGED_INDICES = new Set<number>([
-  1150412, 7123065, 10079551, 17605058, 17596019, 17699736, 16921447, 16402654,
-  16600672, 10117136, 16148495, 16126541, 16128559, 16936654, 17076643, 16983769,
-  17699852, 16646668, 16501563, 16364610,
-  16799700, 9921102, 5565750, 3552666,
-  3704044, 6505100, 5418355,
-]);
-
-function globalIndexFromSlug(slug: string): number | null {
-  const match = slug.match(/-(\d+)$/);
-  if (!match) return null;
-  const parsed = parseInt(match[1], 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function modifierIndexFromGlobalIndex(globalIndex: number): number {
-  return (globalIndex % PER_COMBO) % 162;
+function getPairAtGlobalIndex(globalIndex: number): ToolIntentPair | undefined {
+  const pairIndex = Math.floor(globalIndex / PER_PAIR);
+  return toolIntentPairs[pairIndex];
 }
 
 function isGlobalIndexSitemapEligible(globalIndex: number): boolean {
-  if (BING_FLAGGED_INDICES.has(globalIndex)) return true;
+  const pair = getPairAtGlobalIndex(globalIndex);
+  if (!pair) return false;
   const modifierIndex = modifierIndexFromGlobalIndex(globalIndex);
-  if (!PRIORITY_MODIFIER_INDICES.has(modifierIndex)) return false;
-  const estimatedScore = 82 + (sitemapHashString(String(globalIndex)) % 19);
-  return estimatedScore >= MIN_INDEX_SCORE;
-}
-
-function isPageQualityEligible(slug: string, _modifier: string): boolean {
-  const globalIndex = globalIndexFromSlug(slug);
-  if (globalIndex === null) return false;
-  return isGlobalIndexSitemapEligible(globalIndex);
+  return isSitemapQualityEligible(globalIndex, modifierIndex, pair.tool, pair.intent);
 }
 
 function slugToSpacedString(s: string): string {
@@ -3669,7 +3630,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    const indexEligible = isPageQualityEligible(page.slug, page.modifier);
+    const indexEligible = checkPageQualityEligible(page.slug, page.modifier, page.tool, page.intent);
     const pageHeaders = {
       ...responseHeaders,
       'X-Robots-Tag': indexEligible

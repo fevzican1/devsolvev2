@@ -1,5 +1,6 @@
 import { getProgrammaticPageBySlug, getSlugByIndex, getTotalPageCount } from '../../data/programmatic';
 import { calculateQualityScore, shouldIndex } from '../quality/scoring';
+import { isPageQualityEligible } from '../quality/eligibility';
 import { siteConfig } from '../../config/site';
 
 const ROTATION_STEP = 7919;
@@ -72,7 +73,13 @@ function isIndexableProgrammaticPath(path: string): boolean {
   }
 
   const quality = calculateQualityScore(page);
-  const indexable = shouldIndex(
+  const gateEligible = isPageQualityEligible(
+    page.slug,
+    page.taskVariant,
+    page.primaryTool,
+    page.intent,
+  );
+  const indexable = gateEligible && shouldIndex(
     quality.score,
     siteConfig.programmaticQuality.minIndexScore,
     quality.wordCount,

@@ -1410,7 +1410,7 @@ export function getPageByIndex(index: number): ProgrammaticPage | undefined {
     glossary: buildGlossary(pair.cluster.key, pair.intent, audience, seed),
   };
 
-  const MIN_PROGRAMMATIC_WORDS = 900;
+  const MIN_PROGRAMMATIC_WORDS = 1200;
   while (estimateProgrammaticWordCount(page) < MIN_PROGRAMMATIC_WORDS) {
     page.technicalAnalysis.push(...buildDepthExpansion(pair.tool, pair.cluster.key, audience, task));
   }

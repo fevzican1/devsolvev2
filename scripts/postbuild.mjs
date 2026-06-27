@@ -72,6 +72,13 @@ try {
 }
 
 try {
+  console.log('Running matrix quality check (348 tool×intent seed pairs)...');
+  execSync(`node ${join(__dirname, 'matrix-quality-check.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('Matrix quality check failed — see out/reports/matrix-quality.txt');
+}
+
+try {
   console.log('Running slug parity & resolution drift guard...');
   execSync(`node ${join(__dirname, 'slug-parity-check.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
