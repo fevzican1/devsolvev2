@@ -41,7 +41,6 @@ export interface ProgrammaticPage {
   toolHistory: string[];
   globalUseCases: string[];
   glossary: { term: string; definition: string }[];
-  simulatedReviews: { role: string; rating: number; comment: string }[];
 }
 
 type ClusterKey = 'json' | 'encoding' | 'security' | 'text' | 'formatting' | 'api' | 'data' | 'debugging' | 'automation' | 'web';
@@ -1234,7 +1233,6 @@ function estimateProgrammaticWordCount(page: ProgrammaticPage): number {
     ...page.faq.map((item) => `${item.question} ${item.answer}`),
     ...page.comparison.flatMap((row) => [row.item, row.pros, row.cons]),
     ...page.glossary.map((item) => `${item.term} ${item.definition}`),
-    ...page.simulatedReviews.map((item) => `${item.role} ${item.comment}`),
   ].join(' ');
 
   return corpus
@@ -1320,52 +1318,6 @@ function buildGlossary(clusterKey: ClusterKey, intent: string, audience: string,
 
   const shuffled = seededShuffle(glossaryPool, seed + 97);
   return shuffled.slice(0, 5);
-}
-
-function buildSimulatedReviews(tool: string, audience: string, clusterKey: ClusterKey, seed: number): { role: string; rating: number; comment: string }[] {
-  const toolName = getToolName(tool);
-  const cd = clusterDomain[clusterKey];
-
-  const reviewPool = [
-    {
-      role: 'Backend engineer',
-      rating: 5,
-      comment: `${toolName} shortened payload verification time and made pre-merge checks easier to standardize across services.`,
-    },
-    {
-      role: 'QA lead',
-      rating: 4,
-      comment: `Local execution helped validate sensitive fixtures safely and reduced back-and-forth during regression triage.`,
-    },
-    {
-      role: 'DevOps engineer',
-      rating: 4,
-      comment: `Useful for fast diagnostics when comparing transformed outputs and isolating whether failures come from input quality or pipeline behavior.`,
-    },
-    {
-      role: 'Frontend developer',
-      rating: 5,
-      comment: `Being able to validate ${label(clusterKey)} operations directly in the browser saved significant context-switching time during feature development.`,
-    },
-    {
-      role: 'Security analyst',
-      rating: 5,
-      comment: `The local-only processing model means I can safely inspect sensitive tokens and hashes without worrying about data leakage to third-party services.`,
-    },
-    {
-      role: 'Technical lead',
-      rating: 4,
-      comment: `We standardized on ${toolName} for ${cd.field} spot-checks across the team — consistent tool means consistent validation quality.`,
-    },
-    {
-      role: 'Data engineer',
-      rating: 4,
-      comment: `Quick validation of transformation outputs before deploying pipeline changes has prevented several data quality incidents.`,
-    },
-  ];
-
-  const shuffled = seededShuffle(reviewPool, seed + 113);
-  return shuffled.slice(0, 3);
 }
 
 function buildDepthExpansion(tool: string, clusterKey: ClusterKey, audience: string, task: string): string[] {
@@ -1456,7 +1408,6 @@ export function getPageByIndex(index: number): ProgrammaticPage | undefined {
     toolHistory: buildToolHistory(pair.tool, pair.cluster.key, audience, seed),
     globalUseCases: buildGlobalUseCases(pair.tool, pair.intent, audience, pair.cluster.key, seed),
     glossary: buildGlossary(pair.cluster.key, pair.intent, audience, seed),
-    simulatedReviews: buildSimulatedReviews(pair.tool, audience, pair.cluster.key, seed),
   };
 
   const MIN_PROGRAMMATIC_WORDS = 900;
@@ -1635,6 +1586,8 @@ const BING_FLAGGED_INDICES = new Set([
   1150412, 7123065, 10079551, 17605058, 17596019, 17699736, 16921447, 16402654,
   16600672, 10117136, 16148495, 16126541, 16128559, 16936654, 17076643, 16983769,
   17699852, 16646668, 16501563, 16364610,
+  16799700, 9921102, 5565750, 3552666,
+  3704044, 6505100, 5418355,
 ]);
 
 const PRIORITY_MODIFIER_INDICES = (() => {

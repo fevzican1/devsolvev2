@@ -8,7 +8,7 @@
  * Next.js still pre-renders up to MAX_STATIC_PROGRAMMATIC_PATHS priority pages
  * into out/k/ during build (belt-and-suspenders for the hub-adjacent tier).
  */
-export const EDGE_ISR_REVALIDATE_SECONDS = 3600;
+export const EDGE_ISR_REVALIDATE_SECONDS = 86400;
 
 /** Default number of priority /k/* pages to pre-render at build time. */
 export const DEFAULT_STATIC_PROGRAMMATIC_PATHS = 5000;
