@@ -4,7 +4,7 @@
  * Surfaces a deterministic-per-build-day rotating set of /k/* deep URLs on
  * hub pages (/tools, /guides). The goal is to give Googlebot a fresh batch
  * of internal links every time it crawls these high-PageRank hubs, so the
- * 18M-page programmatic corpus is continually re-introduced via natural
+ * 20M-page programmatic corpus is continually re-introduced via natural
  * internal-link discovery rather than relying solely on sitemap pings.
  *
  * ZERO RUNTIME COST
@@ -33,8 +33,8 @@ const CLUSTERS = [
 ];
 const AUDIENCES = ['backend-engineer','frontend-developer','fullstack-developer','api-consumer','integration-engineer','security-conscious-developer','ops-engineer','devops-engineer','technical-writer','data-engineer','mobile-developer','qa-engineer','site-reliability-engineer','database-administrator','cloud-architect','performance-engineer','platform-engineer','solution-architect','tech-lead','release-engineer'];
 const TASKS = ['debug-production-issue','prepare-api-response','clean-up-payload','sanitize-user-input','prepare-query-parameters','inspect-encoded-payload','trace-request','validate-auth-token','review-config-change','migrate-legacy-system','prepare-deployment-artifact','document-api-endpoint','optimize-build-pipeline','resolve-merge-conflict','prepare-security-audit','generate-test-fixtures'];
-// Modifier count matches functions/k — 9 styles × 18 contexts = 162.
-const MODIFIER_COUNT = 9 * 18;
+// Modifier count matches functions/k — 9 styles × 20 contexts = 180.
+const MODIFIER_COUNT = 9 * 20;
 
 function buildSlug(clusterKey: string, intent: string, audience: string, task: string, tool: string, index: number): string {
   return [clusterKey, intent, audience, task, tool]

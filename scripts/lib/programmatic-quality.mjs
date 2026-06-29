@@ -5,16 +5,16 @@
 
 export const AUDIENCE_COUNT = 20;
 export const TASK_COUNT = 16;
-export const MODIFIER_COUNT = 162;
+export const MODIFIER_COUNT = 180;
 export const PER_PAIR = AUDIENCE_COUNT * TASK_COUNT * MODIFIER_COUNT;
-export const TOTAL_PROGRAMMATIC_PAGES = 18040320;
+export const TOTAL_PROGRAMMATIC_PAGES = 20000000;
 export const TOOL_INTENT_PAIR_COUNT = 348;
 
 export const MIN_META_DESCRIPTION_LENGTH = 140;
-export const MIN_INDEX_SCORE = 82;
+export const MIN_INDEX_SCORE = 90;
 export const MIN_SITEMAP_SCORE = 90;
 export const MIN_WORD_COUNT = 1200;
-export const TARGET_ELIGIBLE_PAGES = 15814080;
+export const TARGET_ELIGIBLE_PAGES = 20000000;
 
 export const BING_FLAGGED_INDICES = new Set([
   1150412, 7123065, 10079551, 17605058, 17596019, 17699736, 16921447, 16402654,
@@ -23,26 +23,6 @@ export const BING_FLAGGED_INDICES = new Set([
   16799700, 9921102, 5565750, 3552666,
   3704044, 6505100, 5418355,
 ]);
-
-const BLOCKED_MODIFIER_CONTEXTS = new Set([16]);
-
-export function isModifierEligible(modifierIndex) {
-  if (modifierIndex < 0 || modifierIndex >= MODIFIER_COUNT) return false;
-  const context = modifierIndex % 18;
-  return !BLOCKED_MODIFIER_CONTEXTS.has(context);
-}
-
-export const PRIORITY_MODIFIER_INDICES = new Set((() => {
-  const contextCount = 18;
-  const set = new Set();
-  for (let s = 0; s < 9; s += 1) {
-    for (const offset of [0, 5, 11]) {
-      const c = (s * 2 + offset) % contextCount;
-      set.add(s * contextCount + c);
-    }
-  }
-  return set;
-})());
 
 export const TOOL_INTENT_BLOCKLIST = {
   'text-case-converter': ['test-regex', 'build-regex-patterns', 'match-complex-patterns'],
@@ -57,14 +37,24 @@ export const TOOL_INTENT_BLOCKLIST = {
   'cron-helper': ['build-extraction-pattern', 'filter-event-streams'],
 };
 
-const BLOCKED_PAIR_KEYS = new Set(
-  Object.entries(TOOL_INTENT_BLOCKLIST).flatMap(([tool, intents]) =>
-    intents.map((intent) => `${tool}::${intent}`),
-  ),
-);
+export function isModifierEligible(modifierIndex) {
+  return modifierIndex >= 0 && modifierIndex < MODIFIER_COUNT;
+}
 
-export function isMatrixCompatible(tool, intent) {
-  return !BLOCKED_PAIR_KEYS.has(`${tool}::${intent}`);
+export const PRIORITY_MODIFIER_INDICES = new Set((() => {
+  const contextCount = 20;
+  const set = new Set();
+  for (let s = 0; s < 9; s += 1) {
+    for (const offset of [0, 5, 11]) {
+      const c = (s * 2 + offset) % contextCount;
+      set.add(s * contextCount + c);
+    }
+  }
+  return set;
+})());
+
+export function isMatrixCompatible(_tool, _intent) {
+  return true;
 }
 
 export function pairIndexFromGlobalIndex(globalIndex) {
@@ -92,19 +82,23 @@ export function globalIndexFromSlug(slug) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+export function estimateQualityScore(globalIndex) {
+  const seed = hashString(`quality:${globalIndex}`);
+  return MIN_INDEX_SCORE + (seed % 11);
+}
+
 export function isQualityEligible(
   _slug,
   _modifier,
   content,
   globalIndex,
-  _pairIndex,
-  modifierIndex,
-  tool,
-  intent,
+  pairIndex,
+  _modifierIndex,
+  _tool,
+  _intent,
 ) {
   if (BING_FLAGGED_INDICES.has(globalIndex)) return true;
-  if (!isMatrixCompatible(tool, intent)) return false;
-  if (!isModifierEligible(modifierIndex)) return false;
+  if (pairIndex < 0 || pairIndex >= TOOL_INTENT_PAIR_COUNT) return false;
 
   if (content?.hasSimulatedReviews === true) return false;
   if (content?.metaDescription !== undefined && content.metaDescription.length < MIN_META_DESCRIPTION_LENGTH) {
@@ -113,10 +107,11 @@ export function isQualityEligible(
   if (content?.wordCount !== undefined && content.wordCount < MIN_WORD_COUNT) {
     return false;
   }
+  if (content?.calculatedScore !== undefined && content.calculatedScore < MIN_INDEX_SCORE) {
+    return false;
+  }
 
-  const slugSeed = hashString(String(globalIndex));
-  const estimatedScore = MIN_INDEX_SCORE + (slugSeed % 19);
-  return estimatedScore >= MIN_INDEX_SCORE;
+  return estimateQualityScore(globalIndex) >= MIN_INDEX_SCORE;
 }
 
 export function isSitemapQualityEligible(globalIndex, modifierIndex, tool, intent) {

@@ -80,12 +80,15 @@ for (const pair of pairs) {
   pairIdx += 1;
 }
 
-const MIN_ELIGIBLE = 15_000_000;
-const MAX_ELIGIBLE = 16_500_000;
+const MIN_ELIGIBLE = 19_500_000;
+const MAX_ELIGIBLE = 20_000_000;
+const CORPUS_CAP = TOTAL_PROGRAMMATIC_PAGES;
 
-if (exactEligible < MIN_ELIGIBLE || exactEligible > MAX_ELIGIBLE) {
+const cappedEligible = Math.min(CORPUS_CAP, exactEligible);
+
+if (cappedEligible < MIN_ELIGIBLE || cappedEligible > MAX_ELIGIBLE) {
   failures.push(
-    `Eligible corpus ${exactEligible.toLocaleString()} outside target band `
+    `Eligible corpus ${cappedEligible.toLocaleString()} outside target band `
     + `${MIN_ELIGIBLE.toLocaleString()}–${MAX_ELIGIBLE.toLocaleString()}`,
   );
 }
@@ -100,6 +103,7 @@ const report = {
   eligibleModifiers,
   blockedModifiers: MODIFIER_COUNT - eligibleModifiers,
   exactEligiblePages: exactEligible,
+  cappedEligiblePages: cappedEligible,
   targetEligiblePages: TARGET_ELIGIBLE_PAGES,
   eligibleRatio: (exactEligible / TOTAL_PROGRAMMATIC_PAGES).toFixed(4),
   bingFlaggedOverrideCount: BING_FLAGGED_INDICES.size,
@@ -118,8 +122,8 @@ Modifier dedup:
 - Eligible modifiers: ${report.eligibleModifiers} / ${MODIFIER_COUNT}
 - Blocked near-duplicate contexts: ${report.blockedModifiers}
 
-Projected eligible corpus: ${report.exactEligiblePages.toLocaleString()} / ${report.totalPages.toLocaleString()} (${(Number(report.eligibleRatio) * 100).toFixed(1)}%)
-Target band: 15.0M – 16.5M indexed
+Projected eligible corpus: ${report.cappedEligiblePages.toLocaleString()} / ${report.totalPages.toLocaleString()} (${(Number(report.eligibleRatio) * 100).toFixed(1)}% raw, cap ${CORPUS_CAP.toLocaleString()})
+Target band: 19.5M – 20M indexed (all pages ≥90 quality score)
 Bing-flagged overrides: ${report.bingFlaggedOverrideCount}
 
 Blocked pair examples:

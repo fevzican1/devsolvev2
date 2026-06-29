@@ -1,19 +1,30 @@
 import type { ProgrammaticPage } from '@/data/programmatic';
 import { hashString } from '@/lib/utils';
 
+/** Minimum score for indexing, sitemap inclusion, and hub discovery (Bing + Google quality bar). */
+export const MIN_QUALITY_SCORE = 90;
+
 export interface QualityScore {
   slug: string;
   score: number;
   wordCount: number;
   breakdown: {
+    /** Bing #17/#18, Google helpful-content: originality and single-topic focus */
     uniqueness: number;
+    /** Bing #11: user intent, usefulness, depth */
     usefulness: number;
+    /** Bing #11/#15: content depth and self-contained verifiability */
     depth: number;
-    relevance: number;
-    footprint: number;
+    /** Bing #13, Google structured HTML: title, meta, heading clarity */
+    structure: number;
+    /** Bing #15/#16: facts visible on-page, clear entity naming */
+    verifiability: number;
+    /** SPE 7-layer diversity — Bing crawl efficiency, Google scaled-content antidote */
     layerDiversity: number;
   };
   issues: string[];
+  /** Whether the page meets the 90-point Bing/Google quality threshold */
+  passesQualityThreshold: boolean;
 }
 
 export function estimateProgrammaticWordCount(page: ProgrammaticPage): number {
@@ -43,49 +54,64 @@ export function estimateProgrammaticWordCount(page: ProgrammaticPage): number {
 /**
  * SPE Layer Diversity Score — measures how many of the 7 SPE content layers
  * are meaningfully populated. Higher diversity = more unique page.
- *
- * Layer 1: Tool Deep-Dive (toolHistory + globalUseCases)
- * Layer 2: Scenario Fixture (steps + comparison)
- * Layer 3: Intent Operation (intent-specific content via keywords)
- * Layer 4: Audience Workflow (audience-specific intro/steps)
- * Layer 5: Task Troubleshooting (pitfalls + proTips + technicalAnalysis)
- * Layer 6: Modifier Playbook (expertTips + faq variety)
- * Layer 7: Interactive Tool State (glossary + slug complexity)
  */
 function calculateLayerDiversity(page: ProgrammaticPage): number {
   let layers = 0;
 
-  // Layer 1: Tool-specific content
   if (page.toolHistory && page.toolHistory.length >= 2) layers++;
   if (page.globalUseCases && page.globalUseCases.length >= 2) layers++;
-
-  // Layer 2: Scenario fixture (worked example)
   if (page.steps.length >= 4 && page.comparison.length >= 2) layers++;
-
-  // Layer 3: Intent operation (specific keywords)
   if (page.keywords.length >= 5) layers++;
-
-  // Layer 4: Audience workflow (intro length indicates audience-specific narrative)
   if (page.intro.length >= 100) layers++;
-
-  // Layer 5: Troubleshooting (pitfalls + tips)
   if (page.pitfalls.length >= 3 && (page.proTips?.length >= 2 || page.technicalAnalysis?.length >= 2)) layers++;
-
-  // Layer 6: Modifier playbook (expert + faq variety)
   if (page.expertTips?.length >= 2 && page.faq?.length >= 3) layers++;
 
-  // Score: 0-7 layers → 0-15 points
   return Math.round((layers / 7) * 15);
 }
 
+/** Bing #13 / Google Page indexing: clear title, meta, and heading signals */
+function calculateStructureScore(page: ProgrammaticPage): number {
+  let score = 0;
+
+  if (page.title.length >= 30 && page.title.length <= 70) score += 5;
+  else if (page.title.length >= 20) score += 3;
+
+  if (page.description.length >= 140 && page.description.length <= 165) score += 5;
+  else if (page.description.length >= 120) score += 3;
+
+  if (page.h1.length >= 20 && page.h1.length <= 80) score += 5;
+  else if (page.h1.length >= 10) score += 3;
+
+  return Math.min(15, score);
+}
+
+/** Bing #15/#16: self-contained facts and clear entity references */
+function calculateVerifiabilityScore(page: ProgrammaticPage): number {
+  let score = 0;
+
+  if (page.glossary.length >= 4) score += 4;
+  else if (page.glossary.length >= 2) score += 2;
+
+  if (page.comparison.length >= 2) score += 3;
+  if (page.faq.length >= 3) score += 3;
+  if (page.primaryTool && page.clusterKey) score += 3;
+  if (page.intro.length >= 150) score += 2;
+
+  return Math.min(15, score);
+}
+
+/**
+ * Quality scoring aligned with Bing Webmaster Guidelines and Google Search
+ * indexing criteria. Pages below 90 are excluded from indexing and sitemap.
+ */
 export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
   const issues: string[] = [];
 
   const uniquenessFactors = {
-    slugLength: Math.min(page.slug.length / 50, 1) * 15,
-    keywordCount: Math.min(page.keywords.length / 7, 1) * 15,
-    stepsVariation: (hashString(page.steps.join('')) % 100) / 100 * 10,
-    introVariation: (hashString(page.intro) % 100) / 100 * 10,
+    slugLength: Math.min(page.slug.length / 50, 1) * 8,
+    keywordCount: Math.min(page.keywords.length / 7, 1) * 7,
+    stepsVariation: (hashString(page.steps.join('')) % 100) / 100 * 5,
+    introVariation: (hashString(page.intro) % 100) / 100 * 5,
   };
   const uniqueness = Math.round(
     uniquenessFactors.slugLength +
@@ -95,11 +121,11 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
   );
 
   const usefulnessFactors = {
-    hasSteps: page.steps.length >= 5 ? 18 : page.steps.length >= 4 ? 15 : 10,
-    hasPitfalls: page.pitfalls.length >= 4 ? 15 : page.pitfalls.length >= 3 ? 12 : 6,
-    hasComparison: page.comparison.length >= 3 ? 12 : page.comparison.length >= 2 ? 8 : 4,
-    hasProTips: page.proTips && page.proTips.length >= 3 ? 8 : page.proTips && page.proTips.length >= 2 ? 5 : 0,
-    hasFAQ: page.faq && page.faq.length >= 3 ? 5 : page.faq && page.faq.length >= 2 ? 3 : 0,
+    hasSteps: page.steps.length >= 5 ? 10 : page.steps.length >= 4 ? 8 : 5,
+    hasPitfalls: page.pitfalls.length >= 4 ? 8 : page.pitfalls.length >= 3 ? 6 : 3,
+    hasComparison: page.comparison.length >= 3 ? 6 : page.comparison.length >= 2 ? 4 : 2,
+    hasProTips: page.proTips && page.proTips.length >= 3 ? 4 : page.proTips && page.proTips.length >= 2 ? 2 : 0,
+    hasFAQ: page.faq && page.faq.length >= 3 ? 2 : page.faq && page.faq.length >= 2 ? 1 : 0,
   };
   const usefulness =
     usefulnessFactors.hasSteps +
@@ -111,9 +137,9 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
   const wordCount = estimateProgrammaticWordCount(page);
 
   const depthFactors = {
-    introLength: Math.min(page.intro.length / 150, 1) * 8,
-    descriptionLength: Math.min(page.description.length / 120, 1) * 7,
-    contentVariety: 10,
+    introLength: Math.min(page.intro.length / 150, 1) * 6,
+    descriptionLength: Math.min(page.description.length / 120, 1) * 4,
+    contentVariety: 5,
     contentLength: Math.min(wordCount / 600, 1) * 10,
   };
   const depth = Math.round(
@@ -123,40 +149,35 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
     depthFactors.contentLength,
   );
 
-  const footprintFactors = {
-    keywordDensity: Math.max(0, 8 - Math.max(0, page.keywords.length - 12)),
-    slugClarity: page.slug.length <= 140 ? 7 : 3,
-  };
-  const footprint = footprintFactors.keywordDensity + footprintFactors.slugClarity;
-
-  const relevanceFactors = {
-    hasPrimaryTool: page.primaryTool ? 8 : 0,
-    hasClusterKey: page.clusterKey ? 7 : 0,
-  };
-  const relevance = relevanceFactors.hasPrimaryTool + relevanceFactors.hasClusterKey;
-
-  // SPE Layer Diversity — new metric for content uniqueness across 7 layers
+  const structure = calculateStructureScore(page);
+  const verifiability = calculateVerifiabilityScore(page);
   const layerDiversity = calculateLayerDiversity(page);
 
-  const totalScore = Math.min(100, uniqueness + usefulness + depth + relevance + footprint + layerDiversity);
+  const totalScore = Math.min(
+    100,
+    uniqueness + usefulness + depth + structure + verifiability + layerDiversity,
+  );
 
-  if (totalScore < 78) {
-    issues.push('Score below conservative indexing threshold');
+  if (totalScore < MIN_QUALITY_SCORE) {
+    issues.push(`Score ${totalScore} below Bing/Google quality threshold (${MIN_QUALITY_SCORE})`);
   }
   if (page.steps.length < 3) {
-    issues.push('Insufficient step count');
+    issues.push('Insufficient step count (Bing #13: structured content)');
   }
   if (page.intro.length < 50) {
-    issues.push('Intro too short');
+    issues.push('Intro too short (Bing #18: surface key information early)');
   }
   if (page.slug.length > 160) {
-    issues.push('Slug is overly long or complex');
+    issues.push('Slug is overly long (Bing #6: URL consolidation)');
   }
   if (wordCount < 1200) {
-    issues.push('Estimated content length is below the 1200-word quality floor');
+    issues.push('Content below 1200-word quality floor (Google thin-content bar)');
   }
   if (layerDiversity < 7) {
-    issues.push('Low SPE layer diversity — fewer than 4 of 7 layers sufficiently populated');
+    issues.push('Low SPE layer diversity — insufficient unique content layers');
+  }
+  if (structure < 10) {
+    issues.push('Weak structure signals (title/meta/H1 clarity per Bing #13)');
   }
 
   return {
@@ -167,20 +188,25 @@ export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
       uniqueness,
       usefulness,
       depth,
-      relevance,
-      footprint,
+      structure,
+      verifiability,
       layerDiversity,
     },
     issues,
+    passesQualityThreshold: totalScore >= MIN_QUALITY_SCORE && wordCount >= 1200,
   };
 }
 
-export function shouldIndex(score: number, minScore: number, wordCount?: number): boolean {
+export function shouldIndex(score: number, minScore: number = MIN_QUALITY_SCORE, wordCount?: number): boolean {
   if (typeof wordCount === 'number' && wordCount < 1200) return false;
   return score >= minScore;
 }
 
-export function shouldIncludeInSitemap(score: number, minScore: number, wordCount?: number): boolean {
+export function shouldIncludeInSitemap(
+  score: number,
+  minScore: number = MIN_QUALITY_SCORE,
+  wordCount?: number,
+): boolean {
   if (typeof wordCount === 'number' && wordCount < 1200) return false;
   return score >= minScore;
 }

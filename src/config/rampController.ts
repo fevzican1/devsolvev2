@@ -124,7 +124,7 @@ export const RAMP_LEVELS: readonly RampLevelConfig[] = [
   },
   {
     level: 5,
-    sitemapLimit: 18_040_320,
+    sitemapLimit: 20_000_000,
     indexNowSliceSize: 10_000,
     indexNowBatchSize: 100,
     indexNowBatchDelay: 1_000,
@@ -133,7 +133,7 @@ export const RAMP_LEVELS: readonly RampLevelConfig[] = [
     gateCrawledNotIndexedMax: 0.35,
     gateMinImpressions: 50_000_000,
     bulkChangefreq: 'monthly',
-    description: 'Faz 5 — Full Corpus (18M sitemap, target 12-16M indexed)',
+    description: 'Faz 5 — Full Corpus (20M sitemap, Bing/Google 90+ quality bar)',
   },
 ] as const;
 

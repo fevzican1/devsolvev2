@@ -5,9 +5,9 @@ export const siteConfig = {
   siteUrl: 'https://devsolvev2.com',
 
   programmatic: {
-    targetTotal: 18040320,
+    targetTotal: 20_000_000,
     safeDefaultTotal: 1000,
-    rampSchedule: [500000, 2000000, 5000000, 9000000, 14000000, 18040320] as const,
+    rampSchedule: [500000, 2000000, 5000000, 9000000, 14000000, 20000000] as const,
     rampMode: 'manual' as const,
     /** Active ramp level — controlled by PROGRAMMATIC_RAMP_LEVEL env var.
      *  See src/config/rampController.ts for gate metrics and level definitions.
@@ -16,12 +16,13 @@ export const siteConfig = {
   },
 
   programmaticQuality: {
-    minIndexScore: 82,
+    /** Unified Bing + Google quality threshold — pages below 90 are noindex */
+    minIndexScore: 90,
     minSitemapScore: 90,
     minMetaDescriptionLength: 140,
     minWordCount: 1200,
-    targetEligiblePages: 15_814_080,
-    maxSitemapUrls: 18040320,
+    targetEligiblePages: 20_000_000,
+    maxSitemapUrls: 20_000_000,
   },
 
   toolPackaging: {
