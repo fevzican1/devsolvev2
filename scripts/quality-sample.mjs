@@ -55,6 +55,7 @@ for (let index = 0; index < totalPages; index += sampleStride) {
       metaDescription,
       wordCount: quality.wordCount,
       hasSimulatedReviews: false,
+      calculatedScore: quality.score,
     },
     index,
     Math.floor(index / (20 * 16 * 180)),
@@ -64,11 +65,11 @@ for (let index = 0; index < totalPages; index += sampleStride) {
   );
   if (!gateEligible) nonPriorityModifier += 1;
 
-  if (gateEligible && quality.score >= siteConfig.programmaticQuality.minSitemapScore) {
+  if (gateEligible && quality.passesQualityThreshold) {
     indexableCount += 1;
   }
   if (shouldIncludeInSitemap(quality.score, siteConfig.programmaticQuality.minSitemapScore, quality.wordCount)
-      && gateEligible) {
+      && gateEligible && quality.passesQualityThreshold) {
     sitemapIncludedCount += 1;
   }
 

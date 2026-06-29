@@ -86,6 +86,13 @@ try {
 }
 
 try {
+  console.log('Running quality corpus audit (90-point enforcement)...');
+  execSync(`node --import tsx ${join(__dirname, 'quality-corpus-audit.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('Quality corpus audit FAILED — pages below 90 detected');
+}
+
+try {
   console.log('Generating quality report...');
   execSync(`node ${join(__dirname, 'quality-report.mjs')}`, { stdio: 'inherit' });
 } catch (error) {

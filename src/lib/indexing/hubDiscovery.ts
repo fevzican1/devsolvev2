@@ -79,7 +79,7 @@ function isIndexableProgrammaticPath(path: string): boolean {
     page.primaryTool,
     page.intent,
   );
-  const indexable = gateEligible && shouldIndex(
+  const indexable = gateEligible && quality.passesQualityThreshold && shouldIndex(
     quality.score,
     siteConfig.programmaticQuality.minSitemapScore,
     quality.wordCount,

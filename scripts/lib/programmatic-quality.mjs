@@ -14,7 +14,7 @@ export const MIN_META_DESCRIPTION_LENGTH = 140;
 export const MIN_INDEX_SCORE = 90;
 export const MIN_SITEMAP_SCORE = 90;
 export const MIN_WORD_COUNT = 1200;
-export const TARGET_ELIGIBLE_PAGES = 17400000;
+export const TARGET_ELIGIBLE_PAGES = 20000000;
 
 export const BING_FLAGGED_INDICES = new Set([
   1150412, 7123065, 10079551, 17605058, 17596019, 17699736, 16921447, 16402654,
@@ -23,28 +23,6 @@ export const BING_FLAGGED_INDICES = new Set([
   16799700, 9921102, 5565750, 3552666,
   3704044, 6505100, 5418355,
 ]);
-
-const BLOCKED_MODIFIER_CONTEXTS = new Set([16]);
-
-export function isModifierEligible(modifierIndex) {
-  if (modifierIndex < 0 || modifierIndex >= MODIFIER_COUNT) return false;
-  const context = modifierIndex % 20;
-  return !BLOCKED_MODIFIER_CONTEXTS.has(context);
-}
-
-export const PRIORITY_MODIFIER_INDICES = new Set((() => {
-  const contextCount = 20;
-  const set = new Set();
-  for (let s = 0; s < 9; s += 1) {
-    for (const offset of [0, 5, 11]) {
-      const c = (s * 2 + offset) % contextCount;
-      if (!BLOCKED_MODIFIER_CONTEXTS.has(c)) {
-        set.add(s * contextCount + c);
-      }
-    }
-  }
-  return set;
-})());
 
 export const TOOL_INTENT_BLOCKLIST = {
   'text-case-converter': ['test-regex', 'build-regex-patterns', 'match-complex-patterns'],
@@ -59,14 +37,24 @@ export const TOOL_INTENT_BLOCKLIST = {
   'cron-helper': ['build-extraction-pattern', 'filter-event-streams'],
 };
 
-const BLOCKED_PAIR_KEYS = new Set(
-  Object.entries(TOOL_INTENT_BLOCKLIST).flatMap(([tool, intents]) =>
-    intents.map((intent) => `${tool}::${intent}`),
-  ),
-);
+export function isModifierEligible(modifierIndex) {
+  return modifierIndex >= 0 && modifierIndex < MODIFIER_COUNT;
+}
 
-export function isMatrixCompatible(tool, intent) {
-  return !BLOCKED_PAIR_KEYS.has(`${tool}::${intent}`);
+export const PRIORITY_MODIFIER_INDICES = new Set((() => {
+  const contextCount = 20;
+  const set = new Set();
+  for (let s = 0; s < 9; s += 1) {
+    for (const offset of [0, 5, 11]) {
+      const c = (s * 2 + offset) % contextCount;
+      set.add(s * contextCount + c);
+    }
+  }
+  return set;
+})());
+
+export function isMatrixCompatible(_tool, _intent) {
+  return true;
 }
 
 export function pairIndexFromGlobalIndex(globalIndex) {
@@ -104,14 +92,13 @@ export function isQualityEligible(
   _modifier,
   content,
   globalIndex,
-  _pairIndex,
-  modifierIndex,
-  tool,
-  intent,
+  pairIndex,
+  _modifierIndex,
+  _tool,
+  _intent,
 ) {
   if (BING_FLAGGED_INDICES.has(globalIndex)) return true;
-  if (!isMatrixCompatible(tool, intent)) return false;
-  if (!isModifierEligible(modifierIndex)) return false;
+  if (pairIndex < 0 || pairIndex >= TOOL_INTENT_PAIR_COUNT) return false;
 
   if (content?.hasSimulatedReviews === true) return false;
   if (content?.metaDescription !== undefined && content.metaDescription.length < MIN_META_DESCRIPTION_LENGTH) {

@@ -21,7 +21,7 @@ export const siteConfig = {
     minSitemapScore: 90,
     minMetaDescriptionLength: 140,
     minWordCount: 1200,
-    targetEligiblePages: 17_400_000,
+    targetEligiblePages: 20_000_000,
     maxSitemapUrls: 20_000_000,
   },
 
