@@ -183,6 +183,7 @@ const modifierDeliveryContexts = [
   'for-incident-postmortems', 'for-capacity-planning', 'for-release-management',
   'for-vendor-integration', 'for-data-governance', 'for-service-mesh-debugging',
   'for-cost-optimization', 'for-performance-benchmarking', 'for-disaster-recovery',
+  'for-production-rollouts', 'for-observability-pipelines',
 ];
 
 const modifierPatterns = modifierExecutionStyles.flatMap((style) =>
@@ -420,6 +421,20 @@ const MODIFIER_DELIVERY_PROFILES: Record<string, ModifierDeliveryProfile> = {
     artifact: 'a deterministic recipe that regenerates the result without the original system',
     risk: 'an unrecoverable state because the process was never reproducible',
   },
+  'for-production-rollouts': {
+    label: 'for production rollouts',
+    goal: 'validate every artifact before it reaches live traffic',
+    stakeholder: 'the release engineer',
+    artifact: 'a signed-off input/output pair attached to the rollout ticket',
+    risk: 'a rollout that passes smoke tests but fails on real production payloads',
+  },
+  'for-observability-pipelines': {
+    label: 'for observability pipelines',
+    goal: 'make telemetry payloads parseable and comparable across services',
+    stakeholder: 'the observability engineer',
+    artifact: 'a normalised event or metric sample every dashboard can ingest',
+    risk: 'silent schema drift that breaks alerts and hides regressions',
+  },
 };
 
 const FALLBACK_EXECUTION_PROFILE: ModifierExecutionProfile = {
@@ -477,6 +492,8 @@ const TASKS_COUNT = tasks.length;
 const MODIFIERS_COUNT = modifierPatterns.length;
 const PER_PAIR = AUDIENCES_COUNT * TASKS_COUNT * MODIFIERS_COUNT;
 const TOTAL_POSSIBLE = toolIntentPairs.length * PER_PAIR;
+const CORPUS_CAP = 20_000_000;
+const ACTIVE_TOTAL = Math.min(CORPUS_CAP, TOTAL_POSSIBLE);
 
 /* ------------------------------------------------------------------ */
 /*  Utility functions                                                   */
@@ -1031,7 +1048,7 @@ function resolvePageFromSlug(slug: string): PageData | undefined {
   if (!match) return undefined;
 
   const index = parseInt(match[1], 10);
-  if (index < 0 || index >= TOTAL_POSSIBLE) return undefined;
+  if (index < 0 || index >= ACTIVE_TOTAL) return undefined;
 
   const pairIndex = Math.floor(index / PER_PAIR);
   const remainder = index % PER_PAIR;
@@ -3215,7 +3232,7 @@ ${BRAND_LISTINGS_HTML}
 }
 
 function getSlugByIndex(index: number): string | undefined {
-  if (index < 0 || index >= TOTAL_POSSIBLE) return undefined;
+  if (index < 0 || index >= ACTIVE_TOTAL) return undefined;
   const pairIndex = Math.floor(index / PER_PAIR);
   const remainder = index % PER_PAIR;
   const audienceIndex = Math.floor(remainder / (TASKS_COUNT * MODIFIERS_COUNT));
@@ -3234,7 +3251,7 @@ function getHubSampleLinks(count = 12): Array<{ slug: string; label: string }> {
   const slugs = new Set<string>();
   const step = getProgrammaticHubSampleStep(TOTAL_POSSIBLE, count);
 
-  for (let index = 0; index < TOTAL_POSSIBLE && slugs.size < count; index += step) {
+  for (let index = 0; index < ACTIVE_TOTAL && slugs.size < count; index += step) {
     const slug = getSlugByIndex(index);
     if (slug) {
       slugs.add(slug);
@@ -3666,5 +3683,5 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
 export { generateHtml, resolvePageFromSlug, getSlugByIndex };
 export function getTotalPageCount(): number {
-  return TOTAL_POSSIBLE;
+  return ACTIVE_TOTAL;
 }

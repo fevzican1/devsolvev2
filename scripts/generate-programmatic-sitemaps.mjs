@@ -24,9 +24,9 @@ const PRODUCTION_EPOCH_MS = Date.parse(
 
 const outDir = join(process.cwd(), 'out');
 const urlsPerSitemap = 50000;
-const minIndexScore = 82;
-const minSitemapScore = 82;
-const minWordCount = 900;
+const minIndexScore = 90;
+const minSitemapScore = 90;
+const minWordCount = 1200;
 // Corpus cap. Controlled by the unified ramp controller (src/config/rampController.ts).
 // Default: Faz 0 = 500K URLs. To advance, set PROGRAMMATIC_RAMP_LEVEL=1..5 env var
 // after gate metrics (indexed ratio, crawled-not-indexed ratio) are met in GSC.
@@ -35,7 +35,7 @@ const minWordCount = 900;
 //   2. PROGRAMMATIC_RAMP_LEVEL env → ramp schedule lookup
 //   3. .ramp-level file (CI auto-updated, build-time read)
 //   4. Default: 500000 (Faz 0)
-const RAMP_SCHEDULE = [500000, 2000000, 5000000, 9000000, 14000000, 18040320];
+const RAMP_SCHEDULE = [500000, 2000000, 5000000, 9000000, 14000000, 20000000];
 function resolveMaxSitemapUrls() {
   if (process.env.PROGRAMMATIC_SITEMAP_LIMIT) {
     const v = Number.parseInt(process.env.PROGRAMMATIC_SITEMAP_LIMIT, 10);
@@ -214,6 +214,8 @@ const modifierDeliveryContexts = [
   'for-cost-optimization',
   'for-performance-benchmarking',
   'for-disaster-recovery',
+  'for-production-rollouts',
+  'for-observability-pipelines',
 ];
 
 const modifiers = modifierExecutionStyles.flatMap((style) =>

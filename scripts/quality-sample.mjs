@@ -57,14 +57,14 @@ for (let index = 0; index < totalPages; index += sampleStride) {
       hasSimulatedReviews: false,
     },
     index,
-    Math.floor(index / (20 * 16 * 162)),
+    Math.floor(index / (20 * 16 * 180)),
     modifierIndex,
     page.primaryTool,
     page.intent,
   );
   if (!gateEligible) nonPriorityModifier += 1;
 
-  if (gateEligible && quality.score >= siteConfig.programmaticQuality.minIndexScore) {
+  if (gateEligible && quality.score >= siteConfig.programmaticQuality.minSitemapScore) {
     indexableCount += 1;
   }
   if (shouldIncludeInSitemap(quality.score, siteConfig.programmaticQuality.minSitemapScore, quality.wordCount)

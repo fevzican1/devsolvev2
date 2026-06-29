@@ -202,6 +202,8 @@ const modifierDeliveryContexts = [
   'for-cost-optimization',
   'for-performance-benchmarking',
   'for-disaster-recovery',
+  'for-production-rollouts',
+  'for-observability-pipelines',
 ];
 
 const modifierPatterns = modifierExecutionStyles.flatMap((style) =>
@@ -232,9 +234,10 @@ for (const cluster of clusters) {
 
 const AUDIENCES_COUNT = audiences.length;        // 20
 const TASKS_COUNT = tasks.length;                // 16
-const MODIFIERS_COUNT = modifierPatterns.length; // 162
-const PER_PAIR = AUDIENCES_COUNT * TASKS_COUNT * MODIFIERS_COUNT; // 51840
-const TOTAL_POSSIBLE = toolIntentPairs.length * PER_PAIR;          // 348 × 51840 = 18040320
+const MODIFIERS_COUNT = modifierPatterns.length; // 180 (9 styles × 20 contexts)
+const PER_PAIR = AUDIENCES_COUNT * TASKS_COUNT * MODIFIERS_COUNT; // 57600
+const TOTAL_POSSIBLE = toolIntentPairs.length * PER_PAIR;          // 348 × 57600 = 20_044_800
+const CORPUS_CAP = 20_000_000;
 const MIN_PROGRAMMATIC_TOTAL = 1000;
 
 function parseEnvPositiveInteger(value: string | undefined): number | null {
@@ -245,7 +248,7 @@ function parseEnvPositiveInteger(value: string | undefined): number | null {
 }
 
 function clampProgrammaticTotal(value: number): number {
-  return Math.min(TOTAL_POSSIBLE, Math.max(MIN_PROGRAMMATIC_TOTAL, value));
+  return Math.min(CORPUS_CAP, TOTAL_POSSIBLE, Math.max(MIN_PROGRAMMATIC_TOTAL, value));
 }
 
 const configuredDefaultTotal = clampProgrammaticTotal(siteConfig.programmatic.safeDefaultTotal);

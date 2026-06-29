@@ -81,7 +81,7 @@ function isIndexableProgrammaticPath(path: string): boolean {
   );
   const indexable = gateEligible && shouldIndex(
     quality.score,
-    siteConfig.programmaticQuality.minIndexScore,
+    siteConfig.programmaticQuality.minSitemapScore,
     quality.wordCount,
   );
   indexableSlugCache.set(slug, indexable);

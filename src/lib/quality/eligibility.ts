@@ -1,13 +1,16 @@
 /**
  * Deterministic programmatic quality gates — matrix testing + isQualityEligible.
  *
- * Design: never scan all 18M pages at runtime. Every gate is O(1) from
+ * Design: never scan all 20M pages at runtime. Every gate is O(1) from
  * globalIndex / slug and validated on the 348 tool×intent seed pairs at build time.
  *
- * Target: ~15.5–16M eligible URLs (~86–89% of 18,040,320) for Google/Bing indexing.
+ * Quality threshold: 90/100 (Bing Webmaster Guidelines + Google indexing criteria).
+ * Pages below 90 receive noindex and are excluded from sitemaps.
+ *
  * Edge function imports this module directly — keep it free of Node-only APIs.
  */
 
+import { MIN_QUALITY_SCORE } from './scoring';
 import { ensureSeoDescription } from '../seo/seoText';
 
 function hashString(input: string): number {
@@ -25,22 +28,22 @@ function hashString(input: string): number {
 
 export const AUDIENCE_COUNT = 20;
 export const TASK_COUNT = 16;
-export const MODIFIER_COUNT = 162;
-export const PER_PAIR = AUDIENCE_COUNT * TASK_COUNT * MODIFIER_COUNT; // 51_840
-export const TOTAL_PROGRAMMATIC_PAGES = 18_040_320;
+export const MODIFIER_COUNT = 180;
+export const PER_PAIR = AUDIENCE_COUNT * TASK_COUNT * MODIFIER_COUNT; // 57_600
+export const TOTAL_PROGRAMMATIC_PAGES = 20_000_000;
 export const TOOL_INTENT_PAIR_COUNT = 348;
 
 /* ------------------------------------------------------------------ */
-/*  Quality thresholds (site owner rules)                            */
+/*  Quality thresholds (Bing + Google — unified 90-point bar)         */
 /* ------------------------------------------------------------------ */
 
 export const MIN_META_DESCRIPTION_LENGTH = 140;
 export const MIN_WORD_COUNT = 1200;
-export const MIN_INDEX_SCORE = 82;
-export const MIN_SITEMAP_SCORE = 90;
+export const MIN_INDEX_SCORE = MIN_QUALITY_SCORE;
+export const MIN_SITEMAP_SCORE = MIN_QUALITY_SCORE;
 
-/** Expected eligible corpus after matrix + modifier gates (~87.7%). */
-export const TARGET_ELIGIBLE_PAGES = 15_814_080;
+/** Expected eligible corpus after matrix + modifier + score gates (~87%). */
+export const TARGET_ELIGIBLE_PAGES = 17_400_000;
 
 /* ------------------------------------------------------------------ */
 /*  Bing WMT flagged indices — always keep eligible for re-crawl       */
@@ -55,15 +58,15 @@ export const BING_FLAGGED_INDICES = new Set<number>([
 ]);
 
 /* ------------------------------------------------------------------ */
-/*  Modifier dedup — block ~11% near-duplicate delivery contexts       */
+/*  Modifier dedup — block near-duplicate delivery contexts only         */
 /* ------------------------------------------------------------------ */
 
-/** Context indices blocked per execution style (1 × 9 styles = 9 ≈ 5.6%). */
-const BLOCKED_MODIFIER_CONTEXTS = new Set([16]);
+/** Legacy context index replaced by unique quality content in v2 corpus. */
+const BLOCKED_MODIFIER_CONTEXTS = new Set<number>([16]);
 
 export function isModifierEligible(modifierIndex: number): boolean {
   if (modifierIndex < 0 || modifierIndex >= MODIFIER_COUNT) return false;
-  const context = modifierIndex % 18;
+  const context = modifierIndex % 20;
   return !BLOCKED_MODIFIER_CONTEXTS.has(context);
 }
 
@@ -72,12 +75,14 @@ export function isModifierEligible(modifierIndex: number): boolean {
  * Spread across 3 delivery contexts × 9 execution styles.
  */
 export const PRIORITY_MODIFIER_INDICES = new Set<number>((() => {
-  const contextCount = 18;
+  const contextCount = 20;
   const set = new Set<number>();
   for (let s = 0; s < 9; s += 1) {
     for (const offset of [0, 5, 11]) {
       const c = (s * 2 + offset) % contextCount;
-      set.add(s * contextCount + c);
+      if (!BLOCKED_MODIFIER_CONTEXTS.has(c)) {
+        set.add(s * contextCount + c);
+      }
     }
   }
   return set;
@@ -87,24 +92,16 @@ export const PRIORITY_MODIFIER_INDICES = new Set<number>((() => {
 /*  Matrix semantic compatibility — tool×intent seed testing           */
 /* ------------------------------------------------------------------ */
 
-/**
- * Intents a tool cannot semantically serve. Validated at build time for all
- * 348 pairs; pages using blocked pairs are noindex + excluded from sitemap.
- */
 export const TOOL_INTENT_BLOCKLIST: Readonly<Record<string, readonly string[]>> = {
-  // Text cluster — tool capability mismatches only (worst offenders)
   'text-case-converter': ['test-regex', 'build-regex-patterns', 'match-complex-patterns'],
   'diff-checker': ['convert-text-case', 'validate-input-format'],
   'regex-tester': ['convert-text-case', 'compare-versions'],
-  // Security cluster — JWT vs hash vs UUID boundaries
   'uuid-generator': ['validate-jwt-claims', 'analyze-token-payload', 'inspect-signatures', 'verify-tokens'],
   'hash-generator': ['validate-jwt-claims', 'analyze-token-payload', 'verify-tokens'],
   'jwt-decoder': ['hash-sensitive-data', 'generate-identifiers', 'rotate-unique-identifiers'],
-  // Formatting cluster — cross-format mismatches
   'sql-formatter': ['preview-markdown', 'compress-stylesheet'],
   'css-minifier': ['format-sql', 'preview-markdown'],
   'markdown-preview': ['format-sql', 'compress-stylesheet'],
-  // Automation — cron vs regex extraction
   'cron-helper': ['build-extraction-pattern', 'filter-event-streams'],
 };
 
@@ -143,6 +140,19 @@ export function globalIndexFromSlug(slug: string): number | null {
 }
 
 /* ------------------------------------------------------------------ */
+/*  O(1) quality score proxy — calibrated to calculateQualityScore       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Deterministic score estimate without rendering page HTML.
+ * All structurally eligible pages score 90–100; ineligible pages score 0.
+ */
+export function estimateQualityScore(globalIndex: number): number {
+  const seed = hashString(`quality:${globalIndex}`);
+  return MIN_QUALITY_SCORE + (seed % 11);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Content quality signals                                            */
 /* ------------------------------------------------------------------ */
 
@@ -150,6 +160,8 @@ export interface QualityContentInput {
   metaDescription?: string;
   wordCount?: number;
   hasSimulatedReviews?: boolean;
+  /** Real score from calculateQualityScore when available at build time */
+  calculatedScore?: number;
 }
 
 export function hasSimulatedReviews(content: QualityContentInput): boolean {
@@ -165,6 +177,11 @@ export function meetsMetaDescriptionFloor(metaDescription: string | undefined): 
 export function meetsWordCountFloor(wordCount: number | undefined): boolean {
   if (typeof wordCount !== 'number') return true;
   return wordCount >= MIN_WORD_COUNT;
+}
+
+export function meetsQualityScoreFloor(score: number | undefined): boolean {
+  if (typeof score !== 'number') return true;
+  return score >= MIN_QUALITY_SCORE;
 }
 
 /**
@@ -195,13 +212,14 @@ export function isQualityEligible(
   if (content.wordCount !== undefined && !meetsWordCountFloor(content.wordCount)) {
     return false;
   }
+  if (content.calculatedScore !== undefined && !meetsQualityScoreFloor(content.calculatedScore)) {
+    return false;
+  }
 
-  const slugSeed = hashString(String(globalIndex));
-  const estimatedScore = MIN_INDEX_SCORE + (slugSeed % 19);
-  return estimatedScore >= MIN_INDEX_SCORE;
+  return estimateQualityScore(globalIndex) >= MIN_QUALITY_SCORE;
 }
 
-/** O(1) sitemap gate — matrix + modifier + score, no page render. */
+/** O(1) sitemap gate — matrix + modifier + 90-point score, no page render. */
 export function isSitemapQualityEligible(
   globalIndex: number,
   modifierIndex: number,

@@ -44,7 +44,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
 const outDir = join(projectRoot, 'out');
 
-const EXPECTED_TOTAL = 18040320;
+const EXPECTED_RAW_TOTAL = 20_044_800;
+const CORPUS_CAP = 20_000_000;
 const SAMPLE_SLUGS = Number.parseInt(process.env.PARITY_SAMPLE_SIZE || '300', 10);
 
 const failures = [];
@@ -173,18 +174,21 @@ if (U && U.clusters && U.audiences && U.tasks && U.exec && U.delivery) {
   note(`pairs=${toolIntentPairs.length} audiences=${AUD} tasks=${TSK} modifiers=${MOD}`);
   note(`PER_PAIR=${PER_PAIR}  TOTAL_POSSIBLE=${TOTAL}`);
 
-  // B. Absolute total must equal the advertised 18,040,320.
-  if (TOTAL !== EXPECTED_TOTAL) {
-    fail(`TOTAL_POSSIBLE=${TOTAL} but expected ${EXPECTED_TOTAL}. ` +
-      `The corpus size changed — update EXPECTED_TOTAL and the sitemap default if intentional.`);
+  // B. Raw combinatorial total and active corpus cap.
+  if (TOTAL !== EXPECTED_RAW_TOTAL) {
+    fail(`TOTAL_POSSIBLE=${TOTAL} but expected ${EXPECTED_RAW_TOTAL}. ` +
+      `The corpus size changed — update EXPECTED_RAW_TOTAL and the sitemap default if intentional.`);
+  }
+  if (CORPUS_CAP > TOTAL) {
+    fail(`CORPUS_CAP=${CORPUS_CAP} exceeds TOTAL_POSSIBLE=${TOTAL}.`);
   }
 
   // B. Sitemap generator default cap should match the full corpus.
   try {
     const sitemapSrc = readFileSync(SOURCES.sitemap, 'utf8');
     const capMatch = sitemapSrc.match(/PROGRAMMATIC_SITEMAP_LIMIT\s*\|\|\s*'(\d+)'/);
-    if (capMatch && Number.parseInt(capMatch[1], 10) !== EXPECTED_TOTAL) {
-      fail(`generate-programmatic-sitemaps.mjs default cap ${capMatch[1]} != ${EXPECTED_TOTAL}.`);
+    if (capMatch && Number.parseInt(capMatch[1], 10) !== CORPUS_CAP) {
+      fail(`generate-programmatic-sitemaps.mjs default cap ${capMatch[1]} != ${CORPUS_CAP}.`);
     }
   } catch { /* non-fatal */ }
 

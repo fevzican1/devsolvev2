@@ -86,6 +86,7 @@ const modifierDeliveryContexts = [
   'for-weekly-ops-routines','for-compliance-reporting','for-incident-postmortems',
   'for-capacity-planning','for-release-management','for-vendor-integration','for-data-governance',
   'for-service-mesh-debugging','for-cost-optimization','for-performance-benchmarking','for-disaster-recovery',
+  'for-production-rollouts','for-observability-pipelines',
 ];
 const modifiers = modifierExecutionStyles.flatMap((s) => modifierDeliveryContexts.map((c) => `${s}-${c}`));
 
@@ -152,7 +153,7 @@ const BING_FLAGGED_INDICES = new Set([
 // representative of the full modifier diversity.
 const PRIORITY_MODIFIER_INDICES = (() => {
   const set = new Set();
-  const contextCount = modifierDeliveryContexts.length; // 18
+  const contextCount = modifierDeliveryContexts.length; // 20
   for (let s = 0; s < modifierExecutionStyles.length; s += 1) { // 9 styles
     for (const offset of [0, 5, 11]) { // 3 spread-out delivery contexts each
       const c = (s * 2 + offset) % contextCount;

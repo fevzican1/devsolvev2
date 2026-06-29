@@ -80,8 +80,8 @@ for (const pair of pairs) {
   pairIdx += 1;
 }
 
-const MIN_ELIGIBLE = 15_000_000;
-const MAX_ELIGIBLE = 16_500_000;
+const MIN_ELIGIBLE = 16_500_000;
+const MAX_ELIGIBLE = 18_500_000;
 
 if (exactEligible < MIN_ELIGIBLE || exactEligible > MAX_ELIGIBLE) {
   failures.push(
@@ -119,7 +119,7 @@ Modifier dedup:
 - Blocked near-duplicate contexts: ${report.blockedModifiers}
 
 Projected eligible corpus: ${report.exactEligiblePages.toLocaleString()} / ${report.totalPages.toLocaleString()} (${(Number(report.eligibleRatio) * 100).toFixed(1)}%)
-Target band: 15.0M – 16.5M indexed
+Target band: 16.5M – 18.5M indexed (90+ quality score)
 Bing-flagged overrides: ${report.bingFlaggedOverrideCount}
 
 Blocked pair examples:
