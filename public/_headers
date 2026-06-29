@@ -98,6 +98,10 @@
 /robots.txt
   Cache-Control: public, max-age=86400
 
+/.well-known/security.txt
+  Cache-Control: public, max-age=86400
+  Content-Type: text/plain; charset=utf-8
+
 # Administrative / preview routes — robots.txt blocks crawling, but third-party
 # sites can still link to these URLs. A bare robots.txt block does NOT prevent
 # Google from listing a URL in search results (it can index based on the link

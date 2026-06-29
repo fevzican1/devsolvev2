@@ -1,0 +1,5 @@
+Contact: mailto:contact@devsolvev2.com
+Expires: 2027-06-29T23:59:59.000Z
+Preferred-Languages: en, tr
+Policy: https://devsolvev2.com/legal/privacy
+Canonical: https://devsolvev2.com/.well-known/security.txt
