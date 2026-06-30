@@ -3445,6 +3445,19 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     });
   }
 
+  // Bot gate BEFORE cache lookup — prevents scrapers from reading pages cached
+  // by Googlebot/Bingbot (Workers Cache key is URL-only, no UA vary).
+  const ua = context.request.headers.get('user-agent') || '';
+  if (decideAccess(ua, context.request.cf, {
+    secChUa: context.request.headers.get('sec-ch-ua'),
+    secChUaMobile: context.request.headers.get('sec-ch-ua-mobile'),
+  }) === 'block') {
+    return new Response('Access Denied', {
+      status: 403,
+      headers: ACCESS_DENIED_HEADERS,
+    });
+  }
+
   const edgeIsr = buildEdgeIsrCacheControl();
   const cacheRequest = new Request(context.request.url, { method: 'GET' });
   const cachedResponse = await matchWorkerCache(cacheRequest);
@@ -3456,17 +3469,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
     return cachedResponse;
-  }
-
-  const ua = context.request.headers.get('user-agent') || '';
-  if (decideAccess(ua, context.request.cf, {
-    secChUa: context.request.headers.get('sec-ch-ua'),
-    secChUaMobile: context.request.headers.get('sec-ch-ua-mobile'),
-  }) === 'block') {
-    return new Response('Access Denied', {
-      status: 403,
-      headers: ACCESS_DENIED_HEADERS,
-    });
   }
 
   const responseHeaders = {

@@ -91,6 +91,12 @@ const HARD_BLOCK_PATTERNS: readonly string[] = [
 
 const GOOGLE_ASNS: ReadonlySet<number> = new Set([15169, 396982]);
 
+/** Microsoft ASNs used by Bingbot / MSN crawlers. */
+const BING_ASNS: ReadonlySet<number> = new Set([8075, 3598, 8068, 8069, 6182]);
+
+/** Desktop Chrome below this major version is always a scraper fingerprint (2026). */
+const MIN_DESKTOP_CHROME_MAJOR = 90;
+
 function lowerIncludesAny(lower: string, markers: readonly string[]): boolean {
   return markers.some((m) => lower.includes(m));
 }
@@ -121,7 +127,24 @@ function isNetworkVerifiedGoogle(cf?: CfRequestProperties): boolean | null {
   if (cf.botManagement?.verifiedBot === true) return true;
   if (typeof cf.asn === 'number' && GOOGLE_ASNS.has(cf.asn)) return true;
   if (cf.asOrganization && /google/i.test(cf.asOrganization)) return true;
-  return null;
+  return false;
+}
+
+function isNetworkVerifiedBing(cf?: CfRequestProperties): boolean | null {
+  if (!cf) return null;
+  if (cf.verifiedBotCategory && /search/i.test(cf.verifiedBotCategory)) return true;
+  if (cf.botManagement?.verifiedBot === true) return true;
+  if (typeof cf.asn === 'number' && BING_ASNS.has(cf.asn)) return true;
+  if (cf.asOrganization && /microsoft|bing/i.test(cf.asOrganization)) return true;
+  return false;
+}
+
+/** Scraper UAs often copy ancient desktop Chrome strings without Client Hints. */
+function isAbsurdlyStaleDesktopChrome(lower: string): boolean {
+  if (/(?:iphone|ipad|ipod|android|mobile)/.test(lower)) return false;
+  const match = lower.match(/chrome\/(\d+)/);
+  if (!match) return false;
+  return Number.parseInt(match[1], 10) < MIN_DESKTOP_CHROME_MAJOR;
 }
 
 /**
@@ -162,6 +185,8 @@ function looksLikeRealHumanBrowser(ua: string, headers: GuardHeaders): boolean {
   // iOS Chrome
   if (lower.includes('crios/')) return true;
 
+  if (isAbsurdlyStaleDesktopChrome(lower)) return false;
+
   // Chromium family — require Client Hints on desktop; allow Android Chrome / Samsung
   if (/(?:chrome\/|edg\/|edga\/|edgios\/|opr\/|samsungbrowser\/)/.test(lower)) {
     const secChUa = headers.secChUa?.trim() ?? '';
@@ -188,7 +213,10 @@ export function decideAccess(
     return verified === false ? 'block' : 'allow';
   }
 
-  if (uaClaimsBing(lower)) return 'allow';
+  if (uaClaimsBing(lower)) {
+    const verified = isNetworkVerifiedBing(cf);
+    return verified === false ? 'block' : 'allow';
+  }
   if (uaClaimsDuckDuckGo(lower)) return 'allow';
 
   // Social preview bots — allowed for link equity and referral traffic.
