@@ -20,95 +20,188 @@
 const BING_ASNS = '{8075 3598 8068 8069 6182}';
 const GOOGLE_ASNS = '{15169 396982}';
 
+/** Free-plan WAF: use contains/lower(), not regex matches (Business+ only). */
+function uaContainsAny(markers) {
+  return markers.map((m) => `(lower(http.user_agent) contains "${m}")`).join(' or ');
+}
+
+function kPath(expr) {
+  return `starts_with(http.request.uri.path, "/k/") and (${expr})`;
+}
+
 /** Rule 0 — Meta webindexer hammers static + /k/*; block before origin entirely. */
-const WAF_SITEWIDE_META_BLOCK = `http.user_agent matches ".*(?i)(meta-webindexer|meta-externalagent|meta-externalfetcher).*"`;
+const WAF_SITEWIDE_META_BLOCK = uaContainsAny([
+  'meta-webindexer',
+  'meta-externalagent',
+  'meta-externalfetcher',
+]);
 
 /** Rule 1 — explicit deny list for /k/* (no Function cost). */
-const WAF_KNOWN_BAD_EXPRESSION = `(http.request.uri.path starts_with "/k/")
-and (
-  http.user_agent matches ".*(?i)(meta-webindexer|meta-externalagent|meta-externalfetcher|facebookcatalog|facebookbot).*"
-  or http.user_agent matches ".*(?i)(applebot|applebot-extended|apple-pubsub).*"
-  or http.user_agent matches ".*(?i)(baiduspider|baidu.*spider|yandexbot|sogou).*"
-  or http.user_agent matches ".*(?i)(claudebot|claude-searchbot|claude-web|anthropic-ai|gptbot|oai-searchbot|chatgpt-user|openai).*"
-  or http.user_agent matches ".*(?i)(perplexitybot|bytespider|amazonbot|google-extended|cohere-ai|diffbot|ccbot).*"
-  or http.user_agent matches ".*(?i)(ahrefsbot|semrushbot|mj12bot|dotbot|blexbot|petalbot|serpstatbot).*"
-  or http.user_agent matches ".*(?i)(headlesschrome|headless|puppeteer|playwright|selenium|phantomjs).*"
-  or http.user_agent matches ".*(?i)(python-requests|python-urllib|curl/|wget|scrapy|go-http-client|java/|okhttp|node-fetch|axios/).*"
-  or http.user_agent matches ".*(?i)chrome-extension.*"
+const WAF_KNOWN_BAD_EXPRESSION = kPath(`(
+  ${uaContainsAny([
+    'meta-webindexer',
+    'meta-externalagent',
+    'meta-externalfetcher',
+    'facebookcatalog',
+    'facebookbot',
+    'applebot',
+    'applebot-extended',
+    'apple-pubsub',
+    'baiduspider',
+    'baidu',
+    'yandexbot',
+    'sogou',
+    'claudebot',
+    'claude-searchbot',
+    'claude-web',
+    'anthropic-ai',
+    'gptbot',
+    'oai-searchbot',
+    'chatgpt-user',
+    'openai',
+    'perplexitybot',
+    'bytespider',
+    'amazonbot',
+    'google-extended',
+    'cohere-ai',
+    'diffbot',
+    'ccbot',
+    'ahrefsbot',
+    'semrushbot',
+    'mj12bot',
+    'dotbot',
+    'blexbot',
+    'petalbot',
+    'serpstatbot',
+    'headlesschrome',
+    'headless',
+    'puppeteer',
+    'playwright',
+    'selenium',
+    'phantomjs',
+    'python-requests',
+    'python-urllib',
+    'curl/',
+    'wget',
+    'scrapy',
+    'go-http-client',
+    'java/',
+    'okhttp',
+    'node-fetch',
+    'axios/',
+    'chrome-extension',
+  ])}
   or (
-    http.user_agent matches ".*(?i)(searchbot).*"
-    and not http.user_agent matches ".*(?i)(googlebot|bingbot|duckduckbot).*"
+    lower(http.user_agent) contains "searchbot"
+    and not lower(http.user_agent) contains "googlebot"
+    and not lower(http.user_agent) contains "bingbot"
+    and not lower(http.user_agent) contains "duckduckbot"
   )
-)`;
+)`);
 
 /** Rule 2 — fake Bingbot: UA string only, not Cloudflare-verified or Microsoft ASN. */
-const WAF_FAKE_BING_EXPRESSION = `(http.request.uri.path starts_with "/k/")
-and http.user_agent matches ".*(?i)bingbot.*"
-and not cf.client.bot
-and not ip.src.asnum in ${BING_ASNS}`;
+const WAF_FAKE_BING_EXPRESSION = kPath(`(
+  lower(http.user_agent) contains "bingbot"
+  and not cf.client.bot
+  and not ip.src.asnum in ${BING_ASNS}
+)`);
 
 /** Rule 3 — desktop Chrome/Edge scrapers without Client Hints (all versions). */
-const WAF_FAKE_CHROME_EXPRESSION = `(http.request.uri.path starts_with "/k/")
-and (
-  http.user_agent matches ".*(?i)Chrome/.*Safari/.*"
-  or http.user_agent matches ".*(?i)Edg/.*"
-)
-and not http.user_agent matches ".*(?i)(Android|iPhone|iPad|Mobile|CriOS).*"
-and len(http.request.headers["sec-ch-ua"][0]) <= 2`;
+const WAF_FAKE_CHROME_EXPRESSION = kPath(`(
+  (
+    (lower(http.user_agent) contains "chrome/" and lower(http.user_agent) contains "safari/")
+    or lower(http.user_agent) contains "edg/"
+  )
+  and not lower(http.user_agent) contains "android"
+  and not lower(http.user_agent) contains "iphone"
+  and not lower(http.user_agent) contains "ipad"
+  and not lower(http.user_agent) contains "mobile"
+  and not lower(http.user_agent) contains "crios"
+  and len(http.request.headers["sec-ch-ua"][0]) <= 2
+)`);
 
 /** Rule 4 — allowlist-only catch-all for anything else on /k/*. */
-const WAF_ALLOWLIST_EXPRESSION = `(http.request.uri.path starts_with "/k/")
-and not (
+const WAF_ALLOWLIST_EXPRESSION = kPath(`not (
   (
     cf.client.bot
     and cf.verified_bot_category eq "Search Engine Crawler"
   )
   or (
-    http.user_agent matches ".*(?i)(googlebot|adsbot-google|mediapartners-google|storebot-google|google-inspectiontool|feedfetcher-google|apis-google|duplexweb-google|googleother).*"
-    and (
-      cf.client.bot
-      or ip.src.asnum in ${GOOGLE_ASNS}
-    )
+    (${uaContainsAny([
+      'googlebot',
+      'adsbot-google',
+      'mediapartners-google',
+      'storebot-google',
+      'google-inspectiontool',
+      'feedfetcher-google',
+      'apis-google',
+      'duplexweb-google',
+      'googleother',
+    ])})
+    and (cf.client.bot or ip.src.asnum in ${GOOGLE_ASNS})
   )
   or (
-    http.user_agent matches ".*(?i)(bingbot|bingpreview|adidxbot|msnbot).*"
-    and (
-      cf.client.bot
-      or ip.src.asnum in ${BING_ASNS}
-    )
+    (${uaContainsAny(['bingbot', 'bingpreview', 'adidxbot', 'msnbot'])})
+    and (cf.client.bot or ip.src.asnum in ${BING_ASNS})
   )
-  or http.user_agent matches ".*(?i)(duckduckbot|duckduckgo-favicons-bot).*"
-  or http.user_agent matches ".*(?i)Firefox/.*Gecko/.*"
+  or ${uaContainsAny(['duckduckbot', 'duckduckgo-favicons-bot'])}
+  or (lower(http.user_agent) contains "firefox/" and lower(http.user_agent) contains "gecko/")
   or (
-    http.user_agent matches ".*Safari/.*"
-    and not http.user_agent matches ".*(?i)Chrome/.*"
-    and not http.user_agent matches ".*(?i)Chromium/.*"
-    and not http.user_agent matches ".*(?i)CriOS/.*"
-    and not http.user_agent matches ".*(?i)Edg/.*"
-    and not http.user_agent matches ".*(?i)OPR/.*"
-    and http.user_agent matches ".*Version/.*"
+    lower(http.user_agent) contains "safari/"
+    and not lower(http.user_agent) contains "chrome/"
+    and not lower(http.user_agent) contains "chromium/"
+    and not lower(http.user_agent) contains "crios/"
+    and not lower(http.user_agent) contains "edg/"
+    and not lower(http.user_agent) contains "opr/"
+    and lower(http.user_agent) contains "version/"
   )
-  or http.user_agent matches ".*(?i)CriOS/.*"
+  or lower(http.user_agent) contains "crios/"
   or (
-    http.user_agent matches ".*(?i)Chrome/.*"
+    lower(http.user_agent) contains "chrome/"
     and len(http.request.headers["sec-ch-ua"][0]) > 2
   )
   or (
-    http.user_agent matches ".*(?i)Edg/.*"
+    lower(http.user_agent) contains "edg/"
     and len(http.request.headers["sec-ch-ua"][0]) > 2
   )
-  or http.user_agent matches ".*(?i)Android.*Chrome/.*"
-  or http.user_agent matches ".*(?i)SamsungBrowser/.*"
+  or (lower(http.user_agent) contains "android" and lower(http.user_agent) contains "chrome/")
+  or lower(http.user_agent) contains "samsungbrowser/"
   or (
-    http.user_agent matches ".*(?i)(iPhone|iPad|iPod).*AppleWebKit/.*Mobile/.*"
-    and not http.user_agent matches ".*(?i)(bot|crawler|spider|facebookexternalhit|meta-webindexer|applebot|baiduspider).*"
+    (lower(http.user_agent) contains "iphone" or lower(http.user_agent) contains "ipad" or lower(http.user_agent) contains "ipod")
+    and lower(http.user_agent) contains "applewebkit/"
+    and lower(http.user_agent) contains "mobile/"
+    and not lower(http.user_agent) contains "bot"
+    and not lower(http.user_agent) contains "crawler"
+    and not lower(http.user_agent) contains "spider"
+    and not lower(http.user_agent) contains "facebookexternalhit"
+    and not lower(http.user_agent) contains "meta-webindexer"
+    and not lower(http.user_agent) contains "applebot"
+    and not lower(http.user_agent) contains "baiduspider"
   )
   or (
-    http.user_agent matches ".*(?i)Android.*AppleWebKit/.*Mobile.*"
-    and not http.user_agent matches ".*(?i)(bot|crawler|spider|baiduspider|semrushbot|ahrefsbot).*"
+    lower(http.user_agent) contains "android"
+    and lower(http.user_agent) contains "applewebkit/"
+    and lower(http.user_agent) contains "mobile"
+    and not lower(http.user_agent) contains "bot"
+    and not lower(http.user_agent) contains "crawler"
+    and not lower(http.user_agent) contains "spider"
+    and not lower(http.user_agent) contains "baiduspider"
+    and not lower(http.user_agent) contains "semrushbot"
+    and not lower(http.user_agent) contains "ahrefsbot"
   )
-  or http.user_agent matches ".*(?i)(twitterbot|facebookexternalhit|linkedinbot|slackbot|discordbot|telegrambot|whatsapp|redditbot|embedly|iframely).*"
-)`;
+  or ${uaContainsAny([
+    'twitterbot',
+    'facebookexternalhit',
+    'linkedinbot',
+    'slackbot',
+    'discordbot',
+    'telegrambot',
+    'whatsapp',
+    'redditbot',
+    'embedly',
+    'iframely',
+  ])}
+)`);
 
 const RULES = [
   {
