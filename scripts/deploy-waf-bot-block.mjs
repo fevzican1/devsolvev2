@@ -10,7 +10,8 @@
  *   3. /k/* — block desktop Chrome/Edge without sec-ch-ua Client Hints
  *   4. /k/* — allowlist catch-all (Google, Bing, DuckDuckGo, real browsers)
  *
- * Requires: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID
+ * Requires: CLOUDFLARE_API_TOKEN
+ * Optional: CLOUDFLARE_ZONE_ID (auto-resolved from devsolvev2.com if omitted)
  * Usage: node scripts/deploy-waf-bot-block.mjs
  *
  * Keep expressions aligned with functions/_shared/botGuard.ts
@@ -133,10 +134,13 @@ const RULES = [
 ];
 
 const token = process.env.CLOUDFLARE_API_TOKEN;
-const zoneId = process.env.CLOUDFLARE_ZONE_ID;
+const zoneName = (process.env.CLOUDFLARE_ZONE_NAME || process.env.SITE_URL || 'https://devsolvev2.com')
+  .replace(/^https?:\/\//, '')
+  .replace(/\/.*$/, '');
 
-if (!token || !zoneId) {
-  console.error('Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ZONE_ID');
+if (!token) {
+  console.error('Set CLOUDFLARE_API_TOKEN (Zone ID is resolved automatically from zone name).');
+  console.error(`Optional: CLOUDFLARE_ZONE_NAME=${zoneName} (default)`);
   process.exit(1);
 }
 
@@ -156,7 +160,23 @@ async function cf(path, init = {}) {
   return body;
 }
 
+async function resolveZoneId() {
+  if (process.env.CLOUDFLARE_ZONE_ID) {
+    return process.env.CLOUDFLARE_ZONE_ID;
+  }
+  const { result } = await cf(`/zones?name=${encodeURIComponent(zoneName)}`);
+  const zone = result?.[0];
+  if (!zone?.id) {
+    throw new Error(
+      `Zone not found for "${zoneName}". Set CLOUDFLARE_ZONE_ID manually or grant Zone:Read on this token.`,
+    );
+  }
+  console.log(`Resolved zone "${zone.name}" → ${zone.id}`);
+  return zone.id;
+}
+
 async function main() {
+  const zoneId = await resolveZoneId();
   const { result: rulesets } = await cf(
     `/zones/${zoneId}/rulesets?phase=http_request_firewall_custom`,
   );
