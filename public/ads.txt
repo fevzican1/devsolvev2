@@ -1,5 +1,5 @@
 # DevSolve — devsolvev2.com
-# Contact: contact@devsolvev2.com
+# Contact: fevzicanaytekin@gmail.com
 # Managed by: Fevzican Aytekin / DevSolve
 #
 # Add DIRECT lines below ONLY after each network approves the publisher account.
@@ -17,4 +17,4 @@
 # Google Ad Manager / AdSense (if applicable):
 # google.com, pub-PUBLISHER_ID, DIRECT, f08c47fec0942fa0
 #
-contact=contact@devsolvev2.com
+contact=fevzicanaytekin@gmail.com

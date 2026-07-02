@@ -1,23 +1,22 @@
 /**
  * Strict allowlist for /k/* — ONLY:
- *   • Google search crawlers
- *   • Bing search crawlers
- *   • DuckDuckGo crawlers
- *   • Social preview / unfurl bots (for link equity & referral traffic)
+ *   • Google search crawlers (ASN-verified or Cloudflare verified)
+ *   • Bing search crawlers (ASN-verified or Cloudflare verified)
+ *   • Google Search Console URL Inspection (google-inspectiontool UA)
  *   • Verified real human browsers (header-checked Chromium, Firefox, Safari)
  *
- * Everything else is blocked: AI scrapers, SEO audit bots, fake Chrome UAs,
- * headless clients, curl/python/etc.
+ * Blocked at WAF before Pages Function (zero invocations):
+ *   AI scrapers, SEO bots, fake Google/Bing UA, social unfurl bots, DuckDuckGo,
+ *   fake Chrome, curl/python, etc.
  *
- * Social preview bots (Twitter, LinkedIn, Slack, Discord, etc.) are NOW ALLOWED
- * because they drive shares, referral clicks, and organic inbound links — the
- * only code-controllable backlink channel. They only fetch the cheap,
- * edge-cached page at zero Cloudflare cost. Blocking them previously caused
- * broken link previews which reduced shareability and inbound link acquisition.
+ * IMPORTANT — Cloudflare Pages Function invocation accounting:
+ *   • WAF `block` → 0 invocations (traffic never reaches this handler)
+ *   • Allowed traffic that reaches this handler → 1 invocation per request,
+ *     including cache hits and 403 responses decided here
+ *   • Real Googlebot/Bingbot crawling /k/* WILL invoke the function on cache miss
+ *     (required for indexing). Spam must be stopped at WAF, not here.
  *
- * Pages Function code still counts as 1 invocation per /k/* request that
- * reaches it. To block attackers with ZERO Function invocations, deploy the
- * matching WAF rule: `node scripts/deploy-waf-bot-block.mjs`
+ * Deploy matching WAF: `node scripts/deploy-waf-bot-block.mjs`
  */
 
 export interface CfRequestProperties {
@@ -38,33 +37,16 @@ export type AccessDecision = 'allow' | 'block';
 
 const GOOGLE_UA_MARKERS: readonly string[] = [
   'googlebot', 'adsbot-google', 'mediapartners-google', 'storebot-google',
-  'google-inspectiontool', 'google-site-verification', 'feedfetcher-google',
-  'apis-google', 'duplexweb-google', 'googleother',
+  'feedfetcher-google', 'apis-google', 'duplexweb-google', 'googleother',
+];
+
+/** GSC Live Test / site verification — runs from Google infra AND user-triggered inspection IPs. */
+const GOOGLE_INSPECTION_UA_MARKERS: readonly string[] = [
+  'google-inspectiontool', 'google-site-verification',
 ];
 
 const BING_UA_MARKERS: readonly string[] = [
   'bingbot', 'bingpreview', 'adidxbot', 'msnbot',
-];
-
-const DUCKDUCK_UA_MARKERS: readonly string[] = [
-  'duckduckbot', 'duckduckgo-favicons-bot',
-];
-
-/**
- * Social preview / unfurl bot markers — these bots fetch a URL when a human
- * shares it (Twitter, LinkedIn, Slack, Discord, Telegram, WhatsApp, Facebook,
- * Reddit, Pinterest, Mastodon). They render Open Graph cards that drive shares
- * and organic inbound links. Allowed because:
- *   1. Zero cost (edge-cached response)
- *   2. Drive referral traffic + backlinks
- *   3. Only fire on human-shared URLs (not automated crawls)
- */
-const SOCIAL_PREVIEW_MARKERS: readonly string[] = [
-  'twitterbot', 'facebookexternalhit', 'facebookcatalog',
-  'linkedinbot', 'slackbot', 'slack-imgproxy',
-  'discordbot', 'telegrambot', 'whatsapp',
-  'redditbot', 'pinterest', 'pinterestbot',
-  'embedly', 'iframely', 'mastodon',
 ];
 
 /** Always block — includes the attack sources called out by site owner. */
@@ -78,11 +60,17 @@ const HARD_BLOCK_PATTERNS: readonly string[] = [
   'perplexitybot', 'perplexity-user', 'youbot', 'cohere-ai', 'cohere-training-data-crawler',
   'bytespider', 'amazonbot', 'diffbot', 'omgilibot', 'omgili', 'ccbot',
   'common crawl', 'commoncrawl',
-  // SEO / scraper (NOT social unfurlers)
+  // DuckDuckGo — not a primary index target; blocks function invocations at scale
+  'duckduckbot', 'duckduckgo-favicons-bot',
+  // Social unfurl bots — drive function invocations on every /k/* share; not needed for GSC/Bing
+  'twitterbot', 'facebookexternalhit', 'facebookcatalog', 'facebookbot',
+  'linkedinbot', 'slackbot', 'slack-imgproxy', 'discordbot', 'telegrambot', 'whatsapp',
+  'redditbot', 'pinterest', 'pinterestbot', 'embedly', 'iframely', 'mastodon',
+  // SEO / scraper
   'ahrefsbot', 'ahrefssiteaudit', 'semrushbot', 'mj12bot', 'dotbot', 'blexbot', 'petalbot',
   'dataforseobot', 'seznambot', 'aspiegelbot', 'exabot', 'megaindex', 'serpstatbot',
   'barkrowler', 'zoominfobot', 'seekport', 'linkdexbot', 'rogerbot', 'sistrix',
-  // Fake browser / automation (extension-origin UAs — never sent by real navigation)
+  // Fake browser / automation
   'chrome-extension', 'moz-extension', 'safari-web-extension',
   'headlesschrome', 'headless', 'phantomjs', 'puppeteer', 'playwright',
   'selenium', 'electron/', 'scrapy', 'httrack', 'wget', 'curl/', 'libwww-perl',
@@ -95,7 +83,6 @@ const HARD_BLOCK_PATTERNS: readonly string[] = [
 const GOOGLE_ASNS = GOOGLE_CRAWLER_ASN_SET;
 const BING_ASNS = BING_CRAWLER_ASN_SET;
 
-/** Desktop Chrome below this major version is always a scraper fingerprint (2026). */
 const MIN_DESKTOP_CHROME_MAJOR = 90;
 
 function lowerIncludesAny(lower: string, markers: readonly string[]): boolean {
@@ -106,20 +93,16 @@ function matchesHardBlock(lower: string): boolean {
   return HARD_BLOCK_PATTERNS.some((p) => lower.includes(p));
 }
 
+function uaClaimsGoogleInspection(lower: string): boolean {
+  return lowerIncludesAny(lower, GOOGLE_INSPECTION_UA_MARKERS);
+}
+
 function uaClaimsGoogle(lower: string): boolean {
   return lowerIncludesAny(lower, GOOGLE_UA_MARKERS);
 }
 
 function uaClaimsBing(lower: string): boolean {
   return lowerIncludesAny(lower, BING_UA_MARKERS);
-}
-
-function uaClaimsDuckDuckGo(lower: string): boolean {
-  return lowerIncludesAny(lower, DUCKDUCK_UA_MARKERS);
-}
-
-function isSocialPreviewBot(lower: string): boolean {
-  return lowerIncludesAny(lower, SOCIAL_PREVIEW_MARKERS);
 }
 
 function isNetworkVerifiedGoogle(cf?: CfRequestProperties): boolean | null {
@@ -140,7 +123,6 @@ function isNetworkVerifiedBing(cf?: CfRequestProperties): boolean | null {
   return false;
 }
 
-/** Scraper UAs often copy ancient desktop Chrome strings without Client Hints. */
 function isAbsurdlyStaleDesktopChrome(lower: string): boolean {
   if (/(?:iphone|ipad|ipod|android|mobile)/.test(lower)) return false;
   const match = lower.match(/chrome\/(\d+)/);
@@ -148,18 +130,12 @@ function isAbsurdlyStaleDesktopChrome(lower: string): boolean {
   return Number.parseInt(match[1], 10) < MIN_DESKTOP_CHROME_MAJOR;
 }
 
-/**
- * Real human browser — rejects Chrome UA strings without sec-ch-ua (typical
- * of scrapers pretending to be desktop Chrome / extension abuse).
- */
 function looksLikeRealHumanBrowser(ua: string, headers: GuardHeaders): boolean {
   const lower = ua.toLowerCase();
   if (!lower.includes('mozilla/')) return false;
 
   if (matchesHardBlock(lower)) return false;
 
-  // iOS in-app browsers (Instagram, Facebook, TikTok link taps) — real users,
-  // not crawlers. Typical pattern: iPhone/iPad + AppleWebKit + Mobile.
   if (/(?:iphone|ipad|ipod)/.test(lower) && lower.includes('applewebkit/') && lower.includes('mobile/')) {
     if (/(?:bot|crawler|spider|facebookexternalhit|meta-webindexer|applebot|baiduspider)/.test(lower)) {
       return false;
@@ -167,28 +143,23 @@ function looksLikeRealHumanBrowser(ua: string, headers: GuardHeaders): boolean {
     return true;
   }
 
-  // Android WebView / in-app browsers (Chrome WebView token " wv" or Mobile Safari-like)
   if (lower.includes('android') && lower.includes('applewebkit/') && lower.includes('mobile')) {
     if (/(?:bot|crawler|spider|baiduspider|semrushbot|ahrefsbot)/.test(lower)) return false;
     return true;
   }
 
-  // Firefox / Firefox iOS
   if (lower.includes('firefox/') || lower.includes('fxios/')) {
     return lower.includes('gecko/');
   }
 
-  // Safari (not Chromium pretending to be Safari)
   if (lower.includes('safari/') && !/(?:chrome\/|chromium\/|crios\/|edg\/|opr\/)/.test(lower)) {
     return lower.includes('applewebkit/') && lower.includes('version/');
   }
 
-  // iOS Chrome
   if (lower.includes('crios/')) return true;
 
   if (isAbsurdlyStaleDesktopChrome(lower)) return false;
 
-  // Chromium family — require Client Hints on desktop; allow Android Chrome / Samsung
   if (/(?:chrome\/|edg\/|edga\/|edgios\/|opr\/|samsungbrowser\/)/.test(lower)) {
     const secChUa = headers.secChUa?.trim() ?? '';
     if (secChUa.length > 2) return true;
@@ -209,6 +180,8 @@ export function decideAccess(
   const lower = ua.toLowerCase();
   if (matchesHardBlock(lower)) return 'block';
 
+  if (uaClaimsGoogleInspection(lower)) return 'allow';
+
   if (uaClaimsGoogle(lower)) {
     const verified = isNetworkVerifiedGoogle(cf);
     return verified === false ? 'block' : 'allow';
@@ -218,12 +191,6 @@ export function decideAccess(
     const verified = isNetworkVerifiedBing(cf);
     return verified === false ? 'block' : 'allow';
   }
-  if (uaClaimsDuckDuckGo(lower)) return 'allow';
-
-  // Social preview bots — allowed for link equity and referral traffic.
-  // They only fire on human-shared URLs (not automated crawls) and fetch
-  // the cheap, edge-cached response at zero extra Cloudflare cost.
-  if (isSocialPreviewBot(lower)) return 'allow';
 
   if (looksLikeRealHumanBrowser(ua, headers)) return 'allow';
 

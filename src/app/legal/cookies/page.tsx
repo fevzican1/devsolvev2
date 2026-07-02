@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { siteConfig, externalUrls } from '@/config/site';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { absoluteUrl } from '@/lib/seo/url';
+import { PUBLISHER_IDENTITY } from '@/lib/seo/organization';
 
 export const metadata: Metadata = buildMetadata({
   title: 'Cookie Policy — DevSolve Cookie & Local Storage Practices',
@@ -118,7 +119,7 @@ export default function CookiesPage() {
         <h2>Contact</h2>
         <p>
           Questions about cookies:{' '}
-          <a href="mailto:contact@devsolvev2.com">contact@devsolvev2.com</a>
+          <a href={`mailto:${PUBLISHER_IDENTITY.contactEmail}`}>{PUBLISHER_IDENTITY.contactEmail}</a>
           {' · '}
           <a href="/contact">Contact form</a>
         </p>

@@ -7,11 +7,11 @@
  *   0. Site-wide — block AI indexers + browser-extension scraper UAs
  *   1. /k/* — block known scraper / AI / SEO UAs
  *   2. /k/* — block desktop Chrome/Edge without sec-ch-ua Client Hints
- *   3. /k/* — allowlist catch-all (search bots fail-open, real browsers)
+ *   3. /k/* — block fake Googlebot/Bingbot (wrong ASN; GSC inspection exempt)
+ *   4. /k/* — allowlist catch-all (real Google/Bing + real browsers ONLY)
  *
- * CRITICAL: Rule 4 MUST fail-open Googlebot/Bingbot UA markers (aligned with
- * botGuard.ts). Requiring cf.client.bot + narrow ASN caused real Googlebot 403
- * → GSC sitemap "discovered 0" and ~10 crawls/day.
+ * Pages Function invocations: ONLY traffic passing rule 4 reaches /k/* function.
+ * Blocked at rules 0–3 = zero invocations. Google/Bing on cache miss = expected.
  *
  * Requires: CLOUDFLARE_API_TOKEN
  * Usage: node scripts/deploy-waf-bot-block.mjs
@@ -29,7 +29,6 @@ const GOOGLE_UA_MARKERS = [
   'adsbot-google',
   'mediapartners-google',
   'storebot-google',
-  'google-inspectiontool',
   'feedfetcher-google',
   'apis-google',
   'duplexweb-google',
@@ -128,6 +127,18 @@ const WAF_KNOWN_BAD_EXPRESSION = kPath(`(
     'chrome-extension',
     'moz-extension',
     'safari-web-extension',
+    'duckduckbot',
+    'duckduckgo-favicons-bot',
+    'twitterbot',
+    'facebookexternalhit',
+    'linkedinbot',
+    'slackbot',
+    'discordbot',
+    'telegrambot',
+    'whatsapp',
+    'redditbot',
+    'embedly',
+    'iframely',
   ])}
   or (
     lower(http.user_agent) contains "searchbot"
@@ -153,18 +164,39 @@ const WAF_FAKE_CHROME_EXPRESSION = kPath(`(
   and len(http.request.headers["sec-ch-ua"][0]) <= 2
 )`);
 
+const GOOGLE_INSPECTION_UA = ['google-inspectiontool', 'google-site-verification'];
+
 /**
- * Rule 3 — allowlist catch-all for /k/*.
- * Googlebot/Bingbot UA markers are fail-open (no ASN gate) — matches botGuard.
+ * Rule 3 — fake Googlebot/Bingbot on /k/* (wrong ASN → zero Function invocations).
+ * GSC URL Inspection UA exempt — runs from non-Google IPs during Live Test.
+ */
+const WAF_FAKE_SEARCH_BOT_EXPRESSION = kPath(`(
+  (
+    ${uaContainsAny(GOOGLE_UA_MARKERS)}
+    and not ${uaContainsAny(GOOGLE_INSPECTION_UA)}
+    and not ip.src.asnum in ${GOOGLE_ASNS}
+    and not ${VERIFIED_SEARCH_CRAWLER}
+  )
+  or (
+    ${uaContainsAny(BING_UA_MARKERS)}
+    and not ip.src.asnum in ${BING_ASNS}
+    and not ${VERIFIED_SEARCH_CRAWLER}
+  )
+)`);
+
+/**
+ * Rule 4 — allowlist catch-all for /k/*.
+ * ONLY: verified Google/Bing, GSC inspection UA, real browsers.
+ * NO social unfurl bots, NO DuckDuckGo (they caused function invocation floods).
  */
 const WAF_ALLOWLIST_EXPRESSION = kPath(`not (
   (
     cf.client.bot
     and ${VERIFIED_SEARCH_CRAWLER}
   )
+  or ${uaContainsAny(GOOGLE_INSPECTION_UA)}
   or ${uaContainsAny(GOOGLE_UA_MARKERS)}
   or ${uaContainsAny(BING_UA_MARKERS)}
-  or ${uaContainsAny(['duckduckbot', 'duckduckgo-favicons-bot'])}
   or (lower(http.user_agent) contains "firefox/" and lower(http.user_agent) contains "gecko/")
   or (
     lower(http.user_agent) contains "safari/"
@@ -209,18 +241,6 @@ const WAF_ALLOWLIST_EXPRESSION = kPath(`not (
     and not lower(http.user_agent) contains "semrushbot"
     and not lower(http.user_agent) contains "ahrefsbot"
   )
-  or ${uaContainsAny([
-    'twitterbot',
-    'facebookexternalhit',
-    'linkedinbot',
-    'slackbot',
-    'discordbot',
-    'telegrambot',
-    'whatsapp',
-    'redditbot',
-    'embedly',
-    'iframely',
-  ])}
 )`);
 
 const RULES = [
@@ -237,7 +257,11 @@ const RULES = [
     expression: WAF_FAKE_CHROME_EXPRESSION,
   },
   {
-    description: '[DevSolve] /k/* allowlist — Google Bing DuckDuckGo + real browsers',
+    description: '[DevSolve] /k/* block fake Googlebot/Bingbot (wrong ASN)',
+    expression: WAF_FAKE_SEARCH_BOT_EXPRESSION,
+  },
+  {
+    description: '[DevSolve] /k/* allowlist — Google Bing GSC inspection + real browsers',
     expression: WAF_ALLOWLIST_EXPRESSION,
   },
 ];
@@ -326,8 +350,8 @@ async function main() {
     '[DevSolve] sitewide block Meta AI indexer',
     '[DevSolve] sitewide block AI indexers (Claude-SearchBot, Meta)',
     '[DevSolve] /k/* block fake Bingbot',
-    '[DevSolve] /k/* block fake Googlebot/Bingbot (wrong ASN)',
     '[DevSolve] sitewide block fake desktop Chrome without Client Hints',
+    '[DevSolve] /k/* allowlist — Google Bing DuckDuckGo + real browsers',
   ]);
   const preserved = (ruleset?.rules ?? []).filter(
     (r) => !managedDescriptions.has(r.description) && !legacyDescriptions.has(r.description),

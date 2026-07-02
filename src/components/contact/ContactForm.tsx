@@ -30,7 +30,7 @@ export function ContactForm() {
           `Company: ${formData.get('company') || 'N/A'}\n\n` +
           `${formData.get('message')}`
         );
-        window.open(`mailto:contact@devsolvev2.com?subject=${subject}&body=${body}`, '_blank');
+        window.open(`mailto:fevzicanaytekin@gmail.com?subject=${subject}&body=${body}`, '_blank');
         form.reset();
         setStatus('success');
         return;

@@ -25,7 +25,7 @@ import { ensureSeoDescription } from './seoText';
 /** Public publisher identity — shown on About/Contact and in Organization JSON-LD. */
 export const PUBLISHER_IDENTITY = {
   operatorName: 'Fevzican Aytekin',
-  contactEmail: 'contact@devsolvev2.com',
+  contactEmail: 'fevzicanaytekin@gmail.com',
   country: 'Turkey',
   foundingDate: '2026-01-15',
 } as const;
