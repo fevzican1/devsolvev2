@@ -1630,6 +1630,9 @@ const BING_FLAGGED_INDICES = new Set([
   17699852, 16646668, 16501563, 16364610,
   16799700, 9921102, 5565750, 3552666,
   3704044, 6505100, 5418355,
+  // 2026-07 Bing WMT: "not indexable — redirect" (json-minify-json-payload
+  // /database-administrator/prepare-api-response/json-to-typescript).
+  1362547,
 ]);
 
 const PRIORITY_MODIFIER_INDICES = (() => {
