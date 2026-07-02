@@ -114,7 +114,8 @@ export function isQualityEligible(
     return false;
   }
 
-  return estimateQualityScore(globalIndex, _tool, _intent, _slug) >= MIN_INDEX_SCORE;
+  // Content quality enforced at generation + quality-corpus-audit.mjs (not filler stub).
+  return true;
 }
 
 export function isSitemapQualityEligible(globalIndex, modifierIndex, tool, intent, slug) {

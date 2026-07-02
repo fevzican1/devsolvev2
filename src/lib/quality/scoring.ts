@@ -1,3 +1,5 @@
+import { applyGuidelinePenalties, auditGuidelineCompliance } from './guidelineCompliance';
+
 /** Page shape required by calculateQualityScore — kept local for edge/functions typecheck. */
 export interface ScoringPageInput {
   slug: string;
@@ -184,10 +186,20 @@ export function calculateQualityScore(page: ScoringPageInput): QualityScore {
   const verifiability = calculateVerifiabilityScore(page);
   const layerDiversity = calculateLayerDiversity(page);
 
-  const totalScore = Math.min(
+  const structuralScore = Math.min(
     100,
     uniqueness + usefulness + depth + structure + verifiability + layerDiversity,
   );
+
+  const guidelineAudit = auditGuidelineCompliance(page);
+  const totalScore = applyGuidelinePenalties(structuralScore, guidelineAudit);
+
+  if (guidelineAudit.critical.length > 0) {
+    issues.push(...guidelineAudit.critical.map((c) => `Guideline violation: ${c}`));
+  }
+  if (guidelineAudit.warnings.length > 0) {
+    issues.push(...guidelineAudit.warnings.slice(0, 5).map((w) => `Guideline warning: ${w}`));
+  }
 
   if (totalScore < MIN_QUALITY_SCORE) {
     issues.push(`Score ${totalScore} below Bing/Google quality threshold (${MIN_QUALITY_SCORE})`);
@@ -224,7 +236,10 @@ export function calculateQualityScore(page: ScoringPageInput): QualityScore {
       layerDiversity,
     },
     issues,
-    passesQualityThreshold: totalScore >= MIN_QUALITY_SCORE && wordCount >= 1200,
+    passesQualityThreshold:
+      totalScore >= MIN_QUALITY_SCORE
+      && wordCount >= 1200
+      && guidelineAudit.critical.length === 0,
   };
 }
 

@@ -67,7 +67,10 @@ export function scorePageFields(fields: PageScoringFields): number {
   return calculateQualityScore(buildGuaranteedScoringPage(fields)).score;
 }
 
-/** Sitemap / O(1) gate: score a valid corpus slot using template minimums + real formula. */
+/**
+ * O(1) slot score using filler stub — WILL FAIL guideline audit (by design).
+ * Real gating: quality-corpus-audit.mjs + enforceProgrammaticQualityFloor.
+ */
 export function scoreCorpusSlot(
   slug: string,
   tool: string,

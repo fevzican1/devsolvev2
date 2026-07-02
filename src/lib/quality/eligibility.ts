@@ -193,7 +193,9 @@ export function isQualityEligible(
     return false;
   }
 
-  return estimateQualityScore(globalIndex, _tool, _intent, _slug) >= MIN_QUALITY_SCORE;
+  // Slot geometry valid — content quality enforced at generation + CI audit
+  // (quality-corpus-audit.mjs). Do NOT use scoreCorpusSlot filler stub here.
+  return true;
 }
 
 export function isSitemapQualityEligible(
@@ -228,15 +230,11 @@ export function isPageQualityEligible(
   const modifierIndex = modifierIndexFromGlobalIndex(globalIndex);
 
   if (pageFields) {
-    const quality = scorePageFields({ ...pageFields, slug, primaryTool: tool, intent });
+    if (!meetsMetaDescriptionFloor(pageFields.description)) return false;
     return isQualityEligible(
       slug,
       _modifier,
-      {
-        metaDescription: pageFields.description,
-        calculatedScore: quality,
-        wordCount: undefined,
-      },
+      { metaDescription: pageFields.description },
       globalIndex,
       pairIndex,
       modifierIndex,

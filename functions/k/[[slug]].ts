@@ -38,6 +38,7 @@ import {
   ensureSeoTitle,
   ROBOTS_INDEX_FOLLOW,
 } from '../../src/lib/seo/seoText';
+import { scrubBoilerplateInHtml } from '../../src/lib/quality/qualityFloor';
 import { ACCESS_DENIED_HEADERS, decideAccess } from '../_shared/botGuard';
 import { escapeHtml } from '../_shared/sectionFallback';
 import { buildIntentExample } from '../_shared/intentExamples';
@@ -2540,7 +2541,7 @@ ${diagnosticsSelected.map((item) => `<li style="margin-bottom:0.55rem"><label st
   // separately — they are subsumed by `unifiedSchemaGraph` above.
   void technicalFaqJsonLd;
 
-  return `<!DOCTYPE html>
+  const pageHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
@@ -3086,6 +3087,7 @@ ${BRAND_LISTINGS_HTML}
 </footer>
 </body>
 </html>`;
+  return scrubBoilerplateInHtml(pageHtml, page.clusterKey);
 }
 
 function getSlugByIndex(index: number): string | undefined {
