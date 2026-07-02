@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 /** Verify scoreCorpusSlot / scorePageFields use real Bing/Google formula and return ≥90. */
-import { register } from 'tsx/esm/api';
-
-register();
-
-const { scoreCorpusSlot, scorePageFields } = await import('../src/lib/quality/scoringPage.ts');
-const { MIN_QUALITY_SCORE } = await import('../src/lib/quality/scoring.ts');
+import {
+  MIN_QUALITY_SCORE,
+  scoreCorpusSlot,
+  scorePageFields,
+} from './lib/quality-scoring-build.mjs';
 
 const sampleTools = ['json-formatter', 'jwt-decoder', 'regex-tester', 'hash-generator', 'sql-formatter'];
 const sampleIntents = ['validate-json', 'encode-data', 'test-regex', 'hash-sensitive-data', 'format-sql'];

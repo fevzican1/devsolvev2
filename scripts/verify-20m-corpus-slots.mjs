@@ -3,18 +3,14 @@
  * Verify all 20M programmatic slots use real calculateQualityScore (scoreCorpusSlot)
  * at ≥90 — not a hash stub or MIN_INDEX_SCORE constant.
  */
-import { register } from 'tsx/esm/api';
-
-register();
-
-const { getCorpusSlotScore, MIN_REAL_QUALITY_SCORE } = await import('./lib/programmatic-quality-scoring.mjs');
-const {
+import { getCorpusSlotScore, MIN_REAL_QUALITY_SCORE } from './lib/programmatic-quality-scoring.mjs';
+import {
   isSitemapQualityEligible,
   MODIFIER_COUNT,
   PER_PAIR,
   TOTAL_PROGRAMMATIC_PAGES,
   TOOL_INTENT_PAIR_COUNT,
-} = await import('./lib/programmatic-quality.mjs');
+} from './lib/programmatic-quality.mjs';
 
 const clusters = [
   { key: 'json', tools: ['json-formatter', 'json-to-typescript'], intents: ['validate-json', 'format-json', 'inspect-json-structure', 'convert-json-to-types', 'compare-json-objects', 'transform-json-keys', 'extract-json-values', 'merge-json-data', 'flatten-nested-json', 'detect-json-syntax-errors', 'generate-json-schema', 'minify-json-payload'] },

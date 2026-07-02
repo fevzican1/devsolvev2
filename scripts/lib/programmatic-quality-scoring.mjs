@@ -1,13 +1,11 @@
 /**
- * Lazy-loaded real Bing/Google scoreCorpusSlot — pair-level cache (348 entries max).
- * Imported with top-level await so sync callers get real scores, not a hash stub.
+ * Real Bing/Google quality scores for build scripts — pure JS, no tsx/TS imports.
+ * Mirrors src/lib/quality/scoringPage.ts scoreCorpusSlot.
  */
-import { register } from 'tsx/esm/api';
-
-register();
-
-const { scoreCorpusSlot } = await import('../../src/lib/quality/scoringPage.ts');
-const { MIN_QUALITY_SCORE } = await import('../../src/lib/quality/scoring.ts');
+import {
+  MIN_QUALITY_SCORE,
+  scoreCorpusSlot,
+} from './quality-scoring-build.mjs';
 
 /** @type {Map<string, number>} */
 const pairScoreCache = new Map();
@@ -24,7 +22,7 @@ export function getCorpusSlotScore(slug, tool, intent, clusterKey) {
   const cached = pairScoreCache.get(key);
   if (cached !== undefined) return cached;
 
-  const score = scoreCorpusSlot(slug, tool, intent, clusterKey);
+  const score = scoreCorpusSlot(slug, tool, intent, clusterKey ?? 'json');
   pairScoreCache.set(key, score);
   return score;
 }
