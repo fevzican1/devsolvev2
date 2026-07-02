@@ -2,6 +2,7 @@
  * Pure-JS mirror of src/lib/quality/scoring.ts + scoringPage.ts for Node build scripts.
  * Keep in sync with those files — no tsx/TS imports (Cloudflare Pages uses plain node).
  */
+import { applyGuidelinePenalties, auditGuidelineCompliance } from './guideline-compliance-build.mjs';
 
 export const MIN_QUALITY_SCORE = 90;
 
@@ -137,10 +138,17 @@ export function calculateQualityScore(page) {
   const verifiability = calculateVerifiabilityScore(page);
   const layerDiversity = calculateLayerDiversity(page);
 
-  const totalScore = Math.min(
+  const structuralScore = Math.min(
     100,
     uniqueness + usefulness + depth + structure + verifiability + layerDiversity,
   );
+
+  const guidelineAudit = auditGuidelineCompliance(page);
+  const totalScore = applyGuidelinePenalties(structuralScore, guidelineAudit);
+
+  if (guidelineAudit.critical.length > 0) {
+    issues.push(...guidelineAudit.critical.map((c) => `Guideline violation: ${c}`));
+  }
 
   if (totalScore < MIN_QUALITY_SCORE) {
     issues.push(`Score ${totalScore} below Bing/Google quality threshold (${MIN_QUALITY_SCORE})`);
@@ -159,10 +167,14 @@ export function calculateQualityScore(page) {
       layerDiversity,
     },
     issues,
-    passesQualityThreshold: totalScore >= MIN_QUALITY_SCORE && wordCount >= 1200,
+    passesQualityThreshold:
+      totalScore >= MIN_QUALITY_SCORE
+      && wordCount >= 1200
+      && guidelineAudit.critical.length === 0,
   };
 }
 
+/** Filler stub — must NOT pass guideline audit. Used only to detect mis-wired gates. */
 export function buildGuaranteedScoringPage(fields) {
   return {
     slug: fields.slug,
@@ -203,7 +215,10 @@ export function scorePageFields(fields) {
   return calculateQualityScore(buildGuaranteedScoringPage(fields)).score;
 }
 
-/** Same as src/lib/quality/scoringPage.ts scoreCorpusSlot */
+/**
+ * O(1) slot score using filler stub — WILL FAIL guideline audit (by design).
+ * Real gating: scripts/quality-corpus-audit.mjs + enforceProgrammaticQualityFloor.
+ */
 export function scoreCorpusSlot(slug, tool, intent, clusterKey = 'json') {
   return scorePageFields({
     slug,

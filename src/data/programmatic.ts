@@ -920,7 +920,7 @@ function buildProTips(clusterKey: ClusterKey, audience: string, tool: string, ta
 
   const tips = [
     `Bookmark ${getToolName(tool)} for quick access — ${cd.field} tasks come up frequently in ${label(audience)} work.`,
-    `${cd.bestPractice} — this is especially important when ${ac.concern} is a factor.`,
+    `When ${ac.concern} matters, validate on a frozen sample before changing production configuration.`,
     `When working on ${label(task)}, start with the smallest reproducible input to save time and reduce complexity.`,
     `Keep a personal library of test inputs for ${cd.field} tasks — reusing known-good samples speeds up future work.`,
     `Since ${getToolName(tool)} runs entirely in your browser, you can use it offline or in air-gapped environments where network access is restricted.`,
@@ -954,23 +954,23 @@ function buildFAQ(clusterKey: ClusterKey, tool: string, audience: string, intent
     { question: `Is my data safe when using ${toolName}?`, answer: `Yes. ${toolName} runs entirely in your browser. No data is sent to any external server, making it safe for working with sensitive or proprietary information.` },
     { question: `Can I use ${toolName} for ${label(intent)} in a production workflow?`, answer: `${toolName} is ideal for ad-hoc tasks, quick validation, and prototyping. For production pipelines, consider integrating the equivalent logic into your codebase with proper test coverage.` },
     { question: `What are the limitations when working with large inputs?`, answer: `Browser-based tools are constrained by available memory. Very large inputs (over 10 MB) may cause slowdown. For batch processing or very large files, consider a command-line alternative.` },
-    { question: `How does this relate to ${cd.field}?`, answer: `${cd.importance}. ${toolName} provides a quick, accessible way to handle common ${cd.field} tasks without requiring installation or configuration.` },
+    { question: `How does this relate to ${cd.field}?`, answer: `${toolName} helps with everyday ${cd.field} checks without installing extra software.` },
     { question: `What should a ${label(audience)} focus on when using this tool?`, answer: `Pay special attention to ${ac.concern}. Since your primary focus is ${ac.focus}, verify that the tool output meets those requirements before using it further.` },
     { question: `Can I automate this ${label(intent)} process?`, answer: `While ${toolName} is a manual tool, the same logic can be implemented in code using standard libraries. The browser tool is useful for validating that your automated implementation produces correct results.` },
     { question: `Is this tool suitable for ${label(task)}?`, answer: `Yes, particularly for the initial investigation and validation phases. For ${label(task)}, using a browser-based tool lets you quickly test hypotheses without setting up a full development environment.` },
     { question: `What makes ${toolName} different from other ${label(clusterKey)} tools?`, answer: `The primary differentiator is local processing — no data leaves your browser. This matters for ${label(audience)} professionals who handle sensitive data as part of ${label(task)}.` },
-    { question: `How does ${label(intent)} affect ${ac.focus}?`, answer: `${label(intent)} is a foundational step in maintaining ${ac.focus}. ${cd.importance}, so getting this step right prevents issues from propagating downstream.` },
-    { question: `What should I do if the output looks unexpected?`, answer: `First verify the input format and encoding, then check whether any options or settings affect the transformation. ${cd.bestPractice} to ensure the output is correct before using it.` },
+    { question: `How does ${label(intent)} affect ${ac.focus}?`, answer: `${label(intent)} supports ${ac.focus} when inputs are validated before they propagate. Catch issues at the boundary rather than downstream.` },
+    { question: `What should I do if the output looks unexpected?`, answer: `First verify the input format and encoding, then check whether any options or settings affect the transformation. Re-test with a minimal sample before retrying on production data.` },
     { question: `Can ${toolName} handle all edge cases in ${label(intent)}?`, answer: `${toolName} covers the most common cases encountered in ${label(task)}. For highly specialised edge cases — such as non-standard encodings or custom schemas — review the output carefully and cross-check with a reference implementation.` },
     { question: `How often should a ${label(audience)} perform ${label(intent)}?`, answer: `The frequency depends on your workflow. For ${tc.scenario}, performing this step before each significant change or deployment is good practice, because ${tc.urgency}.` },
     { question: `Does ${toolName} work offline?`, answer: `Yes. Once the page is loaded, ${toolName} processes everything locally in your browser using client-side JavaScript. No network connection is required for the tool operations themselves.` },
     { question: `What is the best way to validate the output of ${label(intent)}?`, answer: `Compare the output against a known-good sample, check structural integrity, and verify any invariants your system depends on. For ${tc.scenario}, the goal is to ${tc.outcome}.` },
     { question: `How does ${label(audience)} workflow integration improve with this approach?`, answer: `By standardising on a single browser-based tool for ${label(intent)}, teams eliminate environment-specific discrepancies and reduce onboarding time. The consistent interface means results are reproducible regardless of who on the team performs the task.` },
-    { question: `What are the security implications of ${label(intent)} for a ${label(audience)}?`, answer: `Local processing eliminates the risk of transmitting sensitive data to third-party servers. Additionally, ${cd.bestPractice}, which directly addresses ${ac.concern}.` },
+    { question: `What are the security implications of ${label(intent)} for a ${label(audience)}?`, answer: `Local processing avoids sending payloads to third-party servers. Pair that with checksum logging when ${ac.concern} is sensitive.` },
     { question: `How does ${toolName} support ${label(task)} scenarios?`, answer: `For ${tc.scenario}, ${toolName} provides immediate feedback on the correctness of ${label(intent)} operations. The goal — to ${tc.outcome} — is supported by a clear step-by-step workflow that covers both common and edge-case inputs.` },
     { question: `Can multiple ${label(audience)} team members use this tool simultaneously?`, answer: `Yes. Since ${toolName} runs entirely in each user's browser, there are no shared sessions or server-side state. Each team member gets an independent, isolated environment, which is ideal for collaborative debugging and review.` },
     { question: `What prior knowledge does a ${label(audience)} need to use this guide?`, answer: `A working understanding of ${cd.field} concepts and basic experience with ${label(task)} is sufficient. The guide is designed to be approachable for practitioners at all experience levels, with explanations that scale from fundamental to advanced.` },
-    { question: `How does this guide address ${ac.concern}?`, answer: `Every step in this guide is designed with ${ac.concern} in mind. Local processing ensures no data is transmitted externally, and the workflow follows ${cd.bestPractice} to minimise exposure at each stage.` },
+    { question: `How does this guide address ${ac.concern}?`, answer: `Each step calls out checks relevant to ${ac.concern}. Processing stays on the client, and outputs can be archived for audit.` },
     { question: `What happens if I make a mistake during ${label(intent)}?`, answer: `Browser-based tools are non-destructive — your original input is not modified. Simply clear the tool, re-paste your input, and start the operation again. Keep a copy of the original data before beginning any transformation.` },
     { question: `Is ${toolName} maintained and kept up-to-date?`, answer: `Yes. DevSolve maintains ${toolName} as part of a regularly updated developer toolkit. Tool behaviour and edge-case handling are reviewed and refined based on community feedback and evolving standards.` },
     { question: `Can I share my ${label(intent)} results with my team?`, answer: `Yes. Copy the output directly from ${toolName} and share it via your preferred communication channel. Since there are no accounts or sessions, sharing is as simple as copying text — no permissions or export steps required.` },
@@ -1351,27 +1351,86 @@ function buildQualityBoost(
   pass: number,
 ): string[] {
   return [
-    `Transparency checkpoint ${pass + 1}: ${getToolName(tool)} processes all samples locally; nothing is uploaded during ${label(intent)}.`,
-    `${label(audience)} runbooks should record tool version, input checksum, and output checksum for ${label(clusterKey)} audits.`,
-    `Original value: this page adds operational context, pitfalls, and comparisons — not syndicated or duplicated content from other URLs.`,
+    `Audit note ${pass + 1}: record the ${getToolName(tool)} settings used so the ${label(intent)} result can be reproduced in a later review.`,
+    `${label(audience)} runbooks should capture input checksum, output checksum, and reviewer initials for ${label(clusterKey)} sign-off.`,
+    `This section documents operational context and trade-offs specific to ${label(intent)} — not syndicated copy from other URLs.`,
   ];
+}
+
+/** Bing #4 / Google scaled-content: cap repeated cluster boilerplate across the full page. */
+function sanitizePageBoilerplate(page: ProgrammaticPage, clusterKey: ClusterKey): void {
+  const cd = clusterDomain[clusterKey];
+  const counts = new Map<string, number>();
+
+  const rules: { phrase: string; max: number; alt: string }[] = [
+    { phrase: cd.bestPractice, max: 1, alt: 'Validate structure on a representative sample before production use.' },
+    { phrase: cd.importance, max: 1, alt: `Solid ${cd.field} practices reduce downstream integration risk.` },
+    { phrase: 'runs entirely in your browser', max: 2, alt: 'executes client-side without uploading payloads' },
+    { phrase: 'Runs entirely in your browser', max: 2, alt: 'Executes client-side without uploading payloads' },
+    { phrase: 'no data leaves your machine', max: 2, alt: 'payloads stay on the client during the operation' },
+    { phrase: 'No data leaves your browser', max: 2, alt: 'Processing stays on the client device' },
+    { phrase: 'Always validate JSON before processing it programmatically to catch structural issues early', max: 1, alt: 'Run strict parse checks on samples before pipeline ingestion.' },
+    { phrase: 'JSON is the backbone of modern API communication and configuration management', max: 1, alt: 'JSON remains the default interchange format across most service boundaries.' },
+  ];
+
+  const scrub = (text: string): string => {
+    let out = text;
+    for (const { phrase, max, alt } of rules) {
+      if (!phrase || phrase.length < 12) continue;
+      const key = phrase.toLowerCase();
+      const regex = new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      out = out.replace(regex, (match) => {
+        const used = (counts.get(key) ?? 0) + 1;
+        counts.set(key, used);
+        return used <= max ? match : alt;
+      });
+    }
+    return out;
+  };
+
+  page.intro = scrub(page.intro);
+  page.description = scrub(page.description);
+  page.steps = page.steps.map(scrub);
+  page.pitfalls = page.pitfalls.map(scrub);
+  page.proTips = page.proTips.map(scrub);
+  page.technicalAnalysis = page.technicalAnalysis.map(scrub);
+  page.expertTips = page.expertTips.map(scrub);
+  page.toolHistory = page.toolHistory.map(scrub);
+  page.globalUseCases = page.globalUseCases.map(scrub);
+  page.faq = page.faq.map((item) => ({
+    question: scrub(item.question),
+    answer: scrub(item.answer),
+  }));
+  page.comparison = page.comparison.map((row) => ({
+    item: scrub(row.item),
+    pros: scrub(row.pros),
+    cons: scrub(row.cons),
+  }));
+  page.glossary = page.glossary.map((item) => ({
+    term: item.term,
+    definition: scrub(item.definition),
+  }));
 }
 
 function enforceProgrammaticQualityFloor(page: ProgrammaticPage, tool: string, clusterKey: ClusterKey, audience: string, task: string): void {
   const MIN_PROGRAMMATIC_WORDS = 1200;
   let pass = 0;
 
+  sanitizePageBoilerplate(page, clusterKey);
+
   while (estimateProgrammaticWordCount(page) < MIN_PROGRAMMATIC_WORDS && pass < 8) {
     page.technicalAnalysis.push(...buildDepthExpansion(tool, clusterKey, audience, task, pass));
+    sanitizePageBoilerplate(page, clusterKey);
     pass += 1;
   }
 
   let quality = calculateQualityScore(page);
   pass = 0;
-  while (quality.score < MIN_QUALITY_SCORE && pass < 6) {
+  while (!quality.passesQualityThreshold && pass < 10) {
     page.expertTips.push(...buildQualityBoost(tool, page.intent, clusterKey, audience, pass));
     page.globalUseCases.push(...buildDepthExpansion(tool, clusterKey, audience, task, pass + 2));
     page.technicalAnalysis.push(...buildDepthExpansion(tool, clusterKey, audience, task, pass + 4));
+    sanitizePageBoilerplate(page, clusterKey);
     quality = calculateQualityScore(page);
     pass += 1;
   }

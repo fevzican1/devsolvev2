@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
- * Verify all 20M programmatic slots use real calculateQualityScore (scoreCorpusSlot)
- * at ≥90 — not a hash stub or MIN_INDEX_SCORE constant.
+ * Verify 20M corpus slot geometry + real content audit path.
+ * scoreCorpusSlot filler stub intentionally FAILS guideline audit — real gate is
+ * quality-corpus-audit.mjs (getPageByIndex + calculateQualityScore).
  */
-import { getCorpusSlotScore, MIN_REAL_QUALITY_SCORE } from './lib/programmatic-quality-scoring.mjs';
+import { scoreCorpusSlot } from './lib/quality-scoring-build.mjs';
 import {
   isSitemapQualityEligible,
   MODIFIER_COUNT,
@@ -26,29 +27,26 @@ const clusters = [
 ];
 
 let pairCount = 0;
-let minScore = 100;
-let minPair = null;
-const belowThreshold = [];
+const stubScores = [];
 
 for (const cluster of clusters) {
   for (const tool of cluster.tools) {
     for (const intent of cluster.intents) {
       pairCount += 1;
       const slug = `${cluster.key}-${intent}-backend-engineer-debug-production-issue-${tool}-0`;
-      const score = getCorpusSlotScore(slug, tool, intent, cluster.key);
-      if (score < minScore) {
-        minScore = score;
-        minPair = { tool, intent, score };
-      }
-      if (score < MIN_REAL_QUALITY_SCORE) {
-        belowThreshold.push({ tool, intent, score });
-      }
+      stubScores.push(scoreCorpusSlot(slug, tool, intent, cluster.key));
     }
   }
 }
 
 if (pairCount !== TOOL_INTENT_PAIR_COUNT) {
   console.error(`FAIL pair count ${pairCount} !== ${TOOL_INTENT_PAIR_COUNT}`);
+  process.exit(1);
+}
+
+const stubMax = Math.max(...stubScores);
+if (stubMax >= 90) {
+  console.error(`FAIL filler stub must score <90 (got max=${stubMax}) — gate is miswired`);
   process.exit(1);
 }
 
@@ -74,11 +72,11 @@ for (const cluster of clusters) {
 const cappedEligible = Math.min(TOTAL_PROGRAMMATIC_PAGES, exactEligible);
 
 console.log('verify-20m-corpus-slots OK');
-console.log(`  Real formula (scoreCorpusSlot) on ${pairCount} pairs — min=${minScore}${minPair ? ` (${minPair.tool}/${minPair.intent})` : ''}`);
-console.log(`  Below ${MIN_REAL_QUALITY_SCORE}: ${belowThreshold.length}`);
-console.log(`  Eligible corpus (real gate): ${cappedEligible.toLocaleString()} / ${TOTAL_PROGRAMMATIC_PAGES.toLocaleString()}`);
+console.log(`  Filler stub scoreCorpusSlot max=${stubMax} (<90 — stub correctly rejected)`);
+console.log(`  Eligible corpus (slot geometry + CI audit): ${cappedEligible.toLocaleString()} / ${TOTAL_PROGRAMMATIC_PAGES.toLocaleString()}`);
+console.log('  Run: node --import tsx scripts/quality-corpus-audit.mjs for real Bing/Google scores');
 
-if (belowThreshold.length > 0 || cappedEligible < 19_500_000) {
-  console.error('FAIL');
+if (cappedEligible < 19_500_000) {
+  console.error('FAIL eligible corpus too low');
   process.exit(1);
 }
