@@ -212,7 +212,7 @@ export default async function ToolPage({ params }: PageProps) {
 
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle className="text-lg">Global Usage Examples</CardTitle>
+            <CardTitle className="text-lg">Practical Workflows</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {dynamicContent.globalUseCases.map((paragraph, index) => (
@@ -363,7 +363,7 @@ export default async function ToolPage({ params }: PageProps) {
         </div>
         <RelatedItemsLinks title="Explore Related Pages" items={smartRelatedLinks} />
         <Suspense fallback={null}>
-          <HubDiscoveryLinks hubPath={`/tools/${slug}`} heading="Deep-Dive Technical Guides" />
+          <HubDiscoveryLinks hubPath={`/tools/${slug}`} heading="Guides & Tools" />
         </Suspense>
         </article>
       </div>

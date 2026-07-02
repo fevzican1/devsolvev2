@@ -14,7 +14,7 @@ export async function HubDiscoveryLinks({
   const snapshot = await getOrRefreshHubLinks({
     hubPath,
     siteUrl: siteConfig.siteUrl,
-    count: 30,
+    count: 6,
     refreshMinutes: 180,
   });
 
@@ -24,14 +24,14 @@ export async function HubDiscoveryLinks({
     <section className="mt-12 rounded-2xl border bg-muted/20 p-6">
       <h2 className="text-2xl font-semibold tracking-tight">{heading}</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        This section is refreshed regularly. The links below are selected to help continue technical exploration.
+        Hand-picked guides and tools from the DevSolve product — written for engineers, not search engines.
       </p>
       <ul className="mt-6 grid gap-3 md:grid-cols-2">
         {snapshot.links.map((link) => (
           <li key={link.href}>
             <Link
               href={link.href}
-              prefetch={link.href.startsWith('/k/') ? false : undefined}
+              prefetch={undefined}
               className="block rounded-lg border bg-background px-4 py-3 text-sm font-medium hover:border-primary/40 hover:text-primary"
             >
               {link.title}

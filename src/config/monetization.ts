@@ -67,6 +67,21 @@ export interface OpsFlags {
   programmaticRampLevel?: 0 | 1 | 2 | 3 | 4 | 5;
 }
 
+/**
+ * Flip each flag to `true` ONLY after the corresponding network approves the
+ * publisher application. Until then, third-party ad/affiliate scripts and
+ * sponsored CTAs stay off-site (reviewers see disclosure policy text only).
+ */
+export interface PublisherNetworkApproval {
+  sovrnJourney: boolean;
+  cjAffiliate: boolean;
+  infolinks: boolean;
+  skimlinks: boolean;
+}
+
+/** Infolinks publisher ID — also listed in public/ads.txt after approval. */
+export const INFOLINKS_PUBLISHER_ID = '3444436';
+
 export interface MonetizationConfig {
   payoutPreference: 'Payoneer';
   payoneerNote: string;
@@ -126,7 +141,7 @@ export const monetizationConfig: MonetizationConfig = {
    */
   affiliatePrograms: [
     // ADD YOUR AFFILIATE PROGRAMS HERE
-    // When empty, the UI will show "Recommended solutions coming soon"
+    // When empty, recommended-solution UI is hidden entirely (no placeholder cards).
   ],
 
   /**
@@ -163,8 +178,46 @@ export const monetizationConfig: MonetizationConfig = {
   },
 };
 
+/**
+ * Network approval gates — all false until Sovrn Journey / CJ / Infolinks / Skimlinks
+ * explicitly approve the publisher account.
+ */
+export const publisherNetworkApproval: PublisherNetworkApproval = {
+  sovrnJourney: false,
+  cjAffiliate: false,
+  infolinks: false,
+  skimlinks: false,
+};
+
 export function isMonetizationConfigured(): boolean {
   return monetizationConfig.affiliatePrograms.some(p => p.enabled);
+}
+
+export function isInfolinksEnabled(): boolean {
+  return publisherNetworkApproval.infolinks;
+}
+
+export function isSovrnJourneyEnabled(): boolean {
+  return publisherNetworkApproval.sovrnJourney;
+}
+
+export function isSkimlinksEnabled(): boolean {
+  return publisherNetworkApproval.skimlinks;
+}
+
+export function isCjAffiliateEnabled(): boolean {
+  return publisherNetworkApproval.cjAffiliate;
+}
+
+/** Any third-party monetization script or sponsored CTA may render. */
+export function isThirdPartyMonetizationLive(): boolean {
+  return (
+    isInfolinksEnabled()
+    || isSovrnJourneyEnabled()
+    || isSkimlinksEnabled()
+    || isCjAffiliateEnabled()
+    || isMonetizationConfigured()
+  );
 }
 
 export function getEnabledPrograms(): AffiliateProgram[] {

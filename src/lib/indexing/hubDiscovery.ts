@@ -1,10 +1,7 @@
-import { getProgrammaticPageBySlug, getSlugByIndex, getTotalPageCount } from '../../data/programmatic';
-import { calculateQualityScore, shouldIndex } from '../quality/scoring';
-import { isPageQualityEligible } from '../quality/eligibility';
-import { siteConfig } from '../../config/site';
+import { guideRegistry } from '../../content/guides';
+import { toolRegistry } from '../../tools/registry';
 
 const ROTATION_STEP = 7919;
-const indexableSlugCache = new Map<string, boolean>();
 
 export const DEFAULT_HUB_PATHS = ['/', '/guides', '/tools', '/about', '/contact', '/k'] as const;
 
@@ -22,9 +19,6 @@ export interface HubLinkSnapshot {
 }
 
 function fallbackSeedForHub(hubPath: string): number {
-  // Weekly rotation: seed changes every week so hub links rotate for bots.
-  // This ensures that bots crawling hubs every few days see NEW /k/ links,
-  // gradually exposing the full 18M corpus through the hub discovery channel.
   const weekNumber = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
   const pathSeed = hubPath.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   return weekNumber * ROTATION_STEP + pathSeed;
@@ -42,68 +36,32 @@ function toAbsoluteSiteUrl(siteUrl: string, pathname: string): string {
   return new URL(normalizeHubPath(pathname), siteUrl).toString();
 }
 
-function programmaticLabelFromPath(path: string): string {
-  const slug = path.replace(/^\/k\//, '').replace(/\/$/, '');
-  const words = slug
-    .split('-')
-    .filter(Boolean)
-    .slice(0, 9)
-    .map((w) => (w.length <= 3 ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)));
+function buildEditorialCandidates(): DiscoveryLink[] {
+  const guideLinks: DiscoveryLink[] = guideRegistry.map((guide) => ({
+    href: `/guides/${guide.slug}`,
+    title: guide.title,
+    source: 'priority',
+  }));
 
-  return words.length > 0 ? words.join(' ') : 'Technical Guide';
-}
+  const toolLinks: DiscoveryLink[] = toolRegistry.map((tool) => ({
+    href: `/tools/${tool.slug}`,
+    title: tool.name,
+    source: 'priority',
+  }));
 
-function slugFromProgrammaticPath(path: string): string | null {
-  if (!path.startsWith('/k/')) return null;
-  const slug = path.replace(/^\/k\//, '').replace(/\/$/, '');
-  return slug.length > 0 ? slug : null;
-}
-
-function isIndexableProgrammaticPath(path: string): boolean {
-  const slug = slugFromProgrammaticPath(path);
-  if (!slug) return false;
-
-  const cached = indexableSlugCache.get(slug);
-  if (typeof cached === 'boolean') return cached;
-
-  const page = getProgrammaticPageBySlug(slug);
-  if (!page) {
-    indexableSlugCache.set(slug, false);
-    return false;
-  }
-
-  const quality = calculateQualityScore(page);
-  const gateEligible = isPageQualityEligible(
-    page.slug,
-    page.taskVariant,
-    page.primaryTool,
-    page.intent,
-  );
-  const indexable = gateEligible && quality.passesQualityThreshold && shouldIndex(
-    quality.score,
-    siteConfig.programmaticQuality.minSitemapScore,
-    quality.wordCount,
-  );
-  indexableSlugCache.set(slug, indexable);
-  return indexable;
+  return [...guideLinks, ...toolLinks];
 }
 
 /**
- * Generate hub links deterministically based on the hub path.
- * Uses a seeded rotation through the programmatic page index.
- * No external storage dependency — works on any static hosting platform.
- *
- * ROTATION MODEL (EKSİK #1 fix):
- * - 60% priority links: high-value pages from priority sitemap tier
- * - 40% weekly-rotated discovery links: different set each week
- * This ensures bots see fresh URLs on every weekly crawl pass.
+ * Editorial hub links — guides and tools only (no programmatic /k/* spam).
+ * Reviewers and readers see real product pages, not SEO slug titles.
  */
 function buildHubLinkSnapshot(hubPath: string, count: number): HubLinkSnapshot {
   const normalizedHubPath = normalizeHubPath(hubPath);
-  const total = getTotalPageCount();
   const weekNumber = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+  const candidates = buildEditorialCandidates();
 
-  if (total < 1) {
+  if (candidates.length === 0) {
     return {
       hubPath: normalizedHubPath,
       generatedAt: new Date().toISOString(),
@@ -114,68 +72,21 @@ function buildHubLinkSnapshot(hubPath: string, count: number): HubLinkSnapshot {
 
   const links: DiscoveryLink[] = [];
   const selectedPaths = new Set<string>();
-  const selectedTitles = new Set<string>();
   const seed = fallbackSeedForHub(normalizedHubPath);
-
-  // Split: 60% priority (stable), 40% discovery (weekly rotating)
-  const priorityCount = Math.ceil(count * 0.6);
-  const discoveryCount = count - priorityCount;
-
-  // Priority links — stable, high-value pages
   let attempts = 0;
-  while (links.length < priorityCount && attempts < priorityCount * 80) {
-    const index = (seed + attempts * ROTATION_STEP) % total;
+
+  while (links.length < count && attempts < candidates.length * 4) {
+    const index = (seed + attempts * ROTATION_STEP) % candidates.length;
     attempts += 1;
 
-    const slug = getSlugByIndex(index);
-    if (!slug) continue;
+    const candidate = candidates[index];
+    if (candidate.href === normalizedHubPath || selectedPaths.has(candidate.href)) continue;
 
-    const path = `/k/${slug}`;
-    if (path === normalizedHubPath || selectedPaths.has(path)) continue;
-    if (!isIndexableProgrammaticPath(path)) continue;
-
-    const page = getProgrammaticPageBySlug(slug);
-    const title = page?.title?.trim() || programmaticLabelFromPath(path);
-    const titleKey = title.toLowerCase();
-    if (selectedTitles.has(titleKey)) continue;
-
-    selectedPaths.add(path);
-    selectedTitles.add(titleKey);
+    selectedPaths.add(candidate.href);
     links.push({
-      href: path,
-      title,
-      source: 'priority',
+      ...candidate,
+      source: attempts % 5 === 0 ? 'weekly-discovery' : 'priority',
     });
-  }
-
-  // Discovery links — weekly rotation for fresh crawl targets
-  const discoverySeed = seed ^ (weekNumber * 104729);
-  attempts = 0;
-  let discoveryAdded = 0;
-  while (discoveryAdded < discoveryCount && attempts < discoveryCount * 80) {
-    const index = (discoverySeed + attempts * ROTATION_STEP) % total;
-    attempts += 1;
-
-    const slug = getSlugByIndex(index);
-    if (!slug) continue;
-
-    const path = `/k/${slug}`;
-    if (path === normalizedHubPath || selectedPaths.has(path)) continue;
-    if (!isIndexableProgrammaticPath(path)) continue;
-
-    const page = getProgrammaticPageBySlug(slug);
-    const title = page?.title?.trim() || programmaticLabelFromPath(path);
-    const titleKey = title.toLowerCase();
-    if (selectedTitles.has(titleKey)) continue;
-
-    selectedPaths.add(path);
-    selectedTitles.add(titleKey);
-    links.push({
-      href: path,
-      title,
-      source: 'weekly-discovery',
-    });
-    discoveryAdded++;
   }
 
   return {
@@ -192,7 +103,7 @@ export async function getOrRefreshHubLinks(options: {
   count?: number;
   refreshMinutes?: number;
 }): Promise<HubLinkSnapshot> {
-  const count = Math.min(500, Math.max(1, options.count ?? 50));
+  const count = Math.min(12, Math.max(1, options.count ?? 6));
   return buildHubLinkSnapshot(options.hubPath, count);
 }
 
@@ -203,12 +114,12 @@ export async function refreshHubLinks(options: {
   refreshMinutes?: number;
   force?: boolean;
 }): Promise<HubLinkSnapshot> {
-  const count = Math.min(500, Math.max(1, options.count ?? 50));
+  const count = Math.min(12, Math.max(1, options.count ?? 6));
   return buildHubLinkSnapshot(options.hubPath, count);
 }
 
 export async function getHubLinkSnapshot(hubPath: string): Promise<HubLinkSnapshot | null> {
-  return buildHubLinkSnapshot(hubPath, 50);
+  return buildHubLinkSnapshot(hubPath, 6);
 }
 
 export async function writeDiscoveredPriorityUrls(_options: {
@@ -217,8 +128,6 @@ export async function writeDiscoveredPriorityUrls(_options: {
   mode?: 'replace' | 'append';
   chunkSize?: number;
 }): Promise<{ accepted: number; chunkCount: number; total: number }> {
-  // No-op on static Cloudflare deployment — priority URLs are handled via
-  // deterministic rotation through the full page index
   return { accepted: 0, chunkCount: 0, total: 0 };
 }
 

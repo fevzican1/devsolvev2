@@ -8,7 +8,7 @@ import { ContactForm } from '@/components/contact/ContactForm';
 import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
 import { externalUrls, siteConfig } from '@/config/site';
 import { absoluteUrl } from '@/lib/seo/url';
-import { BRAND_SAME_AS } from '@/lib/seo/organization';
+import { BRAND_SAME_AS, PUBLISHER_IDENTITY } from '@/lib/seo/organization';
 
 
 export const metadata: Metadata = buildMetadata({
@@ -61,7 +61,12 @@ export default function ContactPage() {
         <div className="space-y-4">
           <h1 className="text-4xl font-bold tracking-tight">Contact Us</h1>
           <p className="text-lg text-muted-foreground">
-            Use this channel for product support, legal requests, affiliate inquiries, or business communications.
+            Reach {PUBLISHER_IDENTITY.operatorName} for product support, legal requests, publisher-network
+            inquiries, or partnerships. Email{' '}
+            <a href={`mailto:${PUBLISHER_IDENTITY.contactEmail}`} className="text-primary hover:underline">
+              {PUBLISHER_IDENTITY.contactEmail}
+            </a>
+            {' '}or use the form below.
           </p>
         </div>
 
@@ -115,7 +120,7 @@ export default function ContactPage() {
         </Card>
 
         <Suspense fallback={null}>
-          <HubDiscoveryLinks hubPath="/contact" heading="Keep Exploring" />
+          <HubDiscoveryLinks hubPath="/contact" heading="Guides & Tools" />
         </Suspense>
       </div>
     </div>

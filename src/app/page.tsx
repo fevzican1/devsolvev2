@@ -10,7 +10,7 @@ import { guideRegistry } from '@/content/guides';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
 import { TrustSignals } from '@/components/layout/TrustSignals';
-import { platformExternalUrls } from '@/config/monetization';
+import { isSovrnJourneyEnabled, platformExternalUrls } from '@/config/monetization';
 
 export const metadata: Metadata = buildMetadata({
   // Explicit title + description — buildMetadata always emits an absolute
@@ -200,31 +200,33 @@ export default function HomePage() {
 
       <TrustSignals />
 
-      <section className="py-8 border-t bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-xl rounded-xl border bg-background p-6 text-center">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
-              Partner disclosure
-            </p>
-            <p className="text-sm text-muted-foreground leading-6 mb-4">
-              DevSolve may earn a commission when you purchase through clearly labeled sponsored links.
-              Editorial content is never pay-to-play — recommendations appear only where they add technical value.
-            </p>
-            <a
-              href={platformExternalUrls.sponsoredOffer}
-              target="_blank"
-              rel="sponsored nofollow noopener noreferrer"
-              className="inline-flex items-center text-sm font-medium text-primary hover:underline"
-            >
-              View partner offer (sponsored)
-            </a>
+      {isSovrnJourneyEnabled() ? (
+        <section className="py-8 border-t bg-muted/30">
+          <div className="container mx-auto px-4">
+            <div className="mx-auto max-w-xl rounded-xl border bg-background p-6 text-center">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                Partner disclosure
+              </p>
+              <p className="text-sm text-muted-foreground leading-6 mb-4">
+                DevSolve may earn a commission when you purchase through clearly labeled sponsored links.
+                Editorial content is never pay-to-play — recommendations appear only where they add technical value.
+              </p>
+              <a
+                href={platformExternalUrls.sponsoredOffer}
+                target="_blank"
+                rel="sponsored nofollow noopener noreferrer"
+                className="inline-flex items-center text-sm font-medium text-primary hover:underline"
+              >
+                View partner offer (sponsored)
+              </a>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       <div className="container mx-auto px-4 pb-14">
         <Suspense fallback={null}>
-          <HubDiscoveryLinks hubPath="/" heading="Explore More" />
+          <HubDiscoveryLinks hubPath="/" heading="Guides & Tools" />
         </Suspense>
       </div>
     </div>

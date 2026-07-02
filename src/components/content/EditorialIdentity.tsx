@@ -1,4 +1,4 @@
-import { commercialPlatforms } from '@/config/monetization';
+import { commercialPlatforms, isMonetizationConfigured } from '@/config/monetization';
 
 interface EditorialIntroProps {
   toolName: string;
@@ -27,7 +27,7 @@ export function EditorialByline() {
         </time>
       </p>
       <p className="text-xs text-muted-foreground mt-1">
-        Independently researched and written. All technical claims are verified against official documentation.
+        Written for working engineers. Technical claims are checked against official documentation where applicable.
       </p>
     </div>
   );
@@ -42,7 +42,7 @@ export function EditorialIntro({ toolName }: EditorialIntroProps) {
         day-to-day development tasks.
       </p>
       <p className="text-xs text-muted-foreground mt-2">
-        This content is created by the DevSolve editorial team and is not sponsored or influenced by any third party.
+        This content is maintained by the DevSolve editorial team and is not sponsored or influenced by any third party.
         All processing examples run locally in your browser.
       </p>
     </div>
@@ -55,15 +55,19 @@ export function TransparencyBadge() {
       <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
       </svg>
-      Verified original content
+      Editorially reviewed
     </div>
   );
 }
 
 export function CommercialOpportunityLinks() {
+  if (!isMonetizationConfigured()) {
+    return null;
+  }
+
   return (
     <p className="text-sm text-muted-foreground leading-7 mb-6">
-      Commercial options frequently evaluated in this stack include{' '}
+      Related vendor documentation frequently referenced alongside this topic:{' '}
       {commercialPlatforms.map((platform, index) => (
         <span key={platform.name}>
           <a
@@ -78,7 +82,7 @@ export function CommercialOpportunityLinks() {
           {index === commercialPlatforms.length - 2 && ' and '}
         </span>
       ))}
-      . Use the official vendor pages above when comparing pricing, SLAs, and enterprise features.
+      . These are neutral reference links — not sponsored placements unless explicitly labeled elsewhere.
     </p>
   );
 }
@@ -89,15 +93,15 @@ export function OriginalValueCallouts({ toolName }: EditorialIntroProps) {
       <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
         <p className="text-sm font-semibold text-foreground mb-2">Expert Tip</p>
         <p className="text-sm text-muted-foreground">
-          Run {toolName} on production-like samples before purchase decisions, then compare output
-          quality, speed, and auditability across vendor plans.
+          Run {toolName} on realistic staging samples before merging changes — compare output structure,
+          edge-case behavior, and performance on payloads similar to production.
         </p>
       </div>
       <div className="rounded-lg border border-warning/40 bg-warning/10 p-4">
         <p className="text-sm font-semibold text-foreground mb-2">Implementation Warning</p>
         <p className="text-sm text-muted-foreground">
-          Do not finalize procurement using only feature lists; validate security controls,
-          integration limits, and data handling constraints in a proof-of-concept first.
+          Do not treat browser-tool output as a substitute for your service&apos;s validation rules.
+          Always enforce constraints in your application or pipeline before release.
         </p>
       </div>
     </div>

@@ -35,7 +35,6 @@ function buildFeaturedProgrammaticLinks(count = 12) {
 }
 
 export function ProgrammaticHubPage({ requestedSlug }: ProgrammaticHubPageProps) {
-  const total = getTotalPageCount();
   const featuredLinks = buildFeaturedProgrammaticLinks();
 
   return (
@@ -45,19 +44,19 @@ export function ProgrammaticHubPage({ requestedSlug }: ProgrammaticHubPageProps)
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <Badge variant="secondary" className="gap-1">
               <Sparkles className="h-3 w-3" />
-              Static programmatic SEO library
+              Technical workflow reference
             </Badge>
             <Badge variant="outline" className="gap-1">
               <Library className="h-3 w-3" />
-              {total.toLocaleString('en-US')} published /k pages
+              Browser-based developer guides
             </Badge>
           </div>
           <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
             {PROGRAMMATIC_HUB_TITLE}
           </h1>
           <p className="mt-4 max-w-3xl text-base text-muted-foreground md:text-lg">
-            Every programmatic URL in the /k library is intended to resolve as a crawlable HTML page without redirects.
-            Use this hub to continue browsing the indexed page set.
+            Task-focused workflow pages for JSON, encoding, security, and debugging — each page is
+            self-contained HTML with local browser processing and no redirects.
           </p>
           {requestedSlug ? (
             <p className="mt-3 text-sm text-muted-foreground">
@@ -82,10 +81,10 @@ export function ProgrammaticHubPage({ requestedSlug }: ProgrammaticHubPageProps)
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
               <Compass className="h-5 w-5" />
-              Representative /k entry points
+              Representative workflow pages
             </CardTitle>
             <CardDescription>
-              Deterministic samples from across the full programmatic inventory.
+              Sample entry points across JSON, security, encoding, and debugging topics.
             </CardDescription>
           </CardHeader>
           <CardContent>

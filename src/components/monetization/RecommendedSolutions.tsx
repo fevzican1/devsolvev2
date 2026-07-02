@@ -1,6 +1,6 @@
 'use client';
 
-import { ExternalLink, Info } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,22 +16,7 @@ export function RecommendedSolutions({ toolSlug, clusterKey }: RecommendedSoluti
   const isConfigured = isMonetizationConfigured();
 
   if (!isConfigured) {
-    return (
-      <Card className="border-dashed">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Info className="h-5 w-5 text-muted-foreground" />
-            Recommended Solutions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Recommended solutions coming soon. We&apos;re evaluating options to suggest
-            relevant tools and services that complement this functionality.
-          </p>
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   const offers = toolSlug ? getOffersForTool(toolSlug) : [];

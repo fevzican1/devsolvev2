@@ -9,13 +9,13 @@ import { TrustSignals } from '@/components/layout/TrustSignals';
 import { externalUrls, siteConfig } from '@/config/site';
 import { absoluteUrl } from '@/lib/seo/url';
 import { monetizationConfig } from '@/config/monetization';
-import { BRAND_SAME_AS, getBrandProfileLinks } from '@/lib/seo/organization';
+import { BRAND_SAME_AS, getBrandProfileLinks, PUBLISHER_IDENTITY } from '@/lib/seo/organization';
 
 
 export const metadata: Metadata = buildMetadata({
   title: 'About DevSolve — Privacy-First Browser Developer Tools Platform',
   description:
-    'DevSolve is a technical platform providing free, privacy-first, browser-based developer tools, in-depth implementation guides, and transparent editorial standards for engineering teams and affiliate partners.',
+    'DevSolve is a privacy-first browser tools platform with 19 free utilities and technical guides, operated by Fevzican Aytekin with transparent publisher policies.',
   path: '/about',
 });
 
@@ -66,12 +66,47 @@ export default function AboutPage() {
             </h1>
             <p className="mt-6 text-lg leading-8 text-muted-foreground">
               DevSolve provides browser-based developer tools and implementation guides built for fast,
-              practical workflows. The product is designed to keep data processing local where possible,
-              reduce friction in daily engineering tasks, and publish clear, actionable documentation with
-              full editorial transparency — a standard we maintain for readers, search engines, and
-              affiliate program reviewers alike.
+              practical workflows. The product keeps data processing local where possible,
+              reduces friction in daily engineering tasks, and publishes clear documentation with
+              transparent editorial and monetization policies.
             </p>
           </section>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl">Publisher &amp; Operator</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-base leading-7 text-muted-foreground">
+              <p>
+                <strong className="text-foreground">Operator:</strong> {PUBLISHER_IDENTITY.operatorName}
+              </p>
+              <p>
+                <strong className="text-foreground">Product:</strong> {siteConfig.name} — free browser-based developer utilities and technical guides at{' '}
+                <Link href="/" className="text-primary hover:underline">{siteConfig.siteUrl.replace('https://', '')}</Link>
+              </p>
+              <p>
+                <strong className="text-foreground">Contact:</strong>{' '}
+                <a href={`mailto:${PUBLISHER_IDENTITY.contactEmail}`} className="text-primary hover:underline">
+                  {PUBLISHER_IDENTITY.contactEmail}
+                </a>
+                {' · '}
+                <Link href="/contact" className="text-primary hover:underline">Contact form</Link>
+              </p>
+              <p>
+                <strong className="text-foreground">Profiles:</strong>{' '}
+                <a href="https://www.linkedin.com/in/fevzican-aytekin-0b5501105" target="_blank" rel="me noopener noreferrer" className="text-primary hover:underline">LinkedIn</a>
+                {' · '}
+                <a href="https://github.com/fevzican1" target="_blank" rel="me noopener noreferrer" className="text-primary hover:underline">GitHub</a>
+                {' · '}
+                <a href="https://x.com/devsolveai" target="_blank" rel="me noopener noreferrer" className="text-primary hover:underline">X</a>
+              </p>
+              <p>
+                Third-party advertising and affiliate scripts remain <strong className="text-foreground">disabled</strong> until
+                each publisher network (Sovrn Journey, CJ Affiliate, Infolinks, Skimlinks) approves the site.
+                Our <Link href="/ads.txt" className="text-primary hover:underline">ads.txt</Link> lists authorized sellers once active.
+              </p>
+            </CardContent>
+          </Card>
 
           <section className="grid gap-6 md:grid-cols-3">
             <Card className="h-full">
@@ -97,8 +132,7 @@ export default function AboutPage() {
               </CardHeader>
               <CardContent className="text-base leading-7 text-muted-foreground">
                 Every guide and utility prioritizes accuracy, transparent trade-offs, and real implementation
-                constraints. Programmatic pages carry unique worked examples and context per URL — not
-                recycled boilerplate — so each page adds genuine information value.
+                constraints. Tool pages explain limitations openly; guides include worked examples engineers can verify locally.
               </CardContent>
             </Card>
 
@@ -184,7 +218,7 @@ export default function AboutPage() {
           <TrustSignals compact />
 
           <Suspense fallback={null}>
-            <HubDiscoveryLinks hubPath="/about" heading="Related Technical Guides" />
+            <HubDiscoveryLinks hubPath="/about" heading="Guides & Tools" />
           </Suspense>
         </div>
       </div>

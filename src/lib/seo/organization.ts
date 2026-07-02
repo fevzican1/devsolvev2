@@ -22,6 +22,14 @@
 
 import { ensureSeoDescription } from './seoText';
 
+/** Public publisher identity — shown on About/Contact and in Organization JSON-LD. */
+export const PUBLISHER_IDENTITY = {
+  operatorName: 'Fevzican Aytekin',
+  contactEmail: 'contact@devsolvev2.com',
+  country: 'Turkey',
+  foundingDate: '2026-01-15',
+} as const;
+
 export const ORG_ID_FRAGMENT = '#organization';
 export const WEBSITE_ID_FRAGMENT = '#website';
 
@@ -200,7 +208,19 @@ export function buildOrganizationNode(opts: BrandEntityOptions): Record<string, 
       caption: 'DevSolve',
     },
     image: `${siteUrl}/opengraph-image.svg`,
-    foundingDate: '2026-01-15',
+    foundingDate: PUBLISHER_IDENTITY.foundingDate,
+    founder: {
+      '@type': 'Person',
+      name: PUBLISHER_IDENTITY.operatorName,
+      url: 'https://www.linkedin.com/in/fevzican-aytekin-0b5501105',
+    },
+    contactPoint: {
+      '@type': 'ContactPoint',
+      contactType: 'customer support',
+      email: PUBLISHER_IDENTITY.contactEmail,
+      availableLanguage: ['English'],
+      areaServed: PUBLISHER_IDENTITY.country,
+    },
     knowsAbout: [
       'JSON', 'JSON Web Tokens', 'Base64 encoding', 'URL encoding',
       'regular expressions', 'cryptographic hashing', 'SQL formatting',

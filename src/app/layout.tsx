@@ -5,9 +5,10 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { siteConfig, externalUrls } from '@/config/site';
-import { platformExternalUrls } from '@/config/monetization';
+import { platformExternalUrls, isInfolinksEnabled } from '@/config/monetization';
 import { toolRegistry } from '@/tools/registry';
 import { CodeBlocksEnhancer } from '@/components/content/CodeBlocksEnhancer';
+import { CookieConsent } from '@/components/layout/CookieConsent';
 import { CONTENT_SIGNAL_VALUE } from '@/lib/seo/contentSignal';
 import {
   BRAND_SAME_AS,
@@ -170,19 +171,24 @@ export default function RootLayout({
             <Footer />
           </div>
         </ThemeProvider>
+        <CookieConsent />
         <Script id="ld-brand-graph" type="application/ld+json" strategy="beforeInteractive">
           {JSON.stringify(brandGraphJsonLd)}
         </Script>
         <Script id="ld-itemlist" type="application/ld+json" strategy="beforeInteractive">
           {JSON.stringify(itemListJsonLd)}
         </Script>
-        <Script id="infolinks-config" strategy="afterInteractive">
-          {`var infolinks_pid = 3444436; var infolinks_wsid = 0;`}
-        </Script>
-        <Script
-          src={platformExternalUrls.infolinksScript}
-          strategy="afterInteractive"
-        />
+        {isInfolinksEnabled() ? (
+          <>
+            <Script id="infolinks-config" strategy="afterInteractive">
+              {`var infolinks_pid = 3444436; var infolinks_wsid = 0;`}
+            </Script>
+            <Script
+              src={platformExternalUrls.infolinksScript}
+              strategy="afterInteractive"
+            />
+          </>
+        ) : null}
       </body>
     </html>
   );

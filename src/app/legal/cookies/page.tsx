@@ -5,7 +5,7 @@ import { absoluteUrl } from '@/lib/seo/url';
 
 export const metadata: Metadata = buildMetadata({
   title: 'Cookie Policy — DevSolve Cookie & Local Storage Practices',
-  description: 'DevSolve cookie and local storage policy. Minimal cookies for essential functionality, transparent analytics, and full browser control.',
+  description: 'DevSolve cookie and local storage policy. Essential cookies for theme preferences, optional partners disclosed by name, and full browser control.',
   path: '/legal/cookies',
 });
 
@@ -29,7 +29,7 @@ export default function CookiesPage() {
       />
       <div className="max-w-3xl mx-auto prose prose-neutral dark:prose-invert">
         <h1>Cookie Policy</h1>
-        <p className="text-muted-foreground">Last updated: March 17, 2026</p>
+        <p className="text-muted-foreground">Last updated: July 2, 2026</p>
 
         <h2>What Are Cookies</h2>
         <p>
@@ -47,12 +47,40 @@ export default function CookiesPage() {
           <li>
             <strong>Theme preference:</strong> Remembers your light/dark mode choice
           </li>
+          <li>
+            <strong>Cookie consent:</strong> Stores whether you accepted optional cookies
+          </li>
         </ul>
+
+        <h3>Advertising &amp; Affiliate Partners (Optional — disabled until approved)</h3>
+        <p>
+          DevSolve may load third-party advertising or affiliate scripts only after a publisher
+          network approves our application. When enabled, partners may set their own cookies:
+        </p>
+        <ul>
+          <li>
+            <strong>Infolinks</strong> — contextual advertising (Publisher ID 3444436). Disabled until Infolinks publisher approval.
+          </li>
+          <li>
+            <strong>Sovrn / VigLink (Journey)</strong> — affiliate link monetization. Disabled until Sovrn Journey approval.
+          </li>
+          <li>
+            <strong>CJ Affiliate</strong> — affiliate tracking when applicable. Disabled until CJ publisher approval.
+          </li>
+          <li>
+            <strong>Skimlinks</strong> — merchant link routing when applicable. Disabled until Skimlinks approval.
+          </li>
+        </ul>
+        <p>
+          Authorized ad sellers are listed in our{' '}
+          <a href="/ads.txt">ads.txt</a> file once each partnership is active.
+        </p>
 
         <h3>Analytics Cookies (Optional)</h3>
         <p>
-          If enabled, we may use basic analytics to understand how our tools are used.
-          These do not track personal information.
+          If enabled in the future, we may use privacy-respecting analytics to understand how
+          tools are used. These would not track personal information and would be disclosed here
+          before activation.
         </p>
 
         <h2>Local Storage</h2>
@@ -61,7 +89,7 @@ export default function CookiesPage() {
         </p>
         <ul>
           <li>User preferences (theme settings)</li>
-          <li>Optional local analytics data</li>
+          <li>Cookie consent choice</li>
         </ul>
         <p>
           Local storage data stays on your device and is not transmitted to our servers.
@@ -70,7 +98,7 @@ export default function CookiesPage() {
         <h2>Third-Party Cookies</h2>
         <p>
           When you click links to external services, those sites may set their own cookies.
-          We do not control third-party cookies.
+          Sponsored or affiliate links are labeled with <code>rel=&quot;sponsored&quot;</code> where applicable.
         </p>
 
         <h2>Managing Cookies</h2>
@@ -87,25 +115,12 @@ export default function CookiesPage() {
           preferences may not be saved between visits.
         </p>
 
-        <h2>Clearing Local Storage</h2>
-        <p>
-          To clear local storage data:
-        </p>
-        <ol>
-          <li>Open your browser&apos;s developer tools (F12)</li>
-          <li>Go to the Application or Storage tab</li>
-          <li>Find Local Storage and clear the data for this site</li>
-        </ol>
-
-        <h2>Changes to This Policy</h2>
-        <p>
-          We may update this cookie policy as needed. Check this page for the latest
-          information.
-        </p>
-
         <h2>Contact</h2>
         <p>
-          For questions about our cookie practices, please contact us through our website.
+          Questions about cookies:{' '}
+          <a href="mailto:contact@devsolvev2.com">contact@devsolvev2.com</a>
+          {' · '}
+          <a href="/contact">Contact form</a>
         </p>
       </div>
     </div>
