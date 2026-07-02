@@ -4,7 +4,7 @@
  * (zero Pages Function invocation for blocked traffic).
  *
  * Rule order (first match wins):
- *   0. Site-wide — block impolite AI indexers (Claude-SearchBot, Meta webindexer)
+ *   0. Site-wide — block AI indexers + browser-extension scraper UAs
  *   1. /k/* — block known scraper / AI / SEO UAs
  *   2. /k/* — block fake Bingbot (UA claims bingbot but not verified)
  *   3. /k/* — block desktop Chrome/Edge without sec-ch-ua Client Hints
@@ -34,9 +34,9 @@ function kPath(expr) {
 }
 
 /**
- * Rule 0 — impolite AI indexers hit sitemaps and static assets sitewide
- * (84.5k Claude-SearchBot, 34.3k meta-webindexer in Jul 2026 analytics).
- * Stale desktop Chrome (< v90) is blocked on /k/* via botGuard.ts + WAF rules 1/3.
+ * Rule 0 — impolite AI indexers + browser-extension scrapers hit sitemaps/static
+ * assets sitewide (84.5k Claude-SearchBot, 34.3k meta-webindexer Jul 2026).
+ * Extension-origin UAs never appear in normal human navigation — safe sitewide.
  */
 const WAF_SITEWIDE_BAD_BOT_BLOCK = `(
   ${uaContainsAny([
@@ -44,6 +44,9 @@ const WAF_SITEWIDE_BAD_BOT_BLOCK = `(
     'meta-externalagent',
     'meta-externalfetcher',
     'claude-searchbot',
+    'chrome-extension',
+    'moz-extension',
+    'safari-web-extension',
   ])}
   or (
     lower(http.user_agent) contains "searchbot"
@@ -107,6 +110,8 @@ const WAF_KNOWN_BAD_EXPRESSION = kPath(`(
     'node-fetch',
     'axios/',
     'chrome-extension',
+    'moz-extension',
+    'safari-web-extension',
   ])}
   or (
     lower(http.user_agent) contains "searchbot"
@@ -222,7 +227,7 @@ const WAF_ALLOWLIST_EXPRESSION = kPath(`not (
 
 const RULES = [
   {
-    description: '[DevSolve] sitewide block AI indexers (Claude-SearchBot, Meta)',
+    description: '[DevSolve] sitewide block AI indexers + extension scrapers',
     expression: WAF_SITEWIDE_BAD_BOT_BLOCK,
   },
   {
@@ -297,6 +302,7 @@ async function main() {
   /** Retired rule descriptions — removed on deploy to avoid duplicate blocks. */
   const legacyDescriptions = new Set([
     '[DevSolve] sitewide block Meta AI indexer',
+    '[DevSolve] sitewide block AI indexers (Claude-SearchBot, Meta)',
   ]);
   const preserved = (ruleset?.rules ?? []).filter(
     (r) => !managedDescriptions.has(r.description) && !legacyDescriptions.has(r.description),
