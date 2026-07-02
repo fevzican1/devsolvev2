@@ -3629,7 +3629,20 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       });
     }
 
-    const indexEligible = checkPageQualityEligible(page.slug, page.modifier, page.tool, page.intent);
+    const indexEligible = checkPageQualityEligible(page.slug, page.modifier, page.tool, page.intent, {
+      slug: page.slug,
+      title: page.title,
+      description: page.description,
+      h1: page.h1,
+      intro: page.intro,
+      steps: page.steps,
+      keywords: page.keywords,
+      primaryTool: page.tool,
+      clusterKey: page.clusterKey,
+      intent: page.intent,
+      audience: page.audience,
+      taskVariant: page.task,
+    });
     const pageHeaders = {
       ...responseHeaders,
       'X-Robots-Tag': indexEligible

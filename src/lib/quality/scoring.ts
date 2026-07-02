@@ -1,5 +1,36 @@
-import type { ProgrammaticPage } from '@/data/programmatic';
-import { hashString } from '@/lib/utils';
+/** Page shape required by calculateQualityScore — kept local for edge/functions typecheck. */
+export interface ScoringPageInput {
+  slug: string;
+  title: string;
+  description: string;
+  h1: string;
+  intro: string;
+  primaryTool: string;
+  clusterKey: string;
+  intent: string;
+  audience: string;
+  taskVariant: string;
+  keywords: string[];
+  steps: string[];
+  pitfalls: string[];
+  comparison: { item: string; pros: string; cons: string }[];
+  proTips: string[];
+  faq: { question: string; answer: string }[];
+  technicalAnalysis: string[];
+  expertTips: string[];
+  toolHistory: string[];
+  globalUseCases: string[];
+  glossary: { term: string; definition: string }[];
+}
+
+function hashString(input: string): number {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = ((hash << 5) - hash) + input.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
 
 /** Minimum score for indexing, sitemap inclusion, and hub discovery (Bing + Google quality bar). */
 export const MIN_QUALITY_SCORE = 90;
@@ -27,7 +58,7 @@ export interface QualityScore {
   passesQualityThreshold: boolean;
 }
 
-export function estimateProgrammaticWordCount(page: ProgrammaticPage): number {
+export function estimateProgrammaticWordCount(page: ScoringPageInput): number {
   const corpus = [
     page.title,
     page.description,
@@ -55,7 +86,7 @@ export function estimateProgrammaticWordCount(page: ProgrammaticPage): number {
  * SPE Layer Diversity Score — measures how many of the 7 SPE content layers
  * are meaningfully populated. Higher diversity = more unique page.
  */
-function calculateLayerDiversity(page: ProgrammaticPage): number {
+function calculateLayerDiversity(page: ScoringPageInput): number {
   let layers = 0;
 
   if (page.toolHistory && page.toolHistory.length >= 2) layers++;
@@ -70,7 +101,7 @@ function calculateLayerDiversity(page: ProgrammaticPage): number {
 }
 
 /** Bing #13 / Google Page indexing: clear title, meta, and heading signals */
-function calculateStructureScore(page: ProgrammaticPage): number {
+function calculateStructureScore(page: ScoringPageInput): number {
   let score = 0;
 
   if (page.title.length >= 30 && page.title.length <= 70) score += 5;
@@ -86,7 +117,7 @@ function calculateStructureScore(page: ProgrammaticPage): number {
 }
 
 /** Bing #15/#16: self-contained facts and clear entity references */
-function calculateVerifiabilityScore(page: ProgrammaticPage): number {
+function calculateVerifiabilityScore(page: ScoringPageInput): number {
   let score = 0;
 
   if (page.glossary.length >= 4) score += 4;
@@ -104,7 +135,7 @@ function calculateVerifiabilityScore(page: ProgrammaticPage): number {
  * Quality scoring aligned with Bing Webmaster Guidelines and Google Search
  * indexing criteria. Pages below 90 are excluded from indexing and sitemap.
  */
-export function calculateQualityScore(page: ProgrammaticPage): QualityScore {
+export function calculateQualityScore(page: ScoringPageInput): QualityScore {
   const issues: string[] = [];
 
   const uniquenessFactors = {

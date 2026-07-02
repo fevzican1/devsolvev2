@@ -9,12 +9,17 @@
     "noImplicitAny": true,
     "incremental": false,
     "isolatedModules": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": [
     "functions/**/*.ts",
     "functions/**/*.mts",
     "src/lib/quality/eligibility.ts",
+    "src/lib/quality/scoring.ts",
+    "src/lib/quality/scoringPage.ts",
     "src/lib/seo/seoText.ts"
   ],
   "exclude": [
