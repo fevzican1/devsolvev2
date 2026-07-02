@@ -9,16 +9,8 @@
  */
 
 import { MIN_QUALITY_SCORE } from './scoring';
+import { scoreCorpusSlot, scorePageFields, type PageScoringFields } from './scoringPage';
 import { ensureSeoDescription } from '../seo/seoText';
-
-function hashString(input: string): number {
-  let hash = 0;
-  for (let i = 0; i < input.length; i += 1) {
-    hash = ((hash << 5) - hash) + input.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
 
 /* ------------------------------------------------------------------ */
 /*  Corpus dimensions — must match src/data/programmatic.ts            */
@@ -121,12 +113,27 @@ export function globalIndexFromSlug(slug: string): number | null {
 }
 
 /* ------------------------------------------------------------------ */
-/*  O(1) quality score proxy — calibrated to calculateQualityScore       */
+/*  Quality score — same Bing/Google formula as calculateQualityScore    */
 /* ------------------------------------------------------------------ */
 
-export function estimateQualityScore(globalIndex: number): number {
-  const seed = hashString(`quality:${globalIndex}`);
-  return MIN_QUALITY_SCORE + (seed % 11);
+/**
+ * Score a corpus slot using calculateQualityScore (Bing #11/#13/#15, Google
+ * helpful-content, SPE layer diversity) — NOT a hash proxy.
+ */
+export function estimateQualityScore(
+  globalIndex: number,
+  tool: string,
+  intent: string,
+  slug?: string,
+): number {
+  if (globalIndex < 0 || globalIndex >= TOTAL_PROGRAMMATIC_PAGES) return 0;
+  const pairIndex = pairIndexFromGlobalIndex(globalIndex);
+  if (pairIndex < 0 || pairIndex >= TOOL_INTENT_PAIR_COUNT) return 0;
+  return scoreCorpusSlot(slug ?? `slot-${globalIndex}`, tool, intent);
+}
+
+export function estimateQualityScoreFromPage(fields: PageScoringFields): number {
+  return scorePageFields(fields);
 }
 
 /* ------------------------------------------------------------------ */
@@ -186,7 +193,7 @@ export function isQualityEligible(
     return false;
   }
 
-  return estimateQualityScore(globalIndex) >= MIN_QUALITY_SCORE;
+  return estimateQualityScore(globalIndex, _tool, _intent, _slug) >= MIN_QUALITY_SCORE;
 }
 
 export function isSitemapQualityEligible(
@@ -213,10 +220,31 @@ export function isPageQualityEligible(
   _modifier: string,
   tool: string,
   intent: string,
+  pageFields?: PageScoringFields,
 ): boolean {
   const globalIndex = globalIndexFromSlug(slug);
   if (globalIndex === null) return false;
+  const pairIndex = pairIndexFromGlobalIndex(globalIndex);
   const modifierIndex = modifierIndexFromGlobalIndex(globalIndex);
+
+  if (pageFields) {
+    const quality = scorePageFields({ ...pageFields, slug, primaryTool: tool, intent });
+    return isQualityEligible(
+      slug,
+      _modifier,
+      {
+        metaDescription: pageFields.description,
+        calculatedScore: quality,
+        wordCount: undefined,
+      },
+      globalIndex,
+      pairIndex,
+      modifierIndex,
+      tool,
+      intent,
+    );
+  }
+
   return isSitemapQualityEligible(globalIndex, modifierIndex, tool, intent);
 }
 
