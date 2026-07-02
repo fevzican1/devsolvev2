@@ -62,6 +62,18 @@ Disallow: /
 User-agent: Claude-Web
 Disallow: /
 
+User-agent: Claude-SearchBot
+Disallow: /
+
+User-agent: meta-webindexer
+Disallow: /
+
+User-agent: Meta-ExternalAgent
+Disallow: /
+
+User-agent: Meta-ExternalFetcher
+Disallow: /
+
 User-agent: PerplexityBot
 Disallow: /
 

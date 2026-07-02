@@ -4,11 +4,15 @@
  * (zero Pages Function invocation for blocked traffic).
  *
  * Rule order (first match wins):
- *   0. Site-wide — block Meta AI indexer on every path (biggest attack source)
+ *   0. Site-wide — block impolite AI indexers (Claude-SearchBot, Meta webindexer)
  *   1. /k/* — block known scraper / AI / SEO UAs
  *   2. /k/* — block fake Bingbot (UA claims bingbot but not verified)
  *   3. /k/* — block desktop Chrome/Edge without sec-ch-ua Client Hints
  *   4. /k/* — allowlist catch-all (Google, Bing, DuckDuckGo, real browsers)
+ *
+ * Cloudflare analytics (2026-07): Claude-SearchBot 84.5k, meta-webindexer 34.3k,
+ * bingbot 12.7k (allowed). Rule 0 must sitewide-block AI crawlers that hammer
+ * sitemaps and static assets — not only /k/*.
  *
  * Requires: CLOUDFLARE_API_TOKEN
  * Optional: CLOUDFLARE_ZONE_ID (auto-resolved from devsolvev2.com if omitted)
@@ -29,12 +33,25 @@ function kPath(expr) {
   return `starts_with(http.request.uri.path, "/k/") and (${expr})`;
 }
 
-/** Rule 0 — Meta webindexer hammers static + /k/*; block before origin entirely. */
-const WAF_SITEWIDE_META_BLOCK = uaContainsAny([
-  'meta-webindexer',
-  'meta-externalagent',
-  'meta-externalfetcher',
-]);
+/**
+ * Rule 0 — impolite AI indexers hit sitemaps and static assets sitewide
+ * (84.5k Claude-SearchBot, 34.3k meta-webindexer in Jul 2026 analytics).
+ * Stale desktop Chrome (< v90) is blocked on /k/* via botGuard.ts + WAF rules 1/3.
+ */
+const WAF_SITEWIDE_BAD_BOT_BLOCK = `(
+  ${uaContainsAny([
+    'meta-webindexer',
+    'meta-externalagent',
+    'meta-externalfetcher',
+    'claude-searchbot',
+  ])}
+  or (
+    lower(http.user_agent) contains "searchbot"
+    and not lower(http.user_agent) contains "googlebot"
+    and not lower(http.user_agent) contains "bingbot"
+    and not lower(http.user_agent) contains "duckduckbot"
+  )
+)`;
 
 /** Rule 1 — explicit deny list for /k/* (no Function cost). */
 const WAF_KNOWN_BAD_EXPRESSION = kPath(`(
@@ -205,8 +222,8 @@ const WAF_ALLOWLIST_EXPRESSION = kPath(`not (
 
 const RULES = [
   {
-    description: '[DevSolve] sitewide block Meta AI indexer',
-    expression: WAF_SITEWIDE_META_BLOCK,
+    description: '[DevSolve] sitewide block AI indexers (Claude-SearchBot, Meta)',
+    expression: WAF_SITEWIDE_BAD_BOT_BLOCK,
   },
   {
     description: '[DevSolve] /k/* block known scraper UAs',
@@ -277,8 +294,12 @@ async function main() {
   const ruleset = rulesets.find((r) => r.kind === 'zone' && r.phase === 'http_request_firewall_custom');
 
   const managedDescriptions = new Set(RULES.map((r) => r.description));
+  /** Retired rule descriptions — removed on deploy to avoid duplicate blocks. */
+  const legacyDescriptions = new Set([
+    '[DevSolve] sitewide block Meta AI indexer',
+  ]);
   const preserved = (ruleset?.rules ?? []).filter(
-    (r) => !managedDescriptions.has(r.description),
+    (r) => !managedDescriptions.has(r.description) && !legacyDescriptions.has(r.description),
   );
 
   const newRules = RULES.map((spec) => {
