@@ -32,6 +32,8 @@ export interface GuardHeaders {
   secChUaMobile: string | null;
 }
 
+import { BING_CRAWLER_ASN_SET, GOOGLE_CRAWLER_ASN_SET } from './crawlerAsns';
+
 export type AccessDecision = 'allow' | 'block';
 
 const GOOGLE_UA_MARKERS: readonly string[] = [
@@ -90,10 +92,8 @@ const HARD_BLOCK_PATTERNS: readonly string[] = [
   'binlar', 'spbot', 'mauibot', 'researchscan', 'palo alto',
 ];
 
-const GOOGLE_ASNS: ReadonlySet<number> = new Set([15169, 396982]);
-
-/** Microsoft ASNs used by Bingbot / MSN crawlers. */
-const BING_ASNS: ReadonlySet<number> = new Set([8075, 3598, 8068, 8069, 6182]);
+const GOOGLE_ASNS = GOOGLE_CRAWLER_ASN_SET;
+const BING_ASNS = BING_CRAWLER_ASN_SET;
 
 /** Desktop Chrome below this major version is always a scraper fingerprint (2026). */
 const MIN_DESKTOP_CHROME_MAJOR = 90;

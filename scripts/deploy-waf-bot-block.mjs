@@ -6,23 +6,40 @@
  * Rule order (first match wins):
  *   0. Site-wide — block AI indexers + browser-extension scraper UAs
  *   1. /k/* — block known scraper / AI / SEO UAs
- *   2. /k/* — block fake Bingbot (UA claims bingbot but not verified)
- *   3. /k/* — block desktop Chrome/Edge without sec-ch-ua Client Hints
- *   4. /k/* — allowlist catch-all (Google, Bing, DuckDuckGo, real browsers)
+ *   2. /k/* — block desktop Chrome/Edge without sec-ch-ua Client Hints
+ *   3. /k/* — allowlist catch-all (search bots fail-open, real browsers)
  *
- * Cloudflare analytics (2026-07): Claude-SearchBot 84.5k, meta-webindexer 34.3k,
- * bingbot 12.7k (allowed). Rule 0 must sitewide-block AI crawlers that hammer
- * sitemaps and static assets — not only /k/*.
+ * CRITICAL: Rule 4 MUST fail-open Googlebot/Bingbot UA markers (aligned with
+ * botGuard.ts). Requiring cf.client.bot + narrow ASN caused real Googlebot 403
+ * → GSC sitemap "discovered 0" and ~10 crawls/day.
  *
  * Requires: CLOUDFLARE_API_TOKEN
- * Optional: CLOUDFLARE_ZONE_ID (auto-resolved from devsolvev2.com if omitted)
  * Usage: node scripts/deploy-waf-bot-block.mjs
  *
  * Keep expressions aligned with functions/_shared/botGuard.ts
  */
 
-const BING_ASNS = '{8075 3598 8068 8069 6182}';
-const GOOGLE_ASNS = '{15169 396982}';
+import { BING_CRAWLER_ASNS, GOOGLE_CRAWLER_ASNS, wafAsnSet } from './lib/crawler-asns.mjs';
+
+const BING_ASNS = wafAsnSet(BING_CRAWLER_ASNS);
+const GOOGLE_ASNS = wafAsnSet(GOOGLE_CRAWLER_ASNS);
+
+const GOOGLE_UA_MARKERS = [
+  'googlebot',
+  'adsbot-google',
+  'mediapartners-google',
+  'storebot-google',
+  'google-inspectiontool',
+  'feedfetcher-google',
+  'apis-google',
+  'duplexweb-google',
+  'googleother',
+];
+
+const BING_UA_MARKERS = ['bingbot', 'bingpreview', 'adidxbot', 'msnbot'];
+
+/** Cloudflare-verified search crawler — never block. */
+const VERIFIED_SEARCH_CRAWLER = 'cf.verified_bot_category eq "Search Engine Crawler"';
 
 /** Free-plan WAF: use contains/lower(), not regex matches (Business+ only). */
 function uaContainsAny(markers) {
@@ -34,9 +51,7 @@ function kPath(expr) {
 }
 
 /**
- * Rule 0 — impolite AI indexers + browser-extension scrapers hit sitemaps/static
- * assets sitewide (84.5k Claude-SearchBot, 34.3k meta-webindexer Jul 2026).
- * Extension-origin UAs never appear in normal human navigation — safe sitewide.
+ * Rule 0 — impolite AI indexers + browser-extension scrapers (sitewide).
  */
 const WAF_SITEWIDE_BAD_BOT_BLOCK = `(
   ${uaContainsAny([
@@ -44,6 +59,7 @@ const WAF_SITEWIDE_BAD_BOT_BLOCK = `(
     'meta-externalagent',
     'meta-externalfetcher',
     'claude-searchbot',
+    'anthropic.com',
     'chrome-extension',
     'moz-extension',
     'safari-web-extension',
@@ -121,14 +137,9 @@ const WAF_KNOWN_BAD_EXPRESSION = kPath(`(
   )
 )`);
 
-/** Rule 2 — fake Bingbot: UA string only, not Cloudflare-verified or Microsoft ASN. */
-const WAF_FAKE_BING_EXPRESSION = kPath(`(
-  lower(http.user_agent) contains "bingbot"
-  and not cf.client.bot
-  and not ip.src.asnum in ${BING_ASNS}
-)`);
-
-/** Rule 3 — desktop Chrome/Edge scrapers without Client Hints (all versions). */
+/**
+ * Rule 2 — desktop Chrome/Edge scrapers without Client Hints on /k/*.
+ */
 const WAF_FAKE_CHROME_EXPRESSION = kPath(`(
   (
     (lower(http.user_agent) contains "chrome/" and lower(http.user_agent) contains "safari/")
@@ -142,30 +153,17 @@ const WAF_FAKE_CHROME_EXPRESSION = kPath(`(
   and len(http.request.headers["sec-ch-ua"][0]) <= 2
 )`);
 
-/** Rule 4 — allowlist-only catch-all for anything else on /k/*. */
+/**
+ * Rule 3 — allowlist catch-all for /k/*.
+ * Googlebot/Bingbot UA markers are fail-open (no ASN gate) — matches botGuard.
+ */
 const WAF_ALLOWLIST_EXPRESSION = kPath(`not (
   (
     cf.client.bot
-    and cf.verified_bot_category eq "Search Engine Crawler"
+    and ${VERIFIED_SEARCH_CRAWLER}
   )
-  or (
-    (${uaContainsAny([
-      'googlebot',
-      'adsbot-google',
-      'mediapartners-google',
-      'storebot-google',
-      'google-inspectiontool',
-      'feedfetcher-google',
-      'apis-google',
-      'duplexweb-google',
-      'googleother',
-    ])})
-    and (cf.client.bot or ip.src.asnum in ${GOOGLE_ASNS})
-  )
-  or (
-    (${uaContainsAny(['bingbot', 'bingpreview', 'adidxbot', 'msnbot'])})
-    and (cf.client.bot or ip.src.asnum in ${BING_ASNS})
-  )
+  or ${uaContainsAny(GOOGLE_UA_MARKERS)}
+  or ${uaContainsAny(BING_UA_MARKERS)}
   or ${uaContainsAny(['duckduckbot', 'duckduckgo-favicons-bot'])}
   or (lower(http.user_agent) contains "firefox/" and lower(http.user_agent) contains "gecko/")
   or (
@@ -235,10 +233,6 @@ const RULES = [
     expression: WAF_KNOWN_BAD_EXPRESSION,
   },
   {
-    description: '[DevSolve] /k/* block fake Bingbot',
-    expression: WAF_FAKE_BING_EXPRESSION,
-  },
-  {
     description: '[DevSolve] /k/* block fake desktop Chrome without Client Hints',
     expression: WAF_FAKE_CHROME_EXPRESSION,
   },
@@ -290,8 +284,36 @@ async function resolveZoneId() {
   return zone.id;
 }
 
+async function disableLegacyBotdRuleset(zoneId) {
+  const { result: rulesets } = await cf(
+    `/zones/${zoneId}/rulesets?phase=http_request_firewall_custom`,
+  );
+  for (const rs of rulesets.filter((r) => r.kind === 'zone')) {
+    let full;
+    try {
+      ({ result: full } = await cf(`/zones/${zoneId}/rulesets/${rs.id}`));
+    } catch {
+      continue;
+    }
+    if (!full.rules?.some((r) => r.description === 'botd' && r.enabled)) continue;
+    console.warn(
+      'DISABLING legacy botd rule — it blocks ALL /k/* when cf.bot_management.verified_bot',
+      'is false (standard Cloudflare plans never set this for real Googlebot).',
+    );
+    const rules = full.rules.map((r) =>
+      r.description === 'botd' ? { ...r, enabled: false } : r,
+    );
+    await cf(`/zones/${zoneId}/rulesets/${rs.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ rules }),
+    });
+    console.log('Legacy botd rule disabled in ruleset', rs.id);
+  }
+}
+
 async function main() {
   const zoneId = await resolveZoneId();
+  await disableLegacyBotdRuleset(zoneId);
   const { result: rulesets } = await cf(
     `/zones/${zoneId}/rulesets?phase=http_request_firewall_custom`,
   );
@@ -299,10 +321,13 @@ async function main() {
   const ruleset = rulesets.find((r) => r.kind === 'zone' && r.phase === 'http_request_firewall_custom');
 
   const managedDescriptions = new Set(RULES.map((r) => r.description));
-  /** Retired rule descriptions — removed on deploy to avoid duplicate blocks. */
+  /** Retired rules — removed on deploy to avoid duplicate / stale blocks. */
   const legacyDescriptions = new Set([
     '[DevSolve] sitewide block Meta AI indexer',
     '[DevSolve] sitewide block AI indexers (Claude-SearchBot, Meta)',
+    '[DevSolve] /k/* block fake Bingbot',
+    '[DevSolve] /k/* block fake Googlebot/Bingbot (wrong ASN)',
+    '[DevSolve] sitewide block fake desktop Chrome without Client Hints',
   ]);
   const preserved = (ruleset?.rules ?? []).filter(
     (r) => !managedDescriptions.has(r.description) && !legacyDescriptions.has(r.description),
@@ -332,7 +357,7 @@ async function main() {
       }),
     });
     console.log('Created WAF ruleset:', created.result.id);
-    console.log(`Deployed ${RULES.length} rules. Blocked /k/* bots will NOT invoke Pages Functions.`);
+    console.log(`Deployed ${RULES.length} rules. Real Googlebot/Bingbot must pass Rule 4.`);
     return;
   }
 
@@ -341,7 +366,7 @@ async function main() {
     body: JSON.stringify({ rules }),
   });
   console.log('Updated WAF ruleset:', updated.result.id);
-  console.log(`Deployed ${RULES.length} rules. Blocked /k/* bots will NOT invoke Pages Functions.`);
+  console.log(`Deployed ${RULES.length} rules. Real Googlebot/Bingbot must pass Rule 4.`);
 }
 
 main().catch((err) => {
