@@ -80,8 +80,9 @@ const HARD_BLOCK_PATTERNS: readonly string[] = [
   'ahrefsbot', 'ahrefssiteaudit', 'semrushbot', 'mj12bot', 'dotbot', 'blexbot', 'petalbot',
   'dataforseobot', 'seznambot', 'aspiegelbot', 'exabot', 'megaindex', 'serpstatbot',
   'barkrowler', 'zoominfobot', 'seekport', 'linkdexbot', 'rogerbot', 'sistrix',
-  // Fake browser / automation
-  'chrome-extension', 'headlesschrome', 'headless', 'phantomjs', 'puppeteer', 'playwright',
+  // Fake browser / automation (extension-origin UAs — never sent by real navigation)
+  'chrome-extension', 'moz-extension', 'safari-web-extension',
+  'headlesschrome', 'headless', 'phantomjs', 'puppeteer', 'playwright',
   'selenium', 'electron/', 'scrapy', 'httrack', 'wget', 'curl/', 'libwww-perl',
   'python-requests', 'python-urllib', 'go-http-client', 'java/', 'okhttp', 'node-fetch',
   'axios/', 'masscan', 'nikto', 'nmap', 'sqlmap', 'fuzz', 'zgrab', 'censys', 'shodan',
