@@ -99,7 +99,7 @@ function auditHeaders() {
     if (route.startsWith('#')) continue;
     for (const ln of lines.slice(1)) {
       if (/^X-Robots-Tag:.*noindex/i.test(ln)) {
-        if (/(cmd-center|api|admin|preview)/i.test(route)) record('INFO', '_headers', file, `Intentional noindex on ${route}.`);
+        if (/(cmd-center|api|admin|preview|cdn-cgi)/i.test(route)) record('INFO', '_headers', file, `Intentional noindex on ${route}.`);
         else record('CRITICAL', '_headers', file, `Public route "${route}" sends X-Robots-Tag: noindex.`);
       }
     }

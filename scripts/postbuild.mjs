@@ -10,6 +10,20 @@ const reportsDir = join(outDir, 'reports');
 
 console.log('Starting postbuild tasks...');
 
+// Deterministic, network-free guards whose failure means real content/indexing
+// regressions (not flaky external calls) shipped to production. Every check
+// below still runs to completion and writes its full report even if an
+// earlier one failed, but a failure here is recorded and turns into a
+// non-zero postbuild exit code at the end — previously every check in this
+// file was wrapped in a try/catch that only logged a warning, so a genuine
+// slug-parity drift (mass de-index risk), a sub-90 quality regression, a
+// broken meta description, or a real indexability leak could reach
+// production silently while the build reported success. Network-dependent
+// steps (IndexNow, outbound-link audit) are intentionally excluded — they
+// have their own best-effort semantics and must never block a deploy on a
+// transient network failure.
+const hardFailures = [];
+
 // Remove .next/cache to avoid Cloudflare Pages 25 MiB file size limit
 // The static export is already in out/, so the cache is no longer needed
 const nextCacheDir = join(projectRoot, '.next', 'cache');
@@ -69,6 +83,7 @@ try {
   execSync(`node ${join(__dirname, 'canonical-spotcheck.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
   console.log('Canonical spot-check reported issues — see logs above');
+  hardFailures.push('canonical-spotcheck');
 }
 
 try {
@@ -76,6 +91,7 @@ try {
   execSync(`node ${join(__dirname, 'matrix-quality-check.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
   console.log('Matrix quality check failed — see out/reports/matrix-quality.txt');
+  hardFailures.push('matrix-quality-check');
 }
 
 try {
@@ -83,6 +99,7 @@ try {
   execSync(`node ${join(__dirname, 'slug-parity-check.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
   console.log('Slug parity guard reported drift — see logs above (mass-deindex risk)');
+  hardFailures.push('slug-parity-check');
 }
 
 try {
@@ -90,6 +107,7 @@ try {
   execSync(`node --import tsx ${join(__dirname, 'quality-corpus-audit.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
   console.log('Quality corpus audit FAILED — pages below 90 detected');
+  hardFailures.push('quality-corpus-audit');
 }
 
 try {
@@ -118,6 +136,7 @@ try {
   execSync(`node ${join(__dirname, 'indexability-audit.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
   console.log('Indexability audit reported critical issues — see out/reports/indexability.txt');
+  hardFailures.push('indexability-audit');
 }
 
 // IndexNow ping runs LAST — only after the canonical spot-check and slug-parity
@@ -140,6 +159,7 @@ try {
   execSync(`node --import tsx ${join(__dirname, 'verify-seo-descriptions.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
   console.log('SEO description verification failed — see logs above');
+  hardFailures.push('verify-seo-descriptions');
 }
 
 try {
@@ -147,6 +167,12 @@ try {
   execSync(`node ${join(__dirname, 'scan-out-meta-descriptions.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
   console.log('Meta description scan reported issues — see out/reports/meta-descriptions.txt');
+}
+
+if (hardFailures.length > 0) {
+  console.error(`Postbuild tasks completed WITH CRITICAL FAILURES: ${hardFailures.join(', ')}`);
+  console.error('Fix the reported issues before deploying — see the logs/reports above for each check.');
+  process.exit(1);
 }
 
 console.log('Postbuild tasks completed!');

@@ -78,32 +78,84 @@ function stripTrailingEllipsis(text: string): string {
   return text.replace(/…$/, '').trim();
 }
 
+/** Fixed, ordered pool of padding clauses — small enough (7 items) that every
+ * subset (2^7 = 128) can be exhaustively evaluated below at negligible cost. */
+const ALL_FILLERS: readonly string[] = [...DESCRIPTION_FILLERS, ...SHORT_DESCRIPTION_FILLERS];
+
+/**
+ * Picks the subset of `ALL_FILLERS` (concatenated in their original order,
+ * which reads naturally as a sentence) that, appended to `padded`, best
+ * satisfies [minLength, maxLength] — closest to `targetLength` among subsets
+ * that reach `minLength`, otherwise the longest subset that still fits under
+ * `maxLength`.
+ *
+ * A previous greedy "append the first/best single filler that fits" strategy
+ * could get stuck: locking in one filler that lands just under `minLength`
+ * often leaves no room for any remaining filler to close the last few
+ * characters without overflowing `maxLength`, even though a *different*
+ * combination of fillers would have landed inside the window. The caller
+ * then discarded the whole description and substituted the generic
+ * FALLBACK_DESCRIPTION — silently duplicating that fallback text across
+ * every page whose custom description happened to hit this gap, which is
+ * exactly the "duplicate meta description" problem Bing and Google
+ * penalise. Exhaustively searching all 128 subsets (bin-packing over a
+ * fixed 7-item pool) guarantees the best reachable combination is used
+ * instead of whichever one a greedy walk happened to try first.
+ */
 function padDescription(text: string, minLength: number, maxLength: number, targetLength: number): string {
-  let padded = stripTrailingEllipsis(text);
-  const fillerSets = [DESCRIPTION_FILLERS, SHORT_DESCRIPTION_FILLERS];
+  const padded = stripTrailingEllipsis(text);
+  if (padded.length >= minLength) return padded;
 
-  for (const fillers of fillerSets) {
-    if (padded.length >= minLength) break;
-    for (const filler of fillers) {
-      if (padded.length >= minLength) break;
-      const candidate = ensureTerminalPunctuation(`${padded}${filler}`.replace(/\s+/g, ' ').trim());
-      if (candidate.length <= maxLength) padded = candidate;
+  let best: string | null = null;
+  const overflowCandidates: string[] = [];
+  const fillerCount = ALL_FILLERS.length;
+  const combinationCount = 1 << fillerCount;
+
+  for (let mask = 0; mask < combinationCount; mask += 1) {
+    let combined = padded;
+    for (let i = 0; i < fillerCount; i += 1) {
+      if (mask & (1 << i)) combined += ALL_FILLERS[i];
+    }
+    const candidate = ensureTerminalPunctuation(combined.replace(/\s+/g, ' ').trim());
+
+    if (candidate.length > maxLength) {
+      // No exact-fit subset may exist (the 7 fixed filler lengths leave a
+      // handful of narrow [minLength, maxLength] gaps unreachable by whole
+      // clauses alone). Collect every overflowing combination so each can be
+      // tried (smallest overflow first) as a word-boundary trim below — that
+      // still beats discarding the whole description for the generic
+      // fallback. A single "smallest overflow" candidate isn't enough: its
+      // last word may be long enough that trimming it undershoots
+      // minLength, so multiple candidates must be attempted.
+      overflowCandidates.push(candidate);
+      continue;
+    }
+
+    if (best === null) {
+      best = candidate;
+      continue;
+    }
+
+    const bestMeetsMin = best.length >= minLength;
+    const candidateMeetsMin = candidate.length >= minLength;
+    if (candidateMeetsMin && !bestMeetsMin) {
+      best = candidate;
+    } else if (candidateMeetsMin === bestMeetsMin) {
+      const bestDelta = Math.abs(best.length - targetLength);
+      const candidateDelta = Math.abs(candidate.length - targetLength);
+      if (candidateDelta < bestDelta) best = candidate;
     }
   }
 
-  if (padded.length >= minLength && padded.length < targetLength) {
-    for (const fillers of fillerSets) {
-      if (padded.length >= targetLength) break;
-      for (const filler of fillers) {
-        const candidate = ensureTerminalPunctuation(`${padded}${filler}`.replace(/\s+/g, ' ').trim());
-        if (candidate.length > maxLength) continue;
-        padded = candidate;
-        if (padded.length >= targetLength) break;
-      }
-    }
+  if (best !== null && best.length >= minLength) return best;
+
+  overflowCandidates.sort((a, b) => a.length - b.length);
+  for (const candidate of overflowCandidates) {
+    const trimmed = truncateAtWord(candidate, maxLength);
+    if (trimmed.length >= minLength && trimmed.length <= maxLength) return trimmed;
   }
 
-  return padded;
+  return best ?? padded;
 }
 
 export function ensureSeoDescription(
