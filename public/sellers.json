@@ -1,0 +1,13 @@
+{
+  "contact_email": "contact@devsolvev2.com",
+  "contact_address": "DevSolve, devsolvev2.com",
+  "version": 1,
+  "sellers": [
+    {
+      "seller_id": "devsolvev2",
+      "name": "DevSolve",
+      "domain": "devsolvev2.com",
+      "seller_type": "PUBLISHER"
+    }
+  ]
+}

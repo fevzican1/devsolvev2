@@ -1411,129 +1411,6 @@ function synthesizePageForArbitrarySlug(slug: string): PageData {
 
 
 /* ------------------------------------------------------------------ */
-/*  E-E-A-T: fictional but consistent expert author & editor profiles  */
-/*  Five authors + five editors, deterministically paired per slug.    */
-/*  No external profile pages are required — these are surfaced inline */
-/*  as a "Reviewed by" box so every page carries an author + editor    */
-/*  attribution, mirroring how Google's quality raters look for E-E-A-T*/
-/*  signals on programmatic content at scale.                          */
-/* ------------------------------------------------------------------ */
-interface ExpertProfile {
-  name: string;
-  role: string;
-  bio: string;
-  yearsExperience: number;
-  expertise: string[];
-  thoughtPool: string[];
-}
-
-const AUTHOR_PROFILES: ExpertProfile[] = [
-  {
-    name: 'Daniel Reiner',
-    role: 'Principal Backend Engineer',
-    bio: 'Spent 14 years building high-throughput JSON pipelines and authentication systems for fintech platforms.',
-    yearsExperience: 14,
-    expertise: ['JSON pipelines', 'JWT', 'API contracts'],
-    thoughtPool: [
-      'In production, the cost of a missed validation step is always higher than the cost of an extra check at the edge.',
-      'Treat every payload as untrusted until a deterministic local tool confirms its shape — server-side validation is the last line, not the first.',
-      'Reproducibility beats cleverness. If you cannot replay the input, you cannot debug the output.',
-    ],
-  },
-  {
-    name: 'Mei-Lin Park',
-    role: 'Senior Site Reliability Engineer',
-    bio: 'Led incident response for global e-commerce traffic, with a focus on encoding, tracing, and idempotency.',
-    yearsExperience: 11,
-    expertise: ['Encoding pipelines', 'Observability', 'Idempotent systems'],
-    thoughtPool: [
-      'Most "mysterious" production bugs trace back to double-encoding or unspecified character sets — verify byte-level assumptions early.',
-      'A clean local reproduction shortens an incident more than any dashboard ever has.',
-      'If a transform is not idempotent, retries become a new class of bug rather than a recovery tool.',
-    ],
-  },
-  {
-    name: 'Tomás Aguilar',
-    role: 'Staff Security Engineer',
-    bio: 'Designed token rotation and HSM-backed signing services across two cloud migrations.',
-    yearsExperience: 12,
-    expertise: ['JWT validation', 'HMAC', 'Cryptographic agility'],
-    thoughtPool: [
-      'Algorithm agility is not optional — design every system assuming the hash you trust today will be deprecated within a decade.',
-      'Inspect tokens locally; never paste them into web tools that round-trip them through a server.',
-      'Constant-time comparison is a one-line change that closes an entire attack class.',
-    ],
-  },
-  {
-    name: 'Priya Vatsal',
-    role: 'Principal Data Engineer',
-    bio: 'Built schema-evolution tooling for petabyte-scale event pipelines and data contracts.',
-    yearsExperience: 13,
-    expertise: ['Schema evolution', 'Data contracts', 'Serialization'],
-    thoughtPool: [
-      'Schema drift is invisible until it is catastrophic. A two-minute validation step buys hours of forensic analysis later.',
-      'Pick your serialization format for the dominant consumer, not the dominant producer.',
-      'Backward and forward compatibility must be tested in both directions — assumption is not validation.',
-    ],
-  },
-  {
-    name: 'Jonas Lindqvist',
-    role: 'Lead Platform Engineer',
-    bio: 'Built internal developer platforms covering CI/CD, automation, and code-formatting standards for 400+ engineers.',
-    yearsExperience: 10,
-    expertise: ['CI/CD', 'Code formatting', 'Internal platforms'],
-    thoughtPool: [
-      'Formatter idempotency is the single best smoke test for a team-wide standard — if it changes twice, the config is wrong.',
-      'Automation without observability is just a faster way to lose data.',
-      'Browser-native tooling removes a class of "works on my machine" problems that no install script will ever fully fix.',
-    ],
-  },
-];
-
-const EDITOR_PROFILES: ExpertProfile[] = [
-  {
-    name: 'Dr. Helena Voss',
-    role: 'Editorial Director, DevSolve',
-    bio: 'PhD in distributed systems. Reviews technical content for factual accuracy and operational realism.',
-    yearsExperience: 18,
-    expertise: ['Distributed systems', 'Technical review'],
-    thoughtPool: [],
-  },
-  {
-    name: 'Rafael Monteiro',
-    role: 'Senior Technical Editor',
-    bio: 'Former staff engineer turned editor; specialises in API design and security topics.',
-    yearsExperience: 15,
-    expertise: ['API design', 'Security', 'Editorial review'],
-    thoughtPool: [],
-  },
-  {
-    name: 'Anika Bhattacharya',
-    role: 'Standards Editor',
-    bio: 'Maintains the DevSolve editorial style guide and verifies citations against primary specifications.',
-    yearsExperience: 9,
-    expertise: ['Standards alignment', 'RFC citations'],
-    thoughtPool: [],
-  },
-  {
-    name: 'Marcus Olafsson',
-    role: 'Senior Technical Editor',
-    bio: 'Reviews data-engineering and automation content; ex-tech lead at a large analytics platform.',
-    yearsExperience: 12,
-    expertise: ['Data pipelines', 'Automation review'],
-    thoughtPool: [],
-  },
-  {
-    name: 'Yui Tanaka',
-    role: 'Frontend & Web Editor',
-    bio: 'Specialises in web performance, security headers, and accessibility-first review.',
-    yearsExperience: 10,
-    expertise: ['Web performance', 'Security headers', 'Accessibility'],
-    thoughtPool: [],
-  },
-];
-
-/* ------------------------------------------------------------------ */
 /*  Intent Diversity: three distinct page formats per slug-hash so the */
 /*  18M-page corpus is not a single template. Each format remixes the  */
 /*  H2 hierarchy and section headings of the same underlying body.     */
@@ -3315,8 +3192,8 @@ function generateHubHtml(url: URL, requestedSlug?: string): string {
 <main>
   <section class="hero">
     <div class="badges">
-      <span class="badge">Static programmatic SEO library</span>
-      <span class="badge badge-outline">${TOTAL_POSSIBLE.toLocaleString(DEFAULT_LOCALE)} published /k pages</span>
+      <span class="badge">Technical workflow reference</span>
+      <span class="badge badge-outline">Browser-based developer guides</span>
     </div>
     <h1>${escapeHtml(title)}</h1>
     <p>${escapeHtml(description)}</p>
@@ -3327,8 +3204,8 @@ function generateHubHtml(url: URL, requestedSlug?: string): string {
     </div>
   </section>
   <section class="card">
-    <h2>Representative /k entry points</h2>
-    <p>These deterministic examples span the full DevSolve programmatic library.</p>
+    <h2>Sample workflow pages</h2>
+    <p>Entry points across JSON, security, encoding, and debugging topics.</p>
     <div class="samples">${sampleLinks}</div>
   </section>
 </main>

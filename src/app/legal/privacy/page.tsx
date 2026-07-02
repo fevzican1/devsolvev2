@@ -64,8 +64,10 @@ export default function PrivacyPage() {
 
         <h2>5. Cookies and Similar Technologies</h2>
         <p>
-          The Service uses essential technologies required for functionality and may use limited
-          analytics and affiliate attribution. Users can manage these settings through browser controls.
+          The Service uses essential technologies required for functionality (theme and consent preferences).
+          Optional advertising or affiliate partners — Infolinks, Sovrn Journey, CJ Affiliate, Skimlinks —
+          remain disabled until each network approves our publisher application. See our{' '}
+          <Link href="/legal/cookies">Cookie Policy</Link> and <Link href="/ads.txt">ads.txt</Link> for details.
         </p>
         <p>
           The Service does not permit hidden cookie stuffing, forced affiliate tagging, or automatic

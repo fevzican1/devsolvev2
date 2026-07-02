@@ -14,20 +14,20 @@ const signals = [
     icon: FileCheck,
     title: 'Editorial Standards',
     description:
-      'Every guide and tool page is independently researched, with transparent limitations, verified claims, and no third-party editorial influence.',
+      'Guides and tool documentation are written for working engineers, with clear limitations and no pay-to-play editorial influence.',
     href: '/legal/publisher-ethics',
   },
   {
     icon: Eye,
-    title: 'Original, Non-Duplicate Content',
+    title: 'Honest Product Scope',
     description:
-      'Programmatic pages are deterministically unique per URL — distinct titles, worked examples, and context blocks, not copy-paste templates.',
+      'DevSolve is a free browser-based utility suite plus technical guides. We publish workflow reference pages only where they add distinct, verifiable value.',
   },
   {
     icon: Handshake,
     title: 'Affiliate Transparency',
     description:
-      'Sponsored and affiliate placements are clearly labeled. Recommendations appear only where technically relevant to the page topic.',
+      'Sponsored links and ad partners are disclosed before they go live. Third-party monetization stays disabled until publisher-network approval.',
     href: '/legal/publisher-ethics',
   },
 ] as const;
@@ -45,8 +45,8 @@ export function TrustSignals({ compact = false }: TrustSignalsProps) {
             Built for Trust, Transparency &amp; Quality
           </h2>
           <p className="mt-3 text-muted-foreground text-base leading-7">
-            DevSolve is designed to meet publisher-network and affiliate-program standards:
-            clear disclosures, original technical content, and privacy-respecting tooling.
+            DevSolve is operated by a named publisher with verifiable profiles, written policies,
+            and privacy-respecting tools — the baseline commerce and directory reviewers expect.
           </p>
         </div>
 

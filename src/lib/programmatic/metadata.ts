@@ -1,6 +1,7 @@
 export const PROGRAMMATIC_HUB_METADATA = {
-  title: 'Programmatic Developer Pages',
-  description: 'Browse the DevSolve programmatic /k library of static, self-contained developer landing pages — task-focused workflows for formatting, validation, encoding, and debugging, served directly with no redirects.',
+  title: 'Developer Workflow Reference',
+  description:
+    'Browse task-focused DevSolve workflow pages for JSON, encoding, security, and debugging — self-contained guides with local browser processing.',
   path: '/k',
-  keywords: ['programmatic SEO', 'developer pages', 'static pages', 'developer tools library'],
+  keywords: ['developer workflows', 'json tools', 'browser-based tools', 'technical reference'],
 };

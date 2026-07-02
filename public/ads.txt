@@ -1,0 +1,20 @@
+# DevSolve — devsolvev2.com
+# Contact: contact@devsolvev2.com
+# Managed by: Fevzican Aytekin / DevSolve
+#
+# Add DIRECT lines below ONLY after each network approves the publisher account.
+# Uncomment and replace PUBLISHER_ID placeholders when approved:
+#
+# Infolinks (Publisher ID 3444436):
+# infolinks.com, 3444436, DIRECT
+#
+# Sovrn / VigLink (Journey):
+# sovrn.com, PUBLISHER_ID, DIRECT
+#
+# CJ Affiliate:
+# cj.com, PUBLISHER_ID, DIRECT
+#
+# Google Ad Manager / AdSense (if applicable):
+# google.com, pub-PUBLISHER_ID, DIRECT, f08c47fec0942fa0
+#
+contact=contact@devsolvev2.com
