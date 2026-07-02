@@ -50,12 +50,12 @@ const RAMP_SCHEDULE = [500_000, 2_000_000, 5_000_000, 9_000_000, 14_000_000, 18_
 
 // Gate criteria per level — must stay in sync with src/config/rampController.ts
 const GATE = [
-  { gateIndexedRatio: 0.30, gateCrawledNotIndexedMax: 0.55, gateMinImpressions: 10_000 },
-  { gateIndexedRatio: 0.40, gateCrawledNotIndexedMax: 0.50, gateMinImpressions: 100_000 },
-  { gateIndexedRatio: 0.50, gateCrawledNotIndexedMax: 0.45, gateMinImpressions: 1_000_000 },
-  { gateIndexedRatio: 0.55, gateCrawledNotIndexedMax: 0.45, gateMinImpressions: 5_000_000 },
-  { gateIndexedRatio: 0.57, gateCrawledNotIndexedMax: 0.40, gateMinImpressions: 20_000_000 },
-  { gateIndexedRatio: 0.67, gateCrawledNotIndexedMax: 0.35, gateMinImpressions: 50_000_000 },
+  { gateIndexedRatio: 0.95, gateCrawledNotIndexedMax: 0.05, gateMinImpressions: 10_000 },
+  { gateIndexedRatio: 0.95, gateCrawledNotIndexedMax: 0.05, gateMinImpressions: 100_000 },
+  { gateIndexedRatio: 0.96, gateCrawledNotIndexedMax: 0.04, gateMinImpressions: 1_000_000 },
+  { gateIndexedRatio: 0.97, gateCrawledNotIndexedMax: 0.03, gateMinImpressions: 5_000_000 },
+  { gateIndexedRatio: 0.97, gateCrawledNotIndexedMax: 0.03, gateMinImpressions: 20_000_000 },
+  { gateIndexedRatio: 0.98, gateCrawledNotIndexedMax: 0.02, gateMinImpressions: 50_000_000 },
 ];
 
 // ---------------------------------------------------------------------------

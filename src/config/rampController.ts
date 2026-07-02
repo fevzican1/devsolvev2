@@ -10,6 +10,10 @@
  * Gate rules: Each level has entry criteria (indexed ratio, crawled-not-indexed
  * ratio). Do NOT advance rampLevel until gate metrics are met in GSC.
  *
+ * Indexed ratio targets (≥95%): With the real scoreCorpusSlot formula, all 20M
+ * corpus slots pass MIN_INDEX_SCORE (90). Pages that meet Bing/Google quality
+ * bar should index at ≥95%; conservative ramp gates below reflect that bar.
+ *
  * IMPORTANT: This file is read at BUILD TIME by scripts and at RUNTIME by
  * the edge function. Do NOT import heavy dependencies here.
  *
@@ -64,8 +68,8 @@ export const RAMP_LEVELS: readonly RampLevelConfig[] = [
     indexNowBatchSize: 100,
     indexNowBatchDelay: 2_000,
     indexingApiDailyQuota: 200,
-    gateIndexedRatio: 0.30,
-    gateCrawledNotIndexedMax: 0.55,
+    gateIndexedRatio: 0.95,
+    gateCrawledNotIndexedMax: 0.05,
     gateMinImpressions: 10_000,
     bulkChangefreq: 'weekly',
     description: 'Faz 0 — Foundation (500K sitemap, prove quality)',
@@ -77,8 +81,8 @@ export const RAMP_LEVELS: readonly RampLevelConfig[] = [
     indexNowBatchSize: 100,
     indexNowBatchDelay: 2_000,
     indexingApiDailyQuota: 200,
-    gateIndexedRatio: 0.40,
-    gateCrawledNotIndexedMax: 0.50,
+    gateIndexedRatio: 0.95,
+    gateCrawledNotIndexedMax: 0.05,
     gateMinImpressions: 100_000,
     bulkChangefreq: 'weekly',
     description: 'Faz 1 — SPE Full + Editorial Spine (2M sitemap)',
@@ -90,8 +94,8 @@ export const RAMP_LEVELS: readonly RampLevelConfig[] = [
     indexNowBatchSize: 100,
     indexNowBatchDelay: 1_500,
     indexingApiDailyQuota: 200,
-    gateIndexedRatio: 0.50,
-    gateCrawledNotIndexedMax: 0.45,
+    gateIndexedRatio: 0.96,
+    gateCrawledNotIndexedMax: 0.04,
     gateMinImpressions: 1_000_000,
     bulkChangefreq: 'weekly',
     description: 'Faz 2 — Crawl Mesh + Dynamic Rotation (5M sitemap)',
@@ -103,8 +107,8 @@ export const RAMP_LEVELS: readonly RampLevelConfig[] = [
     indexNowBatchSize: 100,
     indexNowBatchDelay: 1_500,
     indexingApiDailyQuota: 200,
-    gateIndexedRatio: 0.55,
-    gateCrawledNotIndexedMax: 0.45,
+    gateIndexedRatio: 0.97,
+    gateCrawledNotIndexedMax: 0.03,
     gateMinImpressions: 5_000_000,
     bulkChangefreq: 'monthly',
     description: 'Faz 3 — Authority Building (9M sitemap)',
@@ -116,8 +120,8 @@ export const RAMP_LEVELS: readonly RampLevelConfig[] = [
     indexNowBatchSize: 100,
     indexNowBatchDelay: 1_000,
     indexingApiDailyQuota: 200,
-    gateIndexedRatio: 0.57,
-    gateCrawledNotIndexedMax: 0.40,
+    gateIndexedRatio: 0.97,
+    gateCrawledNotIndexedMax: 0.03,
     gateMinImpressions: 20_000_000,
     bulkChangefreq: 'monthly',
     description: 'Faz 4 — Expansion (14M sitemap)',
@@ -129,8 +133,8 @@ export const RAMP_LEVELS: readonly RampLevelConfig[] = [
     indexNowBatchSize: 100,
     indexNowBatchDelay: 1_000,
     indexingApiDailyQuota: 200,
-    gateIndexedRatio: 0.67,
-    gateCrawledNotIndexedMax: 0.35,
+    gateIndexedRatio: 0.98,
+    gateCrawledNotIndexedMax: 0.02,
     gateMinImpressions: 50_000_000,
     bulkChangefreq: 'monthly',
     description: 'Faz 5 — Full Corpus (20M sitemap, Bing/Google 90+ quality bar)',
