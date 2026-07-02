@@ -67,7 +67,11 @@ function duplicateSentenceClusters(corpus: string, minLength = 60, minOccurrence
     counts.set(sentence, (counts.get(sentence) ?? 0) + 1);
   }
 
-  return [...counts.values()].filter((count) => count >= minOccurrences).length;
+  let duplicateClusters = 0;
+  counts.forEach((count) => {
+    if (count >= minOccurrences) duplicateClusters += 1;
+  });
+  return duplicateClusters;
 }
 
 function checkTopicCoherence(page: ScoringPageInput): string[] {
