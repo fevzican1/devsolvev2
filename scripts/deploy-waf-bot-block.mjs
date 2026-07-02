@@ -5,14 +5,15 @@
  *
  * Rule order (first match wins):
  *   0. Site-wide — block AI indexers + browser-extension scraper UAs
- *   1. /k/* — block known scraper / AI / SEO UAs
- *   2. /k/* — block fake Bingbot (UA claims bingbot but not verified)
- *   3. /k/* — block desktop Chrome/Edge without sec-ch-ua Client Hints
+ *   1. Site-wide — block fake Googlebot/Bingbot (wrong ASN, not cf.client.bot)
+ *   2. Site-wide — block desktop Chrome/Edge without sec-ch-ua Client Hints
+ *   3. /k/* — block known scraper / AI / SEO UAs
  *   4. /k/* — allowlist catch-all (Google, Bing, DuckDuckGo, real browsers)
  *
  * Cloudflare analytics (2026-07): Claude-SearchBot 84.5k, meta-webindexer 34.3k,
- * bingbot 12.7k (allowed). Rule 0 must sitewide-block AI crawlers that hammer
- * sitemaps and static assets — not only /k/*.
+ * fake bingbot/chrome ~30k+. Rules 0–2 sitewide so sitemap/static hammering
+ * costs ZERO Pages Function invocations. Real Googlebot/Bingbot pass via ASN or
+ * cf.client.bot; rule 4 fail-opens search-bot UA markers on /k/* as safety net.
  *
  * Requires: CLOUDFLARE_API_TOKEN
  * Optional: CLOUDFLARE_ZONE_ID (auto-resolved from devsolvev2.com if omitted)
@@ -44,6 +45,7 @@ const WAF_SITEWIDE_BAD_BOT_BLOCK = `(
     'meta-externalagent',
     'meta-externalfetcher',
     'claude-searchbot',
+    'anthropic.com',
     'chrome-extension',
     'moz-extension',
     'safari-web-extension',
@@ -121,34 +123,9 @@ const WAF_KNOWN_BAD_EXPRESSION = kPath(`(
   )
 )`);
 
-/** Rule 2 — fake Bingbot: UA string only, not Cloudflare-verified or Microsoft ASN. */
-const WAF_FAKE_BING_EXPRESSION = kPath(`(
-  lower(http.user_agent) contains "bingbot"
-  and not cf.client.bot
-  and not ip.src.asnum in ${BING_ASNS}
-)`);
-
-/** Rule 3 — desktop Chrome/Edge scrapers without Client Hints (all versions). */
-const WAF_FAKE_CHROME_EXPRESSION = kPath(`(
+/** Rule 1 — fake search bots sitewide: wrong network, not Cloudflare-verified. */
+const WAF_FAKE_SEARCH_BOT_SITEWIDE = `(
   (
-    (lower(http.user_agent) contains "chrome/" and lower(http.user_agent) contains "safari/")
-    or lower(http.user_agent) contains "edg/"
-  )
-  and not lower(http.user_agent) contains "android"
-  and not lower(http.user_agent) contains "iphone"
-  and not lower(http.user_agent) contains "ipad"
-  and not lower(http.user_agent) contains "mobile"
-  and not lower(http.user_agent) contains "crios"
-  and len(http.request.headers["sec-ch-ua"][0]) <= 2
-)`);
-
-/** Rule 4 — allowlist-only catch-all for anything else on /k/*. */
-const WAF_ALLOWLIST_EXPRESSION = kPath(`not (
-  (
-    cf.client.bot
-    and cf.verified_bot_category eq "Search Engine Crawler"
-  )
-  or (
     (${uaContainsAny([
       'googlebot',
       'adsbot-google',
@@ -160,12 +137,48 @@ const WAF_ALLOWLIST_EXPRESSION = kPath(`not (
       'duplexweb-google',
       'googleother',
     ])})
-    and (cf.client.bot or ip.src.asnum in ${GOOGLE_ASNS})
+    and not cf.client.bot
+    and not ip.src.asnum in ${GOOGLE_ASNS}
   )
   or (
     (${uaContainsAny(['bingbot', 'bingpreview', 'adidxbot', 'msnbot'])})
-    and (cf.client.bot or ip.src.asnum in ${BING_ASNS})
+    and not cf.client.bot
+    and not ip.src.asnum in ${BING_ASNS}
   )
+)`;
+
+/** Rule 2 — desktop Chrome/Edge scrapers without Client Hints (sitewide). */
+const WAF_FAKE_CHROME_SITEWIDE = `(
+  (
+    (lower(http.user_agent) contains "chrome/" and lower(http.user_agent) contains "safari/")
+    or lower(http.user_agent) contains "edg/"
+  )
+  and not lower(http.user_agent) contains "android"
+  and not lower(http.user_agent) contains "iphone"
+  and not lower(http.user_agent) contains "ipad"
+  and not lower(http.user_agent) contains "mobile"
+  and not lower(http.user_agent) contains "crios"
+  and len(http.request.headers["sec-ch-ua"][0]) <= 2
+)`;
+
+/** Rule 4 — allowlist-only catch-all for anything else on /k/*. */
+const WAF_ALLOWLIST_EXPRESSION = kPath(`not (
+  (
+    cf.client.bot
+    and cf.verified_bot_category eq "Search Engine Crawler"
+  )
+  or ${uaContainsAny([
+    'googlebot',
+    'adsbot-google',
+    'mediapartners-google',
+    'storebot-google',
+    'google-inspectiontool',
+    'feedfetcher-google',
+    'apis-google',
+    'duplexweb-google',
+    'googleother',
+  ])}
+  or ${uaContainsAny(['bingbot', 'bingpreview', 'adidxbot', 'msnbot'])}
   or ${uaContainsAny(['duckduckbot', 'duckduckgo-favicons-bot'])}
   or (lower(http.user_agent) contains "firefox/" and lower(http.user_agent) contains "gecko/")
   or (
@@ -231,16 +244,16 @@ const RULES = [
     expression: WAF_SITEWIDE_BAD_BOT_BLOCK,
   },
   {
+    description: '[DevSolve] sitewide block fake Googlebot/Bingbot (wrong ASN)',
+    expression: WAF_FAKE_SEARCH_BOT_SITEWIDE,
+  },
+  {
+    description: '[DevSolve] sitewide block fake desktop Chrome without Client Hints',
+    expression: WAF_FAKE_CHROME_SITEWIDE,
+  },
+  {
     description: '[DevSolve] /k/* block known scraper UAs',
     expression: WAF_KNOWN_BAD_EXPRESSION,
-  },
-  {
-    description: '[DevSolve] /k/* block fake Bingbot',
-    expression: WAF_FAKE_BING_EXPRESSION,
-  },
-  {
-    description: '[DevSolve] /k/* block fake desktop Chrome without Client Hints',
-    expression: WAF_FAKE_CHROME_EXPRESSION,
   },
   {
     description: '[DevSolve] /k/* allowlist — Google Bing DuckDuckGo + real browsers',
@@ -303,6 +316,8 @@ async function main() {
   const legacyDescriptions = new Set([
     '[DevSolve] sitewide block Meta AI indexer',
     '[DevSolve] sitewide block AI indexers (Claude-SearchBot, Meta)',
+    '[DevSolve] /k/* block fake Bingbot',
+    '[DevSolve] /k/* block fake desktop Chrome without Client Hints',
   ]);
   const preserved = (ruleset?.rules ?? []).filter(
     (r) => !managedDescriptions.has(r.description) && !legacyDescriptions.has(r.description),

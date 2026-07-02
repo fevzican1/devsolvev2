@@ -73,6 +73,7 @@ const HARD_BLOCK_PATTERNS: readonly string[] = [
   'baidu', 'baiduspider', 'yandexbot', 'yandex.com/bots', 'sogou', 'sogou web spider',
   'chatgpt-user', 'oai-searchbot', 'openai', 'anthropic-ai', 'claude-web', 'claudebot',
   'claude-searchbot', 'searchbot', 'gptbot', 'google-extended',
+  'anthropic.com', 'anthropic-ai',
   'perplexitybot', 'perplexity-user', 'youbot', 'cohere-ai', 'cohere-training-data-crawler',
   'bytespider', 'amazonbot', 'diffbot', 'omgilibot', 'omgili', 'ccbot',
   'common crawl', 'commoncrawl',
