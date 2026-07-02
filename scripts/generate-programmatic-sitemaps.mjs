@@ -286,8 +286,8 @@ function tierForChunk(chunkIndex) {
  * Ineligible pages remain served (200) but get noindex at the edge.
  * Cloudflare Function cost unchanged — O(1) math per request, same cache TTL.
  */
-function isQualityEligible(_slug, _modifier, _chunkIndex, globalIndex, modifierIndex, tool, intent) {
-  return isSitemapQualityEligible(globalIndex, modifierIndex, tool, intent);
+function isQualityEligible(slug, _modifier, _chunkIndex, globalIndex, modifierIndex, tool, intent) {
+  return isSitemapQualityEligible(globalIndex, modifierIndex, tool, intent, slug);
 }
 
 function tierMeta(tier) {

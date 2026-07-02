@@ -2,6 +2,7 @@
  * Shared programmatic quality helpers for sitemap generation and build audits.
  * Keep in sync with src/lib/quality/eligibility.ts
  */
+import { getCorpusSlotScore } from './programmatic-quality-scoring.mjs';
 
 export const AUDIENCE_COUNT = 20;
 export const TASK_COUNT = 16;
@@ -82,16 +83,11 @@ export function globalIndexFromSlug(slug) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function estimateQualityScore(globalIndex, tool, intent) {
+export function estimateQualityScore(globalIndex, tool, intent, slug) {
   if (globalIndex < 0 || globalIndex >= TOTAL_PROGRAMMATIC_PAGES) return 0;
   const pairIndex = pairIndexFromGlobalIndex(globalIndex);
   if (pairIndex < 0 || pairIndex >= TOOL_INTENT_PAIR_COUNT) return 0;
-  // Sync build path: pair validity + corpus floor. Real Bing/Google formula runs in
-  // src/lib/quality/scoringPage.ts (edge + quality-corpus-audit). Every valid pair
-  // scores ≥90 via scoreCorpusSlot — verified by scripts/verify-quality-scores.mjs.
-  void tool;
-  void intent;
-  return MIN_INDEX_SCORE;
+  return getCorpusSlotScore(slug ?? `slot-${globalIndex}`, tool, intent);
 }
 
 export function isQualityEligible(
@@ -118,12 +114,12 @@ export function isQualityEligible(
     return false;
   }
 
-  return estimateQualityScore(globalIndex, _tool, _intent) >= MIN_INDEX_SCORE;
+  return estimateQualityScore(globalIndex, _tool, _intent, _slug) >= MIN_INDEX_SCORE;
 }
 
-export function isSitemapQualityEligible(globalIndex, modifierIndex, tool, intent) {
+export function isSitemapQualityEligible(globalIndex, modifierIndex, tool, intent, slug) {
   return isQualityEligible(
-    String(globalIndex),
+    slug ?? String(globalIndex),
     '',
     {},
     globalIndex,
@@ -138,7 +134,7 @@ export function isPageQualityEligible(slug, _modifier, tool, intent) {
   const globalIndex = globalIndexFromSlug(slug);
   if (globalIndex === null) return false;
   const modifierIndex = modifierIndexFromGlobalIndex(globalIndex);
-  return isSitemapQualityEligible(globalIndex, modifierIndex, tool, intent);
+  return isSitemapQualityEligible(globalIndex, modifierIndex, tool, intent, slug);
 }
 
 export function isQualityEligibleWithContent(
