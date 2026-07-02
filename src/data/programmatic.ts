@@ -4,6 +4,7 @@ import { ensureSeoDescription, ensureSeoTitle } from '@/lib/seo/seoText';
 import { siteConfig } from '@/config/site';
 import { monetizationConfig } from '@/config/monetization';
 import { calculateQualityScore, MIN_QUALITY_SCORE } from '@/lib/quality/scoring';
+import { enforceQualityFloor } from '@/lib/quality/qualityFloor';
 import {
   isCrossToolRemediationPair,
   buildCrossToolIntroParagraph,
@@ -1357,83 +1358,11 @@ function buildQualityBoost(
   ];
 }
 
-/** Bing #4 / Google scaled-content: cap repeated cluster boilerplate across the full page. */
-function sanitizePageBoilerplate(page: ProgrammaticPage, clusterKey: ClusterKey): void {
-  const cd = clusterDomain[clusterKey];
-  const counts = new Map<string, number>();
-
-  const rules: { phrase: string; max: number; alt: string }[] = [
-    { phrase: cd.bestPractice, max: 1, alt: 'Validate structure on a representative sample before production use.' },
-    { phrase: cd.importance, max: 1, alt: `Solid ${cd.field} practices reduce downstream integration risk.` },
-    { phrase: 'runs entirely in your browser', max: 2, alt: 'executes client-side without uploading payloads' },
-    { phrase: 'Runs entirely in your browser', max: 2, alt: 'Executes client-side without uploading payloads' },
-    { phrase: 'no data leaves your machine', max: 2, alt: 'payloads stay on the client during the operation' },
-    { phrase: 'No data leaves your browser', max: 2, alt: 'Processing stays on the client device' },
-    { phrase: 'Always validate JSON before processing it programmatically to catch structural issues early', max: 1, alt: 'Run strict parse checks on samples before pipeline ingestion.' },
-    { phrase: 'JSON is the backbone of modern API communication and configuration management', max: 1, alt: 'JSON remains the default interchange format across most service boundaries.' },
-  ];
-
-  const scrub = (text: string): string => {
-    let out = text;
-    for (const { phrase, max, alt } of rules) {
-      if (!phrase || phrase.length < 12) continue;
-      const key = phrase.toLowerCase();
-      const regex = new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-      out = out.replace(regex, (match) => {
-        const used = (counts.get(key) ?? 0) + 1;
-        counts.set(key, used);
-        return used <= max ? match : alt;
-      });
-    }
-    return out;
-  };
-
-  page.intro = scrub(page.intro);
-  page.description = scrub(page.description);
-  page.steps = page.steps.map(scrub);
-  page.pitfalls = page.pitfalls.map(scrub);
-  page.proTips = page.proTips.map(scrub);
-  page.technicalAnalysis = page.technicalAnalysis.map(scrub);
-  page.expertTips = page.expertTips.map(scrub);
-  page.toolHistory = page.toolHistory.map(scrub);
-  page.globalUseCases = page.globalUseCases.map(scrub);
-  page.faq = page.faq.map((item) => ({
-    question: scrub(item.question),
-    answer: scrub(item.answer),
-  }));
-  page.comparison = page.comparison.map((row) => ({
-    item: scrub(row.item),
-    pros: scrub(row.pros),
-    cons: scrub(row.cons),
-  }));
-  page.glossary = page.glossary.map((item) => ({
-    term: item.term,
-    definition: scrub(item.definition),
-  }));
-}
-
 function enforceProgrammaticQualityFloor(page: ProgrammaticPage, tool: string, clusterKey: ClusterKey, audience: string, task: string): void {
-  const MIN_PROGRAMMATIC_WORDS = 1200;
-  let pass = 0;
-
-  sanitizePageBoilerplate(page, clusterKey);
-
-  while (estimateProgrammaticWordCount(page) < MIN_PROGRAMMATIC_WORDS && pass < 8) {
-    page.technicalAnalysis.push(...buildDepthExpansion(tool, clusterKey, audience, task, pass));
-    sanitizePageBoilerplate(page, clusterKey);
-    pass += 1;
-  }
-
-  let quality = calculateQualityScore(page);
-  pass = 0;
-  while (!quality.passesQualityThreshold && pass < 10) {
-    page.expertTips.push(...buildQualityBoost(tool, page.intent, clusterKey, audience, pass));
-    page.globalUseCases.push(...buildDepthExpansion(tool, clusterKey, audience, task, pass + 2));
-    page.technicalAnalysis.push(...buildDepthExpansion(tool, clusterKey, audience, task, pass + 4));
-    sanitizePageBoilerplate(page, clusterKey);
-    quality = calculateQualityScore(page);
-    pass += 1;
-  }
+  enforceQualityFloor(page, clusterKey, { tool, intent: page.intent, audience, task }, {
+    addDepth: (pass) => buildDepthExpansion(tool, clusterKey, audience, task, pass),
+    addBoost: (pass) => buildQualityBoost(tool, page.intent, clusterKey, audience, pass),
+  });
 }
 
 /* ------------------------------------------------------------------ */

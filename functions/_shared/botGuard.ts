@@ -36,8 +36,10 @@ import { BING_CRAWLER_ASN_SET, GOOGLE_CRAWLER_ASN_SET } from './crawlerAsns';
 export type AccessDecision = 'allow' | 'block';
 
 const GOOGLE_UA_MARKERS: readonly string[] = [
-  'googlebot', 'adsbot-google', 'mediapartners-google', 'storebot-google',
+  'googlebot', 'googlebot-image', 'googlebot-news', 'googlebot-video',
+  'adsbot-google', 'adsbot-google-mobile', 'mediapartners-google', 'storebot-google',
   'feedfetcher-google', 'apis-google', 'duplexweb-google', 'googleother',
+  'google-read-aloud', 'google-safety', 'google-site-verification',
 ];
 
 /** GSC Live Test / site verification — runs from Google infra AND user-triggered inspection IPs. */
@@ -46,7 +48,7 @@ const GOOGLE_INSPECTION_UA_MARKERS: readonly string[] = [
 ];
 
 const BING_UA_MARKERS: readonly string[] = [
-  'bingbot', 'bingpreview', 'adidxbot', 'msnbot',
+  'bingbot', 'bingpreview', 'adidxbot', 'msnbot', 'msnbot-media', 'bingbot-mobile',
 ];
 
 /** Always block — includes the attack sources called out by site owner. */

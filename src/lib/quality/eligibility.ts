@@ -230,15 +230,11 @@ export function isPageQualityEligible(
   const modifierIndex = modifierIndexFromGlobalIndex(globalIndex);
 
   if (pageFields) {
-    const quality = scorePageFields({ ...pageFields, slug, primaryTool: tool, intent });
+    if (!meetsMetaDescriptionFloor(pageFields.description)) return false;
     return isQualityEligible(
       slug,
       _modifier,
-      {
-        metaDescription: pageFields.description,
-        calculatedScore: quality,
-        wordCount: undefined,
-      },
+      { metaDescription: pageFields.description },
       globalIndex,
       pairIndex,
       modifierIndex,

@@ -1,12 +1,7 @@
 #!/usr/bin/env node
 /**
  * Live access matrix — spam blocked at WAF (zero Pages Function invocations).
- * WAF block → Cloudflare HTML. Function botGuard block → plain "Access Denied".
- *
- * Real Googlebot/Bingbot from Google/Microsoft ASNs pass WAF rule 4 (verified by
- * deploy-waf-bot-block.mjs expressions). This script runs from a non-crawler IP,
- * so fake Googlebot/Bingbot UA correctly returns WAF 403. GSC InspectionTool
- * proves /k/* is reachable for Google indexing validation.
+ * Real Google/Bing crawlers pass from their ASNs (rule 4). GSC InspectionTool always passes.
  */
 const SITE = (process.env.SITE_URL || 'https://devsolvev2.com').replace(/\/$/, '');
 const K_PATH = '/k/json-validate-json-backend-engineer-debug-production-issue-json-formatter-0';
@@ -23,6 +18,7 @@ function isFunctionBlock(body) {
 /** Must be blocked at WAF — any 200 or Function 403 = counter leak. */
 const WAF_BLOCK_BOTS = [
   ['Fake Chrome (no sec-ch-ua)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', null],
+  ['Fake Chrome (extension UA)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Chrome-extension/abc123', null],
   ['Fake Googlebot (wrong IP)', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', null],
   ['Fake Bingbot (wrong IP)', 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', null],
   ['DuckDuckBot', 'DuckDuckBot/1.0; (+http://duckduckgo.com/duckduckbot.html)', null],
@@ -30,13 +26,17 @@ const WAF_BLOCK_BOTS = [
   ['Facebookexternalhit', 'facebookexternalhit/1.1', null],
   ['LinkedInBot', 'LinkedInBot/1.0', null],
   ['Claude-SearchBot', 'Claude-SearchBot/1.0', null],
+  ['ClaudeBot', 'ClaudeBot/1.0', null],
   ['GPTBot', 'GPTBot/1.0 (+https://openai.com/gptbot)', null],
   ['meta-webindexer', 'meta-webindexer/1.0', null],
+  ['meta-externalagent', 'meta-externalagent/1.0', null],
   ['AhrefsBot', 'Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)', null],
   ['SemrushBot', 'Mozilla/5.0 (compatible; SemrushBot/7~bl; +http://www.semrush.com/bot.html)', null],
   ['Applebot', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Safari/605.1.15 (Applebot/0.1)', null],
   ['curl', 'curl/8.4.0', null],
+  ['wget', 'Wget/1.21.4', null],
   ['python-requests', 'python-requests/2.31.0', null],
+  ['go-http-client', 'Go-http-client/2.0', null],
   ['Screaming Frog', 'Screaming Frog SEO Spider/19.0', null],
   ['Bytespider', 'Bytespider', null],
   ['PetalBot', 'PetalBot', null],
@@ -44,12 +44,15 @@ const WAF_BLOCK_BOTS = [
   ['Empty UA', '', null],
 ];
 
-const cases = [
+const REAL_CRAWLER_CASES = [
   { name: 'Googlebot sitemap', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', expect: [200] },
-  { name: 'Googlebot /k/* (non-Google IP → WAF block expected)', path: K_PATH, ua: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', expect: [403], wantWaf: true },
+  { name: 'Googlebot-Image sitemap', path: SITEMAP, ua: 'Googlebot-Image/1.0', expect: [200] },
+  { name: 'AdsBot-Google sitemap', path: SITEMAP, ua: 'AdsBot-Google (+http://www.google.com/adsbot.html)', expect: [200] },
   { name: 'GSC InspectionTool /k/*', path: K_PATH, ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)', expect: [200] },
   { name: 'Bingbot sitemap', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', expect: [200] },
-  { name: 'Bingbot /k/* (non-Microsoft IP → WAF block expected)', path: K_PATH, ua: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', expect: [403], wantWaf: true },
+  { name: 'BingPreview sitemap', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm) BingPreview/1.0b', expect: [200] },
+  { name: 'Googlebot /k/* (non-Google IP → WAF block)', path: K_PATH, ua: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', expect: [403], wantWaf: true },
+  { name: 'Bingbot /k/* (non-Microsoft IP → WAF block)', path: K_PATH, ua: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', expect: [403], wantWaf: true },
   {
     name: 'Real Chrome /k/*',
     path: K_PATH,
@@ -70,7 +73,7 @@ const cases = [
 let failed = 0;
 let functionLeaks = 0;
 
-for (const c of cases) {
+for (const c of REAL_CRAWLER_CASES) {
   const headers = { ...(c.ua ? { 'User-Agent': c.ua } : {}), ...(c.headers || {}) };
   const res = await fetch(`${SITE}${c.path}`, { headers, redirect: 'manual' });
   const body = await res.text();
@@ -104,7 +107,7 @@ for (const c of cases) {
 }
 
 if (failed === 0) {
-  console.log('\nPASS — real crawlers + GSC OK; all spam at WAF (zero Function invocations)');
+  console.log('\nPASS — real Google/Bing crawlers + GSC OK; all spam at WAF (zero Function invocations)');
 } else {
   console.log(`\nFAIL — ${failed} case(s)${functionLeaks ? `, ${functionLeaks} Function leak(s)` : ''}`);
 }

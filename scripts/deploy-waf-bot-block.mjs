@@ -26,16 +26,31 @@ const GOOGLE_ASNS = wafAsnSet(GOOGLE_CRAWLER_ASNS);
 
 const GOOGLE_UA_MARKERS = [
   'googlebot',
+  'googlebot-image',
+  'googlebot-news',
+  'googlebot-video',
   'adsbot-google',
+  'adsbot-google-mobile',
   'mediapartners-google',
   'storebot-google',
   'feedfetcher-google',
   'apis-google',
   'duplexweb-google',
   'googleother',
+  'google-read-aloud',
+  'google-safety',
+  'google-site-verification',
+  'google-inspectiontool',
 ];
 
-const BING_UA_MARKERS = ['bingbot', 'bingpreview', 'adidxbot', 'msnbot'];
+const BING_UA_MARKERS = [
+  'bingbot',
+  'bingpreview',
+  'adidxbot',
+  'msnbot',
+  'msnbot-media',
+  'bingbot-mobile',
+];
 
 /** Cloudflare-verified search crawler — never block. */
 const VERIFIED_SEARCH_CRAWLER = 'cf.verified_bot_category eq "Search Engine Crawler"';
