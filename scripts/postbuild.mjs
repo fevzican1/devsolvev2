@@ -137,7 +137,7 @@ try {
 
 try {
   console.log('Verifying SEO meta description lengths...');
-  execSync(`node ${join(__dirname, 'verify-seo-descriptions.mjs')}`, { stdio: 'inherit' });
+  execSync(`node --import tsx ${join(__dirname, 'verify-seo-descriptions.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
   console.log('SEO description verification failed — see logs above');
 }
