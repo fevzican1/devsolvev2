@@ -52,10 +52,35 @@ export const BRAND_CORE_PROFILES: readonly string[] = [
 export const BRAND_PRODUCT_HUNT_URL =
   'https://www.producthunt.com/products/devsolve-2?launch=devsolve-v2';
 
-export const BRAND_DIRECTORY_PROFILES: readonly string[] = [
+/**
+ * AlternativeTo listing — submitted, pending moderation.
+ * Expected public URL once approved (update slug if AlternativeTo assigns a
+ * different one, e.g. devsolvev2).
+ */
+export const BRAND_ALTERNATIVETO_URL = 'https://alternativeto.net/software/devsolve/';
+
+/**
+ * Flip to `true` after AlternativeTo approves the listing AND the profile's
+ * website field links back to https://devsolvev2.com. Until then the URL stays
+ * out of sameAs / footer / edge listings (E-E-A-T: no unverified sameAs).
+ */
+export const BRAND_ALTERNATIVETO_LIVE = false;
+
+/** Directory listings that are live and reciprocal today. */
+export const BRAND_LIVE_DIRECTORY_PROFILES: readonly string[] = [
   'https://www.saashub.com/devsolvev2',
   BRAND_PRODUCT_HUNT_URL,
 ];
+
+/** Submitted but not yet approved — wired in code, excluded from sameAs until live. */
+export const BRAND_PENDING_DIRECTORY_PROFILES: readonly string[] = BRAND_ALTERNATIVETO_LIVE
+  ? []
+  : [BRAND_ALTERNATIVETO_URL];
+
+/** Active directory profiles included in sameAs, footer, and JSON-LD. */
+export const BRAND_DIRECTORY_PROFILES: readonly string[] = BRAND_ALTERNATIVETO_LIVE
+  ? [...BRAND_LIVE_DIRECTORY_PROFILES, BRAND_ALTERNATIVETO_URL]
+  : BRAND_LIVE_DIRECTORY_PROFILES;
 
 export const BRAND_SAME_AS: readonly string[] = [
   ...BRAND_CORE_PROFILES,
@@ -65,6 +90,20 @@ export const BRAND_SAME_AS: readonly string[] = [
 export interface BrandProfileLink {
   label: string;
   href: string;
+  /** Optional short note for edge-rendered listing sections. */
+  hint?: string;
+}
+
+/** Human-readable label for a brand profile or directory URL. */
+export function brandProfileLabel(href: string): string {
+  if (href.includes('linkedin.com')) return 'LinkedIn';
+  if (href.includes('x.com') || href.includes('twitter.com')) return 'X (Twitter)';
+  if (href.includes('producthunt.com')) return 'Product Hunt';
+  if (href.includes('saashub.com')) return 'SaaSHub';
+  if (href.includes('alternativeto.net')) return 'AlternativeTo';
+  if (href.includes('/devsolvev2')) return 'GitHub Repository';
+  if (href.includes('github.com')) return 'GitHub Profile';
+  return 'Official Listing';
 }
 
 /** Visible profile links for footer, About page, and edge-rendered footers. */
@@ -76,14 +115,51 @@ export function getBrandProfileLinks(): BrandProfileLink[] {
     { label: 'X (Twitter)', href: 'https://x.com/devsolveai' },
   ];
   for (const href of BRAND_DIRECTORY_PROFILES) {
-    const label = href.includes('producthunt.com')
-      ? 'Product Hunt'
-      : href.includes('saashub.com')
-        ? 'SaaSHub'
-        : 'Official Listing';
-    links.push({ label, href });
+    const label = brandProfileLabel(href);
+    const hint = href.includes('producthunt.com')
+      ? 'privacy-first browser developer tools listing'
+      : undefined;
+    links.push({ label, href, hint });
   }
   return links;
+}
+
+function escapeListingHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Official profiles & listings block for edge-rendered /k/* pages.
+ * Single source of truth — keep in sync with footer and About page.
+ */
+export function buildBrandListingsHtml(): string {
+  const directoryLinks = getBrandProfileLinks().filter((l) =>
+    BRAND_DIRECTORY_PROFILES.includes(l.href),
+  );
+
+  const rows: string[] = [
+    `<li style="margin-bottom:0.5rem"><a href="${escapeListingHtml(BRAND_GITHUB_REPO)}" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">GitHub Repository</a> <span style="color:#64748b;font-size:0.85rem">— open-source project linking to devsolvev2.com</span></li>`,
+    `<li style="margin-bottom:0.5rem"><a href="https://github.com/fevzican1" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">GitHub Profile</a></li>`,
+    ...directoryLinks.map((item) => {
+      const hint = item.hint
+        ? ` <span style="color:#64748b;font-size:0.85rem">— ${escapeListingHtml(item.hint)}</span>`
+        : '';
+      return `<li style="margin-bottom:0.5rem"><a href="${escapeListingHtml(item.href)}" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">${escapeListingHtml(item.label)}</a>${hint}</li>`;
+    }),
+    `<li><a href="https://www.linkedin.com/in/fevzican-aytekin-0b5501105" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">LinkedIn</a> · <a href="https://x.com/devsolveai" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">X (Twitter)</a></li>`,
+  ];
+
+  return `<section aria-label="Official DevSolve listings" class="card" style="margin-top:1.5rem;border-color:#dbeafe;background:#f8fafc">
+<div class="card-title"><span role="img" aria-label="Verified">✅</span> Official DevSolve Profiles &amp; Listings</div>
+<p style="color:#475569;font-size:0.95rem">Verified brand profiles that link back to devsolvev2.com — the same entity references declared in our structured data (<code>sameAs</code>).</p>
+<ul style="margin-top:0.75rem;padding-left:1.25rem">
+${rows.join('\n')}
+</ul>
+</section>`;
 }
 
 export interface BrandEntityOptions {

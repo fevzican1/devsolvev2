@@ -39,7 +39,7 @@ generation, regex testing, diffing, SQL formatting and more.
 |---|------|------------------|-------|
 | 1 | **GitHub** | make this repo public | README already links the site → real github.com backlink. Add the site to the repo "About" → Website field too. |
 | 2 | **Product Hunt** | producthunt.com → "Submit" | Best on a launch day; high authority + referral traffic. |
-| 3 | **AlternativeTo** | alternativeto.net → "Add application" | List as an alternative to popular JSON/JWT tools. |
+| 3 | **AlternativeTo** | alternativeto.net → "Add application" | List as an alternative to popular JSON/JWT tools. After approval: set `BRAND_ALTERNATIVETO_LIVE = true` in `src/lib/seo/organization.ts` (and fix URL slug if needed). |
 | 4 | **SaaSHub** | saashub.com → "Submit a product" | Free listing with a do-follow-ish profile link. |
 | 5 | **Slant** | slant.co | Add DevSolve as an option under "best free developer tools". |
 | 6 | **dev.to** | dev.to → write a post | Publish one genuine article (e.g. "Decoding JWTs safely in the browser") linking to the relevant tool/guide. Canonical to your site. |

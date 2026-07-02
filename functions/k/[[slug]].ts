@@ -27,8 +27,8 @@ import {
   ORG_ID_FRAGMENT,
   WEBSITE_ID_FRAGMENT,
   BRAND_SAME_AS,
-  BRAND_GITHUB_REPO,
-  BRAND_PRODUCT_HUNT_URL,
+  brandProfileLabel,
+  buildBrandListingsHtml,
   buildOrganizationNode,
   buildWebSiteNode,
 } from '../../src/lib/seo/organization';
@@ -42,32 +42,12 @@ import { ACCESS_DENIED_HEADERS, decideAccess } from '../_shared/botGuard';
 import { escapeHtml } from '../_shared/sectionFallback';
 import { buildIntentExample } from '../_shared/intentExamples';
 
-function footerSocialLabel(href: string): string {
-  if (href.includes('linkedin.com')) return 'LinkedIn';
-  if (href.includes('x.com') || href.includes('twitter.com')) return 'X';
-  if (href.includes('producthunt.com')) return 'Product Hunt';
-  if (href.includes('saashub.com')) return 'SaaSHub';
-  if (href.includes('/devsolvev2')) return 'GitHub Repo';
-  if (href.includes('github.com')) return 'GitHub';
-  return 'Profile';
-}
-
 // Pre-rendered once per worker — zero per-request cost; reinforces sameAs on 18M+ /k pages.
 const FOOTER_SOCIAL_LINKS_HTML = BRAND_SAME_AS.map((href) =>
-  `<a href="${escapeHtml(href)}" rel="me noopener noreferrer" target="_blank">${footerSocialLabel(href)}</a>`,
+  `<a href="${escapeHtml(href)}" rel="me noopener noreferrer" target="_blank">${escapeHtml(brandProfileLabel(href))}</a>`,
 ).join(' · ');
 
-const BRAND_LISTINGS_HTML = `<section aria-label="Official DevSolve listings" class="card" style="margin-top:1.5rem;border-color:#dbeafe;background:#f8fafc">
-<div class="card-title"><span role="img" aria-label="Verified">✅</span> Official DevSolve Profiles &amp; Listings</div>
-<p style="color:#475569;font-size:0.95rem">Verified brand profiles that link back to devsolvev2.com — the same entity references declared in our structured data (<code>sameAs</code>).</p>
-<ul style="margin-top:0.75rem;padding-left:1.25rem">
-<li style="margin-bottom:0.5rem"><a href="${escapeHtml(BRAND_GITHUB_REPO)}" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">GitHub Repository</a> <span style="color:#64748b;font-size:0.85rem">— open-source project linking to devsolvev2.com</span></li>
-<li style="margin-bottom:0.5rem"><a href="https://github.com/fevzican1" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">GitHub Profile</a></li>
-<li style="margin-bottom:0.5rem"><a href="${escapeHtml(BRAND_PRODUCT_HUNT_URL)}" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">Product Hunt</a> <span style="color:#64748b;font-size:0.85rem">— privacy-first browser developer tools listing</span></li>
-<li style="margin-bottom:0.5rem"><a href="https://www.saashub.com/devsolvev2" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">SaaSHub</a></li>
-<li><a href="https://www.linkedin.com/in/fevzican-aytekin-0b5501105" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">LinkedIn</a> · <a href="https://x.com/devsolveai" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">X (Twitter)</a></li>
-</ul>
-</section>`;
+const BRAND_LISTINGS_HTML = buildBrandListingsHtml();
 
 // Cloudflare Pages Function types (inline to avoid external dependency)
 interface CfRequestProperties {
