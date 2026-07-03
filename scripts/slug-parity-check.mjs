@@ -48,6 +48,25 @@ const EXPECTED_RAW_TOTAL = 20_044_800;
 const CORPUS_CAP = 20_000_000;
 const SAMPLE_SLUGS = Number.parseInt(process.env.PARITY_SAMPLE_SIZE || '300', 10);
 
+/**
+ * Fixed regression fixtures: canonical /k/* URLs that Bing Webmaster Tools'
+ * Live URL Test reported as "Page with redirect" (cannot be indexed) even
+ * though they are the exact, current canonical slug. That earlier bug was
+ * `resolvePageForRequest()` trying the legacy-migration resolver BEFORE the
+ * canonical resolver, so a valid canonical slug could be remapped onto a
+ * different slug and 301 to itself-but-different. The Function now tries
+ * the canonical resolver first (see functions/k/[[slug]].ts), which
+ * guarantees `resolves(slug) === true` here means the URL serves 200 with
+ * NO redirect. These exact slugs are pinned so any future reordering of the
+ * resolver, or reintroduction of the legacy-first bug, fails this check
+ * immediately instead of silently 301-ing real, indexable pages again.
+ */
+const KNOWN_LIVE_TEST_REDIRECT_REPORTS = [
+  'automation-configure-periodic-cleanup-solution-architect-migrate-legacy-system-uuid-generator-17964297',
+  'formatting-optimize-css-output-api-consumer-prepare-deployment-artifact-markdown-preview-9226536',
+  'encoding-encode-data-qa-engineer-prepare-query-parameters-url-encode-decode-2106035',
+];
+
 const failures = [];
 const notes = [];
 function fail(msg) { failures.push(msg); }
@@ -266,6 +285,26 @@ if (U && U.clusters && U.audiences && U.tasks && U.exec && U.delivery) {
     }
   } else {
     note('out/ not present — skipping live-slug sampling (run after build).');
+  }
+
+  // E. Bing Live-Test "Page with redirect" regression fixtures. `resolves(slug)`
+  // is only true when the slug decodes straight back to itself via the
+  // canonical resolver, which is exactly the condition under which
+  // functions/k/[[slug]].ts serves 200 OK with no Location header. If the
+  // canonical-first ordering in resolvePageForRequest() ever regresses (legacy
+  // resolver tried first again), one of these pinned real-world slugs will
+  // stop round-tripping and this check fails loudly at build time instead of
+  // silently 301-ing indexable pages in production.
+  let redirectRegressions = 0;
+  for (const slug of KNOWN_LIVE_TEST_REDIRECT_REPORTS) {
+    if (!resolves(slug)) {
+      redirectRegressions += 1;
+      fail(`Known-good canonical slug no longer self-resolves — this is the exact ` +
+        `"Bing Live Test: Page with redirect" regression: ${slug}`);
+    }
+  }
+  if (redirectRegressions === 0) {
+    note(`${KNOWN_LIVE_TEST_REDIRECT_REPORTS.length} pinned Bing Live-Test fixtures self-resolve with no redirect.`);
   }
 }
 
