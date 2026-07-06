@@ -248,3 +248,25 @@ aynı havuzlardan beslenip neredeyse aynı teknik çekirdeği üretiyordu.
 **Maliyet/garanti:** tümüyle deterministik, statik tablolar üzerinde hesap; ek fetch/I-O
 yok; sayfa `s-maxage=31536000, immutable` ile edge'de cache'lenir → Cloudflare fonksiyonu
 fazladan **tetiklenmez**. Korpüs **18.040.320** olarak korunur.
+
+---
+
+## 9) Güncelleme: "4 Madde" temizlik-doğrulama sistemi (build-time, sıfır maliyet)
+
+Bir raporun Google/Bing'de **tamamen** temizlenmesi için dört şeyin doğrulanması
+gerekir. Aşağıdaki tablo her maddeyi, onu kanıtlayan build-time guard'a bağlar —
+hepsi `npm run build` → `postbuild` sırasında çalışır, **hiçbiri Cloudflare
+fonksiyonunu tetiklemez** (statik `out/` çıktısını ve kaynak metnini okur, ağ
+çağrısı yapmaz), yani sıfır maliyetlidir:
+
+| Madde | Doğrulayan guard | Ne yapar |
+|---|---|---|
+| **A. İç Linkleme** | `scripts/internal-link-redirect-audit.mjs` (**yeni**) | `out/**/*.html` içindeki **her** `<a href="/k/...">` linkini tarar ve `functions/k/[[slug]].ts` ile aynı index matematiğini (`scripts/lib/programmatic-slug-resolver.mjs`) kullanarak linkin doğrudan kanonik (Slot 0) hedefe mi yoksa 301/404'e mi gittiğini doğrular. Uygulama içinde eski URL'ye giden tek bir link kalsa bile build'i kırar. |
+| **B. XML Site Haritaları** | `scripts/canonical-spotcheck.mjs` (§ "Verify no legacy sitemap URL leaks") + `scripts/slug-parity-check.mjs` (madde D) | Sitemap'lerdeki her `<loc>` kanonik slug'a (200 OK) çözülüyor mu, eski `/sitemap.xml` sızıntısı var mı diye kontrol eder. |
+| **C. Self-referencing Canonical** | `scripts/canonical-spotcheck.mjs` (§1-2) | Her statik sayfa + deterministik `/k/*` örneklemi, isteğin yapıldığı URL ile birebir aynı `<link rel="canonical">` üretiyor mu diye doğrular. |
+| **D. GSC/Bing süreci** | Kod dışı, operasyonel | §4'teki adım listesi (Canlı URL testi → Doğrulamayı Başlat → öncelikli sitemap gönder → haftalar/aylar süren kademeli yeniden-tarama bekle) hâlâ geçerli; hiçbir kod değişikliği bu süreyi anında sıfıra indiremez. |
+
+`scripts/postbuild.mjs` bu guard'ların tamamını **hard failure** olarak işaretler
+(`hardFailures` listesi) — herhangi biri kırılırsa `npm run build` sıfırdan farklı bir
+çıkış koduyla biter ve deploy'u durdurur, böylece A/B/C maddelerindeki bir regresyon
+production'a hiç ulaşmaz.

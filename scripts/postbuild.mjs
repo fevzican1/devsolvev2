@@ -102,6 +102,18 @@ try {
   hardFailures.push('slug-parity-check');
 }
 
+// "Kontrol A" — application-wide internal-link audit. Sitemaps and the
+// resolver can be clean while a hub widget still *links* to a legacy /k/*
+// URL that only resolves via a 301, silently burning crawl budget on every
+// re-crawl. See scripts/internal-link-redirect-audit.mjs.
+try {
+  console.log('Running internal link redirect audit (crawl-budget guard)...');
+  execSync(`node ${join(__dirname, 'internal-link-redirect-audit.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('Internal link redirect audit found non-canonical links — see out/reports/internal-link-audit.txt');
+  hardFailures.push('internal-link-redirect-audit');
+}
+
 try {
   console.log('Running quality corpus audit (90-point enforcement)...');
   execSync(`node --import tsx ${join(__dirname, 'quality-corpus-audit.mjs')}`, { stdio: 'inherit' });
