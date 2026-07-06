@@ -67,6 +67,40 @@ try {
   console.log('Programmatic sitemap generation completed with warnings');
 }
 
+// AI Quality & Indexing Engine — build-time-only quality gate over the
+// ALREADY-EXPORTED static HTML (out/k/**/*.html). Scores every programmatic
+// page 0-100 against thin-content / keyword-stuffing / gibberish heuristics,
+// auto-heals sub-75 pages in place, and soft-isolates (noindex, still 200)
+// any page that still fails — see scripts/ai-quality-gatekeeper.mjs. This is
+// SOFT-ISOLATED by design: a content-quality issue must never fail the build
+// (hence no push to hardFailures here), it only ever narrows what gets
+// submitted for indexing.
+try {
+  console.log('Running AI Quality Gatekeeper (build-time heuristic scoring + auto-heal)...');
+  execSync(`node ${join(__dirname, 'ai-quality-gatekeeper.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('AI Quality Gatekeeper completed with warnings — see out/reports/ai-quality-gatekeeper.txt');
+}
+
+// Chunked (max 40k URLs/file) sitemaps built ONLY from AI-quality-eligible
+// URLs, wired into the existing sitemap-index*.xml.
+try {
+  console.log('Generating AI-quality-gated sitemap chunks...');
+  execSync(`node ${join(__dirname, 'generate-ai-quality-sitemaps.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('AI-quality sitemap generation completed with warnings');
+}
+
+// Immediately notify Bing/IndexNow about the small diff of new-or-changed,
+// AI-quality-approved URLs for this build. Zero Cloudflare Worker cost,
+// best-effort (never blocks the deploy).
+try {
+  console.log('Submitting new/changed AI-quality-approved URLs to IndexNow...');
+  execSync(`node ${join(__dirname, 'ai-quality-indexnow-submit.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('AI-quality IndexNow submission completed with warnings');
+}
+
 // RSS syndication feed — a STATIC file built from the already-generated,
 // parity-checked priority/programmatic sitemaps (so it can never drift from the
 // resolver). Feeds are a first-class discovery signal for Google & Bing and a
@@ -100,6 +134,18 @@ try {
 } catch (error) {
   console.log('Slug parity guard reported drift — see logs above (mass-deindex risk)');
   hardFailures.push('slug-parity-check');
+}
+
+// "Kontrol A" — application-wide internal-link audit. Sitemaps and the
+// resolver can be clean while a hub widget still *links* to a legacy /k/*
+// URL that only resolves via a 301, silently burning crawl budget on every
+// re-crawl. See scripts/internal-link-redirect-audit.mjs.
+try {
+  console.log('Running internal link redirect audit (crawl-budget guard)...');
+  execSync(`node ${join(__dirname, 'internal-link-redirect-audit.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('Internal link redirect audit found non-canonical links — see out/reports/internal-link-audit.txt');
+  hardFailures.push('internal-link-redirect-audit');
 }
 
 try {

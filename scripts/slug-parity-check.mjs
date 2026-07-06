@@ -67,6 +67,31 @@ const KNOWN_LIVE_TEST_REDIRECT_REPORTS = [
   'encoding-encode-data-qa-engineer-prepare-query-parameters-url-encode-decode-2106035',
 ];
 
+/**
+ * Fixed regression fixtures: legacy-shape /k/* slugs (full cluster-intent-
+ * audience-task-tool stem matches a real current combination, but the
+ * trailing number does not decode to that same tuple under today's index
+ * arithmetic) that Google/Bing reported as "Page with redirect" and, on the
+ * same stems, as "content quality" / duplicate issues after a corpus-size
+ * update shifted what each index number decodes to. Root cause: these slugs
+ * fall through to `tryResolveLegacyProgrammaticSlug()`, which used to pick a
+ * modifier slot via `legacyModifierSuffix % MODIFIERS_COUNT` — an arbitrary,
+ * per-number choice that scattered many different legacy numbers for the
+ * *same* stem across many different 301 targets (near-duplicate content,
+ * "Google chose different canonical"). The resolver now always redirects a
+ * given stem to modifier slot 0, so every legacy number for the same stem
+ * converges on ONE stable canonical URL. These fixtures pin that
+ * convergence so a regression (e.g. reintroducing the modulo pick) fails
+ * this check immediately.
+ */
+const KNOWN_SCATTERED_LEGACY_REDIRECT_REPORTS = [
+  'text-split-text-by-delimiter-security-conscious-developer-prepare-api-response-diff-checker-6130393',
+  'web-protect-against-xss-security-conscious-developer-prepare-api-response-html-entity-encode-decode-16394709',
+  'text-split-text-by-delimiter-security-conscious-developer-clean-up-payload-diff-checker-6130554',
+  'api-parse-webhook-payload-backend-engineer-inspect-encoded-payload-jwt-decoder-9539478',
+  'formatting-compress-stylesheet-database-administrator-review-config-change-css-minifier-7966530',
+];
+
 const failures = [];
 const notes = [];
 function fail(msg) { failures.push(msg); }
@@ -148,6 +173,41 @@ for (const [label, file] of Object.entries(SOURCES)) {
     if (!u[key] || u[key].length === 0) fail(`Could not extract "${key}" from ${label} (${file}).`);
   }
   universes[label] = u;
+}
+
+/* ----------------------------------------------------------------- */
+/*  A2. Legacy-resolver "fixed modifier slot" invariant (source-level) */
+/* ----------------------------------------------------------------- */
+// tryResolveLegacyProgrammaticSlug() MUST resolve every legacy number for a
+// given cluster-intent-audience-task-tool stem to the SAME modifier slot
+// (slot 0). Picking the modifier from the legacy number itself (e.g.
+// `legacyModifierSuffix % MODIFIERS_COUNT`) scatters different legacy
+// numbers for the same stem across many different 301 targets — the exact
+// "flood of redirects" + "duplicate, Google chose different canonical"
+// reports this guard exists to prevent. This is checked directly against the
+// source text (not just the JS mirror below) so a regression is caught even
+// if nobody updates the mirror in this file.
+if (existsSync(SOURCES.function)) {
+  const functionSrc = readFileSync(SOURCES.function, 'utf8');
+  const fnMatch = /function tryResolveLegacyProgrammaticSlug\([\s\S]*?\n}/.exec(functionSrc);
+  if (!fnMatch) {
+    fail('Could not locate tryResolveLegacyProgrammaticSlug() in functions/k/[[slug]].ts to verify the fixed-modifier invariant.');
+  } else {
+    const body = fnMatch[0]
+      // Strip `//` line comments before pattern-matching so this guard checks
+      // executable code only, not prose that happens to mention the pattern.
+      .split('\n').map((line) => line.replace(/\/\/.*$/, '')).join('\n');
+    if (/legacyModifierSuffix\s*%\s*MODIFIERS_COUNT/.test(body)) {
+      fail('tryResolveLegacyProgrammaticSlug() derives modifierIndex from the legacy number ' +
+        '(`legacyModifierSuffix % MODIFIERS_COUNT`) again. This scatters legacy redirects for ' +
+        'the same stem across many targets — reintroducing the reported redirect/duplicate-content regression.');
+    } else if (!/const\s+modifierIndex\s*=\s*0\s*;/.test(body)) {
+      fail('tryResolveLegacyProgrammaticSlug() no longer pins modifierIndex to a fixed slot (0). ' +
+        'Verify legacy redirects for the same stem still converge on one canonical target.');
+    } else {
+      note('tryResolveLegacyProgrammaticSlug() pins modifierIndex to a fixed slot — legacy redirects converge per stem.');
+    }
+  }
 }
 
 /* ----------------------------------------------------------------- */
@@ -240,6 +300,41 @@ if (U && U.clusters && U.audiences && U.tasks && U.exec && U.delivery) {
     return expected === slug;
   }
 
+  // Local mirror of tryResolveLegacyProgrammaticSlug(): parses a
+  // cluster-intent-audience-task-tool stem out of a shape-valid slug whose
+  // trailing number does NOT self-resolve, and rebuilds the canonical target
+  // the Function would 301 to (always modifier slot 0 — see functions/k/[[slug]].ts).
+  const sortedIntents = Array.from(new Set(U.clusters.flatMap((c) => c.intents))).sort((a, b) => b.length - a.length);
+  const sortedAudiences = [...U.audiences].sort((a, b) => b.length - a.length);
+  const sortedTasks = [...U.tasks].sort((a, b) => b.length - a.length);
+  function legacyRedirectTarget(slug) {
+    const m = slug.match(/^(.*)-([0-9]+)$/);
+    if (!m) return undefined;
+    const stem = m[1];
+    const cluster = U.clusters.find((c) => stem.startsWith(`${c.key}-`));
+    if (!cluster) return undefined;
+    let cursor = stem.slice(cluster.key.length + 1);
+    const intent = sortedIntents.find((c) => cursor.startsWith(`${c}-`));
+    if (!intent) return undefined;
+    cursor = cursor.slice(intent.length + 1);
+    const audience = sortedAudiences.find((c) => cursor.startsWith(`${c}-`));
+    if (!audience) return undefined;
+    cursor = cursor.slice(audience.length + 1);
+    const task = sortedTasks.find((c) => cursor.startsWith(`${c}-`));
+    if (!task) return undefined;
+    cursor = cursor.slice(task.length + 1);
+    const tool = cluster.tools.find((c) => c === cursor);
+    if (!tool) return undefined;
+    const pairIndex = toolIntentPairs.findIndex(
+      (p) => p.clusterKey === cluster.key && p.intent === intent && p.tool === tool,
+    );
+    if (pairIndex < 0) return undefined;
+    const audienceIndex = U.audiences.indexOf(audience);
+    const taskIndex = U.tasks.indexOf(task);
+    const remappedIndex = pairIndex * PER_PAIR + audienceIndex * TSK * MOD + taskIndex * MOD + 0;
+    return slugForIndex(remappedIndex);
+  }
+
   // C. Deterministic spread of indices must round-trip.
   const probeIndices = new Set([0, 1, PER_PAIR - 1, PER_PAIR, TOTAL - 1]);
   for (let k = 0; k < 50; k += 1) {
@@ -305,6 +400,51 @@ if (U && U.clusters && U.audiences && U.tasks && U.exec && U.delivery) {
   }
   if (redirectRegressions === 0) {
     note(`${KNOWN_LIVE_TEST_REDIRECT_REPORTS.length} pinned Bing Live-Test fixtures self-resolve with no redirect.`);
+  }
+
+  // F. Scattered-legacy-redirect regression fixtures. These slugs are
+  // legacy-shape (full stem matches a real tuple, trailing number does not
+  // self-resolve) so `resolves()` is expected to be false for them — the
+  // Function legitimately 301s them. What must NOT regress is *where* they
+  // 301 to: every one of these must land on modifier slot 0 for its stem, and
+  // two different legacy numbers sharing the same stem must converge on the
+  // exact same target. If a future change reintroduces a per-number modifier
+  // pick (e.g. `suffix % MODIFIERS_COUNT`), these targets would scatter again
+  // — reproducing the reported flood of 301s plus near-duplicate "different
+  // canonical chosen" content across many targets for the same topic.
+  let scatterRegressions = 0;
+  for (const slug of KNOWN_SCATTERED_LEGACY_REDIRECT_REPORTS) {
+    if (resolves(slug)) {
+      // No longer expected to be legacy-shaped — fine, it now self-resolves.
+      continue;
+    }
+    const target = legacyRedirectTarget(slug);
+    if (!target) {
+      scatterRegressions += 1;
+      fail(`Legacy-shape slug no longer produces a redirect target at all: ${slug}`);
+      continue;
+    }
+    if (!resolves(target)) {
+      scatterRegressions += 1;
+      fail(`Legacy redirect target does not itself self-resolve (redirect loop risk): ${slug} -> ${target}`);
+    }
+  }
+  // Convergence: two different legacy numbers on the SAME stem must produce
+  // the SAME redirect target (single canonical per topic).
+  for (const slug of KNOWN_SCATTERED_LEGACY_REDIRECT_REPORTS) {
+    const stem = slug.replace(/-[0-9]+$/, '');
+    const altSlug = `${stem}-1`;
+    if (altSlug === slug) continue;
+    const targetA = legacyRedirectTarget(slug);
+    const targetB = legacyRedirectTarget(altSlug);
+    if (targetA && targetB && targetA !== targetB) {
+      scatterRegressions += 1;
+      fail(`Same stem "${stem}" converges to different targets depending on the legacy ` +
+        `number (${slug} -> ${targetA}, ${altSlug} -> ${targetB}) — the scattered-redirect regression.`);
+    }
+  }
+  if (scatterRegressions === 0) {
+    note(`${KNOWN_SCATTERED_LEGACY_REDIRECT_REPORTS.length} pinned scattered-legacy-redirect fixtures converge on stable, single canonical targets.`);
   }
 }
 
