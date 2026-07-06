@@ -1,0 +1,38 @@
+name: Cloudflare Pages — production deploy
+# Triggers a Cloudflare Pages production deploy every time a commit lands on
+# the repository's default branch (e.g. a PR merge), independent of the
+# weekly Ramp Auto-Advance gate.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  push:
+    branches:
+      - $default-branch
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger Cloudflare Pages deploy hook
+        env:
+          CLOUDFLARE_DEPLOY_HOOK_URL: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$CLOUDFLARE_DEPLOY_HOOK_URL" ]; then
+            echo "CLOUDFLARE_DEPLOY_HOOK_URL secret is not set — skipping deploy trigger."
+            echo "Add it in: Settings → Secrets and variables → Actions → Repository secrets → CLOUDFLARE_DEPLOY_HOOK_URL"
+            exit 0
+          fi
+          echo "Triggering Cloudflare Pages production deploy..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$CLOUDFLARE_DEPLOY_HOOK_URL")
+          if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
+            echo "Deploy hook triggered successfully (HTTP $HTTP_STATUS)"
+          else
+            echo "Deploy hook returned HTTP $HTTP_STATUS — check CLOUDFLARE_DEPLOY_HOOK_URL"
+            exit 1
+          fi
