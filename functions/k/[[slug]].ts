@@ -1182,12 +1182,20 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
   const taskIndex = tasks.indexOf(task);
   if (audienceIndex < 0 || taskIndex < 0) return undefined;
 
-  // The old suffix can exceed today's modifier count, so modulo folds it back into
-  // the valid modifier slot range for the reconstructed pair/audience/task block.
-  // Multiple legacy suffixes can converge onto one canonical modifier because the
-  // old format only expressed coarse position, not exact modifier identity, so this
-  // intentional collision keeps old URLs crawlable without inventing new pages.
-  const modifierIndex = MODIFIERS_COUNT > 0 ? legacyModifierSuffix % MODIFIERS_COUNT : 0;
+  // The legacy suffix never carried real modifier identity (it was a raw
+  // trailing number from a previous slug format/corpus size), so it cannot be
+  // trusted to pick a modifier slot. Deriving the modifier via a modulo of
+  // that raw legacy number here previously scattered different legacy numbers for the *same* stem
+  // (cluster+intent+audience+task+tool) across up to MODIFIERS_COUNT different
+  // "canonical" targets — every legacy URL sharing that stem 301-ed to a
+  // different destination. That is exactly the pattern Google/Bing reported:
+  // a flood of 301s ("Page with redirect") plus near-duplicate content across
+  // those scattered targets ("Duplicate, Google chose different canonical").
+  // Always resolving to modifier slot 0 makes every legacy URL for a given
+  // stem converge on the SAME single canonical page, matching Google's/Bing's
+  // guidance to consolidate duplicates behind one stable canonical URL instead
+  // of fanning them out across many near-identical redirect targets.
+  const modifierIndex = 0;
   // Rebuild the canonical absolute page index from the legacy slug parts:
   // pair block offset + audience block offset + task block offset + modifier slot.
   const remappedIndex =
