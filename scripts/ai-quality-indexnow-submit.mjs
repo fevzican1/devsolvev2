@@ -77,6 +77,11 @@ async function main() {
     return;
   }
 
+  if (!API_KEY) {
+    console.warn('[ai-quality-indexnow-submit] no INDEXNOW_KEY resolved (env var unset and no key verification file found) — skipping submission.');
+    return;
+  }
+
   console.log(`[ai-quality-indexnow-submit] ${urls.length} new/changed AI-quality-approved URL(s) to submit.`);
 
   if (DRY_RUN) {
