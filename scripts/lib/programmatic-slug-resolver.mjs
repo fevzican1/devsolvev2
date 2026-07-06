@@ -108,8 +108,9 @@ export function buildProgrammaticSlugResolver(functionFile) {
   // impractical to `import` directly from a plain Node script, so every
   // build-time guard re-derives the same formula from the source text
   // instead. Keep this in lockstep with the Function whenever its
-  // `buildSlug()` changes — `scripts/slug-parity-check.mjs` cross-checks the
-  // combinatorial arrays across sources on every build to catch drift.
+  // `buildSlug()` changes — `scripts/slug-parity-check.mjs` (see its
+  // "A. Cross-source parity" section) cross-checks the combinatorial arrays
+  // across sources on every build to catch drift.
   const buildSlug = (clusterKey, intent, audience, task, tool, index) =>
     [clusterKey, intent, audience, task, tool]
       .join('-').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + `-${index}`;

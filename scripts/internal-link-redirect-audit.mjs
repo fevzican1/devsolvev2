@@ -74,7 +74,10 @@ if (!resolver) {
   process.exit();
 }
 
-const HREF_RE = /href=["'](\/k\/[a-z0-9-]+)["']/gi;
+// Matches quoted hrefs (`href="/k/slug"`) — what Next.js/React always emits
+// — and, defensively, unquoted hrefs (`href=/k/slug`), which HTML5 permits
+// when the value contains no whitespace.
+const HREF_RE = /href=(?:["'](\/k\/[a-z0-9-]+)["']|(\/k\/[a-z0-9-]+)(?=[\s/>]))/gi;
 
 const htmlFiles = collectHtmlFiles(outDir);
 // slug -> Set of example source files that link to it (kept small)
@@ -87,7 +90,7 @@ for (const file of htmlFiles) {
   HREF_RE.lastIndex = 0;
   while ((match = HREF_RE.exec(html)) !== null) {
     totalLinkOccurrences += 1;
-    const path = match[1];
+    const path = match[1] || match[2];
     const slug = path.replace(/^\/k\//, '');
     if (!slugSources.has(slug)) slugSources.set(slug, new Set());
     const sources = slugSources.get(slug);
@@ -134,7 +137,9 @@ if (brokenOrRedirecting.length > 0) {
 console.log('================================================================');
 
 const reportsDir = join(outDir, 'reports');
-try { mkdirSync(reportsDir, { recursive: true }); } catch {}
+try { mkdirSync(reportsDir, { recursive: true }); } catch (error) {
+  if (error?.code !== 'EEXIST') console.error(`Could not create ${reportsDir}: ${error?.message ?? error}`);
+}
 
 const report = {
   generatedAt: new Date().toISOString(),
