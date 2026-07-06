@@ -235,6 +235,9 @@ const HEAL_TEMPLATES = [
 
 function computeSlugSeed(input) {
   let hash = 0;
+  // 31 is the classic small-prime multiplier used by string hash functions
+  // (e.g. Java's String.hashCode()) — it spreads bits well while staying
+  // cheap to compute, which is all that's needed for a deterministic seed.
   for (let i = 0; i < input.length; i += 1) {
     hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
   }
