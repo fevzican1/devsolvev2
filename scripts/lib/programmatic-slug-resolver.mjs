@@ -102,6 +102,14 @@ export function buildProgrammaticSlugResolver(functionFile) {
   const PER_PAIR = AUD * TSK * MOD;
   const TOTAL = toolIntentPairs.length * PER_PAIR;
 
+  // Deliberately duplicates `buildSlug()` from `functions/k/[[slug]].ts`
+  // (and its mirror in scripts/slug-parity-check.mjs) rather than importing
+  // it: the Function's `[[slug]].ts` filename and Worker-only types make it
+  // impractical to `import` directly from a plain Node script, so every
+  // build-time guard re-derives the same formula from the source text
+  // instead. Keep this in lockstep with the Function whenever its
+  // `buildSlug()` changes — `scripts/slug-parity-check.mjs` cross-checks the
+  // combinatorial arrays across sources on every build to catch drift.
   const buildSlug = (clusterKey, intent, audience, task, tool, index) =>
     [clusterKey, intent, audience, task, tool]
       .join('-').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + `-${index}`;

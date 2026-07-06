@@ -11,7 +11,7 @@
  * crawl of that page re-teaches Googlebot/Bingbot the old URL and burns
  * crawl budget that should go to new/updated canonical pages.
  *
- * This guard scans the FINAL STATIC EXPORT (`out/**\/*.html` — exactly what
+ * This guard scans the FINAL STATIC EXPORT (`out/` directory — exactly what
  * ships to the CDN and what bots actually parse) for every internal
  * `/k/<slug>` href and verifies, using the same index math the Pages
  * Function uses (see scripts/lib/programmatic-slug-resolver.mjs), that the
