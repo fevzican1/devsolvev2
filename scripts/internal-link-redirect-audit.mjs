@@ -99,7 +99,7 @@ console.log('================================================================');
 console.log(`HTML files scanned:        ${htmlFiles.length}`);
 console.log(`/k/* href occurrences:     ${totalLinkOccurrences}`);
 console.log(`Unique /k/* link targets:  ${uniqueSlugs.length}`);
-console.log(`Unexported (404):           ${unexportedLinks.length}`);
+console.log(`Unexported (404):          ${unexportedLinks.length}`);
 console.log('----------------------------------------------------------------');
 
 if (unexportedLinks.length > 0) {

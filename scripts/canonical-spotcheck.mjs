@@ -186,7 +186,8 @@ function checkStaticSitemap() {
     locs.length > 0 && locs.every((loc) => {
       try {
         const parsed = new URL(loc);
-        return `${parsed.protocol}//${parsed.host}` === siteUrl && existsSync(join(outDir, parsed.pathname));
+        return `${parsed.protocol}//${parsed.host}` === siteUrl
+          && existsSync(join(outDir, parsed.pathname.replace(/^\//, '')));
       } catch {
         return false;
       }

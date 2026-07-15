@@ -67,7 +67,7 @@ try {
   console.log('Generating static sitemap index from quality-approved exported pages...');
   execSync(`node ${join(__dirname, 'generate-ai-quality-sitemaps.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
-  console.log('Static quality sitemap generation failed');
+  console.log('generate-ai-quality-sitemaps failed');
   hardFailures.push('generate-ai-quality-sitemaps');
 }
 

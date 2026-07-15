@@ -90,8 +90,8 @@ const INDEXNOW_ENDPOINT = process.env.INDEXNOW_ENDPOINT || 'https://api.indexnow
 // Streaming-compliant defaults (Bing WMT flags "bulk submission mode"): small
 // batches, a tiny per-run trickle, slower pacing. The full 18M corpus is
 // discovered via the SITEMAP; IndexNow only streams a small high-value set.
-const BATCH_SIZE = 100;
-const MAX_PER_RUN = 100;
+const MAX_PER_RUN = clampInt(process.env.INDEXNOW_MAX_PER_RUN, 100, 1, 100);
+const BATCH_SIZE = Math.min(clampInt(process.env.INDEXNOW_BATCH_SIZE, 100, 1, 100), MAX_PER_RUN);
 const DELAY_MS = clampInt(process.env.INDEXNOW_DELAY_MS, 2000, 0, 60_000);
 const MAX_RETRIES = 4;
 const DRY_RUN = process.env.INDEXNOW_DRY_RUN === '1' || process.env.INDEXNOW_DRY_RUN === 'true';
