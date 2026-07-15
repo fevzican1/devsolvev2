@@ -10,7 +10,7 @@ interface PagesContext {
   next(): Promise<Response>;
 }
 
-const ORIGIN = 'https://devsolvev2.com';
+const ORIGIN = process.env.SITE_URL || process.env.URL || 'https://devsolvev2.com';
 const URLS_PER_SITEMAP = 50_000;
 const TARGET_CORPUS_SIZE = 20_000_000;
 const STREAM_CHUNK_SIZE = 250;
@@ -82,7 +82,34 @@ function contentHeaders(type: string, cache = 'public, max-age=300, s-maxage=604
 
 function redirect(url: URL): Response {
   url.search = '';
+  url.hash = '';
   return Response.redirect(url.toString(), 301);
+}
+
+function stableHash(input: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function resolvePageForSlug(slug: string): NonNullable<ReturnType<typeof pageForIndex>> | undefined {
+  const suffix = slug.match(/-(\d+)$/);
+  if (suffix) {
+    const index = Number(suffix[1]);
+    const page = pageForIndex(index);
+    if (page?.slug === slug) return page;
+  }
+
+  const segments = slug.split('-');
+  if (segments.length >= 5 && segments.every((segment) => segment.length > 0)) {
+    const index = stableHash(slug) % CORPUS_SIZE;
+    return pageForIndex(index);
+  }
+
+  return undefined;
 }
 
 function pageResponse(page: NonNullable<ReturnType<typeof pageForIndex>>): Response {
@@ -142,9 +169,8 @@ export const onRequest = async (context: PagesContext): Promise<Response> => {
   }
   const match = pathname.match(/^\/k\/([a-z0-9-]+)$/);
   if (match) {
-    const suffix = match[1].match(/-(\d+)$/);
-    const page = suffix ? pageForIndex(Number(suffix[1])) : undefined;
-    if (page?.slug === match[1]) return pageResponse(page);
+    const page = resolvePageForSlug(match[1]);
+    if (page) return pageResponse(page);
     return new Response('Not Found', { status: 404, headers: contentHeaders('text/plain; charset=utf-8', 'public, max-age=60') });
   }
   return context.next();
