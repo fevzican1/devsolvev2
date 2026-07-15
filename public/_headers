@@ -27,7 +27,7 @@
   Cloudflare-CDN-Cache-Control: max-age=86400
   Content-Type: application/xml; charset=utf-8
 
-/sitemap-index.xml
+/sitemap.xml
   Cache-Control: public, max-age=86400, s-maxage=86400
   CDN-Cache-Control: max-age=86400
   Cloudflare-CDN-Cache-Control: max-age=86400
@@ -65,10 +65,10 @@
   Cloudflare-CDN-Cache-Control: max-age=3600
   Content-Type: application/rss+xml; charset=utf-8
 
-# /k/* is exported at build time and served as static CDN assets. Long-lived
-# caching eliminates origin work and there is no runtime Function fallback.
+# /k/* is resolved deterministically by the Pages Function. Cloudflare caches
+# the canonical HTML at the edge; no origin storage or database is involved.
 /k/*
-  Cache-Control: public, max-age=86400, s-maxage=31536000, immutable
+  Cache-Control: public, max-age=300, s-maxage=31536000, immutable
   CDN-Cache-Control: max-age=31536000, immutable
   X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1
 

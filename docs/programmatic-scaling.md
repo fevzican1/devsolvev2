@@ -1,39 +1,40 @@
-## Programmatic Scaling — Static-Only Architecture (DevSolve)
+## Programmatic Scaling — Edge Corpus Architecture (DevSolve)
 
-The production deployment is static-only. Cloudflare Pages serves files from
-`out/`; the repository does not deploy a `functions/` directory, Pages
-Functions, Workers, or an on-demand fallback for `/k/*`.
+Cloudflare Pages serves static files from `out/` and the dependency-free Pages
+Function at `functions/[[path]].ts` resolves the long-tail programmatic corpus.
+It uses no bindings, R2, KV, database, npm package, or network request.
 
 ## How it works
 
-1. `next build` exports the selected `/k/*` pages as HTML.
-2. The build-time quality gate scores every exported `/k/*` page.
-3. Pages that fail the gate are marked `noindex,follow` and omitted from the
-   programmatic sitemap.
-4. `generate-ai-quality-sitemaps.mjs` writes `out/sitemap.xml` and its child
-   sitemap files only from exported, quality-approved URLs.
-5. Internal-link and canonical checks fail the build if a linked `/k/*` route
-   has no exported HTML or if a sitemap entry does not point to a static file.
+1. `next build` exports the editorial and priority pages as HTML.
+2. `functions/[[path]].ts` maps each `/k/[slug]` suffix to a corpus ordinal,
+   reconstructs its canonical slug from in-memory dimensions, and rejects a
+   mismatched slug with 404.
+3. `/sitemap.xml` returns a 400-entry sitemap index and
+   `/sitemaps/sitemap-1.xml` through `/sitemaps/sitemap-400.xml` stream 50,000
+   canonical URLs each from ordinal arithmetic.
+4. Requests to `/k/*` and sitemap endpoints with query strings receive a 301
+   to the query-free canonical URL.
 
-This means Googlebot and Bingbot only discover URLs that the deployed static
-artifact can serve. No crawl request can cold-start application code or consume
-Cloudflare Function resources.
+This means Googlebot and Bingbot discover only URLs the deterministic resolver
+can serve. Sitemap XML is streamed in small chunks rather than materializing a
+50,000-URL string in memory.
 
 ## Caching
 
-`public/_headers` gives exported `/k/*` pages long CDN cache lifetimes. The
-first request is still a static-asset retrieval, not a runtime invocation.
+`public/_headers` and the Function response headers give `/k/*` and sitemap
+responses long Cloudflare edge cache lifetimes. On a cache hit, no Function
+execution occurs.
 
 ## Indexing limits
 
 Search engines independently decide whether and when to index a crawlable page;
-no implementation can guarantee indexing. The build can guarantee that its
-sitemap contains only valid, canonical, indexable static output and that
-Google/Bing receive no URL which depends on a Cloudflare Function.
+no implementation can guarantee indexing. The resolver guarantees sitemap URLs
+are canonical and deterministically valid, but not a search-engine indexing
+outcome.
 
 ## Operational checks
 
-Run `npm run lint`, `npm run typecheck`, and `npm run build`. The build runs the
-AI quality gate, static sitemap generation, canonical validation, internal-link
-validation, and the indexability audit. The indexability audit fails if runtime
-Function source is added back under `functions/`.
+Run `npm run lint`, `npm run typecheck`, and `npm run build`. The build retains
+quality checks for statically-exported pages; route behavior for the dynamic
+corpus is validated separately from the standalone edge resolver.

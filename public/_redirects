@@ -10,7 +10,6 @@
 # IMPORTANT: scripts/generate-programmatic-sitemaps.mjs rewrites the index-target
 # lines below (in out/_redirects) to match SITEMAP_INDEX_NAME during the build,
 # so bumping the sitemap version never silently re-breaks these legacy redirects.
-/sitemap.xml            /sitemap-main-pages.xml            301
 /sitemap_index.xml      /sitemap-index-2026-06-v3.xml      301
 /sitemaps.xml           /sitemap-index-2026-06-v3.xml      301
 /sitemap-programmatic-0008.xml  /sitemap-tier2-0008.xml      301

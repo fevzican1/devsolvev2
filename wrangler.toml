@@ -3,4 +3,5 @@ name = "devsolvev2"
 compatibility_date = "2026-04-18"
 pages_build_output_dir = "out"
 
-# This deployment contains only static assets; no Pages Functions are deployed.
+# Static assets are served directly by Pages. `functions/[[path]].ts` adds
+# deterministic, dependency-free edge handling only for /k/* and sitemaps.

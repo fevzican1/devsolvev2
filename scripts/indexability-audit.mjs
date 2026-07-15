@@ -172,16 +172,22 @@ function auditSitemaps() {
   }
 }
 
-/* 5. Runtime function guard */
-function auditNoRuntimeFunctions() {
-  const functionsDir = join(projectRoot, 'functions');
-  if (!existsSync(functionsDir)) return;
-  const hasFunctionSource = (dir) => readdirSync(dir).some((name) => {
-    const file = join(dir, name);
-    return statSync(file).isDirectory() ? hasFunctionSource(file) : /\.(?:ts|mts|js|mjs)$/i.test(name);
-  });
-  if (hasFunctionSource(functionsDir)) {
-    record('CRITICAL', 'functions', functionsDir, 'functions/ contains runtime source; Cloudflare Pages would deploy it.');
+/* 5. Edge corpus route guard */
+function auditEdgeCorpusFunction() {
+  const file = join(projectRoot, 'functions', '[[path]].ts');
+  if (!existsSync(file)) {
+    record('CRITICAL', 'functions', file, 'Deterministic edge corpus route is missing.');
+    return;
+  }
+  const txt = readFileSync(file, 'utf8');
+  stats.filesScanned += 1;
+  for (const marker of ['CORPUS_SIZE = 20_000_000', 'URLS_PER_SITEMAP = 50_000', "pathname === '/sitemap.xml'", "pathname.startsWith('/k/') && url.search"]) {
+    if (!txt.includes(marker)) {
+      record('CRITICAL', 'functions', file, `Edge corpus route is missing required invariant: ${marker}`);
+    }
+  }
+  if (/\b(?:fetch|KVNamespace|R2Bucket|D1Database)\b/.test(txt)) {
+    record('CRITICAL', 'functions', file, 'Edge corpus route must not use external storage or network fetches.');
   }
 }
 
@@ -217,7 +223,7 @@ auditRobotsTxt();
 auditHeaders();
 auditAppPages();
 auditSitemaps();
-auditNoRuntimeFunctions();
+auditEdgeCorpusFunction();
 auditRedirects();
 auditNextConfig();
 
@@ -273,8 +279,8 @@ for (const level of ['CRITICAL', 'WARNING', 'INFO']) {
 console.log('\n================================================================');
 if (!grouped.CRITICAL.length) {
   console.log('  RESULT: PASS — No critical indexability issues found.');
-  console.log('  Every indexed page is a build-exported static document; no Cloudflare');
-  console.log('  Pages Function is deployed or invoked for crawling.');
+  console.log('  Programmatic URLs are resolved by the dependency-free Pages edge');
+  console.log('  function; static routes continue to be served from the build output.');
 } else {
   console.log('  RESULT: FAIL — Critical issues require fixes (see above).');
 }

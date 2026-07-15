@@ -255,6 +255,6 @@ Disallow: /*?*utm_
 #   https://devsolvev2.com/ee5098cac2284d92b6ee1c9fca52a120.txt
 # scripts/indexnow-ping.mjs submits the URL corpus to api.indexnow.org.
 
-# Static sitemap index — generated during the build from quality-approved,
-# exported pages only.
+# Deterministic edge sitemap index — every entry resolves to a canonical,
+# storage-free programmatic URL.
 Sitemap: https://devsolvev2.com/sitemap.xml
