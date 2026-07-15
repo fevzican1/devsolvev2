@@ -10,7 +10,6 @@ interface PagesContext {
   next(): Promise<Response>;
 }
 
-const ORIGIN = process.env.SITE_URL || process.env.URL || 'https://devsolvev2.com';
 const URLS_PER_SITEMAP = 50_000;
 const TARGET_CORPUS_SIZE = 20_000_000;
 const STREAM_CHUNK_SIZE = 250;
@@ -40,7 +39,8 @@ const CORPUS_SIZE = Math.min(TARGET_CORPUS_SIZE, RAW_CORPUS_SIZE);
 // non-50K-aligned universe would publish sitemap entries the resolver cannot
 // represent, so fail deployment rather than serve inconsistent SEO routes.
 if (CORPUS_SIZE !== TARGET_CORPUS_SIZE || CORPUS_SIZE % URLS_PER_SITEMAP !== 0) {
-  throw new Error(`The embedded corpus must contain exactly ${TARGET_CORPUS_SIZE.toLocaleString('en-US')} URLs in complete sitemap chunks.`);
+  console.error(`Programmatic corpus invariant failed: expected ${TARGET_CORPUS_SIZE.toLocaleString('en-US')} URLs in complete sitemap chunks, received ${CORPUS_SIZE.toLocaleString('en-US')} with ${URLS_PER_SITEMAP} URLs per chunk.`);
+  throw new Error(`The embedded corpus must contain exactly ${TARGET_CORPUS_SIZE.toLocaleString('en-US')} URLs in complete sitemap chunks. Received ${CORPUS_SIZE.toLocaleString('en-US')} URLs with ${URLS_PER_SITEMAP} URLs per sitemap chunk.`);
 }
 
 function title(value: string): string {
@@ -95,6 +95,18 @@ function stableHash(input: string): number {
   return hash >>> 0;
 }
 
+function resolveOrigin(requestUrl: string): string {
+  const configuredOrigin = process.env.SITE_URL || process.env.URL;
+  if (configuredOrigin) return configuredOrigin;
+
+  const requestOrigin = new URL(requestUrl).origin;
+  if (/\.pages\.dev$/i.test(requestOrigin) || /localhost|127\.0\.0\.1/i.test(requestOrigin)) {
+    return 'https://devsolvev2.com';
+  }
+
+  return requestOrigin || 'https://devsolvev2.com';
+}
+
 function resolvePageForSlug(slug: string): NonNullable<ReturnType<typeof pageForIndex>> | undefined {
   const suffix = slug.match(/-(\d+)$/);
   if (suffix) {
@@ -105,6 +117,8 @@ function resolvePageForSlug(slug: string): NonNullable<ReturnType<typeof pageFor
 
   const segments = slug.split('-');
   if (segments.length >= 5 && segments.every((segment) => segment.length > 0)) {
+    // Keep structured /k/<stem> requests deterministic and cache-friendly without
+    // requiring any external storage or database lookups.
     const index = stableHash(slug) % CORPUS_SIZE;
     return pageForIndex(index);
   }
@@ -112,8 +126,8 @@ function resolvePageForSlug(slug: string): NonNullable<ReturnType<typeof pageFor
   return undefined;
 }
 
-function pageResponse(page: NonNullable<ReturnType<typeof pageForIndex>>): Response {
-  const canonical = `${ORIGIN}/k/${escapeHtml(page.slug)}`;
+function pageResponse(page: NonNullable<ReturnType<typeof pageForIndex>>, origin: string): Response {
+  const canonical = `${origin}/k/${escapeHtml(page.slug)}`;
   const intent = escapeHtml(title(page.intent));
   const tool = escapeHtml(title(page.tool));
   const audience = escapeHtml(title(page.audience));
@@ -124,12 +138,12 @@ function pageResponse(page: NonNullable<ReturnType<typeof pageForIndex>>): Respo
   return new Response(html, { headers: contentHeaders('text/html; charset=utf-8', 'public, max-age=300, s-maxage=31536000, stale-while-revalidate=86400') });
 }
 
-function sitemapIndexResponse(): Response {
-  const entries = Array.from({ length: CORPUS_SIZE / URLS_PER_SITEMAP }, (_, i) => `<sitemap><loc>${ORIGIN}/sitemaps/sitemap-${i + 1}.xml</loc><lastmod>${CONTENT_UPDATED_AT}</lastmod></sitemap>`).join('');
+function sitemapIndexResponse(origin: string): Response {
+  const entries = Array.from({ length: CORPUS_SIZE / URLS_PER_SITEMAP }, (_, i) => `<sitemap><loc>${origin}/sitemaps/sitemap-${i + 1}.xml</loc><lastmod>${CONTENT_UPDATED_AT}</lastmod></sitemap>`).join('');
   return new Response(`<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries}</sitemapindex>`, { headers: contentHeaders('application/xml; charset=utf-8') });
 }
 
-function sitemapResponse(part: number): Response {
+function sitemapResponse(part: number, origin: string): Response {
   const first = (part - 1) * URLS_PER_SITEMAP;
   const encoder = new TextEncoder();
   let cursor = first;
@@ -142,7 +156,7 @@ function sitemapResponse(part: number): Response {
       const end = Math.min(first + URLS_PER_SITEMAP, CORPUS_SIZE);
       for (let count = 0; cursor < end && count < STREAM_CHUNK_SIZE; cursor += 1, count += 1) {
         const page = pageForIndex(cursor);
-        if (page) xml += `<url><loc>${ORIGIN}/k/${page.slug}</loc><lastmod>${CONTENT_UPDATED_AT}</lastmod></url>`;
+        if (page) xml += `<url><loc>${origin}/k/${page.slug}</loc><lastmod>${CONTENT_UPDATED_AT}</lastmod></url>`;
       }
       if (xml) controller.enqueue(encoder.encode(xml));
       if (cursor >= end) {
@@ -156,21 +170,22 @@ function sitemapResponse(part: number): Response {
 
 export const onRequest = async (context: PagesContext): Promise<Response> => {
   const url = new URL(context.request.url);
+  const origin = resolveOrigin(context.request.url);
   const { pathname } = url;
   if (pathname.startsWith('/k/') && url.search) return redirect(url);
-  if (pathname === '/sitemap.xml') return url.search ? redirect(url) : sitemapIndexResponse();
+  if (pathname === '/sitemap.xml') return url.search ? redirect(url) : sitemapIndexResponse(origin);
   const sitemapMatch = pathname.match(/^\/sitemaps\/sitemap-(\d+)\.xml$/);
   if (sitemapMatch) {
     if (url.search) return redirect(url);
     const part = Number(sitemapMatch[1]);
     return part >= 1 && part <= CORPUS_SIZE / URLS_PER_SITEMAP
-      ? sitemapResponse(part)
+      ? sitemapResponse(part, origin)
       : new Response('Not Found', { status: 404, headers: contentHeaders('text/plain; charset=utf-8', 'public, max-age=60') });
   }
   const match = pathname.match(/^\/k\/([a-z0-9-]+)$/);
   if (match) {
     const page = resolvePageForSlug(match[1]);
-    if (page) return pageResponse(page);
+    if (page) return pageResponse(page, origin);
     return new Response('Not Found', { status: 404, headers: contentHeaders('text/plain; charset=utf-8', 'public, max-age=60') });
   }
   return context.next();
