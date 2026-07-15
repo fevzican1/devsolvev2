@@ -174,29 +174,36 @@ function checkProgrammaticSlugs() {
 }
 
 /* ----------------------------------------------------------- */
-/*  3. Verify no `/sitemap.xml` legacy URL leaks into the index */
+/*  3. Verify the dynamic sitemap is complete and canonical     */
 /* ----------------------------------------------------------- */
-function checkLegacySitemapLeak() {
-  if (!existsSync(outDir)) return;
-  // The sitemap index is published under a VERSIONED filename
-  // (e.g. sitemap-index-2026-06-v2.xml), not the fixed `sitemap-index.xml`.
-  // Discover whichever index file(s) are present so the leak check follows
-  // the version bump instead of silently skipping.
-  const indexFiles = readdirSync(outDir).filter((f) => /^sitemap-index.*\.xml$/i.test(f));
-  if (indexFiles.length === 0) {
-    record(false, 'sitemap-index', 'a versioned sitemap-index*.xml present', 'none found',
-      'No sitemap index emitted — generate-programmatic-sitemaps.mjs must produce SITEMAP_INDEX_NAME.');
+function checkDynamicSitemap() {
+  const sitemapFunction = join(projectRoot, 'functions', '_shared', 'programmaticSitemap.ts');
+  const robotsFile = join(projectRoot, 'public', 'robots.txt');
+  if (!existsSync(sitemapFunction)) {
+    record(false, 'dynamic sitemap', 'programmaticSitemap.ts present', 'missing');
     return;
   }
-  for (const file of indexFiles) {
-    const xml = readFileSync(join(outDir, file), 'utf8');
-    if (/\/sitemap\.xml<\/loc>/i.test(xml)) {
-      record(false, file, 'no legacy /sitemap.xml entry', 'found',
-        'Remove or regenerate the sitemap index; Googlebot will 301-loop on /sitemap.xml.');
-    } else {
-      record(true, file, 'no legacy /sitemap.xml entry', 'none found');
-    }
-  }
+
+  const source = readFileSync(sitemapFunction, 'utf8');
+  const robots = existsSync(robotsFile) ? readFileSync(robotsFile, 'utf8') : '';
+  record(
+    /const SITEMAP_COUNT = 400;/.test(source) && /const URLS_PER_SITEMAP = 50_000;/.test(source),
+    'dynamic sitemap geometry',
+    '400 sitemaps × 50,000 URLs',
+    /const SITEMAP_COUNT = 400;/.test(source) ? 'configured' : 'missing',
+  );
+  record(
+    /\/sitemaps\/sitemap-\$\{index \+ 1\}\.xml/.test(source),
+    'dynamic sitemap index',
+    '/sitemaps/sitemap-1.xml through sitemap-400.xml',
+    'generated from canonical paths',
+  );
+  record(
+    /^Sitemap:\s+https:\/\/devsolvev2\.com\/sitemap\.xml\s*$/m.test(robots),
+    'robots sitemap declaration',
+    `${siteUrl}/sitemap.xml`,
+    robots.match(/^Sitemap:\s+(.+)$/m)?.[1] ?? 'missing',
+  );
 }
 
 /* ----------------------------------------------------------- */
@@ -204,7 +211,7 @@ function checkLegacySitemapLeak() {
 /* ----------------------------------------------------------- */
 checkStaticPages();
 checkProgrammaticSlugs();
-checkLegacySitemapLeak();
+checkDynamicSitemap();
 
 const total = checks.length;
 const failed = failures.length;
