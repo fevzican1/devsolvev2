@@ -258,9 +258,3 @@ Disallow: /*?*utm_
 # Static sitemap index — generated during the build from quality-approved,
 # exported pages only.
 Sitemap: https://devsolvev2.com/sitemap.xml
-
-# RSS syndication feed (out/feed.xml). Google & Bing accept RSS/Atom feeds as a
-# supplementary "what's new" sitemap, which speeds discovery of fresh URLs and
-# opens a real syndication/backlink channel. Generated as a static file at build
-# time (scripts/generate-feed.mjs) — zero Cloudflare Function cost.
-Sitemap: https://devsolvev2.com/feed.xml
