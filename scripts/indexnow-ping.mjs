@@ -42,12 +42,8 @@
  *   - Talks DIRECTLY to api.indexnow.org — it never invokes a Cloudflare
  *     Pages Function, so there is ZERO Cloudflare Worker cost from this script.
  *   - When Bing later crawls notified URLs, each /k/* slug triggers at most
- *     ONE cold Function invocation per Cloudflare PoP, then the 1-year edge
- *     cache (set in functions/k/[[slug]].ts) serves all repeat crawls from CDN.
- *   - Next.js hub pages use prefetch={false} on every /k/* link so browsing
- *     static pages never silently pre-warms Function quota.
- *   - Memory-safe: sitemap files are read line-by-line (streamed), never
- *     slurped whole, so 18M URLs across hundreds of files stay flat on RAM.
+ *   - Only build-exported, quality-approved URLs are submitted.
+ *   - Memory-safe: sitemap files are read line-by-line (streamed).
  *
  * VERIFICATION
  * ------------
@@ -63,8 +59,6 @@
  *   INDEXNOW_DIR         Directory holding the generated sitemaps (default out/,
  *                        falls back to public/).
  *   INDEXNOW_ENDPOINT    IndexNow hub URL.
- *   INDEXNOW_BATCH_SIZE  URLs per request (fixed at 100).
- *   INDEXNOW_MAX_PER_RUN Rolling slice size per run (fixed at 100).
  *   INDEXNOW_DELAY_MS    Pause between requests in ms (default 2000).
  *   INDEXNOW_SOURCE=all  Submit from ALL sitemaps instead of priority-only.
  *   INDEXNOW_DRY_RUN=1   Scan + report but send nothing (no network).
@@ -90,8 +84,8 @@ const INDEXNOW_ENDPOINT = process.env.INDEXNOW_ENDPOINT || 'https://api.indexnow
 // Streaming-compliant defaults (Bing WMT flags "bulk submission mode"): small
 // batches, a tiny per-run trickle, slower pacing. The full 18M corpus is
 // discovered via the SITEMAP; IndexNow only streams a small high-value set.
-const MAX_PER_RUN = clampInt(process.env.INDEXNOW_MAX_PER_RUN, 100, 1, 100);
-const BATCH_SIZE = Math.min(clampInt(process.env.INDEXNOW_BATCH_SIZE, 100, 1, 100), MAX_PER_RUN);
+const MAX_PER_RUN = 100;
+const BATCH_SIZE = 100;
 const DELAY_MS = clampInt(process.env.INDEXNOW_DELAY_MS, 2000, 0, 60_000);
 const MAX_RETRIES = 4;
 const DRY_RUN = process.env.INDEXNOW_DRY_RUN === '1' || process.env.INDEXNOW_DRY_RUN === 'true';

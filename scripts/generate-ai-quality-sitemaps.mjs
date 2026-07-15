@@ -73,6 +73,10 @@ const coreFiles = existsSync(outDir)
   ? readdirSync(outDir).filter((file) => CORE_SITEMAP_RE.test(file)).sort()
   : [];
 const sitemapFiles = [...coreFiles, ...chunkFiles];
+if (sitemapFiles.length === 0) {
+  console.error('[generate-ai-quality-sitemaps] no static sitemap files were generated.');
+  process.exit(1);
+}
 const indexEntries = sitemapFiles
   .map((file) => `  <sitemap>\n    <loc>${siteUrl}/${file}</loc>\n    <lastmod>${CONTENT_UPDATED_AT}</lastmod>\n  </sitemap>`)
   .join('\n');
