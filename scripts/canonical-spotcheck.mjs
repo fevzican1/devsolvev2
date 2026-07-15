@@ -18,12 +18,7 @@
  *      could silently reintroduce the redirect.
  *
  * This script is intentionally network-free: it reads the static `out/`
- * directory after `next build` to verify the static hub pages, and reads the
- * Pages Function source to reconstruct the canonical URL for a deterministic
- * sample of /k/* slugs. It does NOT spin up the worker — the worker emits
- * `<link rel="canonical" href="${siteUrl}/k/${slug}">` for the requested slug,
- * which means as long as the slug resolves and the URL the visitor typed
- * matches the canonical produced by the same logic, the canonical is correct.
+ * directory after `next build` to verify the exact HTML that is deployed.
  *
  * Exit code:
  *   0 = sample passes
@@ -174,32 +169,34 @@ function checkProgrammaticSlugs() {
 }
 
 /* ----------------------------------------------------------- */
-/*  3. Verify the dynamic sitemap is complete and canonical     */
+/*  3. Verify the static sitemap index is deployable            */
 /* ----------------------------------------------------------- */
-function checkDynamicSitemap() {
-  const sitemapFunction = join(projectRoot, 'functions', '_shared', 'programmaticSitemap.ts');
+function checkStaticSitemap() {
+  const sitemapFile = join(outDir, 'sitemap.xml');
   const robotsFile = join(projectRoot, 'public', 'robots.txt');
-  if (!existsSync(sitemapFunction)) {
-    record(false, 'dynamic sitemap', 'programmaticSitemap.ts present', 'missing');
+  if (!existsSync(sitemapFile)) {
+    record(false, 'static sitemap', 'out/sitemap.xml present', 'missing');
     return;
   }
 
-  const source = readFileSync(sitemapFunction, 'utf8');
+  const sitemap = readFileSync(sitemapFile, 'utf8');
   const robots = existsSync(robotsFile) ? readFileSync(robotsFile, 'utf8') : '';
+  const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
   record(
-    /const SITEMAP_COUNT = 400;/.test(source) && /const URLS_PER_SITEMAP = 50_000;/.test(source),
-    'dynamic sitemap geometry',
-    '400 sitemaps × 50,000 URLs',
-    /const SITEMAP_COUNT = 400;/.test(source) ? 'configured' : 'missing',
+    locs.length > 0 && locs.every((loc) => {
+      try {
+        const parsed = new URL(loc);
+        return `${parsed.protocol}//${parsed.host}` === siteUrl && existsSync(join(outDir, parsed.pathname));
+      } catch {
+        return false;
+      }
+    }),
+    'static sitemap entries',
+    'existing static sitemap files only',
+    `${locs.length} entries`,
   );
   record(
-    /\/sitemaps\/sitemap-\$\{index \+ 1\}\.xml/.test(source),
-    'dynamic sitemap index',
-    '/sitemaps/sitemap-1.xml through sitemap-400.xml',
-    'generated from canonical paths',
-  );
-  record(
-    /^Sitemap:\s+https:\/\/devsolvev2\.com\/sitemap\.xml\s*$/m.test(robots),
+    new RegExp(`^Sitemap:\\s+${siteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/sitemap\\.xml\\s*$`, 'm').test(robots),
     'robots sitemap declaration',
     `${siteUrl}/sitemap.xml`,
     robots.match(/^Sitemap:\s+(.+)$/m)?.[1] ?? 'missing',
@@ -211,7 +208,7 @@ function checkDynamicSitemap() {
 /* ----------------------------------------------------------- */
 checkStaticPages();
 checkProgrammaticSlugs();
-checkDynamicSitemap();
+checkStaticSitemap();
 
 const total = checks.length;
 const failed = failures.length;

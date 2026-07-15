@@ -255,8 +255,8 @@ Disallow: /*?*utm_
 #   https://devsolvev2.com/ee5098cac2284d92b6ee1c9fca52a120.txt
 # scripts/indexnow-ping.mjs submits the URL corpus to api.indexnow.org.
 
-# Dynamic sitemap index — generated at the edge from the in-memory programmatic
-# corpus and lists /sitemaps/sitemap-1.xml through /sitemaps/sitemap-400.xml.
+# Static sitemap index — generated during the build from quality-approved,
+# exported pages only.
 Sitemap: https://devsolvev2.com/sitemap.xml
 
 # RSS syndication feed (out/feed.xml). Google & Bing accept RSS/Atom feeds as a

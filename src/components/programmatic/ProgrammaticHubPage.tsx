@@ -3,7 +3,7 @@ import { Compass, ArrowRight, Sparkles, Library } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getSlugByIndex, getTotalPageCount } from '@/data/programmatic';
+import { staticProgrammaticSlugs } from '@/lib/programmatic/staticPaths';
 import {
   formatProgrammaticHubLabel,
   getProgrammaticHubSampleStep,
@@ -15,17 +15,13 @@ interface ProgrammaticHubPageProps {
 }
 
 function buildFeaturedProgrammaticLinks(count = 12) {
-  const total = getTotalPageCount();
-  if (total < 1) return [];
+  if (staticProgrammaticSlugs.length < 1) return [];
 
   const slugs = new Set<string>();
-  const step = getProgrammaticHubSampleStep(total, count);
+  const step = getProgrammaticHubSampleStep(staticProgrammaticSlugs.length, count);
 
-  for (let index = 0; index < total && slugs.size < count; index += step) {
-    const slug = getSlugByIndex(index);
-    if (slug) {
-      slugs.add(slug);
-    }
+  for (let index = 0; index < staticProgrammaticSlugs.length && slugs.size < count; index += step) {
+    slugs.add(staticProgrammaticSlugs[index]);
   }
 
   return Array.from(slugs).map((slug: string) => ({

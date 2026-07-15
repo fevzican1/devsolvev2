@@ -48,11 +48,6 @@ try {
   console.log('Core sitemap generation completed with warnings');
 }
 
-// The complete 20M /k corpus is served by memory-only Cloudflare Functions at
-// /sitemap.xml and /sitemaps/sitemap-1.xml…sitemap-400.xml. Do not materialize
-// programmatic sitemap files during the build: that would reintroduce the
-// ramp-limited static corpus and consume deployment storage unnecessarily.
-
 // AI Quality & Indexing Engine — build-time-only quality gate over the
 // ALREADY-EXPORTED static HTML (out/k/**/*.html). Scores every programmatic
 // page 0-100 against thin-content / keyword-stuffing / gibberish heuristics,
@@ -66,6 +61,14 @@ try {
   execSync(`node ${join(__dirname, 'ai-quality-gatekeeper.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
   console.log('AI Quality Gatekeeper completed with warnings — see out/reports/ai-quality-gatekeeper.txt');
+}
+
+try {
+  console.log('Generating static sitemap index from quality-approved exported pages...');
+  execSync(`node ${join(__dirname, 'generate-ai-quality-sitemaps.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('Static quality sitemap generation failed');
+  hardFailures.push('generate-ai-quality-sitemaps');
 }
 
 // Immediately notify Bing/IndexNow about the small diff of new-or-changed,
@@ -94,23 +97,13 @@ try {
   hardFailures.push('matrix-quality-check');
 }
 
+// "Kontrol A" — application-wide internal-link audit verifies every internal
+// /k/* href has a matching exported HTML file.
 try {
-  console.log('Running slug parity & resolution drift guard...');
-  execSync(`node ${join(__dirname, 'slug-parity-check.mjs')}`, { stdio: 'inherit' });
-} catch (error) {
-  console.log('Slug parity guard reported drift — see logs above (mass-deindex risk)');
-  hardFailures.push('slug-parity-check');
-}
-
-// "Kontrol A" — application-wide internal-link audit. Sitemaps and the
-// resolver can be clean while a hub widget still *links* to a legacy /k/*
-// URL that only resolves via a 301, silently burning crawl budget on every
-// re-crawl. See scripts/internal-link-redirect-audit.mjs.
-try {
-  console.log('Running internal link redirect audit (crawl-budget guard)...');
+  console.log('Running static internal link audit (crawl-budget guard)...');
   execSync(`node ${join(__dirname, 'internal-link-redirect-audit.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
-  console.log('Internal link redirect audit found non-canonical links — see out/reports/internal-link-audit.txt');
+  console.log('Static internal link audit found unexported links — see out/reports/internal-link-audit.txt');
   hardFailures.push('internal-link-redirect-audit');
 }
 

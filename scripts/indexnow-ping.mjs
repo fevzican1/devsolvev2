@@ -106,7 +106,7 @@ const CANDIDATE_DIRS = [
 
 // Submit every URL-bearing sitemap chunk (tier*, priority*, main-pages*) but
 // NEVER the sitemap *index* file — it only lists other sitemaps, not pages.
-const URL_SITEMAP_RE = /^sitemap-(?:tier[123]|priority|programmatic|main-pages)[-.].*\.xml$/i;
+const URL_SITEMAP_RE = /^sitemap-(?:tier[123]|priority|programmatic|main-pages|ai-quality)[-.].*\.xml$/i;
 const INDEX_SITEMAP_RE = /index/i;
 
 const LOC_RE = /<loc>\s*([^<]+?)\s*<\/loc>/gi;

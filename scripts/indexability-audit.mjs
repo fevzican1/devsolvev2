@@ -172,18 +172,16 @@ function auditSitemaps() {
   }
 }
 
-/* 5. Pages Function */
-function auditFunction() {
-  const file = join(projectRoot, 'functions', 'k', '[[slug]].ts');
-  if (!existsSync(file)) { record('WARNING', 'functions', file, 'functions/k/[[slug]].ts missing.'); return; }
-  stats.filesScanned += 1;
-  const txt = readFileSync(file, 'utf8');
-  const has404noindex = /status:\s*404[\s\S]{0,500}X-Robots-Tag[^\n]*noindex/i.test(txt);
-  if (!has404noindex) record('WARNING', 'functions', file, '/k/* 404 may not carry noindex — Soft-404 risk.');
-  const has200noindex = /status:\s*200[\s\S]{0,500}X-Robots-Tag[^\n]*noindex/i.test(txt);
-  if (has200noindex) record('CRITICAL', 'functions', file, '/k/* 200 OK emits noindex.');
-  if (!/canonical\s*=\s*resolvePageFromSlug\(slug\)/.test(txt)) {
-    record('INFO', 'functions', file, 'Could not confirm canonical-first resolution order — verify valid slugs do not 301.');
+/* 5. Runtime function guard */
+function auditNoRuntimeFunctions() {
+  const functionsDir = join(projectRoot, 'functions');
+  if (!existsSync(functionsDir)) return;
+  const hasFunctionSource = (dir) => readdirSync(dir).some((name) => {
+    const file = join(dir, name);
+    return statSync(file).isDirectory() ? hasFunctionSource(file) : /\.(?:ts|mts|js|mjs)$/i.test(name);
+  });
+  if (hasFunctionSource(functionsDir)) {
+    record('CRITICAL', 'functions', functionsDir, 'functions/ contains runtime source; Cloudflare Pages would deploy it.');
   }
 }
 
@@ -219,7 +217,7 @@ auditRobotsTxt();
 auditHeaders();
 auditAppPages();
 auditSitemaps();
-auditFunction();
+auditNoRuntimeFunctions();
 auditRedirects();
 auditNextConfig();
 
@@ -275,9 +273,8 @@ for (const level of ['CRITICAL', 'WARNING', 'INFO']) {
 console.log('\n================================================================');
 if (!grouped.CRITICAL.length) {
   console.log('  RESULT: PASS — No critical indexability issues found.');
-  console.log('  Every public page is crawlable and indexable. The /k/* function');
-  console.log('  serves 200 OK + index,follow for valid slugs and 404 + noindex for');
-  console.log('  unknown slugs, which is exactly what Google expects.');
+  console.log('  Every indexed page is a build-exported static document; no Cloudflare');
+  console.log('  Pages Function is deployed or invoked for crawling.');
 } else {
   console.log('  RESULT: FAIL — Critical issues require fixes (see above).');
 }

@@ -7,12 +7,8 @@ import { Separator } from '@/components/ui/separator';
 import {
   resolveProgrammaticPageBySlug,
   getProgrammaticLastModified,
-  collectPrioritySlugs,
-  countPrioritySlugs,
-  getTotalPageCount,
-  getSlugByIndex,
 } from '@/data/programmatic';
-import { resolveStaticProgrammaticPathLimit } from '@/config/staticGeneration';
+import { staticProgrammaticSlugs } from '@/lib/programmatic/staticPaths';
 import { getToolBySlug, toolRegistry } from '@/tools/registry';
 import { guideRegistry } from '@/content/guides';
 import { siteConfig, externalUrls } from '@/config/site';
@@ -34,8 +30,8 @@ import {
 import { RelatedItemsLinks } from '@/components/seo/RelatedItemsLinks';
 import { ProgrammaticHubPage } from '@/components/programmatic/ProgrammaticHubPage';
 
-// Pure SSG at build time (`output: 'export'`). Long-tail /k/* uses edge ISR via
-// functions/k/[[slug]].ts — see src/config/staticGeneration.ts.
+// Pure SSG at build time (`output: 'export'`). Only exported paths are linked
+// and included in sitemaps, so no request requires a runtime function.
 export const dynamic = 'force-static';
 export const dynamicParams = false;
 
@@ -149,8 +145,7 @@ function buildSlugWorkedExample(
 
 
 function getProgrammaticDiscoveryLinks(currentSlug: string, count = 12) {
-  const total = getTotalPageCount();
-  if (total < 2) return [];
+  if (staticProgrammaticSlugs.length < 2) return [];
 
   const seed = Math.abs(hashString(currentSlug));
   const links: Array<{ slug: string; title: string }> = [];
@@ -159,10 +154,10 @@ function getProgrammaticDiscoveryLinks(currentSlug: string, count = 12) {
   let attempts = 0;
 
   while (links.length < count && attempts < count * 10) {
-    const idx = (seed + attempts * step) % total;
+    const idx = (seed + attempts * step) % staticProgrammaticSlugs.length;
     attempts += 1;
 
-    const slug = getSlugByIndex(idx);
+    const slug = staticProgrammaticSlugs[idx];
     if (!slug || slug === currentSlug || seen.has(slug)) continue;
 
     seen.add(slug);
@@ -173,9 +168,7 @@ function getProgrammaticDiscoveryLinks(currentSlug: string, count = 12) {
 }
 
 export async function generateStaticParams() {
-  const totalPriority = countPrioritySlugs();
-  const limit = resolveStaticProgrammaticPathLimit(totalPriority);
-  return collectPrioritySlugs(limit).map((slug) => ({ slug }));
+  return staticProgrammaticSlugs.map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
