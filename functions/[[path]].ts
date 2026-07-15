@@ -12,7 +12,6 @@ interface PagesContext {
 
 const ORIGIN = 'https://devsolvev2.com';
 const URLS_PER_SITEMAP = 50_000;
-const CORPUS_SIZE = 20_000_000;
 const CONTENT_UPDATED_AT = '2026-06-22T00:00:00.000Z';
 
 const CLUSTERS = [
@@ -32,6 +31,12 @@ const TASKS = ['debug-production-issue', 'prepare-api-response', 'clean-up-paylo
 const MODIFIER_COUNT = 180;
 const PER_PAIR = AUDIENCES.length * TASKS.length * MODIFIER_COUNT;
 const PAIRS = CLUSTERS.flatMap(([cluster, tools, intents]) => tools.flatMap((tool) => intents.map((intent) => [cluster, tool, intent] as const)));
+const RAW_CORPUS_SIZE = PAIRS.length * PER_PAIR;
+const CORPUS_SIZE = Math.min(20_000_000, RAW_CORPUS_SIZE);
+
+if (CORPUS_SIZE !== 20_000_000 || CORPUS_SIZE % URLS_PER_SITEMAP !== 0) {
+  throw new Error('The embedded corpus must contain exactly 20,000,000 URLs in complete sitemap chunks.');
+}
 
 function title(value: string): string {
   return value.replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -72,7 +77,7 @@ function pageResponse(page: NonNullable<ReturnType<typeof pageForIndex>>): Respo
   const audience = title(page.audience);
   const task = title(page.task);
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${intent} with ${tool} for ${audience} | DevSolve</title><meta name="description" content="A practical ${intent.toLowerCase()} workflow using ${tool} for ${audience}."><link rel="canonical" href="${canonical}"><meta name="robots" content="index,follow"><style>body{font:16px/1.6 system-ui,sans-serif;color:#18212f;margin:auto;max-width:760px;padding:24px}main{display:grid;gap:18px}h1{line-height:1.15}code{background:#f4f6f8;padding:2px 5px;border-radius:3px}article{border:1px solid #dde3ea;border-radius:8px;padding:18px}a{color:#0759bb}</style></head><body><main><p><a href="/">DevSolve</a> / ${title(page.cluster)}</p><h1>${intent} with ${tool}</h1><p>This guide is tailored to ${audience.toLowerCase()} teams working to ${task.toLowerCase().replace(/-/g, ' ')}.</p><article><h2>Reliable workflow</h2><ol><li>Prepare a minimal reproducible input for <code>${tool}</code>.</li><li>${intent} and verify the output against the expected structure.</li><li>Record the result with the relevant validation evidence.</li></ol></article><article><h2>Implementation notes</h2><p>Use deterministic, locally processed inputs whenever possible. This page is canonical at <code>/k/${page.slug}</code>.</p></article></main></body></html>`;
-  return new Response(html, { headers: contentHeaders('text/html; charset=utf-8', 'public, max-age=300, s-maxage=31536000, immutable') });
+  return new Response(html, { headers: contentHeaders('text/html; charset=utf-8', 'public, max-age=300, s-maxage=31536000, stale-while-revalidate=86400') });
 }
 
 function sitemapIndexResponse(): Response {

@@ -181,7 +181,7 @@ function auditEdgeCorpusFunction() {
   }
   const txt = readFileSync(file, 'utf8');
   stats.filesScanned += 1;
-  for (const marker of ['CORPUS_SIZE = 20_000_000', 'URLS_PER_SITEMAP = 50_000', "pathname === '/sitemap.xml'", "pathname.startsWith('/k/') && url.search"]) {
+  for (const marker of ['Math.min(20_000_000, RAW_CORPUS_SIZE)', 'URLS_PER_SITEMAP = 50_000', "pathname === '/sitemap.xml'", "pathname.startsWith('/k/') && url.search"]) {
     if (!txt.includes(marker)) {
       record('CRITICAL', 'functions', file, `Edge corpus route is missing required invariant: ${marker}`);
     }
