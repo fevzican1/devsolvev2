@@ -21,10 +21,10 @@
  *
  * So this script deliberately STREAMS (the mode Bing recommends) instead of
  * bulk-dumping:
- *   1. Submits SMALL batches (default 100 URLs/request, far below the 10k max).
+ *   1. Submits at most 100 URLs per run and per request.
  *   2. Sends them SEQUENTIALLY with a pacing delay between requests (default
  *      2000ms) — no concurrency burst, load spread over time.
- *   3. Submits only a TINY ROLLING SLICE per run (default 2,000 URLs), rotated
+ *   3. Submits only a TINY ROLLING SLICE per run (default 100 URLs), rotated
  *      deterministically by date — a gentle trickle, never the whole corpus.
  *   4. Prefers the PRIORITY sitemap as its source (see listSitemapFiles): it
  *      streams only the highest-value URLs. Bulk DISCOVERY of all 18M pages is
@@ -63,10 +63,8 @@
  *   INDEXNOW_DIR         Directory holding the generated sitemaps (default out/,
  *                        falls back to public/).
  *   INDEXNOW_ENDPOINT    IndexNow hub URL.
- *   INDEXNOW_BATCH_SIZE  URLs per request (default 100; hard cap 10000).
- *   INDEXNOW_MAX_PER_RUN Rolling slice size per run (default 2000; 0 = submit
- *                        the entire corpus in one run — NOT recommended, Bing
- *                        treats it as bulk-submission mode).
+ *   INDEXNOW_BATCH_SIZE  URLs per request (fixed at 100).
+ *   INDEXNOW_MAX_PER_RUN Rolling slice size per run (fixed at 100).
  *   INDEXNOW_DELAY_MS    Pause between requests in ms (default 2000).
  *   INDEXNOW_SOURCE=all  Submit from ALL sitemaps instead of priority-only.
  *   INDEXNOW_DRY_RUN=1   Scan + report but send nothing (no network).
@@ -92,8 +90,8 @@ const INDEXNOW_ENDPOINT = process.env.INDEXNOW_ENDPOINT || 'https://api.indexnow
 // Streaming-compliant defaults (Bing WMT flags "bulk submission mode"): small
 // batches, a tiny per-run trickle, slower pacing. The full 18M corpus is
 // discovered via the SITEMAP; IndexNow only streams a small high-value set.
-const BATCH_SIZE = clampInt(process.env.INDEXNOW_BATCH_SIZE, 100, 1, 10000);
-const MAX_PER_RUN = clampInt(process.env.INDEXNOW_MAX_PER_RUN, 2000, 0, 18_100_000);
+const BATCH_SIZE = 100;
+const MAX_PER_RUN = 100;
 const DELAY_MS = clampInt(process.env.INDEXNOW_DELAY_MS, 2000, 0, 60_000);
 const MAX_RETRIES = 4;
 const DRY_RUN = process.env.INDEXNOW_DRY_RUN === '1' || process.env.INDEXNOW_DRY_RUN === 'true';
@@ -324,7 +322,8 @@ async function run() {
   // Bing WMT seed URLs are submitted first (deduped) so flagged pages get
   // an immediate crawl signal without waiting for the daily slice rotation.
   let globalIndex = 0;
-  let batch = [...BING_SEED_URLS];
+  let batch = BING_SEED_URLS.slice(0, MAX_PER_RUN);
+  let remaining = Math.max(0, MAX_PER_RUN - batch.length);
   let sent = 0;
   let ok = 0;
   let failed = 0;
@@ -351,12 +350,14 @@ async function run() {
       const idx = globalIndex++;
       if (idx < start) continue;
       if (idx >= end) break;
+      if (remaining <= 0) break;
       if (seen.has(url)) continue;
       seen.add(url);
       batch.push(url);
+      remaining -= 1;
       if (batch.length >= BATCH_SIZE) await flush();
     }
-    if (globalIndex >= end) break;
+    if (globalIndex >= end || remaining <= 0) break;
   }
   await flush();
 

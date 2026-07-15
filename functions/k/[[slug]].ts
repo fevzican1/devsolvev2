@@ -80,13 +80,11 @@ declare const caches: WorkersCacheStorage;
 /** Edge ISR cache headers — keep in sync with src/config/staticGeneration.ts.
  *
  * Discovery links rotate weekly (EKSİK #1 fix), so we use:
- * - s-maxage: 1 hour (edge cache revalidation window)
+ * - s-maxage: 30 days (edge cache revalidation window)
  * - stale-while-revalidate: 7 days (serve stale during revalidation)
  *
- * This means discovery links update within 1 hour of weekly rotation while
- * still serving stale content during the revalidation window. The CDN cache
- * is NOT immutable — it revalidates hourly, which is sufficient for weekly
- * discovery rotation while keeping Cloudflare Function invocations minimal.
+ * This keeps deterministic long-tail pages out of the renderer for a month
+ * while stale responses remain available during revalidation.
  */
 function buildEdgeIsrCacheControl(): {
   cacheControl: string;
@@ -467,6 +465,11 @@ for (const cluster of clusters) {
     }
   }
 }
+
+const SORTED_INTENTS = Array.from(new Set(clusters.flatMap((item) => item.intents)))
+  .sort((a, b) => b.length - a.length);
+const SORTED_AUDIENCES = [...audiences].sort((a, b) => b.length - a.length);
+const SORTED_TASKS = [...tasks].sort((a, b) => b.length - a.length);
 
 const AUDIENCES_COUNT = audiences.length;
 const TASKS_COUNT = tasks.length;
@@ -1154,19 +1157,15 @@ function tryResolveLegacyProgrammaticSlug(slug: string): PageData | undefined {
 
   let cursor = stem.slice(cluster.key.length + 1);
 
-  const intents = Array.from(new Set(clusters.flatMap((item) => item.intents))).sort((a, b) => b.length - a.length);
-  const audiencesSorted = [...audiences].sort((a, b) => b.length - a.length);
-  const tasksSorted = [...tasks].sort((a, b) => b.length - a.length);
-
-  const intent = intents.find((candidate) => cursor.startsWith(`${candidate}-`));
+  const intent = SORTED_INTENTS.find((candidate) => cursor.startsWith(`${candidate}-`));
   if (!intent) return undefined;
   cursor = cursor.slice(intent.length + 1);
 
-  const audience = audiencesSorted.find((candidate) => cursor.startsWith(`${candidate}-`));
+  const audience = SORTED_AUDIENCES.find((candidate) => cursor.startsWith(`${candidate}-`));
   if (!audience) return undefined;
   cursor = cursor.slice(audience.length + 1);
 
-  const task = tasksSorted.find((candidate) => cursor.startsWith(`${candidate}-`));
+  const task = SORTED_TASKS.find((candidate) => cursor.startsWith(`${candidate}-`));
   if (!task) return undefined;
   cursor = cursor.slice(task.length + 1);
 
@@ -3302,7 +3301,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   const earlyUrl = new URL(context.request.url);
   if (earlyUrl.hostname.includes('pages.dev')) {
-    return new Response('Siktir Git', {
+    return new Response('Preview deployments are not publicly accessible.', {
       status: 403,
       headers: {
         'Content-Type': 'text/plain;charset=UTF-8',
@@ -3325,8 +3324,13 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     });
   }
 
+  if (earlyUrl.search) {
+    earlyUrl.search = '';
+    return Response.redirect(earlyUrl.toString(), 301);
+  }
+
   const edgeIsr = buildEdgeIsrCacheControl();
-  const cacheRequest = new Request(context.request.url, { method: 'GET' });
+  const cacheRequest = new Request(earlyUrl.toString(), { method: 'GET' });
   const cachedResponse = await matchWorkerCache(cacheRequest);
   if (cachedResponse) {
     if (context.request.method === 'HEAD') {
