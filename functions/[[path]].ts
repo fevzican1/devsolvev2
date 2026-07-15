@@ -34,12 +34,25 @@ const PAIRS = CLUSTERS.flatMap(([cluster, tools, intents]) => tools.flatMap((too
 const RAW_CORPUS_SIZE = PAIRS.length * PER_PAIR;
 const CORPUS_SIZE = Math.min(20_000_000, RAW_CORPUS_SIZE);
 
+// The corpus is an immutable deployment invariant: serving a partial or
+// non-50K-aligned universe would publish sitemap entries the resolver cannot
+// represent, so fail deployment rather than serve inconsistent SEO routes.
 if (CORPUS_SIZE !== 20_000_000 || CORPUS_SIZE % URLS_PER_SITEMAP !== 0) {
   throw new Error('The embedded corpus must contain exactly 20,000,000 URLs in complete sitemap chunks.');
 }
 
 function title(value: string): string {
   return value.replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character] as string);
 }
 
 function pageForIndex(index: number) {
@@ -51,7 +64,7 @@ function pageForIndex(index: number) {
   const task = TASKS[Math.floor((remainder % (TASKS.length * MODIFIER_COUNT)) / MODIFIER_COUNT)];
   if (!audience || !task) return undefined;
   const [cluster, tool, intent] = pair;
-  const slug = `${cluster}-${tool}-${intent}-${audience}-${task}-${index}`;
+  const slug = `${cluster}-${intent}-${audience}-${task}-${tool}-${index}`;
   return { cluster, tool, intent, audience, task, slug };
 }
 
@@ -71,12 +84,14 @@ function redirect(url: URL): Response {
 }
 
 function pageResponse(page: NonNullable<ReturnType<typeof pageForIndex>>): Response {
-  const canonical = `${ORIGIN}/k/${page.slug}`;
-  const intent = title(page.intent);
-  const tool = title(page.tool);
-  const audience = title(page.audience);
-  const task = title(page.task);
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${intent} with ${tool} for ${audience} | DevSolve</title><meta name="description" content="A practical ${intent.toLowerCase()} workflow using ${tool} for ${audience}."><link rel="canonical" href="${canonical}"><meta name="robots" content="index,follow"><style>body{font:16px/1.6 system-ui,sans-serif;color:#18212f;margin:auto;max-width:760px;padding:24px}main{display:grid;gap:18px}h1{line-height:1.15}code{background:#f4f6f8;padding:2px 5px;border-radius:3px}article{border:1px solid #dde3ea;border-radius:8px;padding:18px}a{color:#0759bb}</style></head><body><main><p><a href="/">DevSolve</a> / ${title(page.cluster)}</p><h1>${intent} with ${tool}</h1><p>This guide is tailored to ${audience.toLowerCase()} teams working to ${task.toLowerCase().replace(/-/g, ' ')}.</p><article><h2>Reliable workflow</h2><ol><li>Prepare a minimal reproducible input for <code>${tool}</code>.</li><li>${intent} and verify the output against the expected structure.</li><li>Record the result with the relevant validation evidence.</li></ol></article><article><h2>Implementation notes</h2><p>Use deterministic, locally processed inputs whenever possible. This page is canonical at <code>/k/${page.slug}</code>.</p></article></main></body></html>`;
+  const canonical = `${ORIGIN}/k/${escapeHtml(page.slug)}`;
+  const intent = escapeHtml(title(page.intent));
+  const tool = escapeHtml(title(page.tool));
+  const audience = escapeHtml(title(page.audience));
+  const task = escapeHtml(title(page.task));
+  const cluster = escapeHtml(title(page.cluster));
+  const slug = escapeHtml(page.slug);
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${intent} with ${tool} for ${audience} | DevSolve</title><meta name="description" content="A practical ${intent.toLowerCase()} workflow using ${tool} for ${audience}."><link rel="canonical" href="${canonical}"><meta name="robots" content="index,follow"><style>body{font:16px/1.6 system-ui,sans-serif;color:#18212f;margin:auto;max-width:760px;padding:24px}main{display:grid;gap:18px}h1{line-height:1.15}code{background:#f4f6f8;padding:2px 5px;border-radius:3px}article{border:1px solid #dde3ea;border-radius:8px;padding:18px}a{color:#0759bb}</style></head><body><main><p><a href="/">DevSolve</a> / ${cluster}</p><h1>${intent} with ${tool}</h1><p>This guide is tailored to ${audience.toLowerCase()} teams working to ${task.toLowerCase().replace(/-/g, ' ')}.</p><article><h2>Reliable workflow</h2><ol><li>Prepare a minimal reproducible input for <code>${tool}</code>.</li><li>${intent} and verify the output against the expected structure.</li><li>Record the result with the relevant validation evidence.</li></ol></article><article><h2>Implementation notes</h2><p>Use deterministic, locally processed inputs whenever possible. This page is canonical at <code>/k/${slug}</code>.</p></article></main></body></html>`;
   return new Response(html, { headers: contentHeaders('text/html; charset=utf-8', 'public, max-age=300, s-maxage=31536000, stale-while-revalidate=86400') });
 }
 
