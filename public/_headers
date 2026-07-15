@@ -27,7 +27,7 @@
   Cloudflare-CDN-Cache-Control: max-age=86400
   Content-Type: application/xml; charset=utf-8
 
-/sitemap-index.xml
+/sitemap.xml
   Cache-Control: public, max-age=86400, s-maxage=86400
   CDN-Cache-Control: max-age=86400
   Cloudflare-CDN-Cache-Control: max-age=86400
@@ -65,19 +65,11 @@
   Cloudflare-CDN-Cache-Control: max-age=3600
   Content-Type: application/rss+xml; charset=utf-8
 
-# /k/* responses are produced by the Pages Function (functions/k/[[slug]].ts)
-# which sets its OWN Cache-Control per response type:
-#   - 200 OK canonical → max-age=31536000, immutable (cached 1 year at edge)
-#   - 301 legacy       → max-age=86400 (24h)
-#   - 404 unknown      → max-age=60, s-maxage=300 (5min edge cache)
-# We DO NOT set Cache-Control here because any value here could be merged
-# with the function's value and either weaken the 1-year cache (causing a
-# 365× increase in Function invocations and budget burn) or strengthen the
-# 404 cache (preventing newly-added pages from being discovered).
-# X-Robots-Tag is also set by the function for both 200 OK (index, follow)
-# and 404 (noindex, follow); we leave the global default header (line 9)
-# to cover any edge case where the function header is dropped.
+# /k/* is resolved deterministically by the Pages Function. Cloudflare caches
+# the canonical HTML at the edge; no origin storage or database is involved.
 /k/*
+  Cache-Control: public, max-age=300, s-maxage=31536000, stale-while-revalidate=86400
+  CDN-Cache-Control: max-age=31536000, stale-while-revalidate=86400
   X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1
 
 /tools/*

@@ -255,16 +255,6 @@ Disallow: /*?*utm_
 #   https://devsolvev2.com/ee5098cac2284d92b6ee1c9fca52a120.txt
 # scripts/indexnow-ping.mjs submits the URL corpus to api.indexnow.org.
 
-# Single sitemap-index entry — Google discovers every other sitemap from it.
-# NOTE: versioned filename. The previous sitemap-index.xml "froze" in Search
-# Console (sub-sitemaps stuck at 0). Publishing the index under a NEW URL forces
-# Google to run a fresh discovery pass. Keep this in sync with SITEMAP_INDEX_NAME
-# in scripts/generate-programmatic-sitemaps.mjs and resubmit it in GSC/Bing WMT.
-Sitemap: https://devsolvev2.com/sitemap-index-2026-06-v3.xml
-
-# RSS syndication feed (out/feed.xml). Google & Bing accept RSS/Atom feeds as a
-# supplementary "what's new" sitemap, which speeds discovery of fresh URLs and
-# opens a real syndication/backlink channel. Generated as a static file at build
-# time (scripts/generate-feed.mjs) — zero Cloudflare Function cost.
-Sitemap: https://devsolvev2.com/feed.xml
-
+# Deterministic edge sitemap index — every entry resolves to a canonical,
+# storage-free programmatic URL.
+Sitemap: https://devsolvev2.com/sitemap.xml

@@ -1,14 +1,8 @@
 /**
- * Static generation & edge-ISR configuration.
- *
- * Programmatic /k/* pages are pre-rendered to Cloudflare R2 by
- * `scripts/ssg-r2-upload.mjs` and served via `workers/k-r2-router`.
- * See docs/r2-ssg-pipeline.md.
- *
- * Next.js still pre-renders up to MAX_STATIC_PROGRAMMATIC_PATHS priority pages
- * into out/k/ during build (belt-and-suspenders for the hub-adjacent tier).
+ * Static generation configuration. Programmatic /k/* pages are exported into
+ * out/k/ at build time and served as static CDN assets.
  */
-export const EDGE_ISR_REVALIDATE_SECONDS = 86400;
+export const EDGE_ISR_REVALIDATE_SECONDS = 2_592_000;
 
 /** Default number of priority /k/* pages to pre-render at build time. */
 export const DEFAULT_STATIC_PROGRAMMATIC_PATHS = 5000;

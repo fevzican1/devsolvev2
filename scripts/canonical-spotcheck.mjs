@@ -18,12 +18,7 @@
  *      could silently reintroduce the redirect.
  *
  * This script is intentionally network-free: it reads the static `out/`
- * directory after `next build` to verify the static hub pages, and reads the
- * Pages Function source to reconstruct the canonical URL for a deterministic
- * sample of /k/* slugs. It does NOT spin up the worker — the worker emits
- * `<link rel="canonical" href="${siteUrl}/k/${slug}">` for the requested slug,
- * which means as long as the slug resolves and the URL the visitor typed
- * matches the canonical produced by the same logic, the canonical is correct.
+ * directory after `next build` to verify the exact HTML that is deployed.
  *
  * Exit code:
  *   0 = sample passes
@@ -174,29 +169,39 @@ function checkProgrammaticSlugs() {
 }
 
 /* ----------------------------------------------------------- */
-/*  3. Verify no `/sitemap.xml` legacy URL leaks into the index */
+/*  3. Verify the static sitemap index is deployable            */
 /* ----------------------------------------------------------- */
-function checkLegacySitemapLeak() {
-  if (!existsSync(outDir)) return;
-  // The sitemap index is published under a VERSIONED filename
-  // (e.g. sitemap-index-2026-06-v2.xml), not the fixed `sitemap-index.xml`.
-  // Discover whichever index file(s) are present so the leak check follows
-  // the version bump instead of silently skipping.
-  const indexFiles = readdirSync(outDir).filter((f) => /^sitemap-index.*\.xml$/i.test(f));
-  if (indexFiles.length === 0) {
-    record(false, 'sitemap-index', 'a versioned sitemap-index*.xml present', 'none found',
-      'No sitemap index emitted — generate-programmatic-sitemaps.mjs must produce SITEMAP_INDEX_NAME.');
+function checkStaticSitemap() {
+  const sitemapFile = join(outDir, 'sitemap.xml');
+  const robotsFile = join(projectRoot, 'public', 'robots.txt');
+  if (!existsSync(sitemapFile)) {
+    record(false, 'static sitemap', 'out/sitemap.xml present', 'missing');
     return;
   }
-  for (const file of indexFiles) {
-    const xml = readFileSync(join(outDir, file), 'utf8');
-    if (/\/sitemap\.xml<\/loc>/i.test(xml)) {
-      record(false, file, 'no legacy /sitemap.xml entry', 'found',
-        'Remove or regenerate the sitemap index; Googlebot will 301-loop on /sitemap.xml.');
-    } else {
-      record(true, file, 'no legacy /sitemap.xml entry', 'none found');
-    }
-  }
+
+  const sitemap = readFileSync(sitemapFile, 'utf8');
+  const robots = existsSync(robotsFile) ? readFileSync(robotsFile, 'utf8') : '';
+  const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
+  record(
+    locs.length > 0 && locs.every((loc) => {
+      try {
+        const parsed = new URL(loc);
+        return `${parsed.protocol}//${parsed.host}` === siteUrl
+          && existsSync(join(outDir, parsed.pathname.replace(/^\//, '')));
+      } catch {
+        return false;
+      }
+    }),
+    'static sitemap entries',
+    'existing static sitemap files only',
+    `${locs.length} entries`,
+  );
+  record(
+    new RegExp(`^Sitemap:\\s+${siteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/sitemap\\.xml\\s*$`, 'm').test(robots),
+    'robots sitemap declaration',
+    `${siteUrl}/sitemap.xml`,
+    robots.match(/^Sitemap:\s+(.+)$/m)?.[1] ?? 'missing',
+  );
 }
 
 /* ----------------------------------------------------------- */
@@ -204,7 +209,7 @@ function checkLegacySitemapLeak() {
 /* ----------------------------------------------------------- */
 checkStaticPages();
 checkProgrammaticSlugs();
-checkLegacySitemapLeak();
+checkStaticSitemap();
 
 const total = checks.length;
 const failed = failures.length;

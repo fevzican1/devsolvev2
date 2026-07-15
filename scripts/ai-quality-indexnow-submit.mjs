@@ -51,7 +51,7 @@ const HOST = DOMAIN.replace(/^https?:\/\//, '');
 const INDEXNOW_ENDPOINT = process.env.INDEXNOW_ENDPOINT || 'https://api.indexnow.org/indexnow';
 const DRY_RUN = process.env.INDEXNOW_DRY_RUN === '1' || process.env.INDEXNOW_DRY_RUN === 'true';
 const DISABLED = process.env.INDEXNOW_DISABLED === '1' || process.env.INDEXNOW_DISABLED === 'true';
-const BATCH_SIZE = 100;
+const MAX_URLS_PER_RUN = 100;
 
 const outDir = join(process.cwd(), 'out');
 const newUrlsPath = join(outDir, 'reports', 'ai-quality-new-urls.txt');
@@ -70,7 +70,8 @@ async function main() {
   const urls = readFileSync(newUrlsPath, 'utf8')
     .split('\n')
     .map((l) => l.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(0, MAX_URLS_PER_RUN);
 
   if (urls.length === 0) {
     console.log('[ai-quality-indexnow-submit] no new/changed AI-quality-approved URLs this build — nothing to submit.');
@@ -92,32 +93,29 @@ async function main() {
   let submitted = 0;
   let failed = 0;
 
-  for (let i = 0; i < urls.length; i += BATCH_SIZE) {
-    const batch = urls.slice(i, i + BATCH_SIZE);
-    const body = JSON.stringify({
-      host: HOST,
-      key: API_KEY,
-      keyLocation: `${DOMAIN}/${API_KEY}.txt`,
-      urlList: batch,
-    });
+  const body = JSON.stringify({
+    host: HOST,
+    key: API_KEY,
+    keyLocation: `${DOMAIN}/${API_KEY}.txt`,
+    urlList: urls,
+  });
 
-    try {
-      const response = await fetch(INDEXNOW_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json; charset=utf-8' },
-        body,
-      });
-      if (response.ok || response.status === 202) {
-        submitted += batch.length;
-        console.log(`[ai-quality-indexnow-submit] batch sent: ${batch.length} URL(s) (${submitted}/${urls.length}).`);
-      } else {
-        failed += batch.length;
-        console.warn(`[ai-quality-indexnow-submit] batch rejected (HTTP ${response.status}): ${batch.length} URL(s).`);
-      }
-    } catch (error) {
-      failed += batch.length;
-      console.warn(`[ai-quality-indexnow-submit] network error submitting batch: ${error.message}`);
+  try {
+    const response = await fetch(INDEXNOW_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body,
+    });
+    if (response.ok || response.status === 202) {
+      submitted = urls.length;
+      console.log(`[ai-quality-indexnow-submit] batch sent: ${submitted} URL(s).`);
+    } else {
+      failed = urls.length;
+      console.warn(`[ai-quality-indexnow-submit] batch rejected (HTTP ${response.status}): ${failed} URL(s).`);
     }
+  } catch (error) {
+    failed = urls.length;
+    console.warn(`[ai-quality-indexnow-submit] network error submitting batch: ${error.message}`);
   }
 
   console.log(`[ai-quality-indexnow-submit] finished. submitted=${submitted} failed=${failed} total=${urls.length}`);

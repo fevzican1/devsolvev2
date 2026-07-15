@@ -48,25 +48,6 @@ try {
   console.log('Core sitemap generation completed with warnings');
 }
 
-// Priority sitemap MUST be written BEFORE the programmatic sitemap because
-// the programmatic step is the one that writes sitemap-index.xml — and it now
-// reads sitemap-priority-*.xml from out/ to include them at the top of the
-// index. If the priority step ran AFTER the index was generated, the index
-// would never reference the priority files until the next build.
-try {
-  console.log('Generating priority sitemap files (highest-value /k/* URLs)...');
-  execSync(`node ${join(__dirname, 'generate-priority-sitemap.mjs')}`, { stdio: 'inherit' });
-} catch (error) {
-  console.log('Priority sitemap generation completed with warnings');
-}
-
-try {
-  console.log('Generating chunked programmatic sitemap files...');
-  execSync(`node ${join(__dirname, 'generate-programmatic-sitemaps.mjs')}`, { stdio: 'inherit' });
-} catch (error) {
-  console.log('Programmatic sitemap generation completed with warnings');
-}
-
 // AI Quality & Indexing Engine — build-time-only quality gate over the
 // ALREADY-EXPORTED static HTML (out/k/**/*.html). Scores every programmatic
 // page 0-100 against thin-content / keyword-stuffing / gibberish heuristics,
@@ -82,13 +63,12 @@ try {
   console.log('AI Quality Gatekeeper completed with warnings — see out/reports/ai-quality-gatekeeper.txt');
 }
 
-// Chunked (max 40k URLs/file) sitemaps built ONLY from AI-quality-eligible
-// URLs, wired into the existing sitemap-index*.xml.
 try {
-  console.log('Generating AI-quality-gated sitemap chunks...');
+  console.log('Generating static sitemap index from quality-approved exported pages...');
   execSync(`node ${join(__dirname, 'generate-ai-quality-sitemaps.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
-  console.log('AI-quality sitemap generation completed with warnings');
+  console.log('generate-ai-quality-sitemaps failed');
+  hardFailures.push('generate-ai-quality-sitemaps');
 }
 
 // Immediately notify Bing/IndexNow about the small diff of new-or-changed,
@@ -99,17 +79,6 @@ try {
   execSync(`node ${join(__dirname, 'ai-quality-indexnow-submit.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
   console.log('AI-quality IndexNow submission completed with warnings');
-}
-
-// RSS syndication feed — a STATIC file built from the already-generated,
-// parity-checked priority/programmatic sitemaps (so it can never drift from the
-// resolver). Feeds are a first-class discovery signal for Google & Bing and a
-// real syndication/backlink channel, at zero Cloudflare Function cost.
-try {
-  console.log('Generating RSS syndication feed (out/feed.xml)...');
-  execSync(`node ${join(__dirname, 'generate-feed.mjs')}`, { stdio: 'inherit' });
-} catch (error) {
-  console.log('Feed generation completed with warnings');
 }
 
 try {
@@ -128,23 +97,13 @@ try {
   hardFailures.push('matrix-quality-check');
 }
 
+// "Kontrol A" — application-wide internal-link audit verifies every internal
+// /k/* href has a matching exported HTML file.
 try {
-  console.log('Running slug parity & resolution drift guard...');
-  execSync(`node ${join(__dirname, 'slug-parity-check.mjs')}`, { stdio: 'inherit' });
-} catch (error) {
-  console.log('Slug parity guard reported drift — see logs above (mass-deindex risk)');
-  hardFailures.push('slug-parity-check');
-}
-
-// "Kontrol A" — application-wide internal-link audit. Sitemaps and the
-// resolver can be clean while a hub widget still *links* to a legacy /k/*
-// URL that only resolves via a 301, silently burning crawl budget on every
-// re-crawl. See scripts/internal-link-redirect-audit.mjs.
-try {
-  console.log('Running internal link redirect audit (crawl-budget guard)...');
+  console.log('Running static internal link audit (crawl-budget guard)...');
   execSync(`node ${join(__dirname, 'internal-link-redirect-audit.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
-  console.log('Internal link redirect audit found non-canonical links — see out/reports/internal-link-audit.txt');
+  console.log('Static internal link audit found unexported links — see out/reports/internal-link-audit.txt');
   hardFailures.push('internal-link-redirect-audit');
 }
 

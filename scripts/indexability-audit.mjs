@@ -172,18 +172,22 @@ function auditSitemaps() {
   }
 }
 
-/* 5. Pages Function */
-function auditFunction() {
-  const file = join(projectRoot, 'functions', 'k', '[[slug]].ts');
-  if (!existsSync(file)) { record('WARNING', 'functions', file, 'functions/k/[[slug]].ts missing.'); return; }
-  stats.filesScanned += 1;
+/* 5. Edge corpus route guard */
+function auditEdgeCorpusFunction() {
+  const file = join(projectRoot, 'functions', '[[path]].ts');
+  if (!existsSync(file)) {
+    record('CRITICAL', 'functions', file, 'Deterministic edge corpus route is missing.');
+    return;
+  }
   const txt = readFileSync(file, 'utf8');
-  const has404noindex = /status:\s*404[\s\S]{0,500}X-Robots-Tag[^\n]*noindex/i.test(txt);
-  if (!has404noindex) record('WARNING', 'functions', file, '/k/* 404 may not carry noindex — Soft-404 risk.');
-  const has200noindex = /status:\s*200[\s\S]{0,500}X-Robots-Tag[^\n]*noindex/i.test(txt);
-  if (has200noindex) record('CRITICAL', 'functions', file, '/k/* 200 OK emits noindex.');
-  if (!/canonical\s*=\s*resolvePageFromSlug\(slug\)/.test(txt)) {
-    record('INFO', 'functions', file, 'Could not confirm canonical-first resolution order — verify valid slugs do not 301.');
+  stats.filesScanned += 1;
+  for (const marker of ['TARGET_CORPUS_SIZE = 20_000_000', 'URLS_PER_SITEMAP = 50_000', "pathname === '/sitemap.xml'", "pathname.startsWith('/k/') && url.search"]) {
+    if (!txt.includes(marker)) {
+      record('CRITICAL', 'functions', file, `Edge corpus route is missing required invariant: ${marker}`);
+    }
+  }
+  if (/\b(?:fetch|KVNamespace|R2Bucket|D1Database)\b/.test(txt)) {
+    record('CRITICAL', 'functions', file, 'Edge corpus route must not use external storage or network fetches.');
   }
 }
 
@@ -219,7 +223,7 @@ auditRobotsTxt();
 auditHeaders();
 auditAppPages();
 auditSitemaps();
-auditFunction();
+auditEdgeCorpusFunction();
 auditRedirects();
 auditNextConfig();
 
@@ -275,9 +279,8 @@ for (const level of ['CRITICAL', 'WARNING', 'INFO']) {
 console.log('\n================================================================');
 if (!grouped.CRITICAL.length) {
   console.log('  RESULT: PASS — No critical indexability issues found.');
-  console.log('  Every public page is crawlable and indexable. The /k/* function');
-  console.log('  serves 200 OK + index,follow for valid slugs and 404 + noindex for');
-  console.log('  unknown slugs, which is exactly what Google expects.');
+  console.log('  Programmatic URLs are resolved by the dependency-free Pages edge');
+  console.log('  function; static routes continue to be served from the build output.');
 } else {
   console.log('  RESULT: FAIL — Critical issues require fixes (see above).');
 }

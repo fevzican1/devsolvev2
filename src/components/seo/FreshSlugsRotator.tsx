@@ -1,11 +1,9 @@
 /**
  * FreshSlugsRotator
  *
- * Surfaces a deterministic-per-build-day rotating set of /k/* deep URLs on
- * hub pages (/tools, /guides). The goal is to give Googlebot a fresh batch
- * of internal links every time it crawls these high-PageRank hubs, so the
- * 20M-page programmatic corpus is continually re-introduced via natural
- * internal-link discovery rather than relying solely on sitemap pings.
+ * Surfaces a deterministic set of exported /k/* URLs on hub pages. Links are
+ * restricted to build output so crawlers never reach a route that needs a
+ * runtime function.
  *
  * ZERO RUNTIME COST
  * -----------------
@@ -14,32 +12,12 @@
  * HTML is pure static markup served from the Cloudflare CDN. No request
  * ever invokes a Cloudflare Function for this block.
  *
- * Determinism: the build-day index is hashed with the slot index to pick
- * URLs from the programmatic universe (TOTAL_POSSIBLE = clusters × tools ×
- * intents × audiences × tasks × modifiers). The same build produces the
- * same HTML across all PoPs (cache-friendly).
+ * Determinism: the hub salt is hashed with the slot index to pick from the
+ * static programmatic path set.
  */
 
 import Link from 'next/link';
-
-// Same combinatorial counts as functions/k/[[slug]].ts — keep these in
-// sync if either side is changed (they are intentionally duplicated to
-// avoid pulling the entire worker module into the Next.js bundle).
-const CLUSTERS = [
-  { key: 'json', tools: ['json-formatter', 'json-to-typescript'], intents: ['validate-json','format-json','inspect-json-structure','convert-json-to-types','compare-json-objects','transform-json-keys','extract-json-values','merge-json-data','flatten-nested-json','detect-json-syntax-errors','generate-json-schema','minify-json-payload'] },
-  { key: 'encoding', tools: ['base64-encode-decode','url-encode-decode','html-entity-encode-decode'], intents: ['encode-data','decode-data','fix-encoding-bugs','convert-character-sets','handle-unicode-text','escape-special-characters','troubleshoot-encoding-mismatch','batch-encode-values','decode-nested-encodings','verify-encoding-roundtrip','convert-binary-to-text','normalize-encoded-output'] },
-  { key: 'security', tools: ['hash-generator','uuid-generator','jwt-decoder'], intents: ['generate-identifiers','verify-tokens','inspect-signatures','audit-token-expiry','hash-sensitive-data','generate-secure-keys','validate-jwt-claims','compare-security-hashes','detect-token-tampering','rotate-unique-identifiers','analyze-token-payload','verify-data-integrity'] },
-  { key: 'text', tools: ['text-case-converter','diff-checker','regex-tester'], intents: ['normalize-text','compare-versions','test-regex','find-and-replace-patterns','extract-text-segments','convert-text-case','analyze-text-differences','build-regex-patterns','validate-input-format','clean-up-whitespace','split-text-by-delimiter','match-complex-patterns'] },
-];
-const AUDIENCES = ['backend-engineer','frontend-developer','fullstack-developer','api-consumer','integration-engineer','security-conscious-developer','ops-engineer','devops-engineer','technical-writer','data-engineer','mobile-developer','qa-engineer','site-reliability-engineer','database-administrator','cloud-architect','performance-engineer','platform-engineer','solution-architect','tech-lead','release-engineer'];
-const TASKS = ['debug-production-issue','prepare-api-response','clean-up-payload','sanitize-user-input','prepare-query-parameters','inspect-encoded-payload','trace-request','validate-auth-token','review-config-change','migrate-legacy-system','prepare-deployment-artifact','document-api-endpoint','optimize-build-pipeline','resolve-merge-conflict','prepare-security-audit','generate-test-fixtures'];
-// Modifier count matches functions/k — 9 styles × 20 contexts = 180.
-const MODIFIER_COUNT = 9 * 20;
-
-function buildSlug(clusterKey: string, intent: string, audience: string, task: string, tool: string, index: number): string {
-  return [clusterKey, intent, audience, task, tool]
-    .join('-').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + `-${index}`;
-}
+import { staticProgrammaticSlugs } from '@/lib/programmatic/staticPaths';
 
 // Tokens that should render as upper-case acronyms rather than Title Case so
 // the labels read like real engineering guide titles ("JSON", not "Json").
@@ -58,59 +36,20 @@ function prettifyPhrase(phrase: string): string {
   return phrase.split('-').filter(Boolean).map(prettifyToken).join(' ');
 }
 
-/**
- * Build a human-readable, descriptive label from the structured slug parts.
- * Produces a unique, sentence-like title (not a keyword salad) so the hub
- * never renders multiple visually identical links — which previously read as
- * machine-generated spam and hurt the page's quality signals.
- */
-function humanLabel(intent: string, audience: string, tool: string): string {
-  return `${prettifyPhrase(intent)} — for a ${prettifyPhrase(audience)} (${prettifyPhrase(tool)})`;
-}
-
-
-/* Build-day rotation: rebuilds at every deploy. Builds on the same UTC day
- * produce identical output, which keeps the static cache stable. */
-function buildDayIndex(): number {
-  return Math.floor(Date.UTC(
-    new Date().getUTCFullYear(),
-    new Date().getUTCMonth(),
-    new Date().getUTCDate(),
-  ) / (24 * 3600 * 1000));
-}
-
 function pickFreshSlugs(seedSalt: string, count: number): Array<{ slug: string; label: string }> {
-  const day = buildDayIndex();
   const out: Array<{ slug: string; label: string }> = [];
   const seen = new Set<string>();
-
-  // Flatten cluster/tool/intent pairs.
-  const pairs: Array<{ cluster: string; tool: string; intent: string }> = [];
-  for (const c of CLUSTERS) for (const t of c.tools) for (const i of c.intents) {
-    pairs.push({ cluster: c.key, tool: t, intent: i });
-  }
-  const perPair = AUDIENCES.length * TASKS.length * MODIFIER_COUNT;
-  const total = pairs.length * perPair;
 
   // Search a wider window than `count` so that, after de-duplicating by the
   // VISIBLE label, we can still fill every slot with a distinct title.
   for (let slot = 0; slot < count * 12 && out.length < count; slot += 1) {
-    // 32-bit hash combining day + salt + slot for deterministic but
-    // varied rotation. Same build day → same output.
+    // 32-bit hash combining the hub salt + slot for deterministic output.
     let h = 5381;
-    const key = `${day}-${seedSalt}-${slot}`;
+    const key = `${seedSalt}-${slot}`;
     for (let i = 0; i < key.length; i += 1) h = ((h << 5) + h + key.charCodeAt(i)) | 0;
-    const absIdx = Math.abs(h) % total;
-    const pairIdx = Math.floor(absIdx / perPair);
-    const rem = absIdx % perPair;
-    const audIdx = Math.floor(rem / (TASKS.length * MODIFIER_COUNT));
-    const rem2 = rem % (TASKS.length * MODIFIER_COUNT);
-    const taskIdx = Math.floor(rem2 / MODIFIER_COUNT);
-    const pair = pairs[pairIdx];
-    const audience = AUDIENCES[audIdx];
-    const task = TASKS[taskIdx];
-    const slug = buildSlug(pair.cluster, pair.intent, audience, task, pair.tool, absIdx);
-    const label = humanLabel(pair.intent, audience, pair.tool);
+    const slug = staticProgrammaticSlugs[Math.abs(h) % staticProgrammaticSlugs.length];
+    if (!slug) continue;
+    const label = prettifyPhrase(slug.replace(/-\d+$/, ''));
     // De-duplicate on the rendered label (not the raw slug). Two slugs that
     // differ only by their numeric modifier suffix used to render identical
     // text — that repetition is exactly what read as spam on the homepage.
