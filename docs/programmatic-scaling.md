@@ -1,6 +1,6 @@
 ## Programmatic Scaling — Smart Edge Cache Architecture (DevSolve)
 
-This document describes the production architecture for serving all 18,040,320
+This document describes the production architecture for serving all 20,000,000
 `/k/*` programmatic pages at zero marginal cost using Cloudflare's free global
 CDN as the storage layer.
 
@@ -127,9 +127,13 @@ The repo stays lightweight — only source code is committed.
 
 ## 7. Sitemap coverage
 
-The programmatic sitemap (`scripts/generate-programmatic-sitemaps.mjs`) emits
-canonical URLs in the form `https://devsolvev2.com/k/{slug}` — no `.html`
-suffix.  These match the edge-served URLs exactly.
+`/sitemap.xml` is a dynamic sitemap index served by a Cloudflare Pages Function.
+It lists exactly 400 canonical child sitemaps at
+`/sitemaps/sitemap-1.xml` through `/sitemaps/sitemap-400.xml`, each streaming
+50,000 deterministic `/k/{slug}` URLs from the Worker’s in-memory corpus. No
+database query, static sitemap artifact, redirect URL, or query-string URL is
+included. Sitemap responses have a one-year shared-cache TTL; query-string
+requests receive a 301 to their canonical path.
 
 ---
 

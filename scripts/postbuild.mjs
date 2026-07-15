@@ -48,24 +48,10 @@ try {
   console.log('Core sitemap generation completed with warnings');
 }
 
-// Priority sitemap MUST be written BEFORE the programmatic sitemap because
-// the programmatic step is the one that writes sitemap-index.xml — and it now
-// reads sitemap-priority-*.xml from out/ to include them at the top of the
-// index. If the priority step ran AFTER the index was generated, the index
-// would never reference the priority files until the next build.
-try {
-  console.log('Generating priority sitemap files (highest-value /k/* URLs)...');
-  execSync(`node ${join(__dirname, 'generate-priority-sitemap.mjs')}`, { stdio: 'inherit' });
-} catch (error) {
-  console.log('Priority sitemap generation completed with warnings');
-}
-
-try {
-  console.log('Generating chunked programmatic sitemap files...');
-  execSync(`node ${join(__dirname, 'generate-programmatic-sitemaps.mjs')}`, { stdio: 'inherit' });
-} catch (error) {
-  console.log('Programmatic sitemap generation completed with warnings');
-}
+// The complete 20M /k corpus is served by memory-only Cloudflare Functions at
+// /sitemap.xml and /sitemaps/sitemap-1.xml…sitemap-400.xml. Do not materialize
+// programmatic sitemap files during the build: that would reintroduce the
+// ramp-limited static corpus and consume deployment storage unnecessarily.
 
 // AI Quality & Indexing Engine — build-time-only quality gate over the
 // ALREADY-EXPORTED static HTML (out/k/**/*.html). Scores every programmatic
@@ -82,15 +68,6 @@ try {
   console.log('AI Quality Gatekeeper completed with warnings — see out/reports/ai-quality-gatekeeper.txt');
 }
 
-// Chunked (max 40k URLs/file) sitemaps built ONLY from AI-quality-eligible
-// URLs, wired into the existing sitemap-index*.xml.
-try {
-  console.log('Generating AI-quality-gated sitemap chunks...');
-  execSync(`node ${join(__dirname, 'generate-ai-quality-sitemaps.mjs')}`, { stdio: 'inherit' });
-} catch (error) {
-  console.log('AI-quality sitemap generation completed with warnings');
-}
-
 // Immediately notify Bing/IndexNow about the small diff of new-or-changed,
 // AI-quality-approved URLs for this build. Zero Cloudflare Worker cost,
 // best-effort (never blocks the deploy).
@@ -99,17 +76,6 @@ try {
   execSync(`node ${join(__dirname, 'ai-quality-indexnow-submit.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
   console.log('AI-quality IndexNow submission completed with warnings');
-}
-
-// RSS syndication feed — a STATIC file built from the already-generated,
-// parity-checked priority/programmatic sitemaps (so it can never drift from the
-// resolver). Feeds are a first-class discovery signal for Google & Bing and a
-// real syndication/backlink channel, at zero Cloudflare Function cost.
-try {
-  console.log('Generating RSS syndication feed (out/feed.xml)...');
-  execSync(`node ${join(__dirname, 'generate-feed.mjs')}`, { stdio: 'inherit' });
-} catch (error) {
-  console.log('Feed generation completed with warnings');
 }
 
 try {
