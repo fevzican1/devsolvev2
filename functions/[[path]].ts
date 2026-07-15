@@ -12,6 +12,8 @@ interface PagesContext {
 
 const ORIGIN = 'https://devsolvev2.com';
 const URLS_PER_SITEMAP = 50_000;
+const TARGET_CORPUS_SIZE = 20_000_000;
+const STREAM_CHUNK_SIZE = 250;
 const CONTENT_UPDATED_AT = '2026-06-22T00:00:00.000Z';
 
 const CLUSTERS = [
@@ -32,13 +34,13 @@ const MODIFIER_COUNT = 180;
 const PER_PAIR = AUDIENCES.length * TASKS.length * MODIFIER_COUNT;
 const PAIRS = CLUSTERS.flatMap(([cluster, tools, intents]) => tools.flatMap((tool) => intents.map((intent) => [cluster, tool, intent] as const)));
 const RAW_CORPUS_SIZE = PAIRS.length * PER_PAIR;
-const CORPUS_SIZE = Math.min(20_000_000, RAW_CORPUS_SIZE);
+const CORPUS_SIZE = Math.min(TARGET_CORPUS_SIZE, RAW_CORPUS_SIZE);
 
 // The corpus is an immutable deployment invariant: serving a partial or
 // non-50K-aligned universe would publish sitemap entries the resolver cannot
 // represent, so fail deployment rather than serve inconsistent SEO routes.
-if (CORPUS_SIZE !== 20_000_000 || CORPUS_SIZE % URLS_PER_SITEMAP !== 0) {
-  throw new Error('The embedded corpus must contain exactly 20,000,000 URLs in complete sitemap chunks.');
+if (CORPUS_SIZE !== TARGET_CORPUS_SIZE || CORPUS_SIZE % URLS_PER_SITEMAP !== 0) {
+  throw new Error(`The embedded corpus must contain exactly ${TARGET_CORPUS_SIZE.toLocaleString('en-US')} URLs in complete sitemap chunks.`);
 }
 
 function title(value: string): string {
@@ -111,7 +113,7 @@ function sitemapResponse(part: number): Response {
     pull(controller) {
       let xml = '';
       const end = Math.min(first + URLS_PER_SITEMAP, CORPUS_SIZE);
-      for (let count = 0; cursor < end && count < 250; cursor += 1, count += 1) {
+      for (let count = 0; cursor < end && count < STREAM_CHUNK_SIZE; cursor += 1, count += 1) {
         const page = pageForIndex(cursor);
         if (page) xml += `<url><loc>${ORIGIN}/k/${page.slug}</loc><lastmod>${CONTENT_UPDATED_AT}</lastmod></url>`;
       }
