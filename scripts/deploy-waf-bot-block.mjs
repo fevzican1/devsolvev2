@@ -3,20 +3,25 @@
  * Deploy Cloudflare WAF rules for /k/* + sitemap bot protection at the EDGE
  * (zero Pages Function invocation for blocked traffic).
  *
- * Rule order (first match wins):
+ * Rule order (first match wins) — kept to 4 managed rules because the Free
+ * plan allows at most 5 custom WAF rules per zone (one slot is left for
+ * user-managed rules, which the deploy preserves):
  *   0. SKIP — verified Google/Bing crawlers (right ASN or Cloudflare-verified)
  *      bypass Under-Attack challenges, managed rules, rate limits and the
  *      block rules below. This guarantees crawls NEVER see 403/challenge/5xx
  *      no matter how aggressive the anti-attack posture gets.
  *   1. Site-wide — block AI indexers + browser-extension scraper UAs
- *   2. /k/* + sitemaps — block known scraper / AI / SEO UAs
- *   3. /k/* + sitemaps — block desktop Chrome/Edge without sec-ch-ua Client Hints
- *   4. /k/* + sitemaps — block fake Googlebot/Bingbot (wrong ASN; GSC inspection exempt)
- *   5. /k/* + sitemaps — allowlist catch-all (real Google/Bing + real browsers ONLY)
+ *   2. /k/* + sitemaps — block fake Googlebot/Bingbot (wrong ASN; GSC
+ *      inspection exempt). Must run BEFORE the allowlist, which would
+ *      otherwise pass anything with a Google/Bing UA marker.
+ *   3. /k/* + sitemaps — allowlist catch-all (real Google/Bing + real
+ *      browsers ONLY). This single rule also covers what used to be separate
+ *      "known scraper UAs" and "Chrome without sec-ch-ua Client Hints" block
+ *      rules: any UA that matches no allow pattern is blocked here.
  *
- * Pages Function invocations: ONLY traffic passing rule 0 or 5 reaches the
+ * Pages Function invocations: ONLY traffic passing rule 0 or 3 reaches the
  * Function paths, and only on a CDN cache MISS (see scripts/deploy-cache-rules.mjs).
- * Blocked at rules 1–4 = zero invocations.
+ * Blocked at rules 1–2 or the rule-3 catch-all = zero invocations.
  *
  * Requires: CLOUDFLARE_API_TOKEN
  * Usage: node scripts/deploy-waf-bot-block.mjs
@@ -97,100 +102,30 @@ const WAF_SITEWIDE_BAD_BOT_BLOCK = `(
   )
 )`;
 
-/** Rule 1 — explicit deny list for /k/* (no Function cost). */
-const WAF_KNOWN_BAD_EXPRESSION = kPath(`(
-  ${uaContainsAny([
-    'meta-webindexer',
-    'meta-externalagent',
-    'meta-externalfetcher',
-    'facebookcatalog',
-    'facebookbot',
-    'applebot',
-    'applebot-extended',
-    'apple-pubsub',
-    'baiduspider',
-    'baidu',
-    'yandexbot',
-    'sogou',
-    'claudebot',
-    'claude-searchbot',
-    'claude-web',
-    'anthropic-ai',
-    'gptbot',
-    'oai-searchbot',
-    'chatgpt-user',
-    'openai',
-    'perplexitybot',
-    'bytespider',
-    'amazonbot',
-    'google-extended',
-    'cohere-ai',
-    'diffbot',
-    'ccbot',
-    'ahrefsbot',
-    'semrushbot',
-    'mj12bot',
-    'dotbot',
-    'blexbot',
-    'petalbot',
-    'serpstatbot',
-    'headlesschrome',
-    'headless',
-    'puppeteer',
-    'playwright',
-    'selenium',
-    'phantomjs',
-    'python-requests',
-    'python-urllib',
-    'curl/',
-    'wget',
-    'scrapy',
-    'go-http-client',
-    'java/',
-    'okhttp',
-    'node-fetch',
-    'axios/',
-    'chrome-extension',
-    'moz-extension',
-    'safari-web-extension',
-    'duckduckbot',
-    'duckduckgo-favicons-bot',
-    'twitterbot',
-    'facebookexternalhit',
-    'linkedinbot',
-    'slackbot',
-    'discordbot',
-    'telegrambot',
-    'whatsapp',
-    'redditbot',
-    'embedly',
-    'iframely',
-  ])}
-  or (
-    lower(http.user_agent) contains "searchbot"
-    and not lower(http.user_agent) contains "googlebot"
-    and not lower(http.user_agent) contains "bingbot"
-    and not lower(http.user_agent) contains "duckduckbot"
-  )
-)`);
-
-/**
- * Rule 2 — desktop Chrome/Edge scrapers without Client Hints on /k/*.
- */
-const WAF_FAKE_CHROME_EXPRESSION = kPath(`(
-  (
-    (lower(http.user_agent) contains "chrome/" and lower(http.user_agent) contains "safari/")
-    or lower(http.user_agent) contains "edg/"
-  )
-  and not lower(http.user_agent) contains "android"
-  and not lower(http.user_agent) contains "iphone"
-  and not lower(http.user_agent) contains "ipad"
-  and not lower(http.user_agent) contains "mobile"
-  and not lower(http.user_agent) contains "crios"
-  and len(http.request.headers["sec-ch-ua"][0]) <= 2
-)`);
+// NOTE: dedicated "known scraper UA" and "fake desktop Chrome without Client
+// Hints" block rules were folded into the allowlist catch-all (rule 3): any
+// UA that matches no allow pattern — including curl/wget/scrapy/headless
+// browsers and Chrome without sec-ch-ua — is blocked there. The Free plan
+// allows only 5 custom WAF rules per zone, so every rule slot counts.
 
 const GOOGLE_INSPECTION_UA = ['google-inspectiontool', 'google-site-verification'];
+
+// Deduplicated marker lists for the allowlist expression — "googlebot" already
+// matches googlebot-image/news/video, "msnbot" matches msnbot-media, etc.
+// Custom WAF expressions are capped at 4096 characters, so every clause counts.
+const GOOGLE_UA_MARKERS_COMPACT = [
+  'googlebot',
+  'adsbot-google',
+  'mediapartners-google',
+  'storebot-google',
+  'feedfetcher-google',
+  'apis-google',
+  'duplexweb-google',
+  'googleother',
+  'google-read-aloud',
+  'google-safety',
+];
+const BING_UA_MARKERS_COMPACT = ['bingbot', 'bingpreview', 'adidxbot', 'msnbot'];
 
 /**
  * Rule 0 — SKIP for verified search crawlers (sitewide, evaluated first).
@@ -260,18 +195,50 @@ const WAF_FAKE_SEARCH_BOT_EXPRESSION = kPath(`(
 )`);
 
 /**
- * Rule 4 — allowlist catch-all for /k/*.
+ * Rule 3 — allowlist catch-all for /k/* + sitemaps.
  * ONLY: verified Google/Bing, GSC inspection UA, real browsers.
  * NO social unfurl bots, NO DuckDuckGo (they caused function invocation floods).
+ * The explicit deny prefix catches automation UAs that would otherwise
+ * satisfy a browser allow pattern (e.g. HeadlessChrome ships sec-ch-ua, and
+ * Applebot embeds a full Safari UA). Generic "bot"/"crawler"/"spider" markers
+ * are safe here: real Google/Bing crawlers are skipped by Rule 0 and fakes
+ * are blocked by Rule 2 before this rule is ever evaluated.
  */
-const WAF_ALLOWLIST_EXPRESSION = kPath(`not (
+const WAF_ALLOWLIST_EXPRESSION = kPath(`(
+  ${uaContainsAny([
+    'bot',
+    'crawler',
+    'spider',
+    'headless',
+    'puppeteer',
+    'playwright',
+    'selenium',
+    'phantomjs',
+    'electron',
+    'chrome-extension',
+    'moz-extension',
+    'safari-web-extension',
+    'curl/',
+    'wget',
+    'python-',
+    'scrapy',
+    'go-http-client',
+    'java/',
+    'okhttp',
+    'node-fetch',
+    'axios/',
+    'facebookexternalhit',
+    'whatsapp',
+  ])}
+)
+or not (
   (
     cf.client.bot
     and ${VERIFIED_SEARCH_CRAWLER}
   )
   or ${uaContainsAny(GOOGLE_INSPECTION_UA)}
-  or ${uaContainsAny(GOOGLE_UA_MARKERS)}
-  or ${uaContainsAny(BING_UA_MARKERS)}
+  or ${uaContainsAny(GOOGLE_UA_MARKERS_COMPACT)}
+  or ${uaContainsAny(BING_UA_MARKERS_COMPACT)}
   or (lower(http.user_agent) contains "firefox/" and lower(http.user_agent) contains "gecko/")
   or (
     lower(http.user_agent) contains "safari/"
@@ -327,16 +294,6 @@ const RULES = [
   {
     description: '[DevSolve] sitewide block AI indexers + extension scrapers',
     expression: WAF_SITEWIDE_BAD_BOT_BLOCK,
-    action: 'block',
-  },
-  {
-    description: '[DevSolve] corpus+sitemaps block known scraper UAs',
-    expression: WAF_KNOWN_BAD_EXPRESSION,
-    action: 'block',
-  },
-  {
-    description: '[DevSolve] corpus+sitemaps block fake desktop Chrome without Client Hints',
-    expression: WAF_FAKE_CHROME_EXPRESSION,
     action: 'block',
   },
   {
@@ -427,7 +384,13 @@ async function main() {
     `/zones/${zoneId}/rulesets?phase=http_request_firewall_custom`,
   );
 
-  const ruleset = rulesets.find((r) => r.kind === 'zone' && r.phase === 'http_request_firewall_custom');
+  const rulesetStub = rulesets.find((r) => r.kind === 'zone' && r.phase === 'http_request_firewall_custom');
+  // The list endpoint omits each ruleset's rules — fetch the full ruleset so
+  // user-managed rules are preserved (not silently dropped) by the PUT below.
+  let ruleset;
+  if (rulesetStub) {
+    ({ result: ruleset } = await cf(`/zones/${zoneId}/rulesets/${rulesetStub.id}`));
+  }
 
   const managedDescriptions = new Set(RULES.map((r) => r.description));
   /** Retired rules — removed on deploy to avoid duplicate / stale blocks. */
@@ -441,6 +404,11 @@ async function main() {
     '[DevSolve] /k/* block fake desktop Chrome without Client Hints',
     '[DevSolve] /k/* block fake Googlebot/Bingbot (wrong ASN)',
     '[DevSolve] /k/* allowlist — Google Bing GSC inspection + real browsers',
+    // Manually-created skip rule (note the double space) — superseded by Rule 0.
+    '[DevSolve] /k/*  Googlebot/Bingbot (wrong ASN)',
+    // Interim consolidated rules — folded into the allowlist catch-all.
+    '[DevSolve] corpus+sitemaps block known scraper UAs',
+    '[DevSolve] corpus+sitemaps block fake desktop Chrome without Client Hints',
   ]);
   const preserved = (ruleset?.rules ?? []).filter(
     (r) => !managedDescriptions.has(r.description) && !legacyDescriptions.has(r.description),
@@ -456,7 +424,8 @@ async function main() {
           ...(spec.action === 'skip'
             ? { action_parameters: skipParameters, logging: { enabled: true } }
             : {}),
-          expression: spec.expression,
+          // Collapse formatting whitespace — expressions are capped at 4096 chars.
+          expression: spec.expression.replace(/\s+/g, ' ').trim(),
           description: spec.description,
           enabled: true,
         };
