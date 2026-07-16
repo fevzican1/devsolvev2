@@ -19,8 +19,15 @@ const LEGACY_SITEMAPS = [
 const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const CHROME_HEADERS = { 'sec-ch-ua': '"Chromium";v="120", "Google Chrome";v="120", "Not_A Brand";v="99"', 'sec-ch-ua-mobile': '?0' };
 
-function isWafBlock(body) {
-  return body.includes('Cloudflare') || body.includes('cf-error-details');
+function isWafBlock(body, res) {
+  // Custom-rule block page, or a Bot Fight Mode / Under Attack managed
+  // challenge (cf-mitigated header). Both stop traffic at the Cloudflare
+  // edge with ZERO Pages Function invocations.
+  return (
+    /cloudflare/i.test(body) ||
+    body.includes('cf-error-details') ||
+    res?.headers.get('cf-mitigated') === 'challenge'
+  );
 }
 
 function isFunctionBlock(body) {
@@ -57,10 +64,14 @@ const WAF_BLOCK_BOTS = [
 ];
 
 const REAL_CRAWLER_CASES = [
-  { name: 'GSC InspectionTool sitemap', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)', expect: [200] },
-  { name: 'GSC InspectionTool /k/*', path: K_PATH, ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)', expect: [200] },
-  { name: 'Real Chrome sitemap', path: SITEMAP, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200] },
-  { name: 'Real Chrome /k/*', path: K_PATH, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200] },
+  // allowChallenge: when Bot Fight Mode / Under Attack is active, requests
+  // from datacenter IPs (where this script runs) get a managed challenge even
+  // with a browser UA. That is a WARN, not a failure — real browsers solve the
+  // challenge and real Google/Bing crawlers are exempt (verified bots + Rule 0).
+  { name: 'GSC InspectionTool sitemap', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)', expect: [200], allowChallenge: true },
+  { name: 'GSC InspectionTool /k/*', path: K_PATH, ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)', expect: [200], allowChallenge: true },
+  { name: 'Real Chrome sitemap', path: SITEMAP, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200], allowChallenge: true },
+  { name: 'Real Chrome /k/*', path: K_PATH, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200], allowChallenge: true },
   // Fake crawlers (this script never runs from Google/Microsoft IPs) must be
   // stopped at the WAF on sitemaps too — sitemap floods invoke the Function
   // exactly like /k/* floods.
@@ -78,6 +89,7 @@ const REAL_CRAWLER_CASES = [
     headers: CHROME_HEADERS,
     expect: [301],
     expectLocation: '/sitemap.xml',
+    allowChallenge: true,
   })),
   ...WAF_BLOCK_BOTS.map(([name, ua]) => ({
     name: `${name} /k/*`,
@@ -91,12 +103,21 @@ const REAL_CRAWLER_CASES = [
 
 let failed = 0;
 let functionLeaks = 0;
+let warned = 0;
 
 for (const c of REAL_CRAWLER_CASES) {
   const headers = { ...(c.ua ? { 'User-Agent': c.ua } : {}), ...(c.headers || {}) };
   const res = await fetch(`${SITE}${c.path}`, { headers, redirect: 'manual' });
   const body = await res.text();
   const bodyStart = body.slice(0, 120).replace(/\s+/g, ' ');
+  const challenged = res.status === 403 && res.headers.get('cf-mitigated') === 'challenge';
+
+  if (challenged && c.allowChallenge) {
+    console.log(`WARN  ${c.name}: HTTP 403 challenge (expected from datacenter IP — real crawlers/browsers exempt)`);
+    warned += 1;
+    continue;
+  }
+
   const ok = c.expect.includes(res.status);
 
   if (res.status === 403 && isFunctionBlock(body)) {
@@ -108,7 +129,7 @@ for (const c of REAL_CRAWLER_CASES) {
     }
   }
 
-  if (ok && res.status === 403 && c.wantWaf && !isWafBlock(body)) {
+  if (ok && res.status === 403 && c.wantWaf && !isWafBlock(body, res)) {
     console.log(`FAIL  ${c.name}: HTTP 403 but not WAF block — ${bodyStart}`);
     failed += 1;
     continue;
@@ -135,7 +156,7 @@ for (const c of REAL_CRAWLER_CASES) {
 }
 
 if (failed === 0) {
-  console.log('\nPASS — real Google/Bing crawlers + GSC OK; all spam at WAF (zero Function invocations)');
+  console.log(`\nPASS — spam blocked at WAF (zero Function invocations)${warned ? `; ${warned} challenge warning(s) from datacenter IP (expected)` : ''}`);
 } else {
   console.log(`\nFAIL — ${failed} case(s)${functionLeaks ? `, ${functionLeaks} Function leak(s)` : ''}`);
 }
