@@ -96,9 +96,6 @@ function stableHash(input: string): number {
 }
 
 function resolveOrigin(requestUrl: string): string {
-  const configuredOrigin = process.env.SITE_URL || process.env.URL;
-  if (configuredOrigin) return configuredOrigin;
-
   const requestOrigin = new URL(requestUrl).origin;
   if (/\.pages\.dev$/i.test(requestOrigin) || /localhost|127\.0\.0\.1/i.test(requestOrigin)) {
     return 'https://devsolvev2.com';
