@@ -77,7 +77,17 @@ async function cf(path, init = {}) {
   });
   const body = await res.json();
   if (!body.success) {
-    throw new Error(JSON.stringify(body.errors ?? body, null, 2));
+    const detail = JSON.stringify(body.errors ?? body, null, 2);
+    if (detail.includes('not authorized') || detail.includes('Unauthorized')) {
+      console.error('\nToken lacks Cache Rules permission. Create this rule manually in Cloudflare dashboard:');
+      console.error('  Zone → Caching → Cache Rules → Create rule');
+      console.error('  Name: [DevSolve] edge-cache programmatic corpus + sitemaps');
+      console.error(`  When: Custom filter expression → ${CACHE_EXPRESSION}`);
+      console.error('  Then: Eligible for cache → Edge TTL: Use cache-control header if present, bypass cache if not');
+      console.error('        Browser TTL: Respect origin TTL');
+      console.error('\nWithout this rule, every HTML/XML request invokes the Pages Function on cache miss.');
+    }
+    throw new Error(detail);
   }
   return body;
 }
