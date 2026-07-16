@@ -181,7 +181,9 @@ function auditEdgeCorpusFunction() {
   }
   const txt = readFileSync(file, 'utf8');
   stats.filesScanned += 1;
-  for (const marker of ['TARGET_CORPUS_SIZE = 20_000_000', 'URLS_PER_SITEMAP = 50_000', "pathname === '/sitemap.xml'", "pathname.startsWith('/k/') && url.search"]) {
+  // "if (url.search) return redirect(url)" is the query-string canonicalization
+  // invariant: every managed path (/k/*, sitemaps) 301s query strings away.
+  for (const marker of ['TARGET_CORPUS_SIZE = 20_000_000', 'URLS_PER_SITEMAP = 50_000', "pathname === '/sitemap.xml'", 'if (url.search) return redirect(url)']) {
     if (!txt.includes(marker)) {
       record('CRITICAL', 'functions', file, `Edge corpus route is missing required invariant: ${marker}`);
     }
