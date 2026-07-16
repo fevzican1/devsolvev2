@@ -21,7 +21,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
     steps:
       - name: Trigger Cloudflare Pages deploy hook
         env:
@@ -33,10 +33,22 @@ jobs:
             exit 0
           fi
           echo "Triggering Cloudflare Pages production deploy..."
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$CLOUDFLARE_DEPLOY_HOOK_URL")
-          if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
-            echo "Deploy hook triggered successfully (HTTP $HTTP_STATUS)"
-          else
+          # The hook returns 304 while another build is already queued/running.
+          # That earlier build checked out an OLDER commit, so we must retry
+          # until Cloudflare accepts a fresh build of this commit.
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$CLOUDFLARE_DEPLOY_HOOK_URL")
+            if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
+              echo "Deploy hook triggered successfully (HTTP $HTTP_STATUS, attempt $attempt)"
+              exit 0
+            fi
+            if [ "$HTTP_STATUS" = "304" ]; then
+              echo "Deploy hook returned 304 (a build is already in progress) — retrying in 90s (attempt $attempt/10)..."
+              sleep 90
+              continue
+            fi
             echo "Deploy hook returned HTTP $HTTP_STATUS — check CLOUDFLARE_DEPLOY_HOOK_URL"
             exit 1
-          fi
+          done
+          echo "Deploy hook still returning 304 after 10 attempts — trigger manually via workflow_dispatch."
+          exit 1
