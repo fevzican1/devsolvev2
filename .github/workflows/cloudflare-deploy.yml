@@ -5,10 +5,14 @@ name: Cloudflare Pages — production deploy
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+# NOTE: "$default-branch" is only substituted in workflow TEMPLATES — in a
+# real workflow file it is treated as a literal branch name that never
+# matches, so this workflow silently never ran on merges. The branch below
+# must be kept in sync with the repository's default branch.
 on:
   push:
     branches:
-      - $default-branch
+      - agent-pages-manage-crawl-budget-dd8b
   workflow_dispatch: {}
 
 permissions:
