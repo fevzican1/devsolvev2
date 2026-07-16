@@ -1,11 +1,23 @@
 #!/usr/bin/env node
 /**
  * Live access matrix — spam blocked at WAF (zero Pages Function invocations).
- * Real Google/Bing crawlers pass from their ASNs (rule 4). GSC InspectionTool always passes.
+ * Real Google/Bing crawlers skip all protection from their ASNs (rule 0).
+ * GSC InspectionTool always passes. Legacy sitemap URLs 301 to /sitemap.xml.
  */
 const SITE = (process.env.SITE_URL || 'https://devsolvev2.com').replace(/\/$/, '');
 const K_PATH = '/k/json-validate-json-backend-engineer-debug-production-issue-json-formatter-0';
-const SITEMAP = '/sitemap-index-2026-06-v3.xml';
+const SITEMAP = '/sitemap.xml';
+const LEGACY_SITEMAPS = [
+  '/sitemap-index-2026-06-v3.xml',
+  '/sitemap_index.xml',
+  '/sitemaps.xml',
+  '/sitemap-index.xml',
+  '/sitemap-tier2-0008.xml',
+  '/sitemap-priority-0001.xml',
+  '/sitemap-programmatic-0008.xml',
+];
+const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const CHROME_HEADERS = { 'sec-ch-ua': '"Chromium";v="120", "Google Chrome";v="120", "Not_A Brand";v="99"', 'sec-ch-ua-mobile': '?0' };
 
 function isWafBlock(body) {
   return body.includes('Cloudflare') || body.includes('cf-error-details');
@@ -45,21 +57,28 @@ const WAF_BLOCK_BOTS = [
 ];
 
 const REAL_CRAWLER_CASES = [
-  { name: 'Googlebot sitemap', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', expect: [200] },
-  { name: 'Googlebot-Image sitemap', path: SITEMAP, ua: 'Googlebot-Image/1.0', expect: [200] },
-  { name: 'AdsBot-Google sitemap', path: SITEMAP, ua: 'AdsBot-Google (+http://www.google.com/adsbot.html)', expect: [200] },
+  { name: 'GSC InspectionTool sitemap', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)', expect: [200] },
   { name: 'GSC InspectionTool /k/*', path: K_PATH, ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)', expect: [200] },
-  { name: 'Bingbot sitemap', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', expect: [200] },
-  { name: 'BingPreview sitemap', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm) BingPreview/1.0b', expect: [200] },
+  { name: 'Real Chrome sitemap', path: SITEMAP, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200] },
+  { name: 'Real Chrome /k/*', path: K_PATH, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200] },
+  // Fake crawlers (this script never runs from Google/Microsoft IPs) must be
+  // stopped at the WAF on sitemaps too — sitemap floods invoke the Function
+  // exactly like /k/* floods.
+  { name: 'Googlebot sitemap (non-Google IP → WAF block)', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', expect: [403], wantWaf: true },
+  { name: 'Bingbot sitemap (non-Microsoft IP → WAF block)', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', expect: [403], wantWaf: true },
   { name: 'Googlebot /k/* (non-Google IP → WAF block)', path: K_PATH, ua: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', expect: [403], wantWaf: true },
   { name: 'Bingbot /k/* (non-Microsoft IP → WAF block)', path: K_PATH, ua: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', expect: [403], wantWaf: true },
-  {
-    name: 'Real Chrome /k/*',
-    path: K_PATH,
-    ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    headers: { 'sec-ch-ua': '"Chromium";v="120", "Google Chrome";v="120", "Not_A Brand";v="99"', 'sec-ch-ua-mobile': '?0' },
-    expect: [200],
-  },
+  // Every sitemap URL ever submitted to GSC/Bing must 301 to /sitemap.xml —
+  // a 404 here renders the HTML error page and produces the
+  // "xmlParseEntityRef: no name" parse failure in Search Console.
+  ...LEGACY_SITEMAPS.map((path) => ({
+    name: `Legacy ${path} → 301 /sitemap.xml`,
+    path,
+    ua: CHROME_UA,
+    headers: CHROME_HEADERS,
+    expect: [301],
+    expectLocation: '/sitemap.xml',
+  })),
   ...WAF_BLOCK_BOTS.map(([name, ua]) => ({
     name: `${name} /k/*`,
     path: K_PATH,
@@ -99,6 +118,15 @@ for (const c of REAL_CRAWLER_CASES) {
     console.log(`FAIL  ${c.name}: HTTP 200 — bad bot reached origin (counter leak)`);
     failed += 1;
     continue;
+  }
+
+  if (ok && c.expectLocation) {
+    const location = res.headers.get('location') || '';
+    if (!location.endsWith(c.expectLocation)) {
+      console.log(`FAIL  ${c.name}: HTTP ${res.status} but Location is "${location}"`);
+      failed += 1;
+      continue;
+    }
   }
 
   const tag = ok ? 'OK' : 'FAIL';

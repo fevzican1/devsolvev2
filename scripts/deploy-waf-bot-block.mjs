@@ -1,22 +1,25 @@
 #!/usr/bin/env node
 /**
- * Deploy Cloudflare WAF rules for /k/* bot protection at the EDGE
+ * Deploy Cloudflare WAF rules for /k/* + sitemap bot protection at the EDGE
  * (zero Pages Function invocation for blocked traffic).
  *
  * Rule order (first match wins):
- *   0. Site-wide — block AI indexers + browser-extension scraper UAs
- *   1. /k/* — block known scraper / AI / SEO UAs
- *   2. /k/* — block desktop Chrome/Edge without sec-ch-ua Client Hints
- *   3. /k/* — block fake Googlebot/Bingbot (wrong ASN; GSC inspection exempt)
- *   4. /k/* — allowlist catch-all (real Google/Bing + real browsers ONLY)
+ *   0. SKIP — verified Google/Bing crawlers (right ASN or Cloudflare-verified)
+ *      bypass Under-Attack challenges, managed rules, rate limits and the
+ *      block rules below. This guarantees crawls NEVER see 403/challenge/5xx
+ *      no matter how aggressive the anti-attack posture gets.
+ *   1. Site-wide — block AI indexers + browser-extension scraper UAs
+ *   2. /k/* + sitemaps — block known scraper / AI / SEO UAs
+ *   3. /k/* + sitemaps — block desktop Chrome/Edge without sec-ch-ua Client Hints
+ *   4. /k/* + sitemaps — block fake Googlebot/Bingbot (wrong ASN; GSC inspection exempt)
+ *   5. /k/* + sitemaps — allowlist catch-all (real Google/Bing + real browsers ONLY)
  *
- * Pages Function invocations: ONLY traffic passing rule 4 reaches /k/* function.
- * Blocked at rules 0–3 = zero invocations. Google/Bing on cache miss = expected.
+ * Pages Function invocations: ONLY traffic passing rule 0 or 5 reaches the
+ * Function paths, and only on a CDN cache MISS (see scripts/deploy-cache-rules.mjs).
+ * Blocked at rules 1–4 = zero invocations.
  *
  * Requires: CLOUDFLARE_API_TOKEN
  * Usage: node scripts/deploy-waf-bot-block.mjs
- *
- * Keep expressions aligned with functions/_shared/botGuard.ts
  */
 
 import { BING_CRAWLER_ASNS, GOOGLE_CRAWLER_ASNS, wafAsnSet } from './lib/crawler-asns.mjs';
@@ -60,8 +63,16 @@ function uaContainsAny(markers) {
   return markers.map((m) => `(lower(http.user_agent) contains "${m}")`).join(' or ');
 }
 
+/**
+ * Every path that can invoke the Pages Function (per public/_routes.json)
+ * plus static sitemap files: /k/*, /sitemap.xml, /sitemaps/*, /sitemap-*.
+ * Bot floods on sitemap endpoints burn Function invocations exactly like
+ * /k/* floods, so both prefixes get the same edge protection.
+ */
+const GUARDED_PATHS = '(starts_with(http.request.uri.path, "/k/") or starts_with(http.request.uri.path, "/sitemap"))';
+
 function kPath(expr) {
-  return `starts_with(http.request.uri.path, "/k/") and (${expr})`;
+  return `${GUARDED_PATHS} and (${expr})`;
 }
 
 /**
@@ -182,6 +193,55 @@ const WAF_FAKE_CHROME_EXPRESSION = kPath(`(
 const GOOGLE_INSPECTION_UA = ['google-inspectiontool', 'google-site-verification'];
 
 /**
+ * Rule 0 — SKIP for verified search crawlers (sitewide, evaluated first).
+ * Real Googlebot/Bingbot (Cloudflare-verified OR right UA + right ASN) and
+ * the GSC URL Inspection tool bypass: Security Level (I'm Under Attack
+ * challenges), Browser Integrity Check, Hotlink Protection, UA rules, Zone
+ * Lockdown, rate limiting, managed WAF rules, Super Bot Fight Mode and the
+ * remaining custom rules. Search crawlers must NEVER receive a challenge or
+ * 403 — that is what caused the "server error (5xx)" wave in GSC.
+ */
+const WAF_VERIFIED_CRAWLER_SKIP = `(
+  ${VERIFIED_SEARCH_CRAWLER}
+  or (
+    (${uaContainsAny(GOOGLE_UA_MARKERS)})
+    and ip.src.asnum in ${GOOGLE_ASNS}
+  )
+  or (
+    (${uaContainsAny(BING_UA_MARKERS)})
+    and ip.src.asnum in ${BING_ASNS}
+  )
+  or ${uaContainsAny(GOOGLE_INSPECTION_UA)}
+)`;
+
+/**
+ * Widest skip first; the API rejects parameters unavailable on the current
+ * plan (e.g. Super Bot Fight Mode phase on Free), so the deploy retries with
+ * progressively narrower skip parameters until one is accepted.
+ */
+const SKIP_PARAMETER_VARIANTS = [
+  {
+    ruleset: 'current',
+    phases: ['http_ratelimit', 'http_request_firewall_managed', 'http_request_sbfm'],
+    products: ['zoneLockdown', 'uaBlock', 'bic', 'hot', 'securityLevel', 'rateLimit', 'waf'],
+  },
+  {
+    ruleset: 'current',
+    phases: ['http_ratelimit', 'http_request_firewall_managed'],
+    products: ['zoneLockdown', 'uaBlock', 'bic', 'hot', 'securityLevel', 'rateLimit', 'waf'],
+  },
+  {
+    ruleset: 'current',
+    products: ['zoneLockdown', 'uaBlock', 'bic', 'hot', 'securityLevel', 'rateLimit', 'waf'],
+  },
+  {
+    ruleset: 'current',
+    products: ['zoneLockdown', 'uaBlock', 'bic', 'hot', 'securityLevel'],
+  },
+  { ruleset: 'current' },
+];
+
+/**
  * Rule 3 — fake Googlebot/Bingbot on /k/* (wrong ASN → zero Function invocations).
  * GSC URL Inspection UA exempt — runs from non-Google IPs during Live Test.
  */
@@ -260,24 +320,34 @@ const WAF_ALLOWLIST_EXPRESSION = kPath(`not (
 
 const RULES = [
   {
+    description: '[DevSolve] SKIP verified Google/Bing crawlers (never challenge/block)',
+    expression: WAF_VERIFIED_CRAWLER_SKIP,
+    action: 'skip',
+  },
+  {
     description: '[DevSolve] sitewide block AI indexers + extension scrapers',
     expression: WAF_SITEWIDE_BAD_BOT_BLOCK,
+    action: 'block',
   },
   {
-    description: '[DevSolve] /k/* block known scraper UAs',
+    description: '[DevSolve] corpus+sitemaps block known scraper UAs',
     expression: WAF_KNOWN_BAD_EXPRESSION,
+    action: 'block',
   },
   {
-    description: '[DevSolve] /k/* block fake desktop Chrome without Client Hints',
+    description: '[DevSolve] corpus+sitemaps block fake desktop Chrome without Client Hints',
     expression: WAF_FAKE_CHROME_EXPRESSION,
+    action: 'block',
   },
   {
-    description: '[DevSolve] /k/* block fake Googlebot/Bingbot (wrong ASN)',
+    description: '[DevSolve] corpus+sitemaps block fake Googlebot/Bingbot (wrong ASN)',
     expression: WAF_FAKE_SEARCH_BOT_EXPRESSION,
+    action: 'block',
   },
   {
-    description: '[DevSolve] /k/* allowlist — Google Bing GSC inspection + real browsers',
+    description: '[DevSolve] corpus+sitemaps allowlist — Google Bing GSC inspection + real browsers',
     expression: WAF_ALLOWLIST_EXPRESSION,
+    action: 'block',
   },
 ];
 
@@ -367,45 +437,72 @@ async function main() {
     '[DevSolve] /k/* block fake Bingbot',
     '[DevSolve] sitewide block fake desktop Chrome without Client Hints',
     '[DevSolve] /k/* allowlist — Google Bing DuckDuckGo + real browsers',
+    '[DevSolve] /k/* block known scraper UAs',
+    '[DevSolve] /k/* block fake desktop Chrome without Client Hints',
+    '[DevSolve] /k/* block fake Googlebot/Bingbot (wrong ASN)',
+    '[DevSolve] /k/* allowlist — Google Bing GSC inspection + real browsers',
   ]);
   const preserved = (ruleset?.rules ?? []).filter(
     (r) => !managedDescriptions.has(r.description) && !legacyDescriptions.has(r.description),
   );
 
-  const newRules = RULES.map((spec) => {
-    const existing = ruleset?.rules?.find((r) => r.description === spec.description);
-    return {
-      id: existing?.id,
-      action: 'block',
-      expression: spec.expression,
-      description: spec.description,
-      enabled: true,
-    };
-  });
+  function buildRules(skipParameters) {
+    return [
+      ...RULES.map((spec) => {
+        const existing = ruleset?.rules?.find((r) => r.description === spec.description);
+        return {
+          id: existing?.id,
+          action: spec.action,
+          ...(spec.action === 'skip'
+            ? { action_parameters: skipParameters, logging: { enabled: true } }
+            : {}),
+          expression: spec.expression,
+          description: spec.description,
+          enabled: true,
+        };
+      }),
+      ...preserved,
+    ];
+  }
 
-  const rules = [...newRules, ...preserved];
+  async function deployWithSkipFallback(deploy) {
+    let lastError;
+    for (const skipParameters of SKIP_PARAMETER_VARIANTS) {
+      try {
+        return await deploy(buildRules(skipParameters));
+      } catch (error) {
+        lastError = error;
+        console.warn('Skip-rule parameters rejected, retrying with a narrower variant...');
+      }
+    }
+    throw lastError;
+  }
 
   if (!ruleset) {
-    const created = await cf(`/zones/${zoneId}/rulesets`, {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'devsolve-k-bot-block',
-        kind: 'zone',
-        phase: 'http_request_firewall_custom',
-        rules,
+    const created = await deployWithSkipFallback((rules) =>
+      cf(`/zones/${zoneId}/rulesets`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'devsolve-k-bot-block',
+          kind: 'zone',
+          phase: 'http_request_firewall_custom',
+          rules,
+        }),
       }),
-    });
+    );
     console.log('Created WAF ruleset:', created.result.id);
-    console.log(`Deployed ${RULES.length} rules. Real Googlebot/Bingbot must pass Rule 4.`);
+    console.log(`Deployed ${RULES.length} rules. Verified Google/Bing skip everything (Rule 0).`);
     return;
   }
 
-  const updated = await cf(`/zones/${zoneId}/rulesets/${ruleset.id}`, {
-    method: 'PUT',
-    body: JSON.stringify({ rules }),
-  });
+  const updated = await deployWithSkipFallback((rules) =>
+    cf(`/zones/${zoneId}/rulesets/${ruleset.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ rules }),
+    }),
+  );
   console.log('Updated WAF ruleset:', updated.result.id);
-  console.log(`Deployed ${RULES.length} rules. Real Googlebot/Bingbot must pass Rule 4.`);
+  console.log(`Deployed ${RULES.length} rules. Verified Google/Bing skip everything (Rule 0).`);
 }
 
 main().catch((err) => {
