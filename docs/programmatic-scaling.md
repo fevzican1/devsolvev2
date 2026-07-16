@@ -20,11 +20,59 @@ This means Googlebot and Bingbot discover only URLs the deterministic resolver
 can serve. Sitemap XML is streamed in small chunks rather than materializing a
 50,000-URL string in memory.
 
-## Caching
+## Caching — "static-looking" zero-invocation delivery
 
-`public/_headers` and the Function response headers give `/k/*` and sitemap
-responses long Cloudflare edge cache lifetimes. On a cache hit, no Function
-execution occurs.
+The corpus is not 20M static files (impossible on Pages) but it must behave
+as if it were: near-instant responses, no Function invocation on repeat
+requests, no CPU under bot floods. Three layers make that true:
+
+1. **Zone Cache Rules** (`npm run edge:cache-rules`, requires
+   `CLOUDFLARE_API_TOKEN`). Cloudflare does NOT edge-cache HTML/XML by
+   default — it classifies them "Dynamic" and ignores `Cache-Control`, so
+   without this rule *every* request invoked the Function. The deployed rule
+   marks `/k/*`, `/sitemap.xml`, `/sitemaps/*`, `/sitemap-*` and `/feed.xml`
+   "Eligible for cache" honoring origin headers, and enables Tiered Cache so
+   a miss in one colo is filled from an upper tier instead of the Function.
+   On a CDN hit the Function never runs — this is the true zero-compute path.
+2. **Colo-local Cache API** inside `functions/[[path]].ts`. On the first miss
+   the Function stores its response in `caches.default`; repeat misses in the
+   same colo cost microseconds instead of re-rendering. This also protects
+   deployments where the zone Cache Rule has not been created yet.
+3. **Response headers**: `/k/*` ships `s-maxage=31536000` (content is
+   deterministic — safe to cache for a year), sitemaps `s-maxage=604800`.
+   `public/_headers` covers the static sitemap files.
+
+Cache misses on never-before-requested URLs still invoke the Function once
+per colo — that is the deterministic generator doing its job in ~1ms of CPU,
+with no storage, network, or database access, so it cannot crash or exhaust
+an origin.
+
+## Edge protection (WAF)
+
+`npm run edge:waf` deploys the custom WAF ruleset:
+
+- Rule 0 **skips** all protection (Under Attack challenges, managed rules,
+  rate limits, and the block rules below) for verified Google/Bing crawlers
+  (Cloudflare-verified bot category, or correct UA + correct ASN) and the GSC
+  URL Inspection tool. Crawlers can never be challenged into "server error
+  (5xx)" states in Search Console again, regardless of attack posture.
+- Rules 1–4 block scrapers, AI bots, fake browsers, and fake Googlebot /
+  Bingbot on `/k/*` **and** every `/sitemap*` path before any Function or
+  cache is touched — blocked traffic costs zero invocations.
+- Rule 5 is an allowlist catch-all: only verified search crawlers and real
+  browsers may reach the Function paths at all.
+
+`npm run edge:verify` asserts the whole matrix against production.
+
+## Legacy sitemap URLs
+
+Every sitemap URL ever submitted to GSC/Bing (`/sitemap-index-2026-06-v3.xml`,
+tier/priority/programmatic chunks, `/sitemap_index.xml`, ...) 301s to
+`/sitemap.xml` via `public/_redirects`. They must never 404: Pages serves the
+404 page as HTML, and when Google re-fetches a previously submitted sitemap
+URL it parses that HTML as XML and reports "xmlParseEntityRef: no name". The
+canonical index to submit in Search Console / Bing Webmaster Tools is
+`https://devsolvev2.com/sitemap.xml`.
 
 ## Indexing limits
 
