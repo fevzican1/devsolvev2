@@ -1,15 +1,22 @@
-# Legacy sitemap URLs kept alive for Googlebot.
+# Legacy sitemap URLs kept alive for Googlebot/Bingbot.
 #
-# They 301 to the CURRENT, versioned sitemap index so no crawler ever lands on
-# the purged, frozen /sitemap-index.xml. That old index is intentionally removed
-# at build time (removeStaleSitemapIndexes) so it returns 404 and Google drops
-# its stale parse — see docs/indexing-recovery-2026-06.md §6. We deliberately do
-# NOT redirect the bare /sitemap-index.xml here: it must 404 to force a fresh
-# discovery pass on the new versioned URL.
+# Every sitemap URL that ever appeared in Google Search Console or Bing
+# Webmaster Tools 301s to the CURRENT canonical index at /sitemap.xml (served
+# by the deterministic Pages Function). Nothing may 404 here: a 404 at a
+# *.xml URL is served with the static 404 HTML page, and if that HTML is ever
+# parsed as XML (Google does this for previously-submitted sitemap URLs) it
+# produces "xmlParseEntityRef: no name" errors in GSC.
 #
-# IMPORTANT: scripts/generate-programmatic-sitemaps.mjs rewrites the index-target
-# lines below (in out/_redirects) to match SITEMAP_INDEX_NAME during the build,
-# so bumping the sitemap version never silently re-breaks these legacy redirects.
-/sitemap_index.xml      /sitemap-index-2026-06-v3.xml      301
-/sitemaps.xml           /sitemap-index-2026-06-v3.xml      301
-/sitemap-programmatic-0008.xml  /sitemap-tier2-0008.xml      301
+# Static (exact) rules first, then dynamic (splat) rules — Pages requires
+# this ordering. Do NOT add rules that shadow real build outputs:
+# sitemap-main-pages*.xml and sitemap-ai-quality-*.xml are real static files.
+/sitemap_index.xml       /sitemap.xml  301
+/sitemaps.xml            /sitemap.xml  301
+/sitemap-index.xml       /sitemap.xml  301
+
+# Retired versioned indexes (…-2026-06-v3.xml etc.) and retired tier /
+# priority / programmatic chunk sitemaps from the pre-edge-resolver era.
+/sitemap-index-*         /sitemap.xml  301
+/sitemap-tier*           /sitemap.xml  301
+/sitemap-priority-*      /sitemap.xml  301
+/sitemap-programmatic-*  /sitemap.xml  301
