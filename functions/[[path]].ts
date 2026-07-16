@@ -8,6 +8,12 @@
 interface PagesContext {
   request: Request;
   next(): Promise<Response>;
+  waitUntil(promise: Promise<unknown>): void;
+}
+
+/** Cloudflare-specific default cache (colo-local, keyed by URL). */
+function edgeCache(): Cache | undefined {
+  return (globalThis as { caches?: { default?: Cache } }).caches?.default;
 }
 
 const URLS_PER_SITEMAP = 50_000;
@@ -165,25 +171,53 @@ function sitemapResponse(part: number, origin: string): Response {
   return new Response(stream, { headers: contentHeaders('application/xml; charset=utf-8') });
 }
 
-export const onRequest = async (context: PagesContext): Promise<Response> => {
-  const url = new URL(context.request.url);
-  const origin = resolveOrigin(context.request.url);
-  const { pathname } = url;
-  if (pathname.startsWith('/k/') && url.search) return redirect(url);
-  if (pathname === '/sitemap.xml') return url.search ? redirect(url) : sitemapIndexResponse(origin);
+function notFound(): Response {
+  return new Response('Not Found', { status: 404, headers: contentHeaders('text/plain; charset=utf-8', 'public, max-age=60') });
+}
+
+function buildResponse(pathname: string, origin: string): Response | undefined {
+  if (pathname === '/sitemap.xml') return sitemapIndexResponse(origin);
   const sitemapMatch = pathname.match(/^\/sitemaps\/sitemap-(\d+)\.xml$/);
   if (sitemapMatch) {
-    if (url.search) return redirect(url);
     const part = Number(sitemapMatch[1]);
-    return part >= 1 && part <= CORPUS_SIZE / URLS_PER_SITEMAP
-      ? sitemapResponse(part, origin)
-      : new Response('Not Found', { status: 404, headers: contentHeaders('text/plain; charset=utf-8', 'public, max-age=60') });
+    return part >= 1 && part <= CORPUS_SIZE / URLS_PER_SITEMAP ? sitemapResponse(part, origin) : notFound();
   }
   const match = pathname.match(/^\/k\/([a-z0-9-]+)$/);
   if (match) {
     const page = resolvePageForSlug(match[1]);
-    if (page) return pageResponse(page, origin);
-    return new Response('Not Found', { status: 404, headers: contentHeaders('text/plain; charset=utf-8', 'public, max-age=60') });
+    return page ? pageResponse(page, origin) : notFound();
   }
-  return context.next();
+  return undefined;
+}
+
+export const onRequest = async (context: PagesContext): Promise<Response> => {
+  const { request } = context;
+  const url = new URL(request.url);
+  const { pathname } = url;
+  const managed = pathname === '/sitemap.xml' || pathname.startsWith('/sitemaps/') || pathname.startsWith('/k/');
+  if (!managed) return context.next();
+  if (url.search) return redirect(url);
+
+  // Two cache layers keep the corpus "static-looking" with zero recomputation:
+  //  1. Zone Cache Rules (scripts/deploy-cache-rules.mjs) serve repeat hits
+  //     straight from the Cloudflare CDN — the Function is never invoked.
+  //  2. This colo-local Cache API lookup covers the window before those rules
+  //     exist (or if they are removed): a hit costs microseconds of CPU and
+  //     never re-renders HTML/XML.
+  const cache = request.method === 'GET' ? edgeCache() : undefined;
+  const cacheKey = new Request(`${url.origin}${pathname}`, { method: 'GET' });
+  if (cache) {
+    const hit = await cache.match(cacheKey).catch(() => undefined);
+    if (hit) return hit;
+  }
+
+  const response = buildResponse(pathname, resolveOrigin(request.url)) ?? (await context.next());
+  if (cache && response.status === 200) {
+    try {
+      context.waitUntil(cache.put(cacheKey, response.clone()));
+    } catch {
+      // Cache put must never break serving (e.g. local dev without Cache API).
+    }
+  }
+  return response;
 };
