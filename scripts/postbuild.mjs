@@ -115,6 +115,20 @@ try {
   hardFailures.push('quality-corpus-audit');
 }
 
+// Zero-cost proof that the EXACT HTML served at the edge for all 20M /k/ URLs
+// is indexable across Google + Bing (score >= 90 and zero guideline
+// violations). This scores functions/_lib/programmaticPage.ts — the same
+// generator functions/[[path]].ts serves — so the gate and the served bytes
+// can never drift apart. Hard failure: a content-quality regression here is a
+// real mass-deindex risk (this is what Bing flagged as "content quality").
+try {
+  console.log('Verifying edge-served corpus quality (all 20M /k/ pages)...');
+  execSync(`node --import tsx ${join(__dirname, 'verify-edge-corpus-quality.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('Edge corpus quality verification FAILED — see out/reports/edge-corpus-quality.json');
+  hardFailures.push('verify-edge-corpus-quality');
+}
+
 try {
   console.log('Generating quality report...');
   execSync(`node ${join(__dirname, 'quality-report.mjs')}`, { stdio: 'inherit' });
