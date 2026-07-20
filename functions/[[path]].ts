@@ -4,7 +4,24 @@
  * This module deliberately has no bindings, storage, network calls, or npm
  * imports. The corpus is calculated from its ordinal, so its 20M canonical
  * URLs do not consume deployment storage or require an origin database.
+ *
+ * Content generation (the rich, guideline-compliant HTML that Bingbot and
+ * Googlebot actually crawl) lives in functions/_lib/programmaticPage.ts so the
+ * exact same generator can be scored at build time by
+ * scripts/verify-edge-corpus-quality.mjs — the served bytes and the quality
+ * gate can never drift apart.
  */
+import {
+  CORPUS_SIZE,
+  URLS_PER_SITEMAP,
+  CONTENT_UPDATED_AT,
+  pageForIndex,
+  resolvePageForSlug,
+  renderProgrammaticPage,
+  stableHash,
+  type ResolvedPage,
+} from './_lib/programmaticPage';
+
 interface PagesContext {
   request: Request;
   next(): Promise<Response>;
@@ -16,65 +33,8 @@ function edgeCache(): Cache | undefined {
   return (globalThis as { caches?: { default?: Cache } }).caches?.default;
 }
 
-const URLS_PER_SITEMAP = 50_000;
-const TARGET_CORPUS_SIZE = 20_000_000;
 const STREAM_CHUNK_SIZE = 250;
-const CONTENT_UPDATED_AT = '2026-06-22T00:00:00.000Z';
-
-const CLUSTERS = [
-  ['json', ['json-formatter', 'json-to-typescript'], ['validate-json', 'format-json', 'inspect-json-structure', 'convert-json-to-types', 'compare-json-objects', 'transform-json-keys', 'extract-json-values', 'merge-json-data', 'flatten-nested-json', 'detect-json-syntax-errors', 'generate-json-schema', 'minify-json-payload']],
-  ['encoding', ['base64-encode-decode', 'url-encode-decode', 'html-entity-encode-decode'], ['encode-data', 'decode-data', 'fix-encoding-bugs', 'convert-character-sets', 'handle-unicode-text', 'escape-special-characters', 'troubleshoot-encoding-mismatch', 'batch-encode-values', 'decode-nested-encodings', 'verify-encoding-roundtrip', 'convert-binary-to-text', 'normalize-encoded-output']],
-  ['security', ['hash-generator', 'uuid-generator', 'jwt-decoder'], ['generate-identifiers', 'verify-tokens', 'inspect-signatures', 'audit-token-expiry', 'hash-sensitive-data', 'generate-secure-keys', 'validate-jwt-claims', 'compare-security-hashes', 'detect-token-tampering', 'rotate-unique-identifiers', 'analyze-token-payload', 'verify-data-integrity']],
-  ['text', ['text-case-converter', 'diff-checker', 'regex-tester'], ['normalize-text', 'compare-versions', 'test-regex', 'find-and-replace-patterns', 'extract-text-segments', 'convert-text-case', 'analyze-text-differences', 'build-regex-patterns', 'validate-input-format', 'clean-up-whitespace', 'split-text-by-delimiter', 'match-complex-patterns']],
-  ['formatting', ['sql-formatter', 'css-minifier', 'markdown-preview'], ['format-sql', 'minify-assets', 'preview-markdown', 'indent-nested-code', 'optimize-css-output', 'validate-markdown-syntax', 'beautify-query-strings', 'restructure-code-blocks', 'standardize-sql-style', 'compress-stylesheet', 'render-documentation', 'align-code-formatting']],
-  ['api', ['json-formatter', 'jwt-decoder', 'url-encode-decode'], ['design-api-schema', 'validate-api-response', 'construct-query-string', 'authenticate-api-request', 'parse-webhook-payload', 'debug-api-error', 'format-api-documentation', 'test-api-endpoint', 'normalize-api-data', 'optimize-api-payload', 'version-api-response', 'secure-api-communication']],
-  ['data', ['json-to-typescript', 'base64-encode-decode', 'hash-generator'], ['transform-data-format', 'generate-data-models', 'hash-data-for-storage', 'encode-binary-data', 'create-data-fingerprint', 'validate-data-integrity', 'serialize-complex-objects', 'migrate-data-schema', 'anonymize-sensitive-fields', 'aggregate-data-records', 'generate-unique-identifiers', 'normalize-data-structure']],
-  ['debugging', ['diff-checker', 'regex-tester', 'json-formatter'], ['compare-config-files', 'trace-data-flow', 'isolate-parsing-error', 'identify-format-change', 'debug-regex-match', 'verify-output-format', 'analyze-log-patterns', 'pinpoint-encoding-issue', 'detect-schema-drift', 'validate-transform-output', 'reproduce-formatting-bug', 'check-data-consistency']],
-  ['automation', ['cron-helper', 'regex-tester', 'uuid-generator'], ['schedule-recurring-task', 'extract-log-data', 'generate-batch-ids', 'parse-automation-output', 'validate-cron-schedule', 'build-extraction-pattern', 'create-unique-job-ids', 'monitor-scheduled-tasks', 'automate-data-extraction', 'filter-event-streams', 'tag-automated-processes', 'configure-periodic-cleanup']],
-  ['web', ['html-entity-encode-decode', 'css-minifier', 'markdown-preview'], ['sanitize-html-input', 'optimize-css-bundle', 'preview-content-markup', 'encode-url-parameters', 'protect-against-xss', 'minify-stylesheet', 'render-dynamic-content', 'escape-template-variables', 'compress-web-assets', 'validate-markup-output', 'format-rich-text', 'secure-form-data']],
-] as const;
-const AUDIENCES = ['backend-engineer', 'frontend-developer', 'fullstack-developer', 'api-consumer', 'integration-engineer', 'security-conscious-developer', 'ops-engineer', 'devops-engineer', 'technical-writer', 'data-engineer', 'mobile-developer', 'qa-engineer', 'site-reliability-engineer', 'database-administrator', 'cloud-architect', 'performance-engineer', 'platform-engineer', 'solution-architect', 'tech-lead', 'release-engineer'];
-const TASKS = ['debug-production-issue', 'prepare-api-response', 'clean-up-payload', 'sanitize-user-input', 'prepare-query-parameters', 'inspect-encoded-payload', 'trace-request', 'validate-auth-token', 'review-config-change', 'migrate-legacy-system', 'prepare-deployment-artifact', 'document-api-endpoint', 'optimize-build-pipeline', 'resolve-merge-conflict', 'prepare-security-audit', 'generate-test-fixtures'];
-const MODIFIER_COUNT = 180;
-const PER_PAIR = AUDIENCES.length * TASKS.length * MODIFIER_COUNT;
-const PAIRS = CLUSTERS.flatMap(([cluster, tools, intents]) => tools.flatMap((tool) => intents.map((intent) => [cluster, tool, intent] as const)));
-const RAW_CORPUS_SIZE = PAIRS.length * PER_PAIR;
-const CORPUS_SIZE = Math.min(TARGET_CORPUS_SIZE, RAW_CORPUS_SIZE);
-
-// The corpus is an immutable deployment invariant: serving a partial or
-// non-50K-aligned universe would publish sitemap entries the resolver cannot
-// represent, so fail deployment rather than serve inconsistent SEO routes.
-if (CORPUS_SIZE !== TARGET_CORPUS_SIZE || CORPUS_SIZE % URLS_PER_SITEMAP !== 0) {
-  console.error(`Programmatic corpus invariant failed: expected ${TARGET_CORPUS_SIZE.toLocaleString('en-US')} URLs in complete sitemap chunks, received ${CORPUS_SIZE.toLocaleString('en-US')} with ${URLS_PER_SITEMAP} URLs per chunk.`);
-  throw new Error(`The embedded corpus must contain exactly ${TARGET_CORPUS_SIZE.toLocaleString('en-US')} URLs in complete sitemap chunks. Received ${CORPUS_SIZE.toLocaleString('en-US')} URLs with ${URLS_PER_SITEMAP} URLs per sitemap chunk.`);
-}
-
-function title(value: string): string {
-  return value.replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (character) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  })[character] as string);
-}
-
-function pageForIndex(index: number) {
-  if (!Number.isInteger(index) || index < 0 || index >= CORPUS_SIZE) return undefined;
-  const pair = PAIRS[Math.floor(index / PER_PAIR)];
-  if (!pair) return undefined;
-  const remainder = index % PER_PAIR;
-  const audience = AUDIENCES[Math.floor(remainder / (TASKS.length * MODIFIER_COUNT))];
-  const task = TASKS[Math.floor((remainder % (TASKS.length * MODIFIER_COUNT)) / MODIFIER_COUNT)];
-  if (!audience || !task) return undefined;
-  const [cluster, tool, intent] = pair;
-  const slug = `${cluster}-${intent}-${audience}-${task}-${tool}-${index}`;
-  return { cluster, tool, intent, audience, task, slug };
-}
+const LAST_MODIFIED_HTTP = new Date(CONTENT_UPDATED_AT).toUTCString();
 
 function contentHeaders(type: string, cache = 'public, max-age=300, s-maxage=604800, stale-while-revalidate=86400'): Headers {
   return new Headers({
@@ -92,15 +52,6 @@ function redirect(url: URL): Response {
   return Response.redirect(url.toString(), 301);
 }
 
-function stableHash(input: string): number {
-  let hash = 2166136261;
-  for (let index = 0; index < input.length; index += 1) {
-    hash ^= input.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
 function resolveOrigin(requestUrl: string): string {
   const requestOrigin = new URL(requestUrl).origin;
   if (/\.pages\.dev$/i.test(requestOrigin) || /localhost|127\.0\.0\.1/i.test(requestOrigin)) {
@@ -110,35 +61,19 @@ function resolveOrigin(requestUrl: string): string {
   return requestOrigin || 'https://devsolvev2.com';
 }
 
-function resolvePageForSlug(slug: string): NonNullable<ReturnType<typeof pageForIndex>> | undefined {
-  const suffix = slug.match(/-(\d+)$/);
-  if (suffix) {
-    const index = Number(suffix[1]);
-    const page = pageForIndex(index);
-    if (page?.slug === slug) return page;
-  }
-
-  const segments = slug.split('-');
-  if (segments.length >= 5 && segments.every((segment) => segment.length > 0)) {
-    // Keep structured /k/<stem> requests deterministic and cache-friendly without
-    // requiring any external storage or database lookups.
-    const index = stableHash(slug) % CORPUS_SIZE;
-    return pageForIndex(index);
-  }
-
-  return undefined;
-}
-
-function pageResponse(page: NonNullable<ReturnType<typeof pageForIndex>>, origin: string): Response {
-  const canonical = `${origin}/k/${escapeHtml(page.slug)}`;
-  const intent = escapeHtml(title(page.intent));
-  const tool = escapeHtml(title(page.tool));
-  const audience = escapeHtml(title(page.audience));
-  const task = escapeHtml(title(page.task));
-  const cluster = escapeHtml(title(page.cluster));
-  const slug = escapeHtml(page.slug);
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${intent} with ${tool} for ${audience} | DevSolve</title><meta name="description" content="A practical ${intent.toLowerCase()} workflow using ${tool} for ${audience}."><link rel="canonical" href="${canonical}"><meta name="robots" content="index,follow"><style>body{font:16px/1.6 system-ui,sans-serif;color:#18212f;margin:auto;max-width:760px;padding:24px}main{display:grid;gap:18px}h1{line-height:1.15}code{background:#f4f6f8;padding:2px 5px;border-radius:3px}article{border:1px solid #dde3ea;border-radius:8px;padding:18px}a{color:#0759bb}</style></head><body><main><p><a href="/">DevSolve</a> / ${cluster}</p><h1>${intent} with ${tool}</h1><p>This guide is tailored to ${audience.toLowerCase()} teams working to ${task.toLowerCase().replace(/-/g, ' ')}.</p><article><h2>Reliable workflow</h2><ol><li>Prepare a minimal reproducible input for <code>${tool}</code>.</li><li>${intent} and verify the output against the expected structure.</li><li>Record the result with the relevant validation evidence.</li></ol></article><article><h2>Implementation notes</h2><p>Use deterministic, locally processed inputs whenever possible. This page is canonical at <code>/k/${slug}</code>.</p></article></main></body></html>`;
-  return new Response(html, { headers: contentHeaders('text/html; charset=utf-8', 'public, max-age=300, s-maxage=31536000, stale-while-revalidate=86400') });
+function pageResponse(page: ResolvedPage, origin: string): Response {
+  const html = renderProgrammaticPage(page, origin);
+  const headers = contentHeaders(
+    'text/html; charset=utf-8',
+    'public, max-age=300, s-maxage=31536000, stale-while-revalidate=86400',
+  );
+  // Freshness signals let Bing/Google validate cheaply (Bing guideline #3):
+  // a stable ETag + Last-Modified means conditional requests can 304 without
+  // re-downloading, and the values are deterministic per URL + content version.
+  headers.set('last-modified', LAST_MODIFIED_HTTP);
+  headers.set('etag', `"${stableHash(`${page.slug}:${CONTENT_UPDATED_AT}`).toString(16)}"`);
+  headers.set('vary', 'Accept-Encoding');
+  return new Response(html, { headers });
 }
 
 function sitemapIndexResponse(origin: string): Response {
@@ -159,7 +94,7 @@ function sitemapResponse(part: number, origin: string): Response {
       const end = Math.min(first + URLS_PER_SITEMAP, CORPUS_SIZE);
       for (let count = 0; cursor < end && count < STREAM_CHUNK_SIZE; cursor += 1, count += 1) {
         const page = pageForIndex(cursor);
-        if (page) xml += `<url><loc>${origin}/k/${page.slug}</loc><lastmod>${CONTENT_UPDATED_AT}</lastmod></url>`;
+        if (page) xml += `<url><loc>${origin}/k/${page.slug}</loc><lastmod>${CONTENT_UPDATED_AT}</lastmod><changefreq>monthly</changefreq></url>`;
       }
       if (xml) controller.enqueue(encoder.encode(xml));
       if (cursor >= end) {

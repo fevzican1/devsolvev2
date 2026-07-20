@@ -2,22 +2,35 @@
  * AI Quality & Indexing Engine — heuristic scoring core.
  *
  * Pure, dependency-free, deterministic functions used by
- * scripts/ai-quality-gatekeeper.mjs to score ALREADY-EXPORTED static HTML
- * under out/k/ (recursively) against Google's Helpful Content signals:
+ * scripts/ai-quality-gatekeeper.mjs (static export under out/k/) AND by
+ * scripts/verify-edge-corpus-quality.mjs (the exact HTML rendered at the edge
+ * for all 20M /k/ URLs) to score a page against a combined Google Helpful
+ * Content + Bing Webmaster Guidelines model:
  *
- *   - Thin content       (word count / information density)
+ *   Google Helpful Content / Page Indexing signals
+ *   - Thin content        (word count / information density)
  *   - Keyword stuffing    (abnormal single-word / n-gram repetition)
  *   - Gibberish/template  (placeholder leaks, repeated boilerplate sentences)
- *   - Structure           (headings, paragraph count)
+ *   - Structure           (one <h1>, heading hierarchy, paragraphs, lists)
+ *
+ *   Bing Webmaster Guidelines (classic + grounding / Copilot eligibility)
+ *   - Metadata quality    (<title> 30-70 chars, meta description 140-165)
+ *   - Discovery & linking  (canonical + crawlable internal <a href> links)
+ *   - Verifiability        (structured data + explicit facts: code/dl blocks)
+ *   - Indexability         (robots not noindex; snippet/archive not suppressed)
  *
  * Everything here runs at BUILD TIME ONLY. There is no network call, no LLM
  * API call, and no Cloudflare Function/Worker invocation anywhere in this
- * module — it is plain string/regex analysis over the HTML string already
- * sitting on disk, so it costs nothing at request time and nothing beyond a
- * few CPU-milliseconds per page at build time.
+ * module — it is plain string/regex analysis over an HTML string, so it costs
+ * nothing at request time and only a few CPU-milliseconds per page at build.
  */
 
 export const MIN_GATE_SCORE = 75;
+
+// Higher bar used by the edge-corpus verifier: every one of the 20M served
+// pages must clear this AND report zero guideline violations to be considered
+// "indexable across Google + Bing" per the task's zero-defect requirement.
+export const MIN_INDEXABLE_SCORE = 90;
 
 // Deliberately small, dependency-free stopword list — good enough to keep
 // keyword-density math from being swamped by "the/a/and/of" noise without
@@ -69,6 +82,7 @@ export function extractMainContent(html) {
   const h1Count = (withoutScripts.match(/<h1[\s>]/gi) || []).length;
   const h2Count = (withoutScripts.match(/<h2[\s>]/gi) || []).length;
   const paragraphCount = (withoutScripts.match(/<p[\s>]/gi) || []).length;
+  const listCount = (withoutScripts.match(/<(ul|ol|dl)[\s>]/gi) || []).length;
 
   const text = withoutScripts
     .replace(/<[^>]+>/g, ' ')
@@ -89,17 +103,104 @@ export function extractMainContent(html) {
     h1Count,
     h2Count,
     paragraphCount,
+    listCount,
   };
 }
 
-/** 0–40 points — linear ramp between THIN and FULL word counts. */
+/**
+ * Extracts document-level (head + whole-page) signals that the Bing Webmaster
+ * Guidelines care about: title/description length, single-H1, structured data,
+ * canonical, crawlable internal links, and indexability directives.
+ */
+export function extractDocumentSignals(html) {
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const rawTitle = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
+  // Strip a trailing " | Brand" suffix so the length check reflects the real
+  // descriptive title, not the brand boilerplate.
+  const title = rawTitle.replace(/\s*[|–—-]\s*DevSolve\s*$/i, '').trim();
+
+  const descMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i);
+  const description = descMatch ? descMatch[1].replace(/\s+/g, ' ').trim() : '';
+
+  const canonical = extractCanonicalUrl(html);
+  const jsonLdCount = (html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>/gi) || []).length;
+  const h1Count = (html.match(/<h1[\s>]/gi) || []).length;
+
+  // Internal links = <a href> pointing at same-site relative or devsolve paths.
+  const anchorHrefs = [...html.matchAll(/<a\s+[^>]*href=["']([^"']+)["']/gi)].map((m) => m[1]);
+  const internalLinks = anchorHrefs.filter((h) => /^\/(?!\/)/.test(h) || /devsolvev2\.com/i.test(h)).length;
+
+  const robots = (html.match(/<meta\s+name=["']robots["']\s+content=["']([^"']*)["']/i) || [])[1] || '';
+  const hasNoindex = /noindex/i.test(robots);
+  const hasNoarchive = /noarchive/i.test(html);
+  const hasNosnippet = /(?:^|[\s"';])nosnippet/i.test(robots) || /data-nosnippet/i.test(html);
+
+  return {
+    title,
+    titleLength: title.length,
+    description,
+    descriptionLength: description.length,
+    canonical,
+    hasCanonical: Boolean(canonical),
+    jsonLdCount,
+    h1Count,
+    internalLinks,
+    hasNoindex,
+    hasNoarchive,
+    hasNosnippet,
+  };
+}
+
+/** 0–30 points — linear ramp between THIN and FULL word counts. */
 export function scoreThinContent(wordCount) {
   const THIN = 250;
   const FULL = 1200;
-  const MAX = 40;
+  const MAX = 30;
   if (wordCount <= THIN) return 0;
   if (wordCount >= FULL) return MAX;
   return Math.round(((wordCount - THIN) / (FULL - THIN)) * MAX);
+}
+
+/**
+ * 0–10 points — Bing metadata quality. Rewards a descriptive <title> of
+ * 30–70 chars and a meta description of 140–165 chars (Bing guideline #13).
+ */
+export function scoreMetadata(signals) {
+  let score = 0;
+  if (signals.titleLength >= 30 && signals.titleLength <= 70) score += 5;
+  else if (signals.titleLength >= 20 && signals.titleLength <= 80) score += 3;
+  if (signals.descriptionLength >= 140 && signals.descriptionLength <= 165) score += 5;
+  else if (signals.descriptionLength >= 120 && signals.descriptionLength <= 180) score += 3;
+  return score;
+}
+
+/**
+ * 0–10 points — discovery & linking (Bing guidelines #2/#5): a canonical URL
+ * plus enough crawlable internal <a href> links to establish structure.
+ */
+export function scoreDiscovery(signals) {
+  let score = 0;
+  if (signals.hasCanonical) score += 4;
+  if (signals.internalLinks >= 10) score += 6;
+  else if (signals.internalLinks >= 5) score += 4;
+  else if (signals.internalLinks >= 1) score += 2;
+  return score;
+}
+
+/**
+ * 0–10 points — verifiability & grounding (Bing guidelines #14/#15): accurate
+ * structured data plus explicit, self-contained facts (code samples / a
+ * definition list) that let content be verified independently.
+ */
+export function scoreVerifiability(region, signals) {
+  let score = 0;
+  if (signals.jsonLdCount >= 3) score += 5;
+  else if (signals.jsonLdCount >= 1) score += 3;
+  const hasCode = /<pre[\s>]|<code[\s>]/i.test(region);
+  const hasDefinitions = /<dl[\s>]|<table[\s>]/i.test(region);
+  if (hasCode) score += 3;
+  if (hasDefinitions) score += 2;
+  return score;
 }
 
 /**
@@ -109,7 +210,7 @@ export function scoreThinContent(wordCount) {
  * out with only the slug token swapped).
  */
 export function scoreKeywordHealth(words) {
-  const MAX = 25;
+  const MAX = 15;
   if (words.length < 20) return { score: 0, topWordRatio: 1, topTrigramRatio: 1 };
 
   const freq = new Map();
@@ -140,9 +241,9 @@ export function scoreKeywordHealth(words) {
   return { score: Math.max(0, score), topWordRatio, topTrigramRatio };
 }
 
-/** 0–20 points — deducts for placeholder/template-leak artifacts. */
+/** 0–10 points — deducts for placeholder/template-leak artifacts. */
 export function scoreGibberish(region, text) {
-  const MAX = 20;
+  const MAX = 10;
   const issues = [];
   for (const pattern of PLACEHOLDER_MARKERS) {
     if (pattern.test(region) || pattern.test(text)) {
@@ -163,17 +264,46 @@ export function scoreGibberish(region, text) {
     issues.push(`repeated-sentence x${maxRepeat}`);
   }
 
-  const penalty = Math.min(MAX, issues.length * 7);
+  const penalty = Math.min(MAX, issues.length * 5);
   return { score: MAX - penalty, issues };
 }
 
-/** 0–15 points — basic structural completeness. */
-export function scoreStructure({ h1Count, h2Count, paragraphCount }) {
+/**
+ * 0–15 points — structural completeness & heading hierarchy (Bing #13):
+ * exactly one <h1>, several <h2> sections, real paragraphs, and at least one
+ * list to break up the content.
+ */
+export function scoreStructure({ h1Count, h2Count, paragraphCount, listCount }) {
   let score = 0;
-  if (h1Count >= 1) score += 5;
-  if (h2Count >= 2) score += 5;
-  if (paragraphCount >= 5) score += 5;
+  if (h1Count === 1) score += 5;
+  else if (h1Count >= 1) score += 2;
+  if (h2Count >= 4) score += 5;
+  else if (h2Count >= 2) score += 3;
+  if (paragraphCount >= 6) score += 3;
+  else if (paragraphCount >= 4) score += 2;
+  if ((listCount || 0) >= 2) score += 2;
+  else if ((listCount || 0) >= 1) score += 1;
   return score;
+}
+
+/**
+ * Guideline compliance audit — hard signals that make a page ineligible for
+ * indexing / grounding regardless of the numeric score. Mirrors the "Abuse"
+ * and directive sections of the Bing Webmaster Guidelines and Google's Page
+ * Indexing reasons.
+ */
+export function auditIndexability(signals, wordCount) {
+  const violations = [];
+  if (signals.hasNoindex) violations.push('robots noindex present (excluded from index/grounding)');
+  if (signals.hasNoarchive) violations.push('NOARCHIVE present (excluded from Copilot/grounding)');
+  if (!signals.hasCanonical) violations.push('missing canonical link');
+  if (signals.h1Count !== 1) violations.push(`expected exactly one <h1>, found ${signals.h1Count}`);
+  if (signals.titleLength < 20 || signals.titleLength > 80) violations.push(`title length ${signals.titleLength} outside 20-80`);
+  if (signals.descriptionLength < 120 || signals.descriptionLength > 180) violations.push(`meta description length ${signals.descriptionLength} outside 120-180`);
+  if (signals.internalLinks < 5) violations.push(`only ${signals.internalLinks} internal links (need >=5 for structure)`);
+  if (signals.jsonLdCount < 1) violations.push('no structured data (JSON-LD) present');
+  if (wordCount < 1000) violations.push(`thin content: ${wordCount} words (need >=1000)`);
+  return { violations, passes: violations.length === 0 };
 }
 
 /**
@@ -183,12 +313,20 @@ export function scoreStructure({ h1Count, h2Count, paragraphCount }) {
  */
 export function scorePage(html) {
   const extracted = extractMainContent(html);
+  const signals = extractDocumentSignals(html);
+
   const thinContent = scoreThinContent(extracted.wordCount);
   const keyword = scoreKeywordHealth(extracted.words);
   const gibberish = scoreGibberish(extracted.region, extracted.text);
-  const structure = scoreStructure(extracted);
+  const structure = scoreStructure({ ...extracted, h1Count: signals.h1Count });
+  const metadata = scoreMetadata(signals);
+  const discovery = scoreDiscovery(signals);
+  const verifiability = scoreVerifiability(extracted.region, signals);
 
-  const score = thinContent + keyword.score + gibberish.score + structure;
+  const score = thinContent + keyword.score + gibberish.score + structure
+    + metadata + discovery + verifiability;
+
+  const indexability = auditIndexability(signals, extracted.wordCount);
 
   return {
     score,
@@ -198,16 +336,31 @@ export function scorePage(html) {
       keyword: keyword.score,
       gibberish: gibberish.score,
       structure,
+      metadata,
+      discovery,
+      verifiability,
     },
     details: {
       topWordRatio: keyword.topWordRatio,
       topTrigramRatio: keyword.topTrigramRatio,
       gibberishIssues: gibberish.issues,
-      h1Count: extracted.h1Count,
+      h1Count: signals.h1Count,
       h2Count: extracted.h2Count,
       paragraphCount: extracted.paragraphCount,
+      listCount: extracted.listCount,
+      titleLength: signals.titleLength,
+      descriptionLength: signals.descriptionLength,
+      internalLinks: signals.internalLinks,
+      jsonLdCount: signals.jsonLdCount,
+      hasCanonical: signals.hasCanonical,
     },
+    signals,
+    indexability,
+    violations: indexability.violations,
     passesGate: score >= MIN_GATE_SCORE,
+    // "Indexable everywhere" = clears the higher score bar AND has zero hard
+    // guideline violations (noindex, thin, missing canonical/schema, etc.).
+    passesIndexable: score >= MIN_INDEXABLE_SCORE && indexability.passes,
   };
 }
 
