@@ -183,13 +183,33 @@ function auditEdgeCorpusFunction() {
   stats.filesScanned += 1;
   // "if (url.search) return redirect(url)" is the query-string canonicalization
   // invariant: every managed path (/k/*, sitemaps) 301s query strings away.
-  for (const marker of ['TARGET_CORPUS_SIZE = 20_000_000', 'URLS_PER_SITEMAP = 50_000', "pathname === '/sitemap.xml'", 'if (url.search) return redirect(url)']) {
+  // These routing invariants live in the route handler itself.
+  for (const marker of ["pathname === '/sitemap.xml'", 'if (url.search) return redirect(url)']) {
     if (!txt.includes(marker)) {
       record('CRITICAL', 'functions', file, `Edge corpus route is missing required invariant: ${marker}`);
     }
   }
   if (/\b(?:fetch|KVNamespace|R2Bucket|D1Database)\b/.test(txt)) {
     record('CRITICAL', 'functions', file, 'Edge corpus route must not use external storage or network fetches.');
+  }
+
+  // Corpus geometry + the rich HTML generator live in the shared, dependency-free
+  // module imported by both the edge route and the build-time quality verifier,
+  // so the served bytes and the quality gate can never drift apart.
+  const libFile = join(projectRoot, 'functions', '_lib', 'programmaticPage.ts');
+  if (!existsSync(libFile)) {
+    record('CRITICAL', 'functions', libFile, 'Shared programmatic corpus module is missing.');
+    return;
+  }
+  const libTxt = readFileSync(libFile, 'utf8');
+  stats.filesScanned += 1;
+  for (const marker of ['TARGET_CORPUS_SIZE = 20_000_000', 'URLS_PER_SITEMAP = 50_000', 'renderProgrammaticPage']) {
+    if (!libTxt.includes(marker)) {
+      record('CRITICAL', 'functions', libFile, `Shared corpus module is missing required invariant: ${marker}`);
+    }
+  }
+  if (/\b(?:fetch|KVNamespace|R2Bucket|D1Database)\b/.test(libTxt)) {
+    record('CRITICAL', 'functions', libFile, 'Shared corpus module must not use external storage or network fetches.');
   }
 }
 
