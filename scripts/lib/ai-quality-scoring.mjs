@@ -22,7 +22,13 @@
  * nothing at request time and only a few CPU-milliseconds per page at build.
  */
 
-import { auditDocument } from './search-guidelines.mjs';
+import {
+  auditDocument,
+  DESCRIPTION_TARGET_MIN,
+  DESCRIPTION_TARGET_MAX,
+  TITLE_MAX,
+  TITLE_MIN,
+} from './search-guidelines.mjs';
 
 export const MIN_GATE_SCORE = 75;
 
@@ -44,13 +50,22 @@ const STOPWORDS = new Set([
   'had', 'i', 'us', 'about', 'also', 'use', 'using', 'used',
 ]);
 
+/*
+ * Template-leak detectors. These match the SHAPE of a leaked value rather than
+ * the word itself: "the difference between null, undefined, and missing keys"
+ * is correct prose on a JSON page, while ">undefined<" is a rendering bug. The
+ * earlier word-shaped patterns flagged 115 healthy pages, which would have
+ * soft-isolated them out of the index for writing about JSON accurately.
+ */
 const PLACEHOLDER_MARKERS = [
-  /\bundefined\b/i,
-  /\bNaN\b/,
+  />\s*(?:undefined|null|NaN)\s*</i,
+  /["'=]\s*(?:undefined|NaN)\s*["']/i,
+  /:\s*(?:undefined|NaN)\s*[,;}]/,
   /\[object Object\]/,
   /\blorem ipsum\b/i,
   /\{\{\s*[\w.]+\s*\}\}/,
-  /\btodo:?\b/i,
+  /\$\{[\w.]+\}/,
+  /\bTODO:/,
   /\bTBD\b/,
   /\bplaceholder text\b/i,
   /�/, // mojibake / broken encoding
@@ -111,15 +126,31 @@ export function extractMainContent(html) {
  * Guidelines care about: title/description length, single-H1, structured data,
  * canonical, crawlable internal links, and indexability directives.
  */
+/**
+ * Length is measured on the RENDERED text, so `&#x27;` counts as one character
+ * exactly as it does in a SERP. Measuring the raw attribute instead makes a
+ * 147-character description look like a compliant 156.
+ */
+export function decodeEntities(value) {
+  return value
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0?39;|&#x27;|&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#x2f;/gi, '/')
+    .replace(/&amp;/gi, '&');
+}
+
 export function extractDocumentSignals(html) {
   const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   // Measured exactly as served, brand suffix included. Stripping " | DevSolve"
   // here is what let 94% of the corpus ship with 71–81 character titles while
   // this gate reported a pass and Bing reported "title too long".
-  const title = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
+  const title = titleMatch ? decodeEntities(titleMatch[1]).replace(/\s+/g, ' ').trim() : '';
 
   const descMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i);
-  const description = descMatch ? descMatch[1].replace(/\s+/g, ' ').trim() : '';
+  const description = descMatch ? decodeEntities(descMatch[1]).replace(/\s+/g, ' ').trim() : '';
 
   const canonical = extractCanonicalUrl(html);
   const jsonLdCount = (html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>/gi) || []).length;
@@ -437,6 +468,131 @@ export function buildHealBlock(slug) {
 
   const items = paragraphs.map((p) => `<p>${p}</p>`).join('');
   return `<section class="ai-quality-supplement" aria-label="Additional context">${items}</section>`;
+}
+
+// ---------------------------------------------------------------------------
+// Deterministic metadata repair.
+//
+// The generator produces compliant metadata by construction, but the static
+// export is assembled from components and can still emit a title over Bing's
+// 70-character limit or a description below its 150-character floor. Rather
+// than only reporting those, the agent rewrites them in place, deterministically
+// (same input -> same output, so rebuilds produce identical bytes).
+// ---------------------------------------------------------------------------
+
+const BRAND_SUFFIX = /\s*[|·–—-]\s*DevSolve\s*$/i;
+
+/** Attribute-safe encoding for repaired metadata. */
+function encodeText(value) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+/** Trim to a word boundary at or below `max`, without leaving dangling punctuation. */
+function trimToWord(value, max) {
+  if (value.length <= max) return value;
+  const cut = value.slice(0, max);
+  const lastSpace = cut.lastIndexOf(' ');
+  const trimmed = lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut;
+  return trimmed.replace(/[\s,;:–—-]+$/, '');
+}
+
+export function repairTitle(rawTitle, limits = {}) {
+  const { max = 70, min = 30 } = limits;
+  const title = rawTitle.replace(/\s+/g, ' ').trim();
+  if (title.length <= max && title.length >= min) return title;
+  if (title.length > max) {
+    const withoutBrand = title.replace(BRAND_SUFFIX, '').trim();
+    if (withoutBrand.length <= max && withoutBrand.length >= min) return withoutBrand;
+    return trimToWord(withoutBrand.length >= min ? withoutBrand : title, max);
+  }
+  return title;
+}
+
+export function repairDescription(rawDescription, context = {}) {
+  const { min = 150, max = 160, topic = '' } = context;
+  let description = rawDescription.replace(/\s+/g, ' ').trim();
+  if (description.length > max) {
+    description = trimToWord(description, max);
+    if (!/[.!?]$/.test(description)) description += '.';
+    return description;
+  }
+  if (description.length >= min) return description;
+
+  // Extend with page-specific context first, then with short generic clauses,
+  // choosing the longest clause that still fits so the result lands in window.
+  const clauses = [
+    topic ? ` Covers ${topic} step by step.` : '',
+    ' Includes a worked example, common pitfalls and an FAQ.',
+    ' Runs locally in your browser — no signup and no uploads.',
+    ' Free, privacy-first developer tooling.',
+    ' Reproducible, verifiable output.',
+    ' Works offline once loaded.',
+    ' No account needed.',
+    ' Free to use.',
+  ].filter(Boolean);
+
+  const used = new Set();
+  while (description.length < min) {
+    let chosen = -1;
+    for (let i = 0; i < clauses.length; i += 1) {
+      if (used.has(i)) continue;
+      if (description.length + clauses[i].length > max) continue;
+      if (chosen === -1 || clauses[i].length > clauses[chosen].length) chosen = i;
+    }
+    if (chosen === -1) break;
+    used.add(chosen);
+    description += clauses[chosen];
+  }
+  return description;
+}
+
+/**
+ * Rewrites a page's <title> and meta description in place when they fall
+ * outside the guideline window. Returns the (possibly unchanged) HTML plus a
+ * list of what was repaired.
+ */
+export function repairMetadata(html) {
+  // Repair always targets the published recommendation (title under 70,
+  // description 150-160), never the looser audit tolerance — there is no
+  // reason to rewrite metadata into a state Bing would still flag.
+  const repairs = [];
+  let output = html;
+
+  // Both fields are measured decoded and rewritten encoded, so an entity-heavy
+  // string is not mistaken for a longer one than a crawler sees.
+  const titleMatch = output.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (titleMatch) {
+    const current = decodeEntities(titleMatch[1]).replace(/\s+/g, ' ').trim();
+    const repaired = repairTitle(current, { max: TITLE_MAX, min: TITLE_MIN });
+    if (repaired && repaired !== current) {
+      output = output.replace(titleMatch[0], `<title>${encodeText(repaired)}</title>`);
+      repairs.push({ field: 'title', from: current.length, to: repaired.length });
+    }
+  }
+
+  const descMatch = output.match(/(<meta\s+name=["']description["']\s+content=["'])([^"']*)(["'])/i);
+  if (descMatch) {
+    const current = decodeEntities(descMatch[2]).replace(/\s+/g, ' ').trim();
+    const h1 = (output.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || [])[1] || '';
+    const topic = decodeEntities(h1.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim().slice(0, 60)
+      .toLowerCase();
+    const repaired = repairDescription(current, {
+      min: DESCRIPTION_TARGET_MIN,
+      max: DESCRIPTION_TARGET_MAX,
+      topic,
+    });
+    if (repaired && repaired !== current) {
+      output = output.replace(descMatch[0], `${descMatch[1]}${encodeText(repaired)}${descMatch[3]}`);
+      repairs.push({ field: 'description', from: current.length, to: repaired.length });
+    }
+  }
+
+  return { html: output, repairs };
 }
 
 /** Injects a heal block right before </main> (or before </body> as a fallback). */

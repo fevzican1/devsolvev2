@@ -15,12 +15,16 @@
  *
  * WHAT IT DOES
  * ------------
- *   1. Scans every exported programmatic page under out/k/ (recursively) and scores
- *      it 0–100 against Google Helpful Content heuristics: thin content,
- *      keyword stuffing / gibberish, and structural completeness
- *      (see scripts/lib/ai-quality-scoring.mjs).
- *   2. AUTO-HEAL: pages that score below the 75-point gate get a deterministic
- *      supplemental-content block injected in place (same input → same
+ *   1. Scans every exported programmatic page under out/k/ (recursively),
+ *      scores it 0–100 against Google Helpful Content heuristics (thin
+ *      content, keyword stuffing / gibberish, structural completeness) and
+ *      audits it against the cited Bing/Google rulebook in
+ *      scripts/lib/search-guidelines.mjs.
+ *   2. AUTO-REPAIR: metadata outside the guideline window is rewritten in
+ *      place — a title over Bing's 70-character limit is shortened at a word
+ *      boundary, a meta description outside 150–160 characters is extended or
+ *      trimmed — and pages that still score below the 75-point gate get a
+ *      deterministic supplemental-content block injected (same input → same
  *      output, so it never introduces build-to-build drift) and are re-scored.
  *   3. SOFT ISOLATION: pages that still fail after healing are marked
  *      `<meta name="robots" content="noindex,follow">` IN PLACE. The file is
@@ -61,8 +65,10 @@ import {
   markNoindex,
   isNoindex,
   extractCanonicalUrl,
+  repairMetadata,
   MIN_GATE_SCORE,
 } from './lib/ai-quality-scoring.mjs';
+import { guidelineDigest } from './lib/search-guidelines.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
@@ -117,8 +123,10 @@ console.log(`[ai-quality-gatekeeper] scanning ${files.length} exported page(s) u
 
 const eligible = [];
 const healed = [];
+const repaired = [];
 const excluded = [];
 const alreadyNoindex = [];
+const violationCounts = new Map();
 let filesModified = 0;
 
 for (const file of files) {
@@ -132,8 +140,19 @@ for (const file of files) {
     continue;
   }
 
-  let html = originalHtml;
-  let result = scorePage(html);
+  // Metadata repair runs first: it is cheap, deterministic, and fixes the
+  // exact defects Bing Webmaster Tools reports (long titles, short meta
+  // descriptions) before the page is scored.
+  const metadata = repairMetadata(originalHtml);
+  let html = metadata.html;
+  if (metadata.repairs.length > 0) {
+    repaired.push({ rel, repairs: metadata.repairs });
+  }
+
+  let result = scorePage(html, { profile: 'static', expectedCanonical: extractCanonicalUrl(html) ?? undefined });
+  for (const violation of result.guidelines.violations) {
+    violationCounts.set(violation.id, (violationCounts.get(violation.id) || 0) + 1);
+  }
   let wasHealed = false;
 
   if (!result.passesGate) {
@@ -141,7 +160,7 @@ for (const file of files) {
     const slug = canonical ? canonical.split('/').pop() : rel.replace(/\.html$/, '').replace(/\//g, '-');
     const block = buildHealBlock(slug || rel);
     const candidateHtml = injectHealBlock(html, block);
-    const candidateResult = scorePage(candidateHtml);
+    const candidateResult = scorePage(candidateHtml, { profile: 'static', expectedCanonical: canonical ?? undefined });
     if (candidateResult.score > result.score) {
       html = candidateHtml;
       result = candidateResult;
@@ -152,10 +171,10 @@ for (const file of files) {
   const canonicalUrl = extractCanonicalUrl(html);
 
   if (result.passesGate) {
-    if (wasHealed) {
+    if (wasHealed || metadata.repairs.length > 0) {
       writeFileSync(file, html, 'utf8');
       filesModified += 1;
-      healed.push({ rel, url: canonicalUrl, score: result.score });
+      if (wasHealed) healed.push({ rel, url: canonicalUrl, score: result.score });
     }
     if (canonicalUrl) {
       eligible.push({ rel, url: canonicalUrl, score: result.score, hash: contentHash(html) });
@@ -171,6 +190,7 @@ for (const file of files) {
       wordCount: result.wordCount,
       breakdown: result.breakdown,
       issues: result.details.gibberishIssues,
+      violations: result.violations,
       attemptedHeal: wasHealed,
     });
   }
@@ -203,15 +223,19 @@ if (!existsSync(reportsDir)) mkdirSync(reportsDir, { recursive: true });
 const manifest = {
   generated: new Date().toISOString(),
   gateThreshold: MIN_GATE_SCORE,
+  rulebook: guidelineDigest(),
   scanned: files.length,
   alreadyNoindex: alreadyNoindex.length,
   eligible: eligible.length,
   healed: healed.length,
+  metadataRepaired: repaired.length,
   excluded: excluded.length,
   filesModified,
   newOrChangedUrlCount: newOrChangedUrls.length,
+  guidelineViolationCounts: Object.fromEntries(violationCounts),
   excludedSamples: excluded.slice(0, 50),
   healedSamples: healed.slice(0, 50),
+  repairedSamples: repaired.slice(0, 50),
 };
 
 writeFileSync(join(reportsDir, 'ai-quality-gatekeeper.json'), JSON.stringify(manifest, null, 2));
@@ -234,9 +258,13 @@ Scan directory: out/${scanSubdir}/
 Scanned:            ${manifest.scanned}
 Already noindex:    ${manifest.alreadyNoindex}
 Eligible (>= ${MIN_GATE_SCORE}):    ${manifest.eligible}
+Metadata repaired:  ${manifest.metadataRepaired}
 Auto-healed:        ${manifest.healed}
 Soft-isolated:      ${manifest.excluded}
 New/changed URLs:   ${manifest.newOrChangedUrlCount}
+
+Guideline violations remaining (scripts/lib/search-guidelines.mjs):
+${violationCounts.size === 0 ? '  none' : [...violationCounts].map(([id, n]) => `  ${id}: ${n}`).join('\n')}
 
 ${manifest.excluded === 0
   ? 'PASS — every scanned page meets the AI quality gate (soft-isolation not needed).'
