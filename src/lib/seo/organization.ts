@@ -74,10 +74,44 @@ export const BRAND_ALTERNATIVETO_URL = 'https://alternativeto.net/software/devso
  */
 export const BRAND_ALTERNATIVETO_LIVE = false;
 
+/** Launchstag directory listing (badge backlink). */
+export const BRAND_LAUNCHSTAG_URL = 'https://launchstag.com';
+
+/** tools.cafe directory listing (badge backlink). */
+export const BRAND_TOOLS_CAFE_URL = 'https://tools.cafe';
+
 /** Directory listings that are live and reciprocal today. */
 export const BRAND_LIVE_DIRECTORY_PROFILES: readonly string[] = [
   'https://www.saashub.com/devsolvev2',
   BRAND_PRODUCT_HUNT_URL,
+  BRAND_LAUNCHSTAG_URL,
+  BRAND_TOOLS_CAFE_URL,
+];
+
+/** Visual "Featured on …" badge embeds for live directory listings. */
+export interface FeaturedBadge {
+  href: string;
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+}
+
+export const BRAND_FEATURED_BADGES: readonly FeaturedBadge[] = [
+  {
+    href: BRAND_LAUNCHSTAG_URL,
+    src: 'https://launchstag.com/badge-light.svg',
+    alt: 'Featured on Launchstag',
+    width: 198,
+    height: 62,
+  },
+  {
+    href: BRAND_TOOLS_CAFE_URL,
+    src: 'https://tools.cafe/b/light.svg',
+    alt: 'Featured on tools.cafe',
+    width: 256,
+    height: 80,
+  },
 ];
 
 /** Submitted but not yet approved — wired in code, excluded from sameAs until live. */
@@ -108,6 +142,8 @@ export function brandProfileLabel(href: string): string {
   if (href.includes('x.com') || href.includes('twitter.com')) return 'X (Twitter)';
   if (href.includes('producthunt.com')) return 'Product Hunt';
   if (href.includes('saashub.com')) return 'SaaSHub';
+  if (href.includes('launchstag.com')) return 'Launchstag';
+  if (href.includes('tools.cafe')) return 'tools.cafe';
   if (href.includes('alternativeto.net')) return 'AlternativeTo';
   if (href.includes('/devsolvev2')) return 'GitHub Repository';
   if (href.includes('github.com')) return 'GitHub Profile';
@@ -161,12 +197,20 @@ export function buildBrandListingsHtml(): string {
     `<li><a href="https://www.linkedin.com/in/fevzican-aytekin-0b5501105" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">LinkedIn</a> · <a href="https://x.com/devsolveai" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">X (Twitter)</a></li>`,
   ];
 
+  const badgeRows = BRAND_FEATURED_BADGES.map(
+    (badge) =>
+      `<a href="${escapeListingHtml(badge.href)}" target="_blank" rel="noopener" style="display:inline-block;margin:0.25rem 0.75rem 0.25rem 0"><img src="${escapeListingHtml(badge.src)}" alt="${escapeListingHtml(badge.alt)}" width="${badge.width}" height="${badge.height}" loading="lazy" decoding="async" /></a>`,
+  ).join('\n');
+
   return `<section aria-label="Official DevSolve listings" class="card" style="margin-top:1.5rem;border-color:#dbeafe;background:#f8fafc">
 <div class="card-title"><span role="img" aria-label="Verified">✅</span> Official DevSolve Profiles &amp; Listings</div>
 <p style="color:#475569;font-size:0.95rem">Verified brand profiles that link back to devsolvev2.com — the same entity references declared in our structured data (<code>sameAs</code>).</p>
 <ul style="margin-top:0.75rem;padding-left:1.25rem">
 ${rows.join('\n')}
 </ul>
+<div style="margin-top:1rem;display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem">
+${badgeRows}
+</div>
 </section>`;
 }
 
