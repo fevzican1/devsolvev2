@@ -30,8 +30,9 @@
  * To guarantee the feed can NEVER drift from the resolver (the mass-deindex
  * class of bug), this script does not re-derive slugs from the combinatorial
  * arrays. It reads URLs straight out of the already-generated, parity-checked
- * sitemap files in out/ (priority tier first, then programmatic). Every URL in
- * those files has been validated by slug-parity-check.mjs to resolve to 200.
+ * sitemap files in out/ (AI-quality chunks first, then legacy priority/tier
+ * sitemaps). Every URL in those files passed the build-time quality gate and
+ * resolves to 200.
  *
  * Output: out/feed.xml
  */
@@ -65,14 +66,32 @@ function labelForSlug(slug) {
   return titled || 'DevSolve Guide';
 }
 
+/** Pick the best available URL-bearing sitemap chunks (newest naming first). */
+function pickSitemapChunks(files) {
+  const aiQuality = files.filter((f) => /^sitemap-ai-quality-\d{4}\.xml$/i.test(f)).sort();
+  if (aiQuality.length > 0) return aiQuality;
+  const priority = files.filter((f) => /^sitemap-priority-\d{4}\.xml$/i.test(f)).sort();
+  if (priority.length > 0) return priority;
+  const tier = files.filter((f) => /^sitemap-tier1-\d{4}\.xml$/i.test(f)).sort();
+  if (tier.length > 0) return tier;
+  return files.filter((f) => /^sitemap-programmatic-\d{4}\.xml$/i.test(f)).sort();
+}
+
+async function collectUrlsFromReport() {
+  const eligiblePath = join(outDir, 'reports', 'ai-quality-eligible-urls.txt');
+  if (!existsSync(eligiblePath)) return [];
+  const lines = (await readFile(eligiblePath, 'utf8'))
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && /\/k\//.test(l));
+  return lines.slice(0, FEED_MAX_ITEMS);
+}
+
 async function collectUrls() {
   if (!existsSync(outDir)) return [];
   const files = await readdir(outDir);
-  const priority = files.filter((f) => /^sitemap-priority-\d{4}\.xml$/i.test(f)).sort();
-  const programmatic = files.filter((f) => /^sitemap-programmatic-\d{4}\.xml$/i.test(f)).sort();
-  const tier = files.filter((f) => /^sitemap-tier1-\d{4}\.xml$/i.test(f)).sort();
-  const chosen = priority.length > 0 ? priority : (tier.length > 0 ? tier : programmatic);
-  if (chosen.length === 0) return [];
+  const chosen = pickSitemapChunks(files);
+  if (chosen.length === 0) return collectUrlsFromReport();
 
   const urls = [];
   const seen = new Set();

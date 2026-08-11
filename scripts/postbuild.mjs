@@ -71,6 +71,15 @@ try {
   hardFailures.push('generate-ai-quality-sitemaps');
 }
 
+// RSS feed for Google/Bing discovery + syndication. Static file, zero Function
+// cost. Best-effort: a failure must never block the deploy.
+try {
+  console.log('Generating RSS syndication feed (feed.xml)...');
+  execSync(`node ${join(__dirname, 'generate-feed.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('Feed generation completed with warnings');
+}
+
 // Immediately notify Bing/IndexNow about the small diff of new-or-changed,
 // AI-quality-approved URLs for this build. Zero Cloudflare Worker cost,
 // best-effort (never blocks the deploy).
