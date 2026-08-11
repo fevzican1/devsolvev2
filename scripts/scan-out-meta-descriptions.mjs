@@ -8,6 +8,8 @@ import { readFileSync, readdirSync, statSync, existsSync, writeFileSync, mkdirSy
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { decodeEntities } from './lib/ai-quality-scoring.mjs';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
 const outDir = join(projectRoot, 'out');
@@ -28,7 +30,9 @@ function listHtmlFiles(dir, acc = []) {
 function extractMetaDescription(html) {
   const match = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i)
     ?? html.match(/<meta\s+content=["']([^"']*)["']\s+name=["']description["']/i);
-  return match?.[1]?.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#039;/g, "'") ?? null;
+  // Shared decoder so this scan, the gatekeeper's audit and its repair step all
+  // measure the same string — a hex entity like &#x27; must not count as six.
+  return match?.[1] === undefined ? null : decodeEntities(match[1]);
 }
 
 function isNoindex(html) {

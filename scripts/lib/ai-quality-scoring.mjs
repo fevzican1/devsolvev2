@@ -4,26 +4,31 @@
  * Pure, dependency-free, deterministic functions used by
  * scripts/ai-quality-gatekeeper.mjs (static export under out/k/) AND by
  * scripts/verify-edge-corpus-quality.mjs (the exact HTML rendered at the edge
- * for all 20M /k/ URLs) to score a page against a combined Google Helpful
- * Content + Bing Webmaster Guidelines model:
+ * for all 20M /k/ URLs).
  *
- *   Google Helpful Content / Page Indexing signals
- *   - Thin content        (word count / information density)
- *   - Keyword stuffing    (abnormal single-word / n-gram repetition)
- *   - Gibberish/template  (placeholder leaks, repeated boilerplate sentences)
- *   - Structure           (one <h1>, heading hierarchy, paragraphs, lists)
+ * Two layers:
  *
- *   Bing Webmaster Guidelines (classic + grounding / Copilot eligibility)
- *   - Metadata quality    (<title> 30-70 chars, meta description 140-165)
- *   - Discovery & linking  (canonical + crawlable internal <a href> links)
- *   - Verifiability        (structured data + explicit facts: code/dl blocks)
- *   - Indexability         (robots not noindex; snippet/archive not suppressed)
+ *   1. A 0–100 heuristic SCORE — how strong the page is (thin content,
+ *      keyword health, structure, metadata, discovery, verifiability).
+ *   2. A pass/fail GUIDELINE AUDIT — scripts/lib/search-guidelines.mjs, which
+ *      encodes the Bing Webmaster Guidelines and the Google Search Console
+ *      "Page indexing" reasons as explicit, cited rules. A page can score well
+ *      and still be ineligible (a noindex directive, an 81-character title, a
+ *      canonical pointing at a different URL), so both layers must pass.
  *
  * Everything here runs at BUILD TIME ONLY. There is no network call, no LLM
  * API call, and no Cloudflare Function/Worker invocation anywhere in this
  * module — it is plain string/regex analysis over an HTML string, so it costs
  * nothing at request time and only a few CPU-milliseconds per page at build.
  */
+
+import {
+  auditDocument,
+  DESCRIPTION_TARGET_MIN,
+  DESCRIPTION_TARGET_MAX,
+  TITLE_MAX,
+  TITLE_MIN,
+} from './search-guidelines.mjs';
 
 export const MIN_GATE_SCORE = 75;
 
@@ -45,13 +50,22 @@ const STOPWORDS = new Set([
   'had', 'i', 'us', 'about', 'also', 'use', 'using', 'used',
 ]);
 
+/*
+ * Template-leak detectors. These match the SHAPE of a leaked value rather than
+ * the word itself: "the difference between null, undefined, and missing keys"
+ * is correct prose on a JSON page, while ">undefined<" is a rendering bug. The
+ * earlier word-shaped patterns flagged 115 healthy pages, which would have
+ * soft-isolated them out of the index for writing about JSON accurately.
+ */
 const PLACEHOLDER_MARKERS = [
-  /\bundefined\b/i,
-  /\bNaN\b/,
+  />\s*(?:undefined|null|NaN)\s*</i,
+  /["'=]\s*(?:undefined|NaN)\s*["']/i,
+  /:\s*(?:undefined|NaN)\s*[,;}]/,
   /\[object Object\]/,
   /\blorem ipsum\b/i,
   /\{\{\s*[\w.]+\s*\}\}/,
-  /\btodo:?\b/i,
+  /\$\{[\w.]+\}/,
+  /\bTODO:/,
   /\bTBD\b/,
   /\bplaceholder text\b/i,
   /�/, // mojibake / broken encoding
@@ -112,15 +126,31 @@ export function extractMainContent(html) {
  * Guidelines care about: title/description length, single-H1, structured data,
  * canonical, crawlable internal links, and indexability directives.
  */
+/**
+ * Length is measured on the RENDERED text, so `&#x27;` counts as one character
+ * exactly as it does in a SERP. Measuring the raw attribute instead makes a
+ * 147-character description look like a compliant 156.
+ */
+export function decodeEntities(value) {
+  return value
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0?39;|&#x27;|&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#x2f;/gi, '/')
+    .replace(/&amp;/gi, '&');
+}
+
 export function extractDocumentSignals(html) {
   const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  const rawTitle = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
-  // Strip a trailing " | Brand" suffix so the length check reflects the real
-  // descriptive title, not the brand boilerplate.
-  const title = rawTitle.replace(/\s*[|–—-]\s*DevSolve\s*$/i, '').trim();
+  // Measured exactly as served, brand suffix included. Stripping " | DevSolve"
+  // here is what let 94% of the corpus ship with 71–81 character titles while
+  // this gate reported a pass and Bing reported "title too long".
+  const title = titleMatch ? decodeEntities(titleMatch[1]).replace(/\s+/g, ' ').trim() : '';
 
   const descMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i);
-  const description = descMatch ? descMatch[1].replace(/\s+/g, ' ').trim() : '';
+  const description = descMatch ? decodeEntities(descMatch[1]).replace(/\s+/g, ' ').trim() : '';
 
   const canonical = extractCanonicalUrl(html);
   const jsonLdCount = (html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>/gi) || []).length;
@@ -134,6 +164,9 @@ export function extractDocumentSignals(html) {
   const hasNoindex = /noindex/i.test(robots);
   const hasNoarchive = /noarchive/i.test(html);
   const hasNosnippet = /(?:^|[\s"';])nosnippet/i.test(robots) || /data-nosnippet/i.test(html);
+  const hasNocache = /(?:^|[\s"';])nocache/i.test(robots);
+  // Bing guideline #10: data-snippet nominates the passage Bing may cite.
+  const hasDataSnippet = /\sdata-snippet(?=[\s>=])/i.test(html);
 
   return {
     title,
@@ -148,6 +181,8 @@ export function extractDocumentSignals(html) {
     hasNoindex,
     hasNoarchive,
     hasNosnippet,
+    hasNocache,
+    hasDataSnippet,
   };
 }
 
@@ -168,9 +203,9 @@ export function scoreThinContent(wordCount) {
 export function scoreMetadata(signals) {
   let score = 0;
   if (signals.titleLength >= 30 && signals.titleLength <= 70) score += 5;
-  else if (signals.titleLength >= 20 && signals.titleLength <= 80) score += 3;
-  if (signals.descriptionLength >= 140 && signals.descriptionLength <= 165) score += 5;
-  else if (signals.descriptionLength >= 120 && signals.descriptionLength <= 180) score += 3;
+  else if (signals.titleLength >= 20 && signals.titleLength < 30) score += 3;
+  if (signals.descriptionLength >= 150 && signals.descriptionLength <= 160) score += 5;
+  else if (signals.descriptionLength >= 120 && signals.descriptionLength <= 165) score += 3;
   return score;
 }
 
@@ -260,12 +295,13 @@ export function scoreGibberish(region, text) {
     sentenceFreq.set(key, (sentenceFreq.get(key) || 0) + 1);
   }
   const maxRepeat = Math.max(0, ...sentenceFreq.values());
+  const placeholderIssues = [...issues];
   if (maxRepeat >= 4) {
     issues.push(`repeated-sentence x${maxRepeat}`);
   }
 
   const penalty = Math.min(MAX, issues.length * 5);
-  return { score: MAX - penalty, issues };
+  return { score: MAX - penalty, issues, placeholderIssues, maxSentenceRepeat: maxRepeat };
 }
 
 /**
@@ -287,31 +323,16 @@ export function scoreStructure({ h1Count, h2Count, paragraphCount, listCount }) 
 }
 
 /**
- * Guideline compliance audit — hard signals that make a page ineligible for
- * indexing / grounding regardless of the numeric score. Mirrors the "Abuse"
- * and directive sections of the Bing Webmaster Guidelines and Google's Page
- * Indexing reasons.
- */
-export function auditIndexability(signals, wordCount) {
-  const violations = [];
-  if (signals.hasNoindex) violations.push('robots noindex present (excluded from index/grounding)');
-  if (signals.hasNoarchive) violations.push('NOARCHIVE present (excluded from Copilot/grounding)');
-  if (!signals.hasCanonical) violations.push('missing canonical link');
-  if (signals.h1Count !== 1) violations.push(`expected exactly one <h1>, found ${signals.h1Count}`);
-  if (signals.titleLength < 20 || signals.titleLength > 80) violations.push(`title length ${signals.titleLength} outside 20-80`);
-  if (signals.descriptionLength < 120 || signals.descriptionLength > 180) violations.push(`meta description length ${signals.descriptionLength} outside 120-180`);
-  if (signals.internalLinks < 5) violations.push(`only ${signals.internalLinks} internal links (need >=5 for structure)`);
-  if (signals.jsonLdCount < 1) violations.push('no structured data (JSON-LD) present');
-  if (wordCount < 1000) violations.push(`thin content: ${wordCount} words (need >=1000)`);
-  return { violations, passes: violations.length === 0 };
-}
-
-/**
  * Scores a single exported HTML page against the 100-point Helpful Content
- * heuristic. Returns the total score plus a breakdown so callers can decide
- * whether to auto-heal or soft-isolate the page.
+ * heuristic AND the cited Bing/Google rulebook. Returns the total score plus a
+ * breakdown so callers can decide whether to auto-heal or soft-isolate.
+ *
+ * `options.profile` selects the rulebook profile ('edge' for the generated
+ * corpus, 'static' for the hand-authored export); `options.expectedCanonical`
+ * enables the self-canonical check.
  */
-export function scorePage(html) {
+export function scorePage(html, options = {}) {
+  const { profile = 'edge', expectedCanonical } = options;
   const extracted = extractMainContent(html);
   const signals = extractDocumentSignals(html);
 
@@ -326,7 +347,23 @@ export function scorePage(html) {
   const score = thinContent + keyword.score + gibberish.score + structure
     + metadata + discovery + verifiability;
 
-  const indexability = auditIndexability(signals, extracted.wordCount);
+  const auditSignals = {
+    ...signals,
+    expectedCanonical,
+    wordCount: extracted.wordCount,
+    h2Count: extracted.h2Count,
+    hasCode: /<pre[\s>]|<code[\s>]/i.test(extracted.region),
+    hasDefinitions: /<dl[\s>]|<table[\s>]/i.test(extracted.region),
+    topWordRatio: keyword.topWordRatio,
+    repeatedSentenceCount: gibberish.maxSentenceRepeat,
+    placeholderIssues: gibberish.placeholderIssues,
+  };
+  const guidelines = auditDocument(auditSignals, profile);
+  const indexability = {
+    passes: guidelines.passes,
+    violations: guidelines.violations.map((v) => `${v.id}: ${v.message} [${v.source}]`),
+    warnings: guidelines.warnings.map((v) => `${v.id}: ${v.message} [${v.source}]`),
+  };
 
   return {
     score,
@@ -356,7 +393,9 @@ export function scorePage(html) {
     },
     signals,
     indexability,
+    guidelines,
     violations: indexability.violations,
+    warnings: indexability.warnings,
     passesGate: score >= MIN_GATE_SCORE,
     // "Indexable everywhere" = clears the higher score bar AND has zero hard
     // guideline violations (noindex, thin, missing canonical/schema, etc.).
@@ -429,6 +468,131 @@ export function buildHealBlock(slug) {
 
   const items = paragraphs.map((p) => `<p>${p}</p>`).join('');
   return `<section class="ai-quality-supplement" aria-label="Additional context">${items}</section>`;
+}
+
+// ---------------------------------------------------------------------------
+// Deterministic metadata repair.
+//
+// The generator produces compliant metadata by construction, but the static
+// export is assembled from components and can still emit a title over Bing's
+// 70-character limit or a description below its 150-character floor. Rather
+// than only reporting those, the agent rewrites them in place, deterministically
+// (same input -> same output, so rebuilds produce identical bytes).
+// ---------------------------------------------------------------------------
+
+const BRAND_SUFFIX = /\s*[|·–—-]\s*DevSolve\s*$/i;
+
+/** Attribute-safe encoding for repaired metadata. */
+function encodeText(value) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+/** Trim to a word boundary at or below `max`, without leaving dangling punctuation. */
+function trimToWord(value, max) {
+  if (value.length <= max) return value;
+  const cut = value.slice(0, max);
+  const lastSpace = cut.lastIndexOf(' ');
+  const trimmed = lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut;
+  return trimmed.replace(/[\s,;:–—-]+$/, '');
+}
+
+export function repairTitle(rawTitle, limits = {}) {
+  const { max = 70, min = 30 } = limits;
+  const title = rawTitle.replace(/\s+/g, ' ').trim();
+  if (title.length <= max && title.length >= min) return title;
+  if (title.length > max) {
+    const withoutBrand = title.replace(BRAND_SUFFIX, '').trim();
+    if (withoutBrand.length <= max && withoutBrand.length >= min) return withoutBrand;
+    return trimToWord(withoutBrand.length >= min ? withoutBrand : title, max);
+  }
+  return title;
+}
+
+export function repairDescription(rawDescription, context = {}) {
+  const { min = 150, max = 160, topic = '' } = context;
+  let description = rawDescription.replace(/\s+/g, ' ').trim();
+  if (description.length > max) {
+    description = trimToWord(description, max);
+    if (!/[.!?]$/.test(description)) description += '.';
+    return description;
+  }
+  if (description.length >= min) return description;
+
+  // Extend with page-specific context first, then with short generic clauses,
+  // choosing the longest clause that still fits so the result lands in window.
+  const clauses = [
+    topic ? ` Covers ${topic} step by step.` : '',
+    ' Includes a worked example, common pitfalls and an FAQ.',
+    ' Runs locally in your browser — no signup and no uploads.',
+    ' Free, privacy-first developer tooling.',
+    ' Reproducible, verifiable output.',
+    ' Works offline once loaded.',
+    ' No account needed.',
+    ' Free to use.',
+  ].filter(Boolean);
+
+  const used = new Set();
+  while (description.length < min) {
+    let chosen = -1;
+    for (let i = 0; i < clauses.length; i += 1) {
+      if (used.has(i)) continue;
+      if (description.length + clauses[i].length > max) continue;
+      if (chosen === -1 || clauses[i].length > clauses[chosen].length) chosen = i;
+    }
+    if (chosen === -1) break;
+    used.add(chosen);
+    description += clauses[chosen];
+  }
+  return description;
+}
+
+/**
+ * Rewrites a page's <title> and meta description in place when they fall
+ * outside the guideline window. Returns the (possibly unchanged) HTML plus a
+ * list of what was repaired.
+ */
+export function repairMetadata(html) {
+  // Repair always targets the published recommendation (title under 70,
+  // description 150-160), never the looser audit tolerance — there is no
+  // reason to rewrite metadata into a state Bing would still flag.
+  const repairs = [];
+  let output = html;
+
+  // Both fields are measured decoded and rewritten encoded, so an entity-heavy
+  // string is not mistaken for a longer one than a crawler sees.
+  const titleMatch = output.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (titleMatch) {
+    const current = decodeEntities(titleMatch[1]).replace(/\s+/g, ' ').trim();
+    const repaired = repairTitle(current, { max: TITLE_MAX, min: TITLE_MIN });
+    if (repaired && repaired !== current) {
+      output = output.replace(titleMatch[0], `<title>${encodeText(repaired)}</title>`);
+      repairs.push({ field: 'title', from: current.length, to: repaired.length });
+    }
+  }
+
+  const descMatch = output.match(/(<meta\s+name=["']description["']\s+content=["'])([^"']*)(["'])/i);
+  if (descMatch) {
+    const current = decodeEntities(descMatch[2]).replace(/\s+/g, ' ').trim();
+    const h1 = (output.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || [])[1] || '';
+    const topic = decodeEntities(h1.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim().slice(0, 60)
+      .toLowerCase();
+    const repaired = repairDescription(current, {
+      min: DESCRIPTION_TARGET_MIN,
+      max: DESCRIPTION_TARGET_MAX,
+      topic,
+    });
+    if (repaired && repaired !== current) {
+      output = output.replace(descMatch[0], `${descMatch[1]}${encodeText(repaired)}${descMatch[3]}`);
+      repairs.push({ field: 'description', from: current.length, to: repaired.length });
+    }
+  }
+
+  return { html: output, repairs };
 }
 
 /** Injects a heal block right before </main> (or before </body> as a fallback). */

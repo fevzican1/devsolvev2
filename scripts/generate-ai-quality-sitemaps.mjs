@@ -18,7 +18,7 @@ const outDir = join(process.cwd(), 'out');
 const reportsDir = join(outDir, 'reports');
 const siteUrl = (process.env.SITE_URL || process.env.URL || 'https://devsolvev2.com').replace(/\/$/, '');
 const CHUNK_SIZE = 40_000;
-const CONTENT_UPDATED_AT = process.env.SITE_CONTENT_UPDATED_AT || '2026-06-22T00:00:00.000Z';
+const CONTENT_UPDATED_AT = process.env.SITE_CONTENT_UPDATED_AT || '2026-08-11T00:00:00.000Z';
 const CORE_SITEMAP_RE = /^sitemap-main-pages(?:-\d+)?\.xml$/i;
 
 const eligiblePath = join(reportsDir, 'ai-quality-eligible-urls.txt');

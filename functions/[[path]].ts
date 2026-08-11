@@ -15,8 +15,9 @@ import {
   CORPUS_SIZE,
   URLS_PER_SITEMAP,
   CONTENT_UPDATED_AT,
+  CONTENT_VERSION,
   pageForIndex,
-  resolvePageForSlug,
+  resolveSlugRequest,
   renderProgrammaticPage,
   stableHash,
   type ResolvedPage,
@@ -46,10 +47,21 @@ function contentHeaders(type: string, cache = 'public, max-age=300, s-maxage=604
   });
 }
 
+/**
+ * A cacheable permanent redirect. `Response.redirect()` cannot carry cache
+ * headers, and an uncacheable redirect would send every repeat request back
+ * through the Function; these headers let the CDN answer the hop itself.
+ */
+function permanentRedirect(location: string): Response {
+  const headers = contentHeaders('text/plain; charset=utf-8', 'public, max-age=3600, s-maxage=2592000');
+  headers.set('location', location);
+  return new Response(null, { status: 301, headers });
+}
+
 function redirect(url: URL): Response {
   url.search = '';
   url.hash = '';
-  return Response.redirect(url.toString(), 301);
+  return permanentRedirect(url.toString());
 }
 
 function resolveOrigin(requestUrl: string): string {
@@ -63,9 +75,13 @@ function resolveOrigin(requestUrl: string): string {
 
 function pageResponse(page: ResolvedPage, origin: string): Response {
   const html = renderProgrammaticPage(page, origin);
+  // 30 days at the edge with a week of stale-while-revalidate. A one-year TTL
+  // made the corpus cheap to serve but meant a content fix could take a year to
+  // reach a crawler that had already cached the page; the Function is still
+  // invoked at most once per URL per month, and never on a stale hit.
   const headers = contentHeaders(
     'text/html; charset=utf-8',
-    'public, max-age=300, s-maxage=31536000, stale-while-revalidate=86400',
+    'public, max-age=300, s-maxage=2592000, stale-while-revalidate=604800',
   );
   // Freshness signals let Bing/Google validate cheaply (Bing guideline #3):
   // a stable ETag + Last-Modified means conditional requests can 304 without
@@ -107,7 +123,9 @@ function sitemapResponse(part: number, origin: string): Response {
 }
 
 function notFound(): Response {
-  return new Response('Not Found', { status: 404, headers: contentHeaders('text/plain; charset=utf-8', 'public, max-age=60') });
+  // A clean, cacheable 404 (Bing guideline #9) — cached so a crawler that keeps
+  // retrying a removed URL does not keep re-invoking the Function.
+  return new Response('Not Found', { status: 404, headers: contentHeaders('text/plain; charset=utf-8', 'public, max-age=300, s-maxage=86400') });
 }
 
 function buildResponse(pathname: string, origin: string): Response | undefined {
@@ -119,8 +137,15 @@ function buildResponse(pathname: string, origin: string): Response | undefined {
   }
   const match = pathname.match(/^\/k\/([a-z0-9-]+)$/);
   if (match) {
-    const page = resolvePageForSlug(match[1]);
-    return page ? pageResponse(page, origin) : notFound();
+    // A slug either owns its content (200), names a real page under a stale
+    // ordinal (301 to the canonical URL — never a second copy of the content),
+    // or describes nothing at all (404). Serving an arbitrary page for an
+    // unknown slug would publish duplicate content under a canonical tag that
+    // points somewhere else.
+    const resolution = resolveSlugRequest(match[1]);
+    if (resolution.kind === 'canonical') return pageResponse(resolution.page, origin);
+    if (resolution.kind === 'redirect') return permanentRedirect(`${origin}/k/${resolution.slug}`);
+    return notFound();
   }
   return undefined;
 }
@@ -140,14 +165,19 @@ export const onRequest = async (context: PagesContext): Promise<Response> => {
   //     exist (or if they are removed): a hit costs microseconds of CPU and
   //     never re-renders HTML/XML.
   const cache = request.method === 'GET' ? edgeCache() : undefined;
-  const cacheKey = new Request(`${url.origin}${pathname}`, { method: 'GET' });
+  // The content version is part of the cache key (never of the public URL), so
+  // a deploy that changes the generated HTML cannot be shadowed by entries
+  // cached from the previous version.
+  const cacheKey = new Request(`${url.origin}${pathname}?__v=${CONTENT_VERSION}`, { method: 'GET' });
   if (cache) {
     const hit = await cache.match(cacheKey).catch(() => undefined);
     if (hit) return hit;
   }
 
   const response = buildResponse(pathname, resolveOrigin(request.url)) ?? (await context.next());
-  if (cache && response.status === 200) {
+  // 301s are cached too: a stale-URL hop must not cost a Function invocation
+  // every time a crawler retries it.
+  if (cache && (response.status === 200 || response.status === 301)) {
     try {
       context.waitUntil(cache.put(cacheKey, response.clone()));
     } catch {

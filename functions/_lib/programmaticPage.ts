@@ -35,7 +35,17 @@
 
 export const URLS_PER_SITEMAP = 50_000;
 export const TARGET_CORPUS_SIZE = 20_000_000;
-export const CONTENT_UPDATED_AT = '2026-06-22T00:00:00.000Z';
+
+/*
+ * Bump this whenever the generated content changes. It drives three things
+ * that only work if they move together: the <lastmod> in every sitemap entry
+ * and the Last-Modified header (so Bing and Google know to re-crawl —
+ * guidelines #3 and #19), the per-URL ETag (so an unchanged page can still be
+ * answered with a cheap 304), and the edge cache key (so a deploy cannot keep
+ * serving the previous version of a page out of the colo cache).
+ */
+export const CONTENT_UPDATED_AT = '2026-08-11T00:00:00.000Z';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '');
 
 export const CLUSTERS = [
   ['json', ['json-formatter', 'json-to-typescript'], ['validate-json', 'format-json', 'inspect-json-structure', 'convert-json-to-types', 'compare-json-objects', 'transform-json-keys', 'extract-json-values', 'merge-json-data', 'flatten-nested-json', 'detect-json-syntax-errors', 'generate-json-schema', 'minify-json-payload']],
@@ -52,7 +62,23 @@ export const CLUSTERS = [
 
 export const AUDIENCES = ['backend-engineer', 'frontend-developer', 'fullstack-developer', 'api-consumer', 'integration-engineer', 'security-conscious-developer', 'ops-engineer', 'devops-engineer', 'technical-writer', 'data-engineer', 'mobile-developer', 'qa-engineer', 'site-reliability-engineer', 'database-administrator', 'cloud-architect', 'performance-engineer', 'platform-engineer', 'solution-architect', 'tech-lead', 'release-engineer'];
 export const TASKS = ['debug-production-issue', 'prepare-api-response', 'clean-up-payload', 'sanitize-user-input', 'prepare-query-parameters', 'inspect-encoded-payload', 'trace-request', 'validate-auth-token', 'review-config-change', 'migrate-legacy-system', 'prepare-deployment-artifact', 'document-api-endpoint', 'optimize-build-pipeline', 'resolve-merge-conflict', 'prepare-security-audit', 'generate-test-fixtures'];
-export const MODIFIER_COUNT = 180;
+
+/*
+ * The fifth corpus dimension. It used to be a bare counter that only changed a
+ * slug's trailing ordinal and the shuffle seed, which meant the 180 URLs of
+ * every (cluster × tool × intent × audience × task) combination were near
+ * duplicates sharing a handful of titles and descriptions — exactly what Bing
+ * flags as "make it unique" and what Google reports as "Duplicate without
+ * user-selected canonical". It is now a real topical dimension: an execution
+ * STYLE (how the work is done) crossed with a delivery CONTEXT (the situation
+ * it is done in), mirroring src/data/programmatic.ts so the static export and
+ * the edge corpus describe the same page. Both feed the title, description,
+ * H1, and dedicated body sections, so every sibling URL is a distinct
+ * sub-topic rather than a reshuffle.
+ */
+export const MODIFIER_STYLES = ['without-installing-cli-tools', 'directly-in-your-browser', 'with-step-by-step-instructions', 'with-safe-local-processing', 'while-keeping-data-private', 'for-quick-prototyping', 'during-code-review', 'as-part-of-ci-cd-pipeline', 'with-automated-validation'];
+export const MODIFIER_CONTEXTS = ['for-time-sensitive-incidents', 'for-team-onboarding', 'for-audit-readiness', 'for-cross-region-teams', 'for-legacy-system-migrations', 'for-large-enterprise-workflows', 'for-api-contract-validation', 'for-weekly-ops-routines', 'for-compliance-reporting', 'for-incident-postmortems', 'for-capacity-planning', 'for-release-management', 'for-vendor-integration', 'for-data-governance', 'for-service-mesh-debugging', 'for-cost-optimization', 'for-performance-benchmarking', 'for-disaster-recovery', 'for-production-rollouts', 'for-observability-pipelines'];
+export const MODIFIER_COUNT = MODIFIER_STYLES.length * MODIFIER_CONTEXTS.length;
 
 export const PER_PAIR = AUDIENCES.length * TASKS.length * MODIFIER_COUNT;
 export const PAIRS = CLUSTERS.flatMap(([cluster, tools, intents]) =>
@@ -73,6 +99,11 @@ export interface ResolvedPage {
   intent: string;
   audience: string;
   task: string;
+  /** Execution style — one of MODIFIER_STYLES. */
+  style: string;
+  /** Delivery context — one of MODIFIER_CONTEXTS. */
+  context: string;
+  modifier: number;
   slug: string;
   index: number;
 }
@@ -83,11 +114,23 @@ export function pageForIndex(index: number): ResolvedPage | undefined {
   if (!pair) return undefined;
   const remainder = index % PER_PAIR;
   const audience = AUDIENCES[Math.floor(remainder / (TASKS.length * MODIFIER_COUNT))];
-  const task = TASKS[Math.floor((remainder % (TASKS.length * MODIFIER_COUNT)) / MODIFIER_COUNT)];
+  const withinAudience = remainder % (TASKS.length * MODIFIER_COUNT);
+  const task = TASKS[Math.floor(withinAudience / MODIFIER_COUNT)];
   if (!audience || !task) return undefined;
+  const modifier = withinAudience % MODIFIER_COUNT;
+  const style = MODIFIER_STYLES[Math.floor(modifier / MODIFIER_CONTEXTS.length)];
+  const context = MODIFIER_CONTEXTS[modifier % MODIFIER_CONTEXTS.length];
   const [cluster, tool, intent] = pair;
   const slug = `${cluster}-${intent}-${audience}-${task}-${tool}-${index}`;
-  return { cluster, tool, intent, audience, task, slug, index };
+  return { cluster, tool, intent, audience, task, style, context, modifier, slug, index };
+}
+
+/** Index of the canonical page for a (pair, audience, task, modifier) tuple. */
+function indexForCombination(pairIndex: number, audienceIndex: number, taskIndex: number, modifier: number): number {
+  return pairIndex * PER_PAIR
+    + audienceIndex * TASKS.length * MODIFIER_COUNT
+    + taskIndex * MODIFIER_COUNT
+    + modifier;
 }
 
 export function stableHash(input: string): number {
@@ -99,23 +142,98 @@ export function stableHash(input: string): number {
   return hash >>> 0;
 }
 
+/** Exact, canonical-only resolution: the slug must be the one this index owns. */
 export function resolvePageForSlug(slug: string): ResolvedPage | undefined {
   const suffix = slug.match(/-(\d+)$/);
-  if (suffix) {
-    const index = Number(suffix[1]);
-    const page = pageForIndex(index);
-    if (page?.slug === slug) return page;
-  }
+  if (!suffix) return undefined;
+  const page = pageForIndex(Number(suffix[1]));
+  return page?.slug === slug ? page : undefined;
+}
 
-  const segments = slug.split('-');
-  if (segments.length >= 5 && segments.every((segment) => segment.length > 0)) {
-    // Keep structured /k/<stem> requests deterministic and cache-friendly
-    // without any external storage or database lookups.
-    const index = stableHash(slug) % CORPUS_SIZE;
-    return pageForIndex(index);
-  }
+/*
+ * Parsing a non-canonical slug back into its corpus coordinates.
+ *
+ * A slug is `<cluster>-<intent>-<audience>-<task>-<tool>-<ordinal>`. When the
+ * ordinal no longer matches the components (an older corpus geometry, a
+ * hand-edited URL, a stale link), the request must NOT be answered with an
+ * arbitrary page: doing that serves one URL's content under another URL's
+ * address with a canonical tag pointing at a third URL — duplicate content
+ * plus a self-inflicted "Duplicate, Google chose different canonical" report.
+ * Instead we recover the intended combination and 301 to the URL that owns it
+ * (Bing guideline #7: redirects, not canonical tags), or 404 when the slug
+ * describes no real page at all (guideline #9), which also stops an unbounded
+ * low-value URL space from burning crawl budget (guideline #21).
+ */
+const AUDIENCES_BY_LENGTH = [...AUDIENCES].sort((a, b) => b.length - a.length);
+const TASKS_BY_LENGTH = [...TASKS].sort((a, b) => b.length - a.length);
 
-  return undefined;
+export interface SlugCoordinates {
+  pairIndex: number;
+  audienceIndex: number;
+  taskIndex: number;
+  ordinal: number;
+}
+
+export function parseSlugCoordinates(slug: string): SlugCoordinates | undefined {
+  const match = slug.match(/^(.+)-(\d+)$/);
+  if (!match) return undefined;
+  const [, stem, digits] = match;
+  const ordinal = Number(digits);
+  if (!Number.isSafeInteger(ordinal) || ordinal < 0) return undefined;
+
+  const cluster = CLUSTERS.find(([key]) => stem.startsWith(`${key}-`));
+  if (!cluster) return undefined;
+  const [clusterKey, tools, intents] = cluster;
+
+  let cursor = stem.slice(clusterKey.length + 1);
+  const intent = [...intents].sort((a, b) => b.length - a.length).find((candidate) => cursor.startsWith(`${candidate}-`));
+  if (!intent) return undefined;
+  cursor = cursor.slice(intent.length + 1);
+
+  const audience = AUDIENCES_BY_LENGTH.find((candidate) => cursor.startsWith(`${candidate}-`));
+  if (!audience) return undefined;
+  cursor = cursor.slice(audience.length + 1);
+
+  const task = TASKS_BY_LENGTH.find((candidate) => cursor.startsWith(`${candidate}-`));
+  if (!task) return undefined;
+  cursor = cursor.slice(task.length + 1);
+
+  const tool = tools.find((candidate) => candidate === cursor);
+  if (!tool) return undefined;
+
+  const pairIndex = PAIRS.findIndex(([c, t, i]) => c === clusterKey && t === tool && i === intent);
+  if (pairIndex < 0) return undefined;
+
+  return {
+    pairIndex,
+    audienceIndex: AUDIENCES.indexOf(audience),
+    taskIndex: TASKS.indexOf(task),
+    ordinal,
+  };
+}
+
+export type SlugResolution =
+  | { kind: 'canonical'; page: ResolvedPage }
+  | { kind: 'redirect'; slug: string }
+  | { kind: 'notFound' };
+
+export function resolveSlugRequest(slug: string): SlugResolution {
+  const canonical = resolvePageForSlug(slug);
+  if (canonical) return { kind: 'canonical', page: canonical };
+
+  const coordinates = parseSlugCoordinates(slug);
+  if (!coordinates) return { kind: 'notFound' };
+
+  // The ordinal still selects WHICH of the 180 sub-topics was meant, so a
+  // stale URL keeps its meaning and intent across the move (guideline #20).
+  const target = pageForIndex(indexForCombination(
+    coordinates.pairIndex,
+    coordinates.audienceIndex,
+    coordinates.taskIndex,
+    coordinates.ordinal % MODIFIER_COUNT,
+  ));
+  if (!target || target.slug === slug) return { kind: 'notFound' };
+  return { kind: 'redirect', slug: target.slug };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -260,6 +378,630 @@ const DEFAULT_AUDIENCE: AudienceContext = { focus: 'engineering quality', concer
 const DEFAULT_TASK: TaskContext = { scenario: 'completing a development task', urgency: 'important for project quality', outcome: 'achieve the desired result efficiently' };
 
 /* -------------------------------------------------------------------------- */
+/*  Compact entity forms                                                       */
+/*                                                                             */
+/*  A <title> has a hard 70-character budget (Bing guideline #13) but must     */
+/*  still name every dimension that makes the URL distinct, otherwise sibling  */
+/*  pages share a title. Each dimension therefore has progressively shorter    */
+/*  spellings; the title fitter below shortens in a fixed order until the      */
+/*  result fits. Every tier is injective (no two values of a dimension share   */
+/*  a spelling), which is what makes the assembled titles unique — proven      */
+/*  exhaustively at build time by scripts/verify-edge-corpus-quality.mjs.      */
+/* -------------------------------------------------------------------------- */
+
+const TOOL_MICRO: Record<string, string> = {
+  'json-formatter': 'JSON',
+  'json-to-typescript': 'JSON to TS',
+  'base64-encode-decode': 'Base64',
+  'url-encode-decode': 'URL codec',
+  'html-entity-encode-decode': 'HTML escape',
+  'hash-generator': 'hashing',
+  'uuid-generator': 'UUID',
+  'jwt-decoder': 'JWT',
+  'text-case-converter': 'text case',
+  'diff-checker': 'diffing',
+  'regex-tester': 'regex',
+  'sql-formatter': 'SQL',
+  'css-minifier': 'CSS',
+  'markdown-preview': 'Markdown',
+  'cron-helper': 'cron',
+};
+
+const AUDIENCE_MICRO: Record<string, string> = {
+  'backend-engineer': 'backend',
+  'frontend-developer': 'frontend',
+  'fullstack-developer': 'fullstack',
+  'api-consumer': 'API teams',
+  'integration-engineer': 'integrators',
+  'security-conscious-developer': 'security',
+  'ops-engineer': 'ops',
+  'devops-engineer': 'DevOps',
+  'technical-writer': 'docs teams',
+  'data-engineer': 'data teams',
+  'mobile-developer': 'mobile',
+  'qa-engineer': 'QA',
+  'site-reliability-engineer': 'SRE',
+  'database-administrator': 'DBA',
+  'cloud-architect': 'cloud',
+  'performance-engineer': 'perf',
+  'platform-engineer': 'platform',
+  'solution-architect': 'architects',
+  'tech-lead': 'tech leads',
+  'release-engineer': 'release',
+};
+
+/** Shortest spelling — only reached when the fuller forms blow the 70-char budget. */
+const TOOL_TINY: Record<string, string> = {
+  'json-formatter': 'JSON',
+  'json-to-typescript': 'TS types',
+  'base64-encode-decode': 'Base64',
+  'url-encode-decode': 'URL',
+  'html-entity-encode-decode': 'HTML',
+  'hash-generator': 'hashing',
+  'uuid-generator': 'UUID',
+  'jwt-decoder': 'JWT',
+  'text-case-converter': 'casing',
+  'diff-checker': 'diffing',
+  'regex-tester': 'regex',
+  'sql-formatter': 'SQL',
+  'css-minifier': 'CSS',
+  'markdown-preview': 'Markdown',
+  'cron-helper': 'cron',
+};
+
+const AUDIENCE_TINY: Record<string, string> = {
+  'backend-engineer': 'backend',
+  'frontend-developer': 'frontend',
+  'fullstack-developer': 'fullstack',
+  'api-consumer': 'API teams',
+  'integration-engineer': 'systems',
+  'security-conscious-developer': 'security',
+  'ops-engineer': 'ops',
+  'devops-engineer': 'DevOps',
+  'technical-writer': 'docs',
+  'data-engineer': 'data',
+  'mobile-developer': 'mobile',
+  'qa-engineer': 'QA',
+  'site-reliability-engineer': 'SRE',
+  'database-administrator': 'DBA',
+  'cloud-architect': 'cloud',
+  'performance-engineer': 'perf',
+  'platform-engineer': 'platform',
+  'solution-architect': 'architect',
+  'tech-lead': 'leads',
+  'release-engineer': 'release',
+};
+
+/** Natural noun phrase for prose (descriptions, H1). */
+const TASK_PHRASE: Record<string, string> = {
+  'debug-production-issue': 'production debugging',
+  'prepare-api-response': 'API response prep',
+  'clean-up-payload': 'payload clean-up',
+  'sanitize-user-input': 'user input safety',
+  'prepare-query-parameters': 'query parameter prep',
+  'inspect-encoded-payload': 'encoded payload review',
+  'trace-request': 'request tracing',
+  'validate-auth-token': 'auth token checks',
+  'review-config-change': 'config change review',
+  'migrate-legacy-system': 'legacy migration',
+  'prepare-deployment-artifact': 'release packaging',
+  'document-api-endpoint': 'endpoint documentation',
+  'optimize-build-pipeline': 'build optimisation',
+  'resolve-merge-conflict': 'merge resolution',
+  'prepare-security-audit': 'security audit prep',
+  'generate-test-fixtures': 'test fixture design',
+};
+
+/** Title-budget form. */
+const TASK_MICRO: Record<string, string> = {
+  'debug-production-issue': 'prod debugging',
+  'prepare-api-response': 'API responses',
+  'clean-up-payload': 'payload prep',
+  'sanitize-user-input': 'input safety',
+  'prepare-query-parameters': 'query params',
+  'inspect-encoded-payload': 'encoded data',
+  'trace-request': 'tracing',
+  'validate-auth-token': 'auth tokens',
+  'review-config-change': 'config review',
+  'migrate-legacy-system': 'migrations',
+  'prepare-deployment-artifact': 'release prep',
+  'document-api-endpoint': 'API docs',
+  'optimize-build-pipeline': 'build speed',
+  'resolve-merge-conflict': 'merge fixes',
+  'prepare-security-audit': 'audit prep',
+  'generate-test-fixtures': 'test data',
+};
+
+/** Last-resort title form — still one distinct spelling per task. */
+const TASK_TINY: Record<string, string> = {
+  'debug-production-issue': 'prod bugs',
+  'prepare-api-response': 'responses',
+  'clean-up-payload': 'payloads',
+  'sanitize-user-input': 'input',
+  'prepare-query-parameters': 'params',
+  'inspect-encoded-payload': 'encoding',
+  'trace-request': 'traces',
+  'validate-auth-token': 'tokens',
+  'review-config-change': 'config',
+  'migrate-legacy-system': 'legacy',
+  'prepare-deployment-artifact': 'releases',
+  'document-api-endpoint': 'docs',
+  'optimize-build-pipeline': 'builds',
+  'resolve-merge-conflict': 'merges',
+  'prepare-security-audit': 'audits',
+  'generate-test-fixtures': 'fixtures',
+};
+
+interface StyleVocab {
+  /** Title-budget form. */
+  micro: string;
+  /** Shortest title form, used only when the budget is exhausted. */
+  tiny: string;
+  /** Prose form used in descriptions and the H1. */
+  phrase: string;
+  /** What this execution style actually changes about the workflow. */
+  practice: string;
+}
+
+const STYLE_VOCAB: Record<string, StyleVocab> = {
+  'without-installing-cli-tools': {
+    micro: 'no CLI',
+    tiny: 'no CLI',
+    phrase: 'without installing CLI tools',
+    practice: 'Nothing has to be installed, so the workflow is available on a locked-down laptop, a borrowed machine, or a fresh container where you have no package manager rights.',
+  },
+  'directly-in-your-browser': {
+    micro: 'in-browser',
+    tiny: 'browser',
+    phrase: 'directly in your browser',
+    practice: 'The whole operation happens in a browser tab, which keeps the feedback loop to a few seconds and means a teammate can reproduce it from a shared link rather than a setup guide.',
+  },
+  'with-step-by-step-instructions': {
+    micro: 'stepwise',
+    tiny: 'stepwise',
+    phrase: 'with step-by-step instructions',
+    practice: 'Each stage is written out explicitly, so the procedure can be handed to someone who has never done it before and still produce the same result.',
+  },
+  'with-safe-local-processing': {
+    micro: 'local-only',
+    tiny: 'local',
+    phrase: 'with safe local processing',
+    practice: 'Data never leaves the device, which is what makes the procedure usable on payloads you are not allowed to paste into a hosted service.',
+  },
+  'while-keeping-data-private': {
+    micro: 'private',
+    tiny: 'private',
+    phrase: 'while keeping data private',
+    practice: 'Privacy is treated as a requirement rather than a preference: no upload, no account, no retention, and therefore no new data-processing agreement to negotiate.',
+  },
+  'for-quick-prototyping': {
+    micro: 'prototyping',
+    tiny: 'draft',
+    phrase: 'for quick prototyping',
+    practice: 'The goal is a fast, disposable answer — enough confidence to choose a direction, with the understanding that the production implementation gets its own tests.',
+  },
+  'during-code-review': {
+    micro: 'in code review',
+    tiny: 'review',
+    phrase: 'during code review',
+    practice: 'The output is meant to be pasted into a review thread, so it has to be small, self-explanatory, and reproducible by the reviewer without extra context.',
+  },
+  'as-part-of-ci-cd-pipeline': {
+    micro: 'in CI/CD',
+    tiny: 'CI/CD',
+    phrase: 'as part of a CI/CD pipeline',
+    practice: 'The manual pass is the specification for an automated one: once the expected output is agreed, the same check runs on every commit and fails the build when it drifts.',
+  },
+  'with-automated-validation': {
+    micro: 'auto-validated',
+    tiny: 'checked',
+    phrase: 'with automated validation',
+    practice: 'A machine-checkable assertion is attached to the result, so a later change that quietly breaks the invariant is caught by the check rather than by a user.',
+  },
+};
+
+interface ContextVocab {
+  micro: string;
+  tiny: string;
+  phrase: string;
+  /** What this delivery context demands from the workflow. */
+  demand: string;
+}
+
+const CONTEXT_VOCAB: Record<string, ContextVocab> = {
+  'for-time-sensitive-incidents': { micro: 'incidents', tiny: 'incidents', phrase: 'time-sensitive incidents', demand: 'During an incident the constraint is minutes, not elegance: the procedure has to give a trustworthy answer on the first attempt and leave a trace that survives into the postmortem.' },
+  'for-team-onboarding': { micro: 'onboarding', tiny: 'onboarding', phrase: 'team onboarding', demand: 'For onboarding the procedure doubles as teaching material, so every step names the reason behind it instead of assuming shared context a new joiner does not have yet.' },
+  'for-audit-readiness': { micro: 'audits', tiny: 'audits', phrase: 'audit readiness', demand: 'Audit readiness means the result must be evidence: recorded inputs, recorded settings, and an output an auditor can regenerate without your help.' },
+  'for-cross-region-teams': { micro: 'global teams', tiny: 'global', phrase: 'cross-region teams', demand: 'Across regions the workflow runs without a live handover, so it has to be unambiguous in writing and give identical output regardless of locale or timezone.' },
+  'for-legacy-system-migrations': { micro: 'legacy moves', tiny: 'migrations', phrase: 'legacy system migrations', demand: 'Migrations mix old and new formats in the same pipeline, so the check has to prove the two representations mean the same thing rather than merely look similar.' },
+  'for-large-enterprise-workflows': { micro: 'enterprise', tiny: 'enterprise', phrase: 'large enterprise workflows', demand: 'At enterprise scale the same procedure is executed by many teams, so it has to be standardised enough that two engineers reach the same conclusion independently.' },
+  'for-api-contract-validation': { micro: 'API contracts', tiny: 'contracts', phrase: 'API contract validation', demand: 'Contract validation compares reality against the documented schema, so the output has to be precise about which field, type, or encoding actually diverged.' },
+  'for-weekly-ops-routines': { micro: 'weekly ops', tiny: 'weekly ops', phrase: 'weekly ops routines', demand: 'A weekly routine is judged on repeatability: it should take the same few minutes every time and surface drift early rather than accumulate surprises.' },
+  'for-compliance-reporting': { micro: 'compliance', tiny: 'compliance', phrase: 'compliance reporting', demand: 'Compliance reporting needs a defensible paper trail — what was checked, when, with which inputs — not just a green result someone remembers seeing.' },
+  'for-incident-postmortems': { micro: 'postmortems', tiny: 'postmortem', phrase: 'incident postmortems', demand: 'A postmortem re-runs the evidence after the fact, so the procedure must be reproducible from records alone, weeks after the original session ended.' },
+  'for-capacity-planning': { micro: 'capacity', tiny: 'capacity', phrase: 'capacity planning', demand: 'Capacity work cares about behaviour as volume grows, so a sample-sized result is only useful when you also note how it scales with payload size and concurrency.' },
+  'for-release-management': { micro: 'releases', tiny: 'releases', phrase: 'release management', demand: 'Release management wants a go/no-go signal: the check has to be decisive, fast enough to run at the gate, and safe to repeat on a rollback.' },
+  'for-vendor-integration': { micro: 'vendor work', tiny: 'vendors', phrase: 'vendor integrations', demand: 'With a vendor you cannot change the other side, so the workflow has to isolate whether the defect is in their payload, your parsing, or the transport between them.' },
+  'for-data-governance': { micro: 'governance', tiny: 'governance', phrase: 'data governance', demand: 'Governance asks where the data went as much as what the result was, which is why a local, no-upload procedure is easier to approve than a hosted equivalent.' },
+  'for-service-mesh-debugging': { micro: 'mesh debug', tiny: 'mesh', phrase: 'service mesh debugging', demand: 'In a mesh the payload passes through several hops, so the check has to be applied at each boundary to find the hop that changed it.' },
+  'for-cost-optimization': { micro: 'cost control', tiny: 'cost', phrase: 'cost optimisation', demand: 'Cost work rewards doing the check locally: an answer that needs no cluster, no job, and no egress is both faster and cheaper than the pipeline equivalent.' },
+  'for-performance-benchmarking': { micro: 'benchmarks', tiny: 'benchmarks', phrase: 'performance benchmarking', demand: 'Benchmarking needs a fixed baseline, so the input sample and settings have to be frozen before any comparison between runs means anything.' },
+  'for-disaster-recovery': { micro: 'DR drills', tiny: 'DR drills', phrase: 'disaster recovery drills', demand: 'A recovery drill assumes your usual tooling is unavailable, so a procedure that runs offline in a browser is exactly the kind that still works at the worst moment.' },
+  'for-production-rollouts': { micro: 'rollouts', tiny: 'rollouts', phrase: 'production rollouts', demand: 'During a rollout the check runs against both the old and the new version, and the interesting result is the difference between them rather than either one alone.' },
+  'for-observability-pipelines': { micro: 'observability', tiny: 'telemetry', phrase: 'observability pipelines', demand: 'Observability pipelines silently drop malformed records, so validating the shape before ingestion is the difference between a usable dashboard and a misleading one.' },
+};
+
+const DEFAULT_STYLE: StyleVocab = { micro: 'in-browser', tiny: 'browser', phrase: 'directly in your browser', practice: 'The operation runs locally in a browser tab, so it is quick to repeat and easy to share.' };
+const DEFAULT_CONTEXT: ContextVocab = { micro: 'daily work', tiny: 'daily', phrase: 'everyday engineering work', demand: 'The procedure is written to be repeatable during ordinary day-to-day engineering work.' };
+
+function styleVocab(page: ResolvedPage): StyleVocab {
+  return STYLE_VOCAB[page.style] ?? DEFAULT_STYLE;
+}
+
+function contextVocab(page: ResolvedPage): ContextVocab {
+  return CONTEXT_VOCAB[page.context] ?? DEFAULT_CONTEXT;
+}
+
+/**
+ * Compact spelling of an intent for the title budget: the leading verb is
+ * dropped when the remainder is still a self-explanatory noun phrase, which is
+ * what a reader scanning a result list actually needs.
+ */
+const INTENT_MICRO_OVERRIDES: Record<string, string> = {
+  'find-and-replace-patterns': 'find and replace',
+  'detect-json-syntax-errors': 'JSON syntax errors',
+  'convert-json-to-types': 'JSON to types',
+  'generate-unique-identifiers': 'unique IDs',
+  'rotate-unique-identifiers': 'ID rotation',
+  'generate-identifiers': 'ID generation',
+  'anonymize-sensitive-fields': 'field anonymising',
+  'format-api-documentation': 'API doc formatting',
+  'authenticate-api-request': 'request auth',
+  'secure-api-communication': 'secure transport',
+  'escape-template-variables': 'template escaping',
+  'escape-special-characters': 'special characters',
+  'serialize-complex-objects': 'object serialising',
+  'configure-periodic-cleanup': 'periodic cleanup',
+  'automate-data-extraction': 'data extraction',
+  'monitor-scheduled-tasks': 'job monitoring',
+  'validate-transform-output': 'transform output',
+  'reproduce-formatting-bug': 'formatting bugs',
+  'troubleshoot-encoding-mismatch': 'encoding mismatch',
+  'normalize-encoded-output': 'encoded output',
+  'compare-security-hashes': 'hash comparison',
+  'validate-markdown-syntax': 'Markdown syntax',
+  'restructure-code-blocks': 'code block layout',
+  'standardize-sql-style': 'SQL style',
+  'normalize-data-structure': 'data structure',
+  'check-data-consistency': 'data consistency',
+  'validate-data-integrity': 'data integrity',
+  'verify-data-integrity': 'integrity checks',
+  'inspect-json-structure': 'JSON structure',
+  'protect-against-xss': 'XSS protection',
+  'render-dynamic-content': 'dynamic content',
+  'preview-content-markup': 'markup preview',
+  'compress-web-assets': 'asset compression',
+  'optimize-css-output': 'CSS output',
+  'optimize-css-bundle': 'CSS bundles',
+  'beautify-query-strings': 'query formatting',
+  'align-code-formatting': 'code alignment',
+  'convert-character-sets': 'character sets',
+  'handle-unicode-text': 'Unicode text',
+  'decode-nested-encodings': 'nested encodings',
+  'verify-encoding-roundtrip': 'encoding roundtrip',
+  'analyze-text-differences': 'text differences',
+  'split-text-by-delimiter': 'text splitting',
+  'match-complex-patterns': 'complex patterns',
+  'extract-text-segments': 'text extraction',
+  'identify-format-change': 'format changes',
+  'pinpoint-encoding-issue': 'encoding issues',
+  'analyze-log-patterns': 'log patterns',
+  'build-extraction-pattern': 'extraction rules',
+  'filter-event-streams': 'event filtering',
+  'tag-automated-processes': 'process tagging',
+  'schedule-recurring-task': 'recurring jobs',
+  'validate-cron-schedule': 'cron schedules',
+  'create-unique-job-ids': 'unique job IDs',
+  'generate-batch-ids': 'batch IDs',
+  'parse-automation-output': 'automation output',
+  'extract-log-data': 'log extraction',
+  'aggregate-data-records': 'record aggregation',
+  'migrate-data-schema': 'schema migration',
+  'create-data-fingerprint': 'data fingerprints',
+  'generate-data-models': 'data models',
+  'transform-data-format': 'format conversion',
+  'hash-data-for-storage': 'storage hashing',
+  'encode-binary-data': 'binary encoding',
+  'detect-schema-drift': 'schema drift',
+  'compare-config-files': 'config comparison',
+  'isolate-parsing-error': 'parsing errors',
+  'debug-regex-match': 'regex matches',
+  'verify-output-format': 'output format',
+  'trace-data-flow': 'data flow',
+  'design-api-schema': 'API schema design',
+  'validate-api-response': 'API responses',
+  'construct-query-string': 'query strings',
+  'parse-webhook-payload': 'webhook payloads',
+  'debug-api-error': 'API errors',
+  'test-api-endpoint': 'endpoint testing',
+  'normalize-api-data': 'API data shape',
+  'optimize-api-payload': 'payload size',
+  'version-api-response': 'API versioning',
+  'audit-token-expiry': 'token expiry',
+  'hash-sensitive-data': 'sensitive data',
+  'generate-secure-keys': 'secure keys',
+  'validate-jwt-claims': 'JWT claims',
+  'detect-token-tampering': 'token tampering',
+  'analyze-token-payload': 'token payloads',
+  'inspect-signatures': 'signatures',
+  'verify-tokens': 'token checks',
+  'clean-up-whitespace': 'whitespace',
+  'build-regex-patterns': 'regex patterns',
+  'validate-input-format': 'input format',
+  'convert-text-case': 'text case',
+  'compare-versions': 'version diffs',
+  'normalize-text': 'text normalising',
+  'test-regex': 'regex testing',
+  'flatten-nested-json': 'nested JSON',
+  'generate-json-schema': 'JSON schema',
+  'minify-json-payload': 'JSON minifying',
+  'merge-json-data': 'JSON merging',
+  'extract-json-values': 'JSON values',
+  'transform-json-keys': 'JSON keys',
+  'compare-json-objects': 'JSON comparison',
+  'validate-json': 'JSON validation',
+  'format-json': 'JSON formatting',
+  'encode-data': 'data encoding',
+  'decode-data': 'data decoding',
+  'fix-encoding-bugs': 'encoding bugs',
+  'batch-encode-values': 'batch encoding',
+  'convert-binary-to-text': 'binary to text',
+  'sanitize-html-input': 'HTML sanitising',
+  'minify-stylesheet': 'CSS minifying',
+  'validate-markup-output': 'markup output',
+  'format-rich-text': 'rich text',
+  'secure-form-data': 'form data safety',
+  'encode-url-parameters': 'URL parameters',
+  'render-documentation': 'doc rendering',
+  'compress-stylesheet': 'stylesheet size',
+  'indent-nested-code': 'nested indentation',
+  'format-sql': 'SQL formatting',
+  'minify-assets': 'asset minifying',
+  'preview-markdown': 'Markdown preview',
+};
+
+function intentMicro(intent: string): string {
+  const override = INTENT_MICRO_OVERRIDES[intent];
+  if (override) return override;
+  const words = intent.split('-');
+  return words.length >= 3 ? words.slice(1).join(' ') : words.join(' ');
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Page identity: <title>, meta description, <h1>                            */
+/* -------------------------------------------------------------------------- */
+
+export const TITLE_MAX = 70;
+export const DESCRIPTION_MIN = 150;
+export const DESCRIPTION_MAX = 160;
+
+export interface PageIdentity {
+  title: string;
+  description: string;
+  h1: string;
+}
+
+interface Forms {
+  intent: string[];
+  tool: string[];
+  audience: string[];
+  task: string[];
+  style: string[];
+  context: string[];
+}
+
+/**
+ * Ordered shortening ladder — one spelling tier per dimension. The fitter walks
+ * it until the assembled title fits, so the most readable spelling that fits is
+ * the one that ships. The final plan uses every dimension's shortest tier and
+ * the compact separator layout, and the sum of those maxima is under the
+ * 70-character limit, which is what makes the limit a guarantee rather than a
+ * hope (asserted by scripts/verify-edge-corpus-quality.mjs).
+ */
+const SHORTENING_PLANS: ReadonlyArray<{ readonly tiers: readonly [number, number, number, number, number, number]; readonly compact: boolean }> = [
+  { tiers: [0, 0, 0, 0, 0, 0], compact: false },
+  { tiers: [1, 0, 0, 0, 0, 0], compact: false },
+  { tiers: [1, 1, 0, 0, 0, 0], compact: false },
+  { tiers: [1, 1, 0, 1, 0, 0], compact: false },
+  { tiers: [1, 1, 1, 1, 0, 0], compact: false },
+  { tiers: [1, 1, 1, 2, 0, 0], compact: false },
+  { tiers: [1, 1, 2, 2, 0, 0], compact: false },
+  { tiers: [1, 1, 2, 2, 1, 0], compact: false },
+  { tiers: [1, 1, 2, 2, 1, 1], compact: false },
+  { tiers: [1, 2, 2, 2, 1, 1], compact: false },
+  { tiers: [1, 2, 2, 2, 1, 1], compact: true },
+];
+
+function formsFor(page: ResolvedPage): Forms {
+  const style = styleVocab(page);
+  const context = contextVocab(page);
+  return {
+    intent: [label(page.intent), intentMicro(page.intent)],
+    tool: [toolName(page.tool), TOOL_MICRO[page.tool] ?? toolName(page.tool), TOOL_TINY[page.tool] ?? toolName(page.tool)],
+    audience: [label(page.audience), AUDIENCE_MICRO[page.audience] ?? label(page.audience), AUDIENCE_TINY[page.audience] ?? label(page.audience)],
+    task: [
+      TASK_PHRASE[page.task] ?? label(page.task),
+      TASK_MICRO[page.task] ?? label(page.task),
+      TASK_TINY[page.task] ?? label(page.task),
+    ],
+    style: [style.micro, style.tiny],
+    context: [context.micro, context.tiny],
+  };
+}
+
+function capitalise(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/**
+ * The served <title>. Every dimension that distinguishes this URL from its
+ * siblings is present, so the title is unique across the corpus; the fitter
+ * only ever swaps a spelling for a shorter one, never truncates mid-phrase and
+ * never drops a dimension. There is deliberately no " | DevSolve" suffix: the
+ * 70-character budget is worth more spent on what the page is about than on
+ * boilerplate that repeats 20 million times (the brand is still carried by
+ * og:site_name and the JSON-LD publisher).
+ */
+function buildTitle(forms: Forms): string {
+  let candidate = '';
+  for (const { tiers: [i, t, a, k, s, c], compact } of SHORTENING_PLANS) {
+    const subject = capitalise(forms.intent[i]);
+    const audience = `${forms.audience[a]} ${forms.task[k]}`;
+    const detail = `${forms.tool[t]}, ${forms.style[s]} ${forms.context[c]}`;
+    candidate = compact ? `${subject}: ${audience}, ${detail}` : `${subject} for ${audience}: ${detail}`;
+    if (candidate.length <= TITLE_MAX) return candidate;
+  }
+  return candidate;
+}
+
+/**
+ * Deterministic tail phrases used to land the meta description inside Bing's
+ * recommended 150–160 window without padding it with filler that says nothing.
+ * They are appended to an already-unique base, so uniqueness is preserved.
+ */
+const DESCRIPTION_TAILS = [
+  ' Runs locally in your browser.',
+  ' No signup, no uploads.',
+  ' Includes a worked example.',
+  ' Free developer tool.',
+  ' Steps, pitfalls, and FAQ.',
+  ' Reproducible output.',
+  ' Private by default.',
+  ' Free.',
+  ' No account needed.',
+  ' Works offline.',
+];
+
+function buildDescription(page: ResolvedPage, forms: Forms): string {
+  const style = styleVocab(page);
+  const context = contextVocab(page);
+
+  let base = '';
+  for (const { tiers: [i, t, a, k] } of SHORTENING_PLANS) {
+    base = `${capitalise(forms.intent[i])} with the ${forms.tool[t]} tool: a ${forms.audience[a]} workflow for ${forms.task[k]} ${style.phrase}, built for ${context.phrase}.`;
+    if (base.length <= DESCRIPTION_MAX) break;
+  }
+  if (base.length > DESCRIPTION_MAX) {
+    base = base.slice(0, DESCRIPTION_MAX);
+    const lastSpace = base.lastIndexOf(' ');
+    if (lastSpace > DESCRIPTION_MIN) base = base.slice(0, lastSpace);
+    base = `${base.replace(/[\s,;:.–—-]+$/, '')}.`;
+  }
+
+  // Longest-tail-first keeps the padding to as few clauses as possible; the
+  // short entries guarantee the window is always reachable.
+  const used = new Set<number>();
+  while (base.length < DESCRIPTION_MIN) {
+    let chosen = -1;
+    for (let i = 0; i < DESCRIPTION_TAILS.length; i += 1) {
+      if (used.has(i)) continue;
+      const length = base.length + DESCRIPTION_TAILS[i].length;
+      if (length > DESCRIPTION_MAX) continue;
+      if (chosen === -1 || DESCRIPTION_TAILS[i].length > DESCRIPTION_TAILS[chosen].length) chosen = i;
+    }
+    if (chosen === -1) break;
+    used.add(chosen);
+    base += DESCRIPTION_TAILS[chosen];
+  }
+  return base;
+}
+
+function buildH1(page: ResolvedPage, forms: Forms): string {
+  const style = styleVocab(page);
+  const context = contextVocab(page);
+  return `${capitalise(forms.intent[0])} with ${forms.tool[0]} ${style.phrase}: a ${forms.audience[0]} guide to ${forms.task[0]} for ${context.phrase}`;
+}
+
+/**
+ * Title, description and H1 for a page — deliberately separable from the full
+ * page body so the build-time verifier can prove uniqueness across all 20M
+ * URLs without rendering 20M documents.
+ */
+/**
+ * Build-time audit of the title vocabulary. It proves the two properties the
+ * corpus depends on, without rendering a single page:
+ *
+ *   - every dimension's spellings are injective at every tier, so assembling
+ *     them can only produce a duplicate title if two pages share all five
+ *     dimensions (i.e. are the same page);
+ *   - the shortest tier's worst case fits the 70-character limit, so the
+ *     fitter always terminates inside budget rather than emitting a long title.
+ *
+ * Exported for scripts/verify-edge-corpus-quality.mjs; never called at request
+ * time.
+ */
+export function titleVocabularyAudit(): { problems: string[]; worstCaseTitleLength: number; checkedSpellings: number } {
+  const problems: string[] = [];
+  let checkedSpellings = 0;
+
+  const intents = Array.from(new Set(CLUSTERS.flatMap(([, , list]) => list)));
+  const dimensions: { name: string; values: string[]; spellings: (value: string) => string[] }[] = [
+    { name: 'intent', values: intents, spellings: (v) => [label(v), intentMicro(v)] },
+    { name: 'tool', values: Array.from(new Set(CLUSTERS.flatMap(([, tools]) => tools))), spellings: (v) => [toolName(v), TOOL_MICRO[v] ?? '', TOOL_TINY[v] ?? ''] },
+    { name: 'audience', values: [...AUDIENCES], spellings: (v) => [label(v), AUDIENCE_MICRO[v] ?? '', AUDIENCE_TINY[v] ?? ''] },
+    { name: 'task', values: [...TASKS], spellings: (v) => [TASK_PHRASE[v] ?? '', TASK_MICRO[v] ?? '', TASK_TINY[v] ?? ''] },
+    { name: 'style', values: [...MODIFIER_STYLES], spellings: (v) => [STYLE_VOCAB[v]?.micro ?? '', STYLE_VOCAB[v]?.tiny ?? ''] },
+    { name: 'context', values: [...MODIFIER_CONTEXTS], spellings: (v) => [CONTEXT_VOCAB[v]?.micro ?? '', CONTEXT_VOCAB[v]?.tiny ?? ''] },
+  ];
+
+  const maxima: Record<string, number[]> = {};
+  for (const dimension of dimensions) {
+    const tierCount = dimension.spellings(dimension.values[0]).length;
+    maxima[dimension.name] = new Array(tierCount).fill(0);
+    for (let tier = 0; tier < tierCount; tier += 1) {
+      const seen = new Map<string, string>();
+      for (const value of dimension.values) {
+        const spelling = dimension.spellings(value)[tier];
+        checkedSpellings += 1;
+        if (!spelling) {
+          problems.push(`${dimension.name} "${value}" has no tier-${tier} spelling`);
+          continue;
+        }
+        const previous = seen.get(spelling);
+        if (previous !== undefined) {
+          problems.push(`${dimension.name} tier ${tier} is not injective: "${previous}" and "${value}" both render as "${spelling}"`);
+        }
+        seen.set(spelling, value);
+        maxima[dimension.name][tier] = Math.max(maxima[dimension.name][tier], spelling.length);
+      }
+    }
+  }
+
+  const finalPlan = SHORTENING_PLANS[SHORTENING_PLANS.length - 1];
+  const [ti, tt, ta, tk, ts, tc] = finalPlan.tiers;
+  // `${intent}: ${audience} ${task}, ${tool}, ${style} ${context}`
+  const separators = ': '.length + ' '.length + ', '.length + ', '.length + ' '.length;
+  const worstCaseTitleLength = separators
+    + maxima.intent[ti] + maxima.audience[ta] + maxima.task[tk]
+    + maxima.tool[tt] + maxima.style[ts] + maxima.context[tc];
+  if (!finalPlan.compact) problems.push('the final shortening plan must use the compact layout');
+  if (worstCaseTitleLength > TITLE_MAX) {
+    problems.push(`shortest-tier worst case is ${worstCaseTitleLength} characters, above the ${TITLE_MAX} limit`);
+  }
+
+  return { problems, worstCaseTitleLength, checkedSpellings };
+}
+
+export function buildIdentity(page: ResolvedPage): PageIdentity {
+  const forms = formsFor(page);
+  return {
+    title: buildTitle(forms),
+    description: buildDescription(page, forms),
+    h1: buildH1(page, forms),
+  };
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Content builders                                                           */
 /* -------------------------------------------------------------------------- */
 
@@ -280,32 +1022,7 @@ export interface PageContent {
   keywords: string[];
   workedExample: { inputLabel: string; input: string; outputLabel: string; output: string; note: string };
   related: { slug: string; label: string }[];
-}
-
-function clampTitle(raw: string): string {
-  let t = raw.replace(/\s+/g, ' ').trim();
-  if (t.length > 70) {
-    t = t.slice(0, 70);
-    const lastSpace = t.lastIndexOf(' ');
-    if (lastSpace > 30) t = t.slice(0, lastSpace);
-    t = t.replace(/[\s\-–—|:,]+$/, '');
-  }
-  if (t.length < 30) t = `${t} — DevSolve developer guide`.slice(0, 70);
-  return t;
-}
-
-function clampDescription(raw: string): string {
-  let d = raw.replace(/\s+/g, ' ').trim();
-  const TAIL = ' Runs locally in your browser for private, reproducible results.';
-  if (d.length < 140) d = (d + TAIL).replace(/\s+/g, ' ').trim();
-  if (d.length < 140) d = (d + ' No signup, no uploads, no tracking — just a fast developer workflow.').trim();
-  if (d.length > 165) {
-    d = d.slice(0, 165);
-    const lastSpace = d.lastIndexOf(' ');
-    if (lastSpace > 140) d = d.slice(0, lastSpace);
-    d = d.replace(/[\s,;:–—-]+$/, '') + '.';
-  }
-  return d;
+  scenario: { heading: string; summary: string; paragraphs: string[]; checklist: string[] };
 }
 
 function buildContent(page: ResolvedPage): PageContent {
@@ -319,54 +1036,64 @@ function buildContent(page: ResolvedPage): PageContent {
   const la = label(audience);
   const lt = label(task);
 
-  const titleTemplates = [
-    `How to ${li} with ${tn} — a ${la} guide`,
-    `${tn}: ${li} for ${la} teams`,
-    `${li} using ${tn}: a practical ${la} walkthrough`,
-    `A ${la} guide to ${li} with ${tn}`,
-    `${li} with ${tn} for ${la} workflows`,
-    `Step-by-step ${li} with ${tn} for a ${la}`,
-  ];
-  const pageTitle = clampTitle(titleTemplates[seed % titleTemplates.length]);
+  const sv = styleVocab(page);
+  const cv = contextVocab(page);
+  const identity = buildIdentity(page);
+  const pageTitle = identity.title;
+  const h1 = identity.h1;
 
-  const h1Templates = [
-    `${title(intent)} with ${tn}: a hands-on guide for ${la} teams`,
-    `${title(intent)} — a practical ${la} walkthrough using ${tn}`,
-    `The ${la} playbook for ${li} using ${tn}`,
-    `${title(intent)} in real projects: ${tn} for ${la} workflows`,
-    `How ${la} teams ${li} reliably with ${tn}`,
-    `${title(intent)} step by step: ${tn} for a ${la}`,
-  ];
-  const h1 = h1Templates[(seed >> 3) % h1Templates.length];
+  // The opening paragraph answers the page's exact question before anything
+  // else (Bing guideline #18: surface key information early) and names the
+  // execution style and delivery context that make this URL distinct from its
+  // siblings, so the first 40 words already identify the sub-topic.
+  const leadAnswer = `To ${li} ${sv.phrase} as a ${la} working on ${cv.phrase}, open the ${tn}, load a representative sample of your own data, run the ${li} operation, and verify the output against a known-good reference before it reaches anything shared.`;
 
   const introVariants = [
     [
-      `This guide shows how a ${la} can ${li} using the browser-based ${tn}, ${cd.bestPractice.toLowerCase()}.`,
-      `${cd.importance}, so the workflow here is written for real projects rather than toy examples.`,
+      leadAnswer,
+      `${cd.importance}, so the workflow here is written for real projects rather than toy examples. ${sv.practice}`,
       `The driving scenario is ${tc.scenario} — ${tc.urgency}. By the end you will ${tc.outcome}, with every step reproducible on your own machine.`,
     ],
     [
-      `In ${cd.field}, the gap between a working result and a subtle bug often comes down to how carefully ${li} was handled.`,
-      `This walkthrough equips a ${la} with the exact steps to ${li} using ${tn}, focused on ${ac.focus}.`,
-      `The scenario — ${tc.scenario} — is ${tc.urgency}, so the process prioritises correctness and speed together, and you will ${tc.outcome}.`,
+      leadAnswer,
+      `In ${cd.field}, the gap between a working result and a subtle bug often comes down to how carefully ${li} was handled. ${cv.demand}`,
+      `This walkthrough equips a ${la} with the exact steps, focused on ${ac.focus}. The scenario — ${tc.scenario} — is ${tc.urgency}, so you will ${tc.outcome}.`,
     ],
     [
-      `${title(intent)} is a task nearly every ${la} meets while ${tc.scenario}.`,
-      `${tn} handles it entirely in your browser, giving deterministic output you can verify before it reaches production.`,
-      `${cd.importance}. This page maps that principle to concrete steps tailored for ${ac.focus}, so you can ${tc.outcome} with confidence.`,
+      leadAnswer,
+      `${title(intent)} is a task nearly every ${la} meets while ${tc.scenario}. ${tn} handles it entirely in your browser, giving deterministic output you can verify before it reaches production.`,
+      `${cd.importance}. ${sv.practice} This page maps that principle to concrete steps tailored for ${ac.focus}.`,
     ],
     [
-      `A ${la} working on ${tc.scenario} cannot afford ambiguity about ${li}.`,
-      `${tn} removes that ambiguity by running every operation locally and returning transparent, repeatable output.`,
-      `Because ${cd.importance.toLowerCase()}, each step below is designed to surface issues early. When you finish, you will ${tc.outcome}.`,
+      leadAnswer,
+      `A ${la} working on ${tc.scenario} cannot afford ambiguity about ${li}. ${tn} removes that ambiguity by running every operation locally and returning transparent, repeatable output.`,
+      `Because ${cd.importance.toLowerCase()}, each step below is designed to surface issues early — particularly ${cv.phrase}, where ${tc.urgency.replace(/^a /, '')}. When you finish, you will ${tc.outcome}.`,
     ],
     [
-      `Speed and accuracy pull in opposite directions when ${la} teams need to ${li} under pressure.`,
-      `${tn} resolves that tension: it is instant to open, processes data on the client, and shows exactly what changed.`,
-      `${cd.importance}, and this guide makes the principle concrete for ${tc.scenario}. The outcome is simple — you will ${tc.outcome}.`,
+      leadAnswer,
+      `Speed and accuracy pull in opposite directions when ${la} teams need to ${li} under pressure. ${tn} resolves that tension: it is instant to open, processes data on the client, and shows exactly what changed.`,
+      `${cd.importance}, and this guide makes the principle concrete for ${tc.scenario} ${sv.phrase}. The outcome is simple — you will ${tc.outcome}.`,
     ],
   ];
   const intro = introVariants[seed % introVariants.length];
+
+  // The section that makes each of the 180 sibling URLs a genuinely different
+  // page: what changes about this workflow when it is run in this execution
+  // style, in this delivery context.
+  const scenario = {
+    heading: `${capitalise(li)} ${sv.phrase}: what changes ${cv.phrase.startsWith('for ') ? cv.phrase : `in ${cv.phrase}`}`,
+    summary: `This page covers one specific slice of ${cd.field}: a ${la} doing ${TASK_PHRASE[task] ?? lt} who needs to ${li} ${sv.phrase}, ${cv.phrase}.`,
+    paragraphs: [
+      sv.practice,
+      cv.demand,
+      `Put together, that means the ${tn} is used here as a verification step rather than a convenience: ${ac.concern} is the risk that matters for a ${la}, and ${cv.phrase} is the setting where an unverified assumption is most expensive to discover late.`,
+    ],
+    checklist: [
+      `Confirm the sample you paste is representative of the payloads you actually see ${cv.phrase}.`,
+      `Keep the run repeatable ${sv.phrase} — the same input and settings must produce the same output for a second person.`,
+      `Record the outcome next to the ${TASK_PHRASE[task] ?? lt} it supports, so the evidence is attached to the work it justifies.`,
+    ],
+  };
 
   const keyTakeawaysPool = [
     `${tn} lets a ${la} ${li} without installing anything or uploading data to a server.`,
@@ -377,7 +1104,10 @@ function buildContent(page: ResolvedPage): PageContent {
     `Pair a manual pass with an automated check to keep ${cd.field} consistent across releases.`,
     `Document the tool settings and inputs you used so a reviewer can verify the result independently.`,
   ];
-  const keyTakeaways = seededShuffle(keyTakeawaysPool, seed + 5).slice(0, 4);
+  const keyTakeaways = [
+    `${capitalise(li)} ${sv.phrase} is the specific workflow on this page, written for ${cv.phrase}.`,
+    ...seededShuffle(keyTakeawaysPool, seed + 5).slice(0, 3),
+  ];
 
   const baseSteps = [
     `Define the scope of the work: you are ${tc.scenario}. Gather a small, representative sample of the data you need to process before touching anything larger.`,
@@ -441,7 +1171,10 @@ function buildContent(page: ResolvedPage): PageContent {
     ],
   };
   const stepPool = [...baseSteps, ...(clusterSteps[cluster] ?? [])];
-  const steps = seededShuffle(stepPool, seed + 11).slice(0, 6);
+  const steps = [
+    ...seededShuffle(stepPool, seed + 11).slice(0, 5),
+    `Close the loop for ${cv.phrase}: ${scenario.checklist[2].charAt(0).toLowerCase()}${scenario.checklist[2].slice(1)}`,
+  ];
 
   const genericPitfalls = [
     `Skipping a quick sanity check on a small sample before processing the full dataset.`,
@@ -463,7 +1196,10 @@ function buildContent(page: ResolvedPage): PageContent {
     automation: ['Deploying a schedule without confirming the timezone the scheduler uses.', 'Leaving automated failures without alerting, so errors accumulate silently.'],
     web: ['Trusting client-side sanitization without also validating on the server.', 'Minifying CSS with custom properties or calc() without testing the output.'],
   };
-  const pitfalls = seededShuffle([...genericPitfalls, ...(clusterPitfalls[cluster] ?? [])], seed + 17).slice(0, 5);
+  const pitfalls = [
+    `Applying a generic checklist instead of the one ${cv.phrase} actually needs — the constraints differ, and so does what counts as a verified result.`,
+    ...seededShuffle([...genericPitfalls, ...(clusterPitfalls[cluster] ?? [])], seed + 17).slice(0, 4),
+  ];
 
   const comparisonPool = [
     { item: `Browser-based ${tn}`, pros: 'Opens instantly, requires no installation, and processes data on the client so it stays private.', cons: 'Not a substitute for long-running batch jobs or server-side automation at scale.' },
@@ -525,25 +1261,31 @@ function buildContent(page: ResolvedPage): PageContent {
     { question: `What do I do if the output looks wrong?`, answer: `First verify the input format and encoding, then check whether any option changed the transformation. Re-test with a minimal sample before retrying on real data.` },
     { question: `How does ${li} support ${ac.focus}?`, answer: `${title(intent)} catches issues at the boundary — before they propagate downstream — which is exactly where ${ac.focus} is protected. Validating early is cheaper than debugging later.` },
   ];
-  const faq = seededShuffle(faqPool, seed + 47).slice(0, 5);
+  const faq = [
+    // Sub-topic-specific answers first: these are the questions this exact URL
+    // exists to answer, and they are the ones a grounding engine can quote.
+    {
+      question: `How do I ${li} ${sv.phrase} ${cv.phrase.startsWith('for ') ? cv.phrase : `for ${cv.phrase}`}?`,
+      answer: `${scenario.summary} ${sv.practice} Work from a small representative sample, run the ${tn}, and compare the output with a known-good reference before it is used anywhere else.`,
+    },
+    {
+      question: `Why does ${cv.phrase} change how a ${la} approaches ${li}?`,
+      answer: cv.demand,
+    },
+    ...seededShuffle(faqPool, seed + 47).slice(0, 4),
+  ];
 
   const keywords = Array.from(new Set([
     intent, tool, cluster, audience, task,
-    `${label(intent)} ${tn}`, 'browser-based developer tool', 'local processing', 'privacy-first',
+    `${label(intent)} ${tn}`, `${label(intent)} ${cv.phrase}`, `${tn} ${sv.phrase}`,
+    'browser-based developer tool', 'local processing', 'privacy-first',
   ])).map((k) => label(k));
 
   const workedExample = buildWorkedExample(page);
   const related = buildRelated(page);
+  const description = identity.description;
 
-  const descriptionVariants = [
-    `${title(intent)} for ${la} teams using ${tn}. Practical steps, pitfalls, and a worked example for ${tc.scenario}.`,
-    `A step-by-step ${la} guide to ${li} with ${tn}, covering ${tc.scenario} and how to ${tc.outcome}.`,
-    `How a ${la} can ${li} with the browser-based ${tn}: workflow, pitfalls, comparison, and FAQ for ${cd.field}.`,
-    `${title(intent)} with ${tn}, written for ${la} workflows. Includes a worked example, glossary, and troubleshooting.`,
-  ];
-  const description = clampDescription(descriptionVariants[seed % descriptionVariants.length]);
-
-  return { title: pageTitle, description, h1, intro, keyTakeaways, steps, pitfalls, comparison, proTips, technical, useCases, glossary, faq, keywords, workedExample, related };
+  return { title: pageTitle, description, h1, intro, keyTakeaways, steps, pitfalls, comparison, proTips, technical, useCases, glossary, faq, keywords, workedExample, related, scenario };
 }
 
 function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
@@ -693,9 +1435,13 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     .map((obj) => `<script type="application/ld+json">${JSON.stringify(obj).replace(/</g, '\\u003c')}</script>`)
     .join('');
 
+  // The <title> is served exactly as generated — no brand suffix is appended
+  // here, because that suffix is what pushed the served title past Bing's
+  // 70-character limit while the build-time gate measured the un-suffixed
+  // string and reported a pass.
   const head = `<!doctype html><html lang="en"><head><meta charset="utf-8">`
     + `<meta name="viewport" content="width=device-width,initial-scale=1">`
-    + `<title>${escapeHtml(c.title)} | DevSolve</title>`
+    + `<title>${escapeHtml(c.title)}</title>`
     + `<meta name="description" content="${escapeHtml(c.description)}">`
     + `<meta name="keywords" content="${escapeHtml(c.keywords.join(', '))}">`
     + `<link rel="canonical" href="${escapeHtml(canonical)}">`
@@ -703,6 +1449,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + `<meta name="bingbot" content="index,follow">`
     + `<meta name="author" content="DevSolve Editorial Team">`
     + `<meta property="og:type" content="article">`
+    + `<meta property="og:site_name" content="DevSolve">`
     + `<meta property="og:title" content="${escapeHtml(c.title)}">`
     + `<meta property="og:description" content="${escapeHtml(c.description)}">`
     + `<meta property="og:url" content="${escapeHtml(canonical)}">`
@@ -712,9 +1459,20 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
 
   const crumbs = `<nav class="crumbs" aria-label="Breadcrumb"><a href="/">DevSolve</a> / <a href="/k">Guides</a> / <a href="/k">${escapeHtml(clusterLabel)}</a> / <span>${escapeHtml(c.title)}</span></nav>`;
 
-  const intro = c.intro.map((p) => `<p class="lead">${escapeHtml(p)}</p>`).join('');
+  // data-snippet marks the passage Bing may display and cite (guideline #10):
+  // a self-contained, verifiable answer rather than whatever text the crawler
+  // happens to pick, which is what makes a citation accurate.
+  const intro = c.intro
+    .map((p, i) => `<p class="lead"${i === 0 ? ' data-snippet' : ''}>${escapeHtml(p)}</p>`)
+    .join('');
 
-  const takeaways = `<section aria-labelledby="key-takeaways"><h2 id="key-takeaways">Key takeaways</h2><div class="tk">${renderList(c.keyTakeaways)}</div></section>`;
+  const takeaways = `<section aria-labelledby="key-takeaways"><h2 id="key-takeaways">Key takeaways</h2><div class="tk" data-snippet>${renderList(c.keyTakeaways)}</div></section>`;
+
+  const scenario = `<section aria-labelledby="scenario"><h2 id="scenario">${escapeHtml(c.scenario.heading)}</h2>`
+    + `<p data-snippet>${escapeHtml(c.scenario.summary)}</p>`
+    + c.scenario.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join('')
+    + renderList(c.scenario.checklist)
+    + `</section>`;
 
   const stepsHtml = `<section aria-labelledby="steps"><h2 id="steps">Step-by-step: ${escapeHtml(label(page.intent))} with ${escapeHtml(toolName(page.tool))}</h2>${renderList(c.steps, true)}</section>`;
 
@@ -762,6 +1520,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + `<p class="meta">A DevSolve guide for ${escapeHtml(label(page.audience))} teams · ${escapeHtml(clusterLabel)} · updated ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}</p>`
     + intro
     + takeaways
+    + scenario
     + stepsHtml
     + example
     + pitfalls

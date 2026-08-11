@@ -172,7 +172,7 @@ const PRIORITY_MODIFIER_INDICES = (() => {
 // relatively fresher than the long-tail WITHOUT restamping it on every deploy —
 // a fabricated freshness signal Google/Bing distrust. Bump SITE_CONTENT_UPDATED_AT
 // (kept in sync with the worker + programmatic generator) for a real refresh.
-const CONTENT_UPDATED_AT = process.env.SITE_CONTENT_UPDATED_AT || '2026-06-22T00:00:00.000Z';
+const CONTENT_UPDATED_AT = process.env.SITE_CONTENT_UPDATED_AT || '2026-08-11T00:00:00.000Z';
 const PRIORITY_LASTMOD = (() => {
   const anchor = Date.parse(process.env.SITEMAP_LASTMOD_ANCHOR || CONTENT_UPDATED_AT);
   return new Date(Number.isFinite(anchor) ? anchor : Date.parse(CONTENT_UPDATED_AT)).toISOString();
