@@ -239,10 +239,12 @@ function listSitemapFiles(dir) {
     .sort();
 
   // Streaming source preference (Bing anti-bulk): notify only about the
-  // highest-value PRIORITY URLs. Bing discovers the full 18M corpus from the
-  // sitemap index; IndexNow should stream a small curated set, not the whole
-  // corpus. Set INDEXNOW_SOURCE=all to override (submit from every sitemap).
+  // highest-value AI-quality / priority URLs. Bing discovers the full corpus
+  // from the sitemap index; IndexNow should stream a small curated set, not
+  // the whole corpus. Set INDEXNOW_SOURCE=all to override (submit from every sitemap).
   if ((process.env.INDEXNOW_SOURCE || '').toLowerCase() === 'all') return all;
+  const aiQuality = all.filter((f) => /^sitemap-ai-quality-\d{4}\.xml$/i.test(f));
+  if (aiQuality.length > 0) return aiQuality;
   const priority = all.filter((f) => /^sitemap-priority-\d{4}\.xml$/i.test(f));
   return priority.length > 0 ? priority : all;
 }

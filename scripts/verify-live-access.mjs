@@ -7,6 +7,7 @@
 const SITE = (process.env.SITE_URL || 'https://devsolvev2.com').replace(/\/$/, '');
 const K_PATH = '/k/json-validate-json-backend-engineer-debug-production-issue-json-formatter-0';
 const SITEMAP = '/sitemap.xml';
+const FEED = '/feed.xml';
 const LEGACY_SITEMAPS = [
   '/sitemap-index-2026-06-v3.xml',
   '/sitemap_index.xml',
@@ -69,8 +70,10 @@ const REAL_CRAWLER_CASES = [
   // with a browser UA. That is a WARN, not a failure — real browsers solve the
   // challenge and real Google/Bing crawlers are exempt (verified bots + Rule 0).
   { name: 'GSC InspectionTool sitemap', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)', expect: [200], allowChallenge: true },
+  { name: 'GSC InspectionTool feed.xml', path: FEED, ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)', expect: [200], allowChallenge: true },
   { name: 'GSC InspectionTool /k/*', path: K_PATH, ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)', expect: [200], allowChallenge: true },
   { name: 'Real Chrome sitemap', path: SITEMAP, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200], allowChallenge: true },
+  { name: 'Real Chrome feed.xml', path: FEED, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200], allowChallenge: true },
   { name: 'Real Chrome /k/*', path: K_PATH, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200], allowChallenge: true },
   // Fake crawlers (this script never runs from Google/Microsoft IPs) must be
   // stopped at the WAF on sitemaps too — sitemap floods invoke the Function
