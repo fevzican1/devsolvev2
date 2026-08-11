@@ -10,6 +10,7 @@ import { externalUrls, siteConfig } from '@/config/site';
 import { absoluteUrl } from '@/lib/seo/url';
 import { monetizationConfig } from '@/config/monetization';
 import { BRAND_SAME_AS, getBrandProfileLinks, PUBLISHER_IDENTITY } from '@/lib/seo/organization';
+import { FeaturedBadges } from '@/components/layout/FeaturedBadges';
 
 
 export const metadata: Metadata = buildMetadata({
@@ -195,6 +196,7 @@ export default function AboutPage() {
                   </li>
                 ))}
               </ul>
+              <FeaturedBadges className="mt-6 flex flex-wrap items-center gap-4" />
             </CardContent>
           </Card>
 

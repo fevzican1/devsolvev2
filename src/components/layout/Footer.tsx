@@ -3,6 +3,7 @@ import { Code2, Github, Linkedin, Twitter } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import { monetizationConfig } from '@/config/monetization';
 import { getBrandProfileLinks } from '@/lib/seo/organization';
+import { FeaturedBadges } from '@/components/layout/FeaturedBadges';
 
 // Visible, verifiable links to the brand's owned profiles. rel="me" declares
 // an identity relationship (reinforces the JSON-LD sameAs for crawlers), and
@@ -149,6 +150,7 @@ export function Footer() {
         </div>
 
         <div className="mt-8 pt-8 border-t">
+          <FeaturedBadges className="flex flex-wrap items-center justify-center gap-4 mb-6" />
           <p className="text-xs text-muted-foreground text-center">
             {monetizationConfig.disclosure.shortDisclosure}:{' '}
             {monetizationConfig.disclosure.affiliateText}
