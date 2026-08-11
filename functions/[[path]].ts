@@ -16,7 +16,7 @@ import {
   URLS_PER_SITEMAP,
   CONTENT_UPDATED_AT,
   pageForIndex,
-  resolvePageForSlug,
+  resolveSlugRequest,
   renderProgrammaticPage,
   stableHash,
   type ResolvedPage,
@@ -46,10 +46,21 @@ function contentHeaders(type: string, cache = 'public, max-age=300, s-maxage=604
   });
 }
 
+/**
+ * A cacheable permanent redirect. `Response.redirect()` cannot carry cache
+ * headers, and an uncacheable redirect would send every repeat request back
+ * through the Function; these headers let the CDN answer the hop itself.
+ */
+function permanentRedirect(location: string): Response {
+  const headers = contentHeaders('text/plain; charset=utf-8', 'public, max-age=3600, s-maxage=31536000');
+  headers.set('location', location);
+  return new Response(null, { status: 301, headers });
+}
+
 function redirect(url: URL): Response {
   url.search = '';
   url.hash = '';
-  return Response.redirect(url.toString(), 301);
+  return permanentRedirect(url.toString());
 }
 
 function resolveOrigin(requestUrl: string): string {
@@ -107,7 +118,9 @@ function sitemapResponse(part: number, origin: string): Response {
 }
 
 function notFound(): Response {
-  return new Response('Not Found', { status: 404, headers: contentHeaders('text/plain; charset=utf-8', 'public, max-age=60') });
+  // A clean, cacheable 404 (Bing guideline #9) — cached so a crawler that keeps
+  // retrying a removed URL does not keep re-invoking the Function.
+  return new Response('Not Found', { status: 404, headers: contentHeaders('text/plain; charset=utf-8', 'public, max-age=300, s-maxage=86400') });
 }
 
 function buildResponse(pathname: string, origin: string): Response | undefined {
@@ -119,8 +132,15 @@ function buildResponse(pathname: string, origin: string): Response | undefined {
   }
   const match = pathname.match(/^\/k\/([a-z0-9-]+)$/);
   if (match) {
-    const page = resolvePageForSlug(match[1]);
-    return page ? pageResponse(page, origin) : notFound();
+    // A slug either owns its content (200), names a real page under a stale
+    // ordinal (301 to the canonical URL — never a second copy of the content),
+    // or describes nothing at all (404). Serving an arbitrary page for an
+    // unknown slug would publish duplicate content under a canonical tag that
+    // points somewhere else.
+    const resolution = resolveSlugRequest(match[1]);
+    if (resolution.kind === 'canonical') return pageResponse(resolution.page, origin);
+    if (resolution.kind === 'redirect') return permanentRedirect(`${origin}/k/${resolution.slug}`);
+    return notFound();
   }
   return undefined;
 }
@@ -147,7 +167,9 @@ export const onRequest = async (context: PagesContext): Promise<Response> => {
   }
 
   const response = buildResponse(pathname, resolveOrigin(request.url)) ?? (await context.next());
-  if (cache && response.status === 200) {
+  // 301s are cached too: a stale-URL hop must not cost a Function invocation
+  // every time a crawler retries it.
+  if (cache && (response.status === 200 || response.status === 301)) {
     try {
       context.waitUntil(cache.put(cacheKey, response.clone()));
     } catch {

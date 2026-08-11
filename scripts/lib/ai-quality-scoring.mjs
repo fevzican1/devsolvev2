@@ -4,26 +4,25 @@
  * Pure, dependency-free, deterministic functions used by
  * scripts/ai-quality-gatekeeper.mjs (static export under out/k/) AND by
  * scripts/verify-edge-corpus-quality.mjs (the exact HTML rendered at the edge
- * for all 20M /k/ URLs) to score a page against a combined Google Helpful
- * Content + Bing Webmaster Guidelines model:
+ * for all 20M /k/ URLs).
  *
- *   Google Helpful Content / Page Indexing signals
- *   - Thin content        (word count / information density)
- *   - Keyword stuffing    (abnormal single-word / n-gram repetition)
- *   - Gibberish/template  (placeholder leaks, repeated boilerplate sentences)
- *   - Structure           (one <h1>, heading hierarchy, paragraphs, lists)
+ * Two layers:
  *
- *   Bing Webmaster Guidelines (classic + grounding / Copilot eligibility)
- *   - Metadata quality    (<title> 30-70 chars, meta description 140-165)
- *   - Discovery & linking  (canonical + crawlable internal <a href> links)
- *   - Verifiability        (structured data + explicit facts: code/dl blocks)
- *   - Indexability         (robots not noindex; snippet/archive not suppressed)
+ *   1. A 0–100 heuristic SCORE — how strong the page is (thin content,
+ *      keyword health, structure, metadata, discovery, verifiability).
+ *   2. A pass/fail GUIDELINE AUDIT — scripts/lib/search-guidelines.mjs, which
+ *      encodes the Bing Webmaster Guidelines and the Google Search Console
+ *      "Page indexing" reasons as explicit, cited rules. A page can score well
+ *      and still be ineligible (a noindex directive, an 81-character title, a
+ *      canonical pointing at a different URL), so both layers must pass.
  *
  * Everything here runs at BUILD TIME ONLY. There is no network call, no LLM
  * API call, and no Cloudflare Function/Worker invocation anywhere in this
  * module — it is plain string/regex analysis over an HTML string, so it costs
  * nothing at request time and only a few CPU-milliseconds per page at build.
  */
+
+import { auditDocument } from './search-guidelines.mjs';
 
 export const MIN_GATE_SCORE = 75;
 
@@ -114,10 +113,10 @@ export function extractMainContent(html) {
  */
 export function extractDocumentSignals(html) {
   const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  const rawTitle = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
-  // Strip a trailing " | Brand" suffix so the length check reflects the real
-  // descriptive title, not the brand boilerplate.
-  const title = rawTitle.replace(/\s*[|–—-]\s*DevSolve\s*$/i, '').trim();
+  // Measured exactly as served, brand suffix included. Stripping " | DevSolve"
+  // here is what let 94% of the corpus ship with 71–81 character titles while
+  // this gate reported a pass and Bing reported "title too long".
+  const title = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
 
   const descMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i);
   const description = descMatch ? descMatch[1].replace(/\s+/g, ' ').trim() : '';
@@ -134,6 +133,9 @@ export function extractDocumentSignals(html) {
   const hasNoindex = /noindex/i.test(robots);
   const hasNoarchive = /noarchive/i.test(html);
   const hasNosnippet = /(?:^|[\s"';])nosnippet/i.test(robots) || /data-nosnippet/i.test(html);
+  const hasNocache = /(?:^|[\s"';])nocache/i.test(robots);
+  // Bing guideline #10: data-snippet nominates the passage Bing may cite.
+  const hasDataSnippet = /\sdata-snippet(?=[\s>=])/i.test(html);
 
   return {
     title,
@@ -148,6 +150,8 @@ export function extractDocumentSignals(html) {
     hasNoindex,
     hasNoarchive,
     hasNosnippet,
+    hasNocache,
+    hasDataSnippet,
   };
 }
 
@@ -168,9 +172,9 @@ export function scoreThinContent(wordCount) {
 export function scoreMetadata(signals) {
   let score = 0;
   if (signals.titleLength >= 30 && signals.titleLength <= 70) score += 5;
-  else if (signals.titleLength >= 20 && signals.titleLength <= 80) score += 3;
-  if (signals.descriptionLength >= 140 && signals.descriptionLength <= 165) score += 5;
-  else if (signals.descriptionLength >= 120 && signals.descriptionLength <= 180) score += 3;
+  else if (signals.titleLength >= 20 && signals.titleLength < 30) score += 3;
+  if (signals.descriptionLength >= 150 && signals.descriptionLength <= 160) score += 5;
+  else if (signals.descriptionLength >= 120 && signals.descriptionLength <= 165) score += 3;
   return score;
 }
 
@@ -260,12 +264,13 @@ export function scoreGibberish(region, text) {
     sentenceFreq.set(key, (sentenceFreq.get(key) || 0) + 1);
   }
   const maxRepeat = Math.max(0, ...sentenceFreq.values());
+  const placeholderIssues = [...issues];
   if (maxRepeat >= 4) {
     issues.push(`repeated-sentence x${maxRepeat}`);
   }
 
   const penalty = Math.min(MAX, issues.length * 5);
-  return { score: MAX - penalty, issues };
+  return { score: MAX - penalty, issues, placeholderIssues, maxSentenceRepeat: maxRepeat };
 }
 
 /**
@@ -287,31 +292,16 @@ export function scoreStructure({ h1Count, h2Count, paragraphCount, listCount }) 
 }
 
 /**
- * Guideline compliance audit — hard signals that make a page ineligible for
- * indexing / grounding regardless of the numeric score. Mirrors the "Abuse"
- * and directive sections of the Bing Webmaster Guidelines and Google's Page
- * Indexing reasons.
- */
-export function auditIndexability(signals, wordCount) {
-  const violations = [];
-  if (signals.hasNoindex) violations.push('robots noindex present (excluded from index/grounding)');
-  if (signals.hasNoarchive) violations.push('NOARCHIVE present (excluded from Copilot/grounding)');
-  if (!signals.hasCanonical) violations.push('missing canonical link');
-  if (signals.h1Count !== 1) violations.push(`expected exactly one <h1>, found ${signals.h1Count}`);
-  if (signals.titleLength < 20 || signals.titleLength > 80) violations.push(`title length ${signals.titleLength} outside 20-80`);
-  if (signals.descriptionLength < 120 || signals.descriptionLength > 180) violations.push(`meta description length ${signals.descriptionLength} outside 120-180`);
-  if (signals.internalLinks < 5) violations.push(`only ${signals.internalLinks} internal links (need >=5 for structure)`);
-  if (signals.jsonLdCount < 1) violations.push('no structured data (JSON-LD) present');
-  if (wordCount < 1000) violations.push(`thin content: ${wordCount} words (need >=1000)`);
-  return { violations, passes: violations.length === 0 };
-}
-
-/**
  * Scores a single exported HTML page against the 100-point Helpful Content
- * heuristic. Returns the total score plus a breakdown so callers can decide
- * whether to auto-heal or soft-isolate the page.
+ * heuristic AND the cited Bing/Google rulebook. Returns the total score plus a
+ * breakdown so callers can decide whether to auto-heal or soft-isolate.
+ *
+ * `options.profile` selects the rulebook profile ('edge' for the generated
+ * corpus, 'static' for the hand-authored export); `options.expectedCanonical`
+ * enables the self-canonical check.
  */
-export function scorePage(html) {
+export function scorePage(html, options = {}) {
+  const { profile = 'edge', expectedCanonical } = options;
   const extracted = extractMainContent(html);
   const signals = extractDocumentSignals(html);
 
@@ -326,7 +316,23 @@ export function scorePage(html) {
   const score = thinContent + keyword.score + gibberish.score + structure
     + metadata + discovery + verifiability;
 
-  const indexability = auditIndexability(signals, extracted.wordCount);
+  const auditSignals = {
+    ...signals,
+    expectedCanonical,
+    wordCount: extracted.wordCount,
+    h2Count: extracted.h2Count,
+    hasCode: /<pre[\s>]|<code[\s>]/i.test(extracted.region),
+    hasDefinitions: /<dl[\s>]|<table[\s>]/i.test(extracted.region),
+    topWordRatio: keyword.topWordRatio,
+    repeatedSentenceCount: gibberish.maxSentenceRepeat,
+    placeholderIssues: gibberish.placeholderIssues,
+  };
+  const guidelines = auditDocument(auditSignals, profile);
+  const indexability = {
+    passes: guidelines.passes,
+    violations: guidelines.violations.map((v) => `${v.id}: ${v.message} [${v.source}]`),
+    warnings: guidelines.warnings.map((v) => `${v.id}: ${v.message} [${v.source}]`),
+  };
 
   return {
     score,
@@ -356,7 +362,9 @@ export function scorePage(html) {
     },
     signals,
     indexability,
+    guidelines,
     violations: indexability.violations,
+    warnings: indexability.warnings,
     passesGate: score >= MIN_GATE_SCORE,
     // "Indexable everywhere" = clears the higher score bar AND has zero hard
     // guideline violations (noindex, thin, missing canonical/schema, etc.).
