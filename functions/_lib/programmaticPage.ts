@@ -35,7 +35,17 @@
 
 export const URLS_PER_SITEMAP = 50_000;
 export const TARGET_CORPUS_SIZE = 20_000_000;
-export const CONTENT_UPDATED_AT = '2026-06-22T00:00:00.000Z';
+
+/*
+ * Bump this whenever the generated content changes. It drives three things
+ * that only work if they move together: the <lastmod> in every sitemap entry
+ * and the Last-Modified header (so Bing and Google know to re-crawl —
+ * guidelines #3 and #19), the per-URL ETag (so an unchanged page can still be
+ * answered with a cheap 304), and the edge cache key (so a deploy cannot keep
+ * serving the previous version of a page out of the colo cache).
+ */
+export const CONTENT_UPDATED_AT = '2026-08-11T00:00:00.000Z';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '');
 
 export const CLUSTERS = [
   ['json', ['json-formatter', 'json-to-typescript'], ['validate-json', 'format-json', 'inspect-json-structure', 'convert-json-to-types', 'compare-json-objects', 'transform-json-keys', 'extract-json-values', 'merge-json-data', 'flatten-nested-json', 'detect-json-syntax-errors', 'generate-json-schema', 'minify-json-payload']],

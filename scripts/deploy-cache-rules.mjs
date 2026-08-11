@@ -17,8 +17,10 @@
  *   request → WAF → CDN cache MISS → Function (deterministic, ~1ms) → cached
  *
  * The rule respects the origin Cache-Control headers already emitted by
- * functions/[[path]].ts (s-maxage=31536000 for /k/*, s-maxage=604800 for
- * sitemaps) and by public/_headers for static sitemap files.
+ * functions/[[path]].ts (s-maxage=2592000 for /k/*, s-maxage=604800 for
+ * sitemaps) and by public/_headers for static sitemap files. Those TTLs are
+ * deliberately months rather than a year: a cached page must pick up a content
+ * fix without waiting for a manual purge.
  *
  * Also enables Tiered Cache (free on all plans) so a cache miss in one
  * Cloudflare colo is filled from an upper-tier colo instead of invoking the

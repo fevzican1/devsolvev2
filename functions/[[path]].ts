@@ -15,6 +15,7 @@ import {
   CORPUS_SIZE,
   URLS_PER_SITEMAP,
   CONTENT_UPDATED_AT,
+  CONTENT_VERSION,
   pageForIndex,
   resolveSlugRequest,
   renderProgrammaticPage,
@@ -52,7 +53,7 @@ function contentHeaders(type: string, cache = 'public, max-age=300, s-maxage=604
  * through the Function; these headers let the CDN answer the hop itself.
  */
 function permanentRedirect(location: string): Response {
-  const headers = contentHeaders('text/plain; charset=utf-8', 'public, max-age=3600, s-maxage=31536000');
+  const headers = contentHeaders('text/plain; charset=utf-8', 'public, max-age=3600, s-maxage=2592000');
   headers.set('location', location);
   return new Response(null, { status: 301, headers });
 }
@@ -74,9 +75,13 @@ function resolveOrigin(requestUrl: string): string {
 
 function pageResponse(page: ResolvedPage, origin: string): Response {
   const html = renderProgrammaticPage(page, origin);
+  // 30 days at the edge with a week of stale-while-revalidate. A one-year TTL
+  // made the corpus cheap to serve but meant a content fix could take a year to
+  // reach a crawler that had already cached the page; the Function is still
+  // invoked at most once per URL per month, and never on a stale hit.
   const headers = contentHeaders(
     'text/html; charset=utf-8',
-    'public, max-age=300, s-maxage=31536000, stale-while-revalidate=86400',
+    'public, max-age=300, s-maxage=2592000, stale-while-revalidate=604800',
   );
   // Freshness signals let Bing/Google validate cheaply (Bing guideline #3):
   // a stable ETag + Last-Modified means conditional requests can 304 without
@@ -160,7 +165,10 @@ export const onRequest = async (context: PagesContext): Promise<Response> => {
   //     exist (or if they are removed): a hit costs microseconds of CPU and
   //     never re-renders HTML/XML.
   const cache = request.method === 'GET' ? edgeCache() : undefined;
-  const cacheKey = new Request(`${url.origin}${pathname}`, { method: 'GET' });
+  // The content version is part of the cache key (never of the public URL), so
+  // a deploy that changes the generated HTML cannot be shadowed by entries
+  // cached from the previous version.
+  const cacheKey = new Request(`${url.origin}${pathname}?__v=${CONTENT_VERSION}`, { method: 'GET' });
   if (cache) {
     const hit = await cache.match(cacheKey).catch(() => undefined);
     if (hit) return hit;
