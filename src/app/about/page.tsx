@@ -95,11 +95,25 @@ export default function AboutPage() {
               </p>
               <p>
                 <strong className="text-foreground">Profiles:</strong>{' '}
-                <a href="https://www.linkedin.com/in/fevzican-aytekin-0b5501105" target="_blank" rel="me noopener noreferrer" className="text-primary hover:underline">LinkedIn</a>
-                {' · '}
-                <a href="https://github.com/fevzican1" target="_blank" rel="me noopener noreferrer" className="text-primary hover:underline">GitHub</a>
-                {' · '}
-                <a href="https://x.com/devsolveai" target="_blank" rel="me noopener noreferrer" className="text-primary hover:underline">X</a>
+                {getBrandProfileLinks()
+                  .filter((link) =>
+                    ['LinkedIn', 'GitHub Profile', 'X (Twitter)', 'Hashnode', 'dev.to', 'Indie Hackers'].includes(
+                      link.label,
+                    ),
+                  )
+                  .map((link, index) => (
+                    <span key={link.href}>
+                      {index > 0 ? ' · ' : null}
+                      <a
+                        href={link.href}
+                        target="_blank"
+                        rel="me noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        {link.label === 'GitHub Profile' ? 'GitHub' : link.label === 'X (Twitter)' ? 'X' : link.label}
+                      </a>
+                    </span>
+                  ))}
               </p>
               <p>
                 Third-party advertising and affiliate scripts remain <strong className="text-foreground">disabled</strong> until

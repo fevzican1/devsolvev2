@@ -44,11 +44,19 @@ export const WEBSITE_ID_FRAGMENT = '#website';
 /** Public source repo — README links to devsolvev2.com (real github.com backlink when public). */
 export const BRAND_GITHUB_REPO = 'https://github.com/fevzican1/devsolvev2';
 
+/** Publisher profiles on writing/community platforms (website field → devsolvev2.com). */
+export const BRAND_HASHNODE_URL = 'https://hashnode.com/@darkpurple38';
+export const BRAND_DEVTO_URL = 'https://dev.to/fevzican_aytekin_17be0651';
+export const BRAND_INDIE_HACKERS_URL = 'https://www.indiehackers.com/darkpurple38';
+
 export const BRAND_CORE_PROFILES: readonly string[] = [
   'https://github.com/fevzican1',
   'https://www.linkedin.com/in/fevzican-aytekin-0b5501105',
   'https://x.com/devsolveai',
   BRAND_GITHUB_REPO,
+  BRAND_HASHNODE_URL,
+  BRAND_DEVTO_URL,
+  BRAND_INDIE_HACKERS_URL,
 ];
 
 /**
@@ -140,6 +148,9 @@ export interface BrandProfileLink {
 export function brandProfileLabel(href: string): string {
   if (href.includes('linkedin.com')) return 'LinkedIn';
   if (href.includes('x.com') || href.includes('twitter.com')) return 'X (Twitter)';
+  if (href.includes('hashnode.com')) return 'Hashnode';
+  if (href.includes('dev.to')) return 'dev.to';
+  if (href.includes('indiehackers.com')) return 'Indie Hackers';
   if (href.includes('producthunt.com')) return 'Product Hunt';
   if (href.includes('saashub.com')) return 'SaaSHub';
   if (href.includes('launchstag.com')) return 'Launchstag';
@@ -157,6 +168,9 @@ export function getBrandProfileLinks(): BrandProfileLink[] {
     { label: 'GitHub Repository', href: BRAND_GITHUB_REPO },
     { label: 'LinkedIn', href: 'https://www.linkedin.com/in/fevzican-aytekin-0b5501105' },
     { label: 'X (Twitter)', href: 'https://x.com/devsolveai' },
+    { label: 'Hashnode', href: BRAND_HASHNODE_URL },
+    { label: 'dev.to', href: BRAND_DEVTO_URL },
+    { label: 'Indie Hackers', href: BRAND_INDIE_HACKERS_URL },
   ];
   for (const href of BRAND_DIRECTORY_PROFILES) {
     const label = brandProfileLabel(href);
@@ -194,6 +208,7 @@ export function buildBrandListingsHtml(): string {
         : '';
       return `<li style="margin-bottom:0.5rem"><a href="${escapeListingHtml(item.href)}" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">${escapeListingHtml(item.label)}</a>${hint}</li>`;
     }),
+    `<li style="margin-bottom:0.5rem"><a href="${escapeListingHtml(BRAND_HASHNODE_URL)}" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">Hashnode</a> · <a href="${escapeListingHtml(BRAND_DEVTO_URL)}" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">dev.to</a> · <a href="${escapeListingHtml(BRAND_INDIE_HACKERS_URL)}" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">Indie Hackers</a></li>`,
     `<li><a href="https://www.linkedin.com/in/fevzican-aytekin-0b5501105" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">LinkedIn</a> · <a href="https://x.com/devsolveai" rel="me noopener noreferrer" target="_blank" style="color:#2563eb;font-weight:500">X (Twitter)</a></li>`,
   ];
 
