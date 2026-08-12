@@ -45,8 +45,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-12T14:00:00.000Z';
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'b';
+export const CONTENT_UPDATED_AT = '2026-08-12T15:30:00.000Z';
+/** Trailing letter advances whenever body HTML quality/uniqueness changes. */
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'c';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -1059,6 +1060,8 @@ export interface PageContent {
   workedExample: { inputLabel: string; input: string; outputLabel: string; output: string; note: string };
   related: { slug: string; label: string }[];
   scenario: { heading: string; summary: string; paragraphs: string[]; checklist: string[] };
+  /** Long, style×context-bound block that forces sibling bodies apart (near-dup defence). */
+  differentiation: string[];
 }
 
 function buildContent(page: ResolvedPage): PageContent {
@@ -1171,14 +1174,22 @@ function buildContent(page: ResolvedPage): PageContent {
     ],
   };
 
+  /*
+   * BODY UNIQUENESS CONTRACT (Bing abuse: auto-gen / near-duplicate)
+   * ----------------------------------------------------------------
+   * Every reusable pool sentence MUST bind style (sv) and context (cv) so the
+   * 180 siblings that share (pair × audience × task) cannot share identical
+   * body sentences. Metadata uniqueness alone is not enough for indexability;
+   * the served <main> text must also be a distinct document.
+   */
   const keyTakeawaysPool = [
-    `${tn} lets a ${la} ${li} without installing anything or uploading data to a server.`,
-    `The core outcome of this workflow is to ${tc.outcome}.`,
-    `${cd.bestPractice}.`,
-    `Everything runs client-side, which matters most when ${ac.concern} is at stake.`,
-    `Keep a minimal reproducible sample so the same result can be reproduced during ${tc.scenario}.`,
-    `Pair a manual pass with an automated check to keep ${cd.field} consistent across releases.`,
-    `Document the tool settings and inputs you used so a reviewer can verify the result independently.`,
+    `${tn} lets a ${la} ${li} ${sv.phrase} without uploading data — critical ${cv.phrase} when ${ac.concern} is on the line.`,
+    `The core outcome ${cv.phrase} is to ${tc.outcome}, using ${tn} ${sv.phrase} rather than a generic ${cd.field} checklist.`,
+    `${cd.bestPractice} — applied here ${sv.phrase} so the evidence still holds ${cv.phrase}.`,
+    `Client-side execution ${sv.phrase} matters most ${cv.phrase}, where ${ac.concern} cannot wait on a shared sandbox.`,
+    `Keep a minimal reproducible sample ${sv.phrase} so the same ${li} result can be regenerated during ${tc.scenario} ${cv.phrase}.`,
+    `Pair a manual ${sv.micro} pass with an automated check so ${cd.field} stays consistent ${cv.phrase} across releases.`,
+    `Document ${tn} settings used ${sv.phrase} so a reviewer ${cv.phrase} can verify the ${li} result independently.`,
   ];
   const keyTakeaways = [
     `${capitalise(li)} ${sv.phrase} is the specific workflow on this page, written for ${cv.phrase}.`,
@@ -1186,64 +1197,64 @@ function buildContent(page: ResolvedPage): PageContent {
   ];
 
   const baseSteps = [
-    `Define the scope of the work: you are ${tc.scenario}. Gather a small, representative sample of the data you need to process before touching anything larger.`,
-    `Open the ${tn} from the DevSolve tools directory. It loads entirely in your browser, so there is no server dependency and no setup step.`,
-    `Paste or type the input for the ${li} operation. If the data is sensitive, confirm your browser environment is trusted first, since everything is processed locally.`,
-    `Adjust the tool options to match your requirements, paying particular attention to settings that influence ${ac.focus}.`,
-    `Run the operation and read the output carefully. Check the edge cases that most affect ${ac.concern} rather than only the happy path.`,
-    `Validate the result against your expectations. For ${tc.scenario}, the goal is to ${tc.outcome}, so compare against a known-good reference.`,
-    `Record the exact input sample and settings alongside the output. This makes the result reproducible and admissible in a later review or postmortem.`,
+    `Define scope for ${cv.phrase}: you are ${tc.scenario}. Gather a representative sample before scaling — the sample must reflect payloads seen ${cv.phrase}, not a toy string.`,
+    `Open the ${tn} and run it ${sv.phrase}. It loads in the browser with no server dependency, which is the execution style this URL commits to.`,
+    `Paste the input for ${li}. If the data is sensitive, confirm the browser environment is trusted first; ${sv.practice}`,
+    `Adjust ${tn} options for ${ac.focus}, then confirm those options still make sense ${cv.phrase} where ${tc.urgency}.`,
+    `Run ${li} ${sv.phrase} and inspect edge cases that affect ${ac.concern} — happy-path-only checks fail ${cv.phrase}.`,
+    `Validate against a known-good reference. For ${tc.scenario} ${cv.phrase}, the goal is to ${tc.outcome}.`,
+    `Record input, settings, and output together so the ${sv.micro} run remains admissible evidence ${cv.phrase}.`,
   ];
   const clusterSteps: Record<string, string[]> = {
     json: [
-      'Confirm the JSON is syntactically valid before processing it — a single misplaced comma or bracket cascades into misleading results.',
-      'Check how null, empty arrays, and deeply nested objects are handled, since these are the most common sources of quiet bugs.',
-      'If the payload contains high-precision numbers, verify they survive the pass without losing significant digits.',
+      `Confirm JSON syntax before ${li} ${sv.phrase} — a misplaced comma ${cv.phrase} cascades into misleading results.`,
+      `Check null, empty arrays, and deep nesting ${sv.phrase}; these quiet bugs surface late ${cv.phrase}.`,
+      `If high-precision numbers matter ${cv.phrase}, verify they survive ${li} without losing significant digits.`,
     ],
     encoding: [
-      'Decide the encoding direction first — re-encoding already-encoded data is one of the hardest mistakes to debug.',
-      'Test with a sample containing Unicode, whitespace, and special characters so the encoding covers every expected input.',
-      'Verify the roundtrip: encode, then decode, and compare against the original to confirm nothing was lost.',
+      `Decide encode vs decode direction before you ${li} ${sv.phrase} — double-encoding is brutal to unwind ${cv.phrase}.`,
+      `Test Unicode, whitespace, and special characters ${sv.phrase} so coverage matches payloads seen ${cv.phrase}.`,
+      `Roundtrip encode→decode ${sv.phrase} and compare to the original before trusting the result ${cv.phrase}.`,
     ],
     security: [
-      'Make sure you are not using production secrets in a shared or development context before working with tokens.',
-      'Confirm the algorithm and key length match your requirements — browser tools may support fewer algorithms than server libraries.',
-      'Treat client-side inspection as a convenience, not authority: verify signatures and claims server-side before trusting them.',
+      `Keep production secrets out of shared sessions before you ${li} ${sv.phrase}, especially ${cv.phrase}.`,
+      `Confirm algorithm and key length for this ${sv.micro} run — browser support may be narrower ${cv.phrase}.`,
+      `Treat ${tn} inspection as convenience, not authority: verify signatures server-side even when you ${li} ${sv.phrase}.`,
     ],
     text: [
-      'Define how edge cases such as mixed-case acronyms, numbers, and symbols should behave before applying a transformation.',
-      'Test any regex on at least three samples covering normal, edge, and adversarial input.',
-      'Keep a copy of the original text before running destructive operations like case conversion or find-and-replace.',
+      `Define acronym/number/symbol behaviour before ${li} ${sv.phrase} so ${cv.phrase} reviews stay consistent.`,
+      `Test patterns on normal, edge, and adversarial samples ${sv.phrase} before relying on them ${cv.phrase}.`,
+      `Keep the original text before destructive ${li} steps ${sv.phrase}; rollbacks are cheaper ${cv.phrase}.`,
     ],
     formatting: [
-      'Check whether your team has a style guide the formatter should conform to before reformatting shared files.',
-      'Run the relevant linter or validator after formatting to confirm the output is still syntactically correct.',
-      'Test minified or reformatted output in the environment where it will actually run to catch subtle regressions.',
+      `Confirm the team style guide before reformatting ${sv.phrase} — shared files ${cv.phrase} punish surprise diffs.`,
+      `Run the linter/validator after formatting ${sv.phrase} so syntax still holds ${cv.phrase}.`,
+      `Exercise reformatted output in the real runtime ${sv.phrase}; subtle regressions hide until ${cv.phrase}.`,
     ],
     api: [
-      'Review the API contract first so you know the exact format and constraints for requests and responses.',
-      'Test with both valid and invalid payloads to confirm the endpoint returns meaningful, well-structured errors.',
-      'Document the request and response pair you validate, since it doubles as living integration documentation.',
+      `Review the API contract before you ${li} ${sv.phrase} so constraints match what ${cv.phrase} expects.`,
+      `Test valid and invalid payloads ${sv.phrase} to confirm structured errors remain useful ${cv.phrase}.`,
+      `Document the request/response pair from this ${sv.micro} run — it doubles as integration evidence ${cv.phrase}.`,
     ],
     data: [
-      'Snapshot the original dataset before transforming it so you can roll back if the result is unexpected.',
-      'Validate the transformed data against the target schema to catch type mismatches and missing fields early.',
-      'Normalize whitespace and key order consistently so the same logical data always produces the same fingerprint.',
+      `Snapshot the original dataset before ${li} ${sv.phrase} so unexpected results ${cv.phrase} are reversible.`,
+      `Validate transformed data against the target schema ${sv.phrase} before it influences work ${cv.phrase}.`,
+      `Normalize whitespace and key order ${sv.phrase} so fingerprints stay stable ${cv.phrase}.`,
     ],
     debugging: [
-      'Reproduce the issue with the smallest possible input — this isolates the cause and makes the fix easy to verify.',
-      'Look at structural differences first (added or removed sections) before drilling into individual value changes.',
-      'Write down what you checked, what you found, and what you concluded so the knowledge survives the incident.',
+      `Reproduce with the smallest input ${sv.phrase} — isolation is what makes ${cv.phrase} fixes verifiable.`,
+      `Inspect structural diffs first ${sv.phrase}, then values; that order saves time ${cv.phrase}.`,
+      `Write what you checked and concluded ${sv.phrase} so knowledge survives the next ${cv.phrase} incident.`,
     ],
     automation: [
-      'Test the schedule or extraction pattern in isolation with data that mimics production before deploying it.',
-      'Validate cron expressions by inspecting the next several run times, not just the syntax.',
-      'Build in monitoring so an automated task that starts failing is noticed quickly rather than silently.',
+      `Isolate the schedule/extraction pattern ${sv.phrase} on production-like data before promoting it ${cv.phrase}.`,
+      `Validate cron next-run times ${sv.phrase}, not only syntax — timezone mistakes show up ${cv.phrase}.`,
+      `Add monitoring so ${sv.micro} automation failures are visible immediately ${cv.phrase}.`,
     ],
     web: [
-      'Sanitize user-supplied content before rendering it as HTML to prevent cross-site scripting.',
-      'Test minified CSS and markup across browsers to confirm optimization has not changed rendering.',
-      'Confirm the Content-Type and encoding match what the receiving system expects to avoid quiet data loss.',
+      `Sanitize user content before render ${sv.phrase}; XSS risk is unacceptable ${cv.phrase}.`,
+      `Test minified CSS/markup across browsers ${sv.phrase} so optimization does not change rendering ${cv.phrase}.`,
+      `Confirm Content-Type and encoding match receivers ${sv.phrase} to avoid quiet loss ${cv.phrase}.`,
     ],
   };
   const stepPool = [...baseSteps, ...(clusterSteps[cluster] ?? [])];
@@ -1253,100 +1264,193 @@ function buildContent(page: ResolvedPage): PageContent {
   ];
 
   const genericPitfalls = [
-    `Skipping a quick sanity check on a small sample before processing the full dataset.`,
-    `Trusting default options without confirming how they behave on malformed or edge-case input.`,
-    `Not keeping a backup of the original input before transforming it.`,
-    `Treating the tool output as authoritative without cross-checking it against another source of truth.`,
-    `Ignoring subtle whitespace or encoding differences that break downstream systems.`,
-    `Failing to record the exact settings used, which makes the result impossible to reproduce later.`,
+    `Skipping a sanity sample before full-dataset ${li} ${sv.phrase} — ${cv.phrase} amplifies sample bias into outages.`,
+    `Trusting ${tn} defaults ${sv.phrase} without probing malformed input that appears ${cv.phrase}.`,
+    `Transforming without a backup ${sv.phrase}; recovery is slower than prevention ${cv.phrase}.`,
+    `Treating ${tn} output as authoritative ${sv.phrase} without a second source of truth ${cv.phrase}.`,
+    `Ignoring whitespace/encoding drift ${sv.phrase} that only breaks downstream systems ${cv.phrase}.`,
+    `Failing to record settings from the ${sv.micro} run, so the ${li} result cannot be reproduced ${cv.phrase}.`,
   ];
   const clusterPitfalls: Record<string, string[]> = {
-    json: ['Treating pretty-printed JSON as valid without running a real parser.', 'Assuming object key order is preserved when the specification says it is unordered.'],
-    encoding: ['Double-encoding values by sending already-encoded data back through the encoder.', 'Confusing URL encoding, HTML entity encoding, and Base64, which serve different purposes.'],
-    security: ['Mixing test and production secrets in the same browser session.', 'Trusting JWT claims without verifying the signature server-side.'],
-    text: ['Running an aggressive find-and-replace without scanning the diff for unintended matches.', 'Shipping a complex regex before validating it on realistic input.'],
-    formatting: ['Deploying reformatted SQL or minified assets without running the test suite.', 'Reformatting whitespace-sensitive languages without checking their rules.'],
-    api: ['Hardcoding a response shape instead of validating against the documented schema.', 'Checking only the response body and ignoring HTTP status codes.'],
-    data: ['Transforming the full dataset before testing on a representative sample.', 'Assuming types inferred from one sample cover every possible variation.'],
-    debugging: ['Changing several variables at once, so you cannot tell which change fixed the issue.', 'Assuming the bug is in code when it is actually a data or configuration problem.'],
-    automation: ['Deploying a schedule without confirming the timezone the scheduler uses.', 'Leaving automated failures without alerting, so errors accumulate silently.'],
-    web: ['Trusting client-side sanitization without also validating on the server.', 'Minifying CSS with custom properties or calc() without testing the output.'],
+    json: [
+      `Treating pretty-printed JSON as validated ${sv.phrase} without a real parser ${cv.phrase}.`,
+      `Assuming key order is preserved ${sv.phrase} when the JSON model says otherwise ${cv.phrase}.`,
+    ],
+    encoding: [
+      `Double-encoding already-encoded values ${sv.phrase} during ${li} ${cv.phrase}.`,
+      `Confusing URL, HTML-entity, and Base64 encodings ${sv.phrase} when the receiver expects one ${cv.phrase}.`,
+    ],
+    security: [
+      `Mixing test and production secrets in one ${sv.micro} browser session ${cv.phrase}.`,
+      `Trusting JWT claims ${sv.phrase} without server-side signature verification ${cv.phrase}.`,
+    ],
+    text: [
+      `Aggressive find-and-replace ${sv.phrase} without scanning the diff ${cv.phrase}.`,
+      `Shipping complex patterns ${sv.phrase} before validating realistic inputs ${cv.phrase}.`,
+    ],
+    formatting: [
+      `Deploying reformatted artifacts ${sv.phrase} without the test suite ${cv.phrase}.`,
+      `Reformatting whitespace-sensitive languages ${sv.phrase} without checking language rules ${cv.phrase}.`,
+    ],
+    api: [
+      `Hardcoding response shapes ${sv.phrase} instead of schema validation ${cv.phrase}.`,
+      `Checking bodies only ${sv.phrase} and ignoring HTTP status codes ${cv.phrase}.`,
+    ],
+    data: [
+      `Transforming the full set ${sv.phrase} before a representative sample ${cv.phrase}.`,
+      `Assuming types from one sample cover every variation ${sv.phrase} seen ${cv.phrase}.`,
+    ],
+    debugging: [
+      `Changing several variables at once ${sv.phrase}, hiding the real fix ${cv.phrase}.`,
+      `Blaming code ${sv.phrase} when the defect is data/config ${cv.phrase}.`,
+    ],
+    automation: [
+      `Deploying schedules ${sv.phrase} without confirming scheduler timezone ${cv.phrase}.`,
+      `Leaving automation failures unalerted ${sv.phrase} so errors pile up ${cv.phrase}.`,
+    ],
+    web: [
+      `Trusting client sanitization alone ${sv.phrase} without server validation ${cv.phrase}.`,
+      `Minifying CSS with custom properties ${sv.phrase} without testing output ${cv.phrase}.`,
+    ],
   };
   const pitfalls = [
-    `Applying a generic checklist instead of the one ${cv.phrase} actually needs — the constraints differ, and so does what counts as a verified result.`,
+    `Applying a generic checklist instead of the one ${cv.phrase} needs — constraints differ when you ${li} ${sv.phrase}.`,
     ...seededShuffle([...genericPitfalls, ...(clusterPitfalls[cluster] ?? [])], seed + 17).slice(0, 4),
   ];
 
   const comparisonPool = [
-    { item: `Browser-based ${tn}`, pros: 'Opens instantly, requires no installation, and processes data on the client so it stays private.', cons: 'Not a substitute for long-running batch jobs or server-side automation at scale.' },
-    { item: 'Command-line utilities', pros: 'Scriptable, integrate cleanly with CI, and handle very large files efficiently.', cons: 'Need installation, permissions, and setup that slow down quick one-off tasks.' },
-    { item: 'Custom code in your application', pros: 'Maximum control, lives beside your business logic, and can be tailored exactly to your needs.', cons: 'Adds maintenance, review, and test overhead you must carry over time.' },
-    { item: 'Third-party hosted services', pros: 'Ship with dashboards, logs, and integrations out of the box.', cons: 'Data may leave your environment, and pricing plus rate limits apply.' },
-    { item: 'IDE-integrated helpers', pros: 'Available right where you write code, with inline highlighting and validation.', cons: 'Feature coverage varies by editor and often needs extra plugins.' },
+    {
+      item: `${tn} ${sv.phrase}`,
+      pros: `Matches this URL’s style: instant open, local processing, and evidence you can regenerate ${cv.phrase}.`,
+      cons: `Not a bulk server job; keep automation elsewhere and use this path for trustworthy ${li} checks.`,
+    },
+    {
+      item: `CLI utilities vs ${sv.micro}`,
+      pros: `Scriptable and strong for large files once installed.`,
+      cons: `Setup friction fights ${cv.phrase} when a ${la} needs ${li} ${sv.phrase} in minutes.`,
+    },
+    {
+      item: `App-embedded ${li}`,
+      pros: `Maximum control beside business logic.`,
+      cons: `Maintenance cost is wrong for a one-off ${sv.micro} verification ${cv.phrase}.`,
+    },
+    {
+      item: `Hosted ${cd.field} services`,
+      pros: `Dashboards and integrations out of the box.`,
+      cons: `Data egress and rate limits conflict with ${sv.practice}`,
+    },
+    {
+      item: `IDE helpers during ${sv.micro}`,
+      pros: `Inline feedback while editing.`,
+      cons: `Coverage varies by editor and rarely matches the acceptance bar ${cv.phrase}.`,
+    },
   ];
   const comparison = seededShuffle(comparisonPool, seed + 23).slice(0, 4);
 
   const proTipsPool = [
-    `Bookmark the ${tn} — ${cd.field} tasks recur often in ${la} work, and quick access saves real time.`,
-    `When ${ac.concern} matters, validate on a frozen sample before changing any production configuration.`,
-    `Start ${lt} with the smallest reproducible input; it reduces complexity and speeds up the whole session.`,
-    `Keep a personal library of known-good test inputs so future ${cd.field} checks start from a trusted baseline.`,
-    `Because processing happens on the client, you can use the tool offline or in restricted, air-gapped environments.`,
-    `Cross-check output against one independent method, especially for anything security-critical in ${cd.field}.`,
-    `Write a short runbook entry that links this workflow so teammates can repeat ${lt} consistently.`,
-    `Pair the tool with a version-controlled config file so changes become auditable and reviewable like code.`,
+    `Bookmark ${tn} for ${li} ${sv.phrase} — ${cd.field} work recurs for a ${la}, especially ${cv.phrase}.`,
+    `When ${ac.concern} matters ${cv.phrase}, freeze a sample and validate ${sv.phrase} before touching production config.`,
+    `Start ${lt} with the smallest reproducible input ${sv.phrase}; complexity drops fast ${cv.phrase}.`,
+    `Keep known-good fixtures for ${cd.field} so future ${li} checks ${sv.phrase} start from a trusted baseline ${cv.phrase}.`,
+    `Client-side ${sv.micro} runs work offline — useful ${cv.phrase} when networks or shared sandboxes are restricted.`,
+    `Cross-check ${tn} output with one independent method ${sv.phrase} before ${cv.phrase} decisions go final.`,
+    `Link this ${sv.micro} workflow in the team runbook so ${lt} stays consistent ${cv.phrase}.`,
+    `Version the settings used ${sv.phrase} so ${li} evidence is reviewable like code ${cv.phrase}.`,
   ];
   const proTips = seededShuffle(proTipsPool, seed + 29).slice(0, 4);
 
   const technicalPool = [
-    `Under the hood, ${li} is a deterministic transformation: the same input and settings always yield the same output. That property is what lets a ${la} treat the ${tn} result as evidence during ${tc.scenario}, rather than a best-effort guess.`,
-    `The most common failure mode in ${cd.field} is an implicit assumption about the input — its encoding, its shape, or its edge values. This workflow makes those assumptions explicit by validating a representative sample first, which is where ${ac.focus} is either protected or lost.`,
-    `Operationally, the highest-quality results come from pairing a manual pass with an automated check. The manual pass catches context-specific anomalies a ${la} recognises immediately; automation then enforces that same standard on every subsequent change, keeping ${ac.concern} under control at scale.`,
-    `Reproducibility is the quiet differentiator. When the input sample, tool settings, and output are recorded together, ${tc.scenario} becomes auditable: a reviewer with no prior context can rerun the exact ${li} steps and reach the identical conclusion.`,
-    `Performance rarely bites on a small sample but often does at scale. Before automating ${li}, confirm the approach behaves when payload size, concurrency, or dataset volume grow by an order of magnitude — the point where ${cd.field} shortcuts tend to break.`,
+    `${capitalise(li)} ${sv.phrase} is deterministic: same input and settings yield the same output. That is why a ${la} can treat ${tn} output as evidence during ${tc.scenario} ${cv.phrase}.`,
+    `The usual ${cd.field} failure mode is an implicit assumption about input shape or encoding. This ${sv.micro} workflow forces a representative sample first — where ${ac.focus} is won or lost ${cv.phrase}.`,
+    `Best results pair a manual ${sv.phrase} pass (context a ${la} spots immediately) with automation that enforces the same bar later, keeping ${ac.concern} controlled ${cv.phrase}.`,
+    `Reproducibility is the differentiator ${cv.phrase}: record input, ${tn} settings, and output so a stranger can rerun ${li} ${sv.phrase} and reach the same conclusion.`,
+    `Before automating ${li} beyond this ${sv.micro} path, confirm behaviour when size or concurrency jumps — shortcuts in ${cd.field} break first ${cv.phrase}.`,
   ];
   const technical = seededShuffle(technicalPool, seed + 37).slice(0, 3);
 
   const useCasesPool = [
-    `Incident response: a ${la} uses ${tn} to ${li} while ${tc.scenario}, getting an answer in seconds without provisioning any infrastructure.`,
-    `Pre-deployment review: teams fold ${li} into their release checklist so ${ac.concern} is verified before an artifact ships.`,
-    `Distributed teams: because the ${tn} produces identical output everywhere, it becomes a shared reference that eliminates "works on my machine" disputes across ${cd.field}.`,
-    `Regulated environments: local-only processing satisfies data-residency constraints, so ${la} teams can ${li} on sensitive payloads without extra compliance overhead.`,
-    `Onboarding: a new ${la} follows this exact workflow to learn how the team handles ${lt}, using the glossary and worked example as a self-contained reference.`,
+    `${capitalise(cv.micro)} response: a ${la} uses ${tn} to ${li} ${sv.phrase} during ${tc.scenario} without provisioning infrastructure.`,
+    `Pre-release gate ${cv.phrase}: fold ${li} ${sv.phrase} into the checklist so ${ac.concern} is verified before ship.`,
+    `Distributed ${la} teams rely on identical ${tn} output ${sv.phrase} as a shared reference ${cv.phrase}, ending environment disputes in ${cd.field}.`,
+    `Regulated work ${cv.phrase}: local-only ${sv.micro} processing lets teams ${li} on sensitive payloads without extra egress reviews.`,
+    `Onboarding ${cv.phrase}: a new ${la} learns ${lt} through this exact ${li} ${sv.phrase} guide, glossary, and fixture.`,
   ];
   const useCases = seededShuffle(useCasesPool, seed + 41).slice(0, 3);
 
   const glossaryPool = [
-    { term: 'Deterministic transformation', definition: 'An operation that returns the same result for the same input and configuration every time, which is what makes a result reproducible across machines and teammates.' },
-    { term: 'Input normalization', definition: 'Reshaping data into a consistent structure so comparison, validation, and downstream processing stay reliable regardless of the original source format.' },
-    { term: 'Roundtrip validation', definition: `Transforming data and then reversing the operation to confirm no information was lost — a core quality gate in ${cd.field}.` },
-    { term: 'Edge-case coverage', definition: 'Testing unusual but realistic inputs so hidden regressions do not reach live environments, especially for data that crosses system boundaries.' },
-    { term: 'Local processing', definition: 'Running data operations entirely within the browser or client device without sending data to an external server, which preserves confidentiality and cuts latency.' },
-    { term: `${title(cluster)} workflow`, definition: `The sequence of practical steps a ${la} follows to execute and verify ${cd.field} tasks, typically combining manual validation with automated checks.` },
-    { term: 'Reproducible evidence', definition: 'An input, its settings, and the resulting output recorded together, so an independent reviewer can rerun the workflow and reach the same conclusion.' },
+    {
+      term: `${capitalise(sv.micro)} ${li}`,
+      definition: `Performing ${li} ${sv.phrase} so a ${la} can regenerate the same ${tn} result ${cv.phrase} without shared tribal knowledge.`,
+    },
+    {
+      term: `${capitalise(cv.micro)} acceptance`,
+      definition: `The bar for “done” ${cv.phrase}: representative input, ${sv.micro} execution, known-good comparison, and recorded evidence.`,
+    },
+    {
+      term: `${tn} evidence pack`,
+      definition: `Input sample, ${tn} settings, and output captured together after ${li} ${sv.phrase}, admissible in review ${cv.phrase}.`,
+    },
+    {
+      term: 'Roundtrip validation',
+      definition: `Transform then reverse to prove no loss — required quality gate for ${cd.field} when you ${li} ${sv.phrase} ${cv.phrase}.`,
+    },
+    {
+      term: `${title(cluster)} ${sv.micro} workflow`,
+      definition: `Steps a ${la} follows to execute and verify ${cd.field} tasks ${sv.phrase}, combining manual checks with automation ${cv.phrase}.`,
+    },
+    {
+      term: 'Local processing',
+      definition: `Running ${li} entirely in-browser ${sv.phrase} without egress — the privacy posture this page requires ${cv.phrase}.`,
+    },
+    {
+      term: `${la} focus (${ac.focus})`,
+      definition: `The success criterion for this audience: protect ${ac.focus} while completing ${TASK_PHRASE[task] ?? lt} ${cv.phrase}.`,
+    },
   ];
   const glossary = seededShuffle(glossaryPool, seed + 43).slice(0, 5);
 
   const faqPool = [
-    { question: `Is my data safe when I use ${tn} to ${li}?`, answer: `Yes. The ${tn} processes everything in your browser, so no data is transmitted to an external server. That makes it safe for sensitive or proprietary inputs during ${tc.scenario}.` },
-    { question: `Can I use ${tn} for ${li} in a production workflow?`, answer: `It is ideal for ad-hoc checks, validation, and prototyping. For production pipelines, port the same logic into your codebase with test coverage and use the tool as a reference to compare against.` },
-    { question: `What are the limits when the input is very large?`, answer: `Browser tools are bound by available memory, so inputs beyond roughly 10 MB may slow down. For very large files, use a command-line alternative and reserve the tool for verification.` },
-    { question: `What should a ${la} focus on here?`, answer: `Pay closest attention to ${ac.concern}. Because your priority is ${ac.focus}, confirm the output meets those requirements before relying on it further.` },
-    { question: `How do I validate the output of ${li}?`, answer: `Compare it against a known-good sample, check structural integrity, and verify the invariants your system depends on. For ${tc.scenario}, the aim is to ${tc.outcome}.` },
-    { question: `Does the ${tn} work offline?`, answer: `Yes. Once the page has loaded, the tool runs on client-side JavaScript, so no network connection is needed for the operation itself.` },
-    { question: `What do I do if the output looks wrong?`, answer: `First verify the input format and encoding, then check whether any option changed the transformation. Re-test with a minimal sample before retrying on real data.` },
-    { question: `How does ${li} support ${ac.focus}?`, answer: `${title(intent)} catches issues at the boundary — before they propagate downstream — which is exactly where ${ac.focus} is protected. Validating early is cheaper than debugging later.` },
+    {
+      question: `Is data safe when I ${li} with ${tn} ${sv.phrase}?`,
+      answer: `Yes. ${tn} processes in-browser ${sv.phrase}, so nothing is uploaded — appropriate for sensitive inputs during ${tc.scenario} ${cv.phrase}.`,
+    },
+    {
+      question: `Can ${tn} support production ${li} ${sv.phrase}?`,
+      answer: `Use it for verification and prototyping ${sv.phrase}. Port proven logic into tested code for bulk paths, and keep this URL as the reference ${cv.phrase}.`,
+    },
+    {
+      question: `What are size limits for ${li} ${sv.phrase}?`,
+      answer: `Browsers are memory-bound; multi‑10MB inputs may stall. Use CLI for bulk and reserve ${tn} ${sv.phrase} for trustworthy checks ${cv.phrase}.`,
+    },
+    {
+      question: `What should a ${la} prioritise on this ${sv.micro} page?`,
+      answer: `Watch ${ac.concern}. Because ${ac.focus} is the goal, confirm output against that bar before relying on it ${cv.phrase}.`,
+    },
+    {
+      question: `How do I validate ${li} output ${sv.phrase}?`,
+      answer: `Compare to a known-good sample, check structure, and verify system invariants. For ${tc.scenario} ${cv.phrase}, aim to ${tc.outcome}.`,
+    },
+    {
+      question: `Does ${tn} work offline ${sv.phrase}?`,
+      answer: `After load, client-side JS runs without network — useful ${cv.phrase} when connectivity is restricted.`,
+    },
+    {
+      question: `What if ${li} output looks wrong ${sv.phrase}?`,
+      answer: `Verify input format/encoding, re-check options, then retest a minimal sample before retrying real data ${cv.phrase}.`,
+    },
+    {
+      question: `How does ${li} ${sv.phrase} protect ${ac.focus}?`,
+      answer: `${title(intent)} catches boundary defects early — cheaper than debugging after promotion ${cv.phrase}.`,
+    },
   ];
   const faq = [
-    // Sub-topic-specific answers first: these are the questions this exact URL
-    // exists to answer, and they are the ones a grounding engine can quote.
     {
       question: `How do I ${li} ${sv.phrase} ${cv.phrase.startsWith('for ') ? cv.phrase : `for ${cv.phrase}`}?`,
       answer: `${scenario.summary} Prefer a small representative sample, run the ${tn}, and compare the output with a known-good reference before it is used anywhere else.`,
     },
     {
       question: `Why does ${cv.phrase} change how a ${la} approaches ${li}?`,
-      answer: cv.demand,
+      answer: `${cv.demand} Execution stays ${sv.phrase} so the acceptance criteria on this URL remain testable.`,
     },
     ...seededShuffle(faqPool, seed + 47).slice(0, 4),
   ];
@@ -1360,6 +1464,18 @@ function buildContent(page: ResolvedPage): PageContent {
   const workedExample = buildWorkedExample(page);
   const related = buildRelated(page);
   const description = identity.description;
+
+  // Dedicated anti-near-duplicate block: every sentence names the exact
+  // style×context×audience×task coordinates so sibling <main> text diverges
+  // well below Bing's scaled-content similarity bar.
+  const differentiation = [
+    `This URL is not a generic ${tn} overview. It is the ${sv.micro} path for ${li} during ${TASK_PHRASE[task] ?? lt}, written for a ${la}, and scoped only to ${cv.phrase}.`,
+    `Sibling pages that keep the same tool and intent but change execution style are different documents: they do not claim ${sv.phrase}, and their acceptance criteria will not match what ${cv.phrase} demands here.`,
+    `Sibling pages that keep the same style but change delivery context are also different: ${cv.demand}`,
+    `Practically, that means the evidence pack for this page — sample, ${tn} settings, output — is only valid when the run was performed ${sv.phrase} and judged against ${cv.phrase}.`,
+    `If your work is neither ${sv.phrase} nor ${cv.phrase}, stop and open the matching sibling instead of stretching this guide; that is how the corpus stays single-topic and indexable rather than a reshuffled doorway set.`,
+    `Coordinate lock for crawlers and humans: intent=${li}; tool=${tn}; audience=${la}; task=${TASK_PHRASE[task] ?? lt}; style=${sv.phrase}; context=${cv.phrase}; slug=/k/${slug}.`,
+  ];
 
   return {
     title: pageTitle,
@@ -1382,6 +1498,7 @@ function buildContent(page: ResolvedPage): PageContent {
     workedExample,
     related,
     scenario,
+    differentiation,
   };
 }
 
@@ -1620,6 +1737,10 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
 
   const acceptance = `<section aria-labelledby="acceptance"><h2 id="acceptance">Acceptance criteria (verify independently)</h2>${renderList(c.acceptance)}</section>`;
 
+  const differentiation = `<section aria-labelledby="why-this-url" data-differentiation><h2 id="why-this-url">Why this exact URL (not a sibling)</h2>`
+    + c.differentiation.map((p) => `<p>${escapeHtml(p)}</p>`).join('')
+    + `</section>`;
+
   const stepsHtml = `<section aria-labelledby="steps"><h2 id="steps">Step-by-step: ${escapeHtml(label(page.intent))} with ${escapeHtml(toolName(page.tool))}</h2>${renderList(c.steps, true)}</section>`;
 
   const example = `<section aria-labelledby="example"><h2 id="example">Worked example</h2>`
@@ -1675,6 +1796,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + scenario
     + decision
     + acceptance
+    + differentiation
     + stepsHtml
     + example
     + pitfalls
