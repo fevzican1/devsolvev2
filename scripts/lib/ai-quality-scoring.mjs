@@ -29,6 +29,7 @@ import {
   TITLE_MAX,
   TITLE_MIN,
 } from './search-guidelines.mjs';
+import { AGENT_ID, AGENT_VERSION } from './ai-indexing-agent.mjs';
 
 export const MIN_GATE_SCORE = 75;
 
@@ -168,6 +169,19 @@ export function extractDocumentSignals(html) {
   // Bing guideline #10: data-snippet nominates the passage Bing may cite.
   const hasDataSnippet = /\sdata-snippet(?=[\s>=])/i.test(html);
 
+  // Bing §16 / §17 / §18 signals — collected from <main> so nav/footer noise
+  // cannot fake an early answer or entity definition.
+  const mainMatch = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
+  const mainHtml = mainMatch ? mainMatch[1] : html;
+  const mainHead = mainHtml.slice(0, 4500);
+  const hasEntityDefinition = /id=["']entity["']|data-entity(?=[\s>=])/i.test(mainHtml);
+  const hasDecisionGuide = /id=["']decision["']|data-decision(?=[\s>=])/i.test(mainHtml);
+  const hasEarlyAnswer = /\sdata-snippet(?=[\s>=])/i.test(mainHead);
+  const h1Match = mainHtml.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
+  const h1Text = h1Match ? decodeEntities(h1Match[1].replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim().toLowerCase() : '';
+  const titleTokens = title.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 4);
+  const topicAligned = titleTokens.length === 0 || titleTokens.slice(0, 4).some((t) => h1Text.includes(t));
+
   return {
     title,
     titleLength: title.length,
@@ -183,6 +197,10 @@ export function extractDocumentSignals(html) {
     hasNosnippet,
     hasNocache,
     hasDataSnippet,
+    hasEntityDefinition,
+    hasDecisionGuide,
+    hasEarlyAnswer,
+    topicAligned,
   };
 }
 
@@ -368,6 +386,7 @@ export function scorePage(html, options = {}) {
   return {
     score,
     wordCount: extracted.wordCount,
+    agent: { id: AGENT_ID, version: AGENT_VERSION },
     breakdown: {
       thinContent,
       keyword: keyword.score,
@@ -390,6 +409,10 @@ export function scorePage(html, options = {}) {
       internalLinks: signals.internalLinks,
       jsonLdCount: signals.jsonLdCount,
       hasCanonical: signals.hasCanonical,
+      hasEntityDefinition: signals.hasEntityDefinition,
+      hasDecisionGuide: signals.hasDecisionGuide,
+      hasEarlyAnswer: signals.hasEarlyAnswer,
+      topicAligned: signals.topicAligned,
     },
     signals,
     indexability,

@@ -10,6 +10,14 @@
  * exact same generator can be scored at build time by
  * scripts/verify-edge-corpus-quality.mjs — the served bytes and the quality
  * gate can never drift apart.
+ *
+ * COST + ANTI-CLOAKING (Bing abuse guidelines)
+ * --------------------------------------------
+ * The AI Indexing Agent does NOT call an LLM and does NOT branch on User-Agent.
+ * Googlebot, Bingbot, and humans receive identical HTML. "AI activates on
+ * crawl" means: first request (often a crawler) is a cache MISS → Function
+ * renders once → CDN serves every later hit with zero Function invocations.
+ * Zone Cache Rules (scripts/deploy-cache-rules.mjs) are what make HIT free.
  */
 import {
   URLS_PER_SITEMAP,

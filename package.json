@@ -10,6 +10,7 @@
     "sitemap:programmatic": "node scripts/generate-programmatic-sitemaps.mjs",
     "ai-quality:gate": "node scripts/ai-quality-gatekeeper.mjs",
     "ai-quality:edge": "node --import tsx scripts/verify-edge-corpus-quality.mjs",
+    "ai-quality:agent": "node -e \"import('./scripts/lib/ai-indexing-agent.mjs').then(m=>console.log(m.agentBanner()))\"",
     "ai-quality:sitemap": "node scripts/generate-ai-quality-sitemaps.mjs",
     "ai-quality:indexnow": "node scripts/ai-quality-indexnow-submit.mjs",
     "ramp:verify": "node --import tsx scripts/verify-ramp-sitemap-sync.mjs",
