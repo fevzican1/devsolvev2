@@ -272,6 +272,13 @@ export const CORPUS_RULES = [
     requirement: 'Every URL in the corpus has its own <h1>.',
   },
   {
+    id: 'unique-sibling-bodies',
+    source: 'BING abuse: automatically generated content at scale / duplicate content across multiple URLs',
+    severity: 'critical',
+    requirement:
+      'Style×context siblings that share the same (pair × audience × task) must not be near-duplicates: 3-gram Jaccard of <main> prose stays ≤ 0.50 (true near-dups are typically ≥ 0.80).',
+  },
+  {
     id: 'canonical-consistency',
     source: 'BING §6/§7 / GOOGLE "Page with redirect"',
     severity: 'critical',

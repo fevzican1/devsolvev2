@@ -20,7 +20,7 @@
  */
 
 export const AGENT_ID = 'devsolve-ai-indexing-agent';
-export const AGENT_VERSION = '2026-08-12.2';
+export const AGENT_VERSION = '2026-08-12.3';
 
 /** Cost model — must stay true for every change to this system. */
 export const COST_MODEL = Object.freeze({
@@ -53,6 +53,10 @@ export const QUALITY_CONTRACT = Object.freeze({
   requireEntityDefinition: true, // Bing §16
   requireEarlyAnswer: true, // Bing §18
   requireUniqueTitleDescH1: true, // Bing §6 / Google duplicate reasons
+  requireUniqueSiblingBodies: true, // Bing abuse: near-duplicate / auto-gen at scale
+  // Same-intent siblings share topic vocabulary; ≤0.50 3-gram Jaccard still
+  // requires roughly half of all trigrams to differ (true near-dups are ≥0.8).
+  maxSiblingBodyJaccard: 0.5,
   requireWorkedExample: true, // Bing §15 verifiability
   singleTopicPerUrl: true, // Bing §17
 });
@@ -81,7 +85,8 @@ export function agentBanner() {
     `contract: title ${QUALITY_CONTRACT.titleChars.min}–${QUALITY_CONTRACT.titleChars.max},`,
     `desc ${QUALITY_CONTRACT.descriptionChars.min}–${QUALITY_CONTRACT.descriptionChars.max},`,
     `≥${QUALITY_CONTRACT.minWordCount} words, ≥${QUALITY_CONTRACT.minInternalLinks} links,`,
-    `entity+early-answer+data-snippet, unique title/desc/H1 across 20M`,
+    `entity+early-answer+data-snippet, unique title/desc/H1,`,
+    `sibling body Jaccard ≤${QUALITY_CONTRACT.maxSiblingBodyJaccard} across 20M`,
   ].join('\n');
 }
 

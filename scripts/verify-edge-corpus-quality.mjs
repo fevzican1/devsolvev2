@@ -34,6 +34,9 @@
  *   D. ROUTING      canonical URLs serve themselves, stale ordinals 301 once to
  *                   the canonical URL, and unknown slugs 404.
  *
+ *   E. SIBLING BODY  style×context siblings must stay below the near-duplicate
+ *                   Jaccard ceiling (Bing abuse: auto-gen / duplicate content).
+ *
  * COST: pure in-process string analysis. No network, no LLM, no Cloudflare
  * Function invocation — it runs during the build only.
  *
@@ -42,6 +45,8 @@
  *                              set lower for a fast local run)
  *   EDGE_VERIFY_SAMPLE         random full-render sample size (default 20000)
  *   EDGE_VERIFY_COMBO_STRIDE   render every Nth template combination (default 1)
+ *   EDGE_VERIFY_SIBLING_STEMS  sibling uniqueness stems (default 400)
+ *   EDGE_VERIFY_SIBLING_MODS   modifiers compared per stem (default 3)
  *   EDGE_VERIFY_MAX_FAIL       failures recorded before stopping (default 25)
  */
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
@@ -69,7 +74,7 @@ import {
 } from '../functions/_lib/programmaticPage.ts';
 import { scorePage, MIN_INDEXABLE_SCORE } from './lib/ai-quality-scoring.mjs';
 import { guidelineDigest } from './lib/search-guidelines.mjs';
-import { agentBanner, AGENT_VERSION, COST_MODEL } from './lib/ai-indexing-agent.mjs';
+import { agentBanner, AGENT_VERSION, COST_MODEL, QUALITY_CONTRACT } from './lib/ai-indexing-agent.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
@@ -365,6 +370,109 @@ for (const junk of [
 console.log(`    canonical ${routingChecks.canonical}, redirect ${routingChecks.redirect}, notFound ${routingChecks.notFound}`);
 
 /* ------------------------------------------------------------------------- */
+/* Phase E — sibling body uniqueness (near-duplicate defence)                 */
+/* ------------------------------------------------------------------------- */
+/*
+ * Same (pair × audience × task), different style×context modifiers must not
+ * share near-identical <main> copy. 3-gram Jaccard ≤ maxSiblingBodyJaccard.
+ */
+const SIBLING_STEMS = Number(process.env.EDGE_VERIFY_SIBLING_STEMS ?? 400);
+const SIBLING_MODS = Number(process.env.EDGE_VERIFY_SIBLING_MODS ?? 3);
+const MAX_SIBLING_JACCARD = QUALITY_CONTRACT.maxSiblingBodyJaccard;
+
+function extractMainText(html) {
+  const main = html.match(/<main[\s\S]*?<\/main>/i)?.[0] ?? html;
+  // Drop shared chrome/labels so Jaccard measures prose uniqueness, not H2 shells.
+  const stripped = main
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
+    .replace(/<h2[^>]*>[\s\S]*?<\/h2>/gi, ' ')
+    .replace(/<h3[^>]*>[\s\S]*?<\/h3>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&[a-z]+;/gi, ' ')
+    .replace(/\b(key takeaways|step-by-step|common pitfalls|pro tips|technical deep dive|real-world use cases|glossary|frequently asked questions|related guides|acceptance criteria|worked example|why this exact url)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+  return stripped;
+}
+
+function wordShingles(text, n = 3) {
+  const words = text.split(' ').filter(Boolean);
+  const set = new Set();
+  for (let i = 0; i + n <= words.length; i += 1) {
+    set.add(words.slice(i, i + n).join(' '));
+  }
+  return set;
+}
+
+function jaccard(a, b) {
+  let inter = 0;
+  for (const x of a) if (b.has(x)) inter += 1;
+  const union = a.size + b.size - inter;
+  return union === 0 ? 0 : inter / union;
+}
+
+console.log(`\n[E] sibling body uniqueness — ${SIBLING_STEMS} stems × ${SIBLING_MODS} modifiers (3-gram Jaccard ≤ ${MAX_SIBLING_JACCARD})`);
+const siblingStats = { stems: 0, pairs: 0, maxJaccard: 0, sumJaccard: 0 };
+let rng3 = 0xc2b2ae35 >>> 0;
+const nextStem = () => {
+  rng3 ^= rng3 << 13; rng3 >>>= 0;
+  rng3 ^= rng3 >>> 17;
+  rng3 ^= rng3 << 5; rng3 >>>= 0;
+  return rng3 / 4294967296;
+};
+
+for (let s = 0; s < SIBLING_STEMS && failures.length < MAX_FAIL; s += 1) {
+  const pairIdx = Math.floor(nextStem() * PAIRS.length);
+  const a = Math.floor(nextStem() * AUDIENCES.length);
+  const t = Math.floor(nextStem() * TASKS.length);
+  const baseMod = Math.floor(nextStem() * MODIFIER_COUNT);
+  const style0 = Math.floor(baseMod / MODIFIER_CONTEXTS.length);
+  const ctx0 = baseMod % MODIFIER_CONTEXTS.length;
+  // Force both style and context to change between siblings under test.
+  const mods = [
+    baseMod,
+    ((style0 + 3) % MODIFIER_STYLES.length) * MODIFIER_CONTEXTS.length + ((ctx0 + 7) % MODIFIER_CONTEXTS.length),
+    ((style0 + 6) % MODIFIER_STYLES.length) * MODIFIER_CONTEXTS.length + ((ctx0 + 13) % MODIFIER_CONTEXTS.length),
+  ];
+  const shingles = [];
+  const slugs = [];
+  for (const mod of mods) {
+    const index = comboIndex(pairIdx, a, t, mod);
+    if (index >= CORPUS_SIZE) continue;
+    const page = pageForIndex(index);
+    if (!page) continue;
+    const html = renderProgrammaticPage(page, ORIGIN);
+    shingles.push(wordShingles(extractMainText(html)));
+    slugs.push(page.slug);
+  }
+  if (shingles.length < 2) continue;
+  siblingStats.stems += 1;
+  for (let i = 0; i < shingles.length; i += 1) {
+    for (let j = i + 1; j < shingles.length; j += 1) {
+      const jac = jaccard(shingles[i], shingles[j]);
+      siblingStats.pairs += 1;
+      siblingStats.sumJaccard += jac;
+      siblingStats.maxJaccard = Math.max(siblingStats.maxJaccard, jac);
+      if (jac > MAX_SIBLING_JACCARD) {
+        fail('E:sibling-body', {
+          slug: slugs[i],
+          sibling: slugs[j],
+          jaccard: Number(jac.toFixed(4)),
+          message: `near-duplicate sibling bodies (Jaccard ${jac.toFixed(3)} > ${MAX_SIBLING_JACCARD})`,
+        });
+      }
+    }
+  }
+}
+const avgSiblingJaccard = siblingStats.pairs
+  ? siblingStats.sumJaccard / siblingStats.pairs
+  : 0;
+console.log(`    stems ${siblingStats.stems}, pairs ${siblingStats.pairs}, max Jaccard ${siblingStats.maxJaccard.toFixed(3)}, avg ${avgSiblingJaccard.toFixed(3)}`);
+
+/* ------------------------------------------------------------------------- */
 /* Report                                                                     */
 /* ------------------------------------------------------------------------- */
 if (!existsSync(reportsDir)) mkdirSync(reportsDir, { recursive: true });
@@ -402,7 +510,16 @@ const manifest = {
     violationCounts: Object.fromEntries(violationCounts),
   },
   routing: routingChecks,
+  siblingBodies: {
+    stems: siblingStats.stems,
+    pairs: siblingStats.pairs,
+    maxJaccard: Number(siblingStats.maxJaccard.toFixed(4)),
+    avgJaccard: Number(avgSiblingJaccard.toFixed(4)),
+    ceiling: MAX_SIBLING_JACCARD,
+  },
   indexableBar: MIN_INDEXABLE_SCORE,
+  agentVersion: AGENT_VERSION,
+  contentContract: QUALITY_CONTRACT,
   failureCount: failures.length,
   failures,
 };
@@ -411,12 +528,13 @@ writeFileSync(join(reportsDir, 'edge-corpus-quality.json'), JSON.stringify(manif
 if (failures.length > 0) {
   console.error(`\nFAIL — ${failures.length} issue(s) block full indexability:`);
   for (const f of failures.slice(0, 10)) {
-    console.error(`  [${f.phase}] ${f.slug || f.message || ''} ${f.violations ? `→ ${f.violations.join('; ')}` : ''}`);
+    console.error(`  [${f.phase}] ${f.slug || f.message || ''} ${f.sibling ? `vs ${f.sibling}` : ''} ${f.jaccard != null ? `jaccard=${f.jaccard}` : ''} ${f.violations ? `→ ${f.violations.join('; ')}` : ''}`);
   }
   console.error('  Full report: out/reports/edge-corpus-quality.json');
   process.exit(1);
 }
 
 console.log(`\nPASS — ${IDENTITY_SCAN === CORPUS_SIZE ? 'all' : IDENTITY_SCAN.toLocaleString()} of ${CORPUS_SIZE.toLocaleString()} URLs carry a unique, length-compliant title, description and H1;`);
-console.log(`       every scored document clears ${MIN_INDEXABLE_SCORE}/100 with zero critical guideline violations.`);
+console.log(`       every scored document clears ${MIN_INDEXABLE_SCORE}/100 with zero critical guideline violations;`);
+console.log(`       sibling body Jaccard max ${siblingStats.maxJaccard.toFixed(3)} ≤ ${MAX_SIBLING_JACCARD} (near-duplicate defence).`);
 process.exit(0);
