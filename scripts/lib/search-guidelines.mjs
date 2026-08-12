@@ -32,8 +32,11 @@
 export const DESCRIPTION_TARGET_MIN = 150;
 export const DESCRIPTION_TARGET_MAX = 160;
 
-/** Bing reports any title of 70 characters or more as too long. */
-export const TITLE_MAX = 70;
+/**
+ * Bing Webmaster Tools: "Change the title length to be less than 70 characters."
+ * Exact 70-character titles were still flagged, so the hard max is 69.
+ */
+export const TITLE_MAX = 69;
 export const TITLE_MIN = 30;
 
 /** Below this a page reads as thin content and tends to sit in "Crawled - currently not indexed". */
@@ -46,7 +49,7 @@ export const PROFILES = {
     descriptionMin: DESCRIPTION_TARGET_MIN,
     descriptionMax: DESCRIPTION_TARGET_MAX,
     minWordCount: MIN_WORD_COUNT,
-    minInternalLinks: 10,
+    minInternalLinks: 14,
     minJsonLd: 3,
   },
   static: {

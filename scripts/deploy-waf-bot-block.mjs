@@ -128,13 +128,18 @@ const GOOGLE_UA_MARKERS_COMPACT = [
 const BING_UA_MARKERS_COMPACT = ['bingbot', 'bingpreview', 'adidxbot', 'msnbot'];
 
 /**
- * Rule 0 — SKIP for verified search crawlers (sitewide, evaluated first).
- * Real Googlebot/Bingbot (Cloudflare-verified OR right UA + right ASN) and
- * the GSC URL Inspection tool bypass: Security Level (I'm Under Attack
- * challenges), Browser Integrity Check, Hotlink Protection, UA rules, Zone
- * Lockdown, rate limiting, managed WAF rules, Super Bot Fight Mode and the
- * remaining custom rules. Search crawlers must NEVER receive a challenge or
- * 403 — that is what caused the "server error (5xx)" wave in GSC.
+ * Rule 0 — SKIP for verified search crawlers AND real browsers (sitewide).
+ * Real Googlebot/Bingbot (Cloudflare-verified OR right UA + right ASN), the
+ * GSC URL Inspection tool, and genuine browsers bypass: Security Level
+ * (I'm Under Attack challenges), Browser Integrity Check, Hotlink Protection,
+ * UA rules, Zone Lockdown, rate limiting, managed WAF rules, Super Bot Fight
+ * Mode and the remaining custom rules.
+ *
+ * Why browsers are included: with Security Level = "I'm Under Attack", every
+ * HTML request (including /, /tools, /guides) returns cf-mitigated:challenge
+ * to non-skipped clients. That blocks users, social unfurls, and can suppress
+ * crawl/render signals even when Googlebot itself is skipped. Scrapers still
+ * lack browser Client Hints and remain subject to Under Attack + rule 3.
  */
 const WAF_VERIFIED_CRAWLER_SKIP = `(
   ${VERIFIED_SEARCH_CRAWLER}
@@ -147,6 +152,25 @@ const WAF_VERIFIED_CRAWLER_SKIP = `(
     and ip.src.asnum in ${BING_ASNS}
   )
   or ${uaContainsAny(GOOGLE_INSPECTION_UA)}
+  or (lower(http.user_agent) contains "firefox/" and lower(http.user_agent) contains "gecko/")
+  or (
+    lower(http.user_agent) contains "safari/"
+    and not lower(http.user_agent) contains "chrome/"
+    and not lower(http.user_agent) contains "chromium/"
+    and not lower(http.user_agent) contains "crios/"
+    and not lower(http.user_agent) contains "edg/"
+    and not lower(http.user_agent) contains "opr/"
+    and lower(http.user_agent) contains "version/"
+  )
+  or (
+    lower(http.user_agent) contains "chrome/"
+    and len(http.request.headers["sec-ch-ua"][0]) > 2
+  )
+  or (
+    lower(http.user_agent) contains "edg/"
+    and len(http.request.headers["sec-ch-ua"][0]) > 2
+  )
+  or lower(http.user_agent) contains "crios/"
 )`;
 
 /**
@@ -287,7 +311,7 @@ or not (
 
 const RULES = [
   {
-    description: '[DevSolve] SKIP verified Google/Bing crawlers (never challenge/block)',
+    description: '[DevSolve] SKIP crawlers + real browsers (never challenge)',
     expression: WAF_VERIFIED_CRAWLER_SKIP,
     action: 'skip',
   },
@@ -395,6 +419,7 @@ async function main() {
   const managedDescriptions = new Set(RULES.map((r) => r.description));
   /** Retired rules — removed on deploy to avoid duplicate / stale blocks. */
   const legacyDescriptions = new Set([
+    '[DevSolve] SKIP verified Google/Bing crawlers (never challenge/block)',
     '[DevSolve] sitewide block Meta AI indexer',
     '[DevSolve] sitewide block AI indexers (Claude-SearchBot, Meta)',
     '[DevSolve] /k/* block fake Bingbot',

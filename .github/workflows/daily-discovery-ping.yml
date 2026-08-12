@@ -1,0 +1,40 @@
+name: Daily SEO discovery (IndexNow + sitemap freshness)
+
+# Zero Cloudflare Function cost. Pings IndexNow + free WebSub hubs so Bing
+# sees daily sitemap/URL activity (Webmaster Tools: refresh ≥ once/day).
+# Does NOT buy backlinks or join link schemes (Bing abuse policy).
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  discovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: IndexNow + free discovery pings
+        env:
+          SITE_URL: https://devsolvev2.com
+          INDEXNOW_MAX_URLS: '200'
+        run: |
+          node scripts/indexnow-ping.mjs || true
+          node scripts/free-discovery-ping.mjs || true
+      - name: Google Indexing API priority slice (optional)
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          SITE_URL: https://devsolvev2.com
+        run: |
+          if [ -z "$GOOGLE_SERVICE_ACCOUNT_JSON" ]; then
+            echo "No GOOGLE_SERVICE_ACCOUNT_JSON — skipping Indexing API"
+            exit 0
+          fi
+          node scripts/generate-priority-sitemap.mjs || true
+          node scripts/submit-indexing-api.mjs || true

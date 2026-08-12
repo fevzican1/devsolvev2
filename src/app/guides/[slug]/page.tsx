@@ -24,6 +24,8 @@ import {
 import GuidesPage from '@/app/guides/page';
 import { GUIDES_SECTION_METADATA } from '@/lib/seo/sectionMetadata';
 import { RelatedItemsLinks } from '@/components/seo/RelatedItemsLinks';
+import { buildRealGuideOutboundLinks } from '@/lib/programmatic/guideCorpusLinks';
+import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -70,6 +72,7 @@ export default async function GuidePage({ params }: PageProps) {
     .filter((candidate) => candidate.slug !== guide.slug)
     .filter((candidate) => candidate.clusterKeys.some((key) => guide.clusterKeys.includes(key)))
     .slice(0, 6);
+  const corpusLinks = buildRealGuideOutboundLinks(slug, 16);
   const smartRelatedLinks = [
     ...(primaryTool
       ? [{
@@ -87,6 +90,11 @@ export default async function GuidePage({ params }: PageProps) {
       href: `/guides/${candidate.slug}`,
       label: candidate.title,
       description: candidate.description,
+    })),
+    ...corpusLinks.map((link) => ({
+      href: link.href,
+      label: link.label,
+      description: 'Scenario guide from the DevSolve developer corpus',
     })),
   ];
 
@@ -267,6 +275,7 @@ export default async function GuidePage({ params }: PageProps) {
           )}
         </div>
         <RelatedItemsLinks title="Explore Related Pages" items={smartRelatedLinks} />
+        <HubDiscoveryLinks hubPath={`/guides/${slug}`} heading="More guides, tools & scenarios" />
       </article>
     </div>
   );

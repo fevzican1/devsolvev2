@@ -46,7 +46,7 @@ const SITE_URL = process.env.SITE_URL || 'https://devsolvev2.com';
 // GSC property URL — must match exactly as registered in Search Console
 const GSC_SITE = process.env.GSC_SITE || `sc-domain:${SITE_URL.replace(/^https?:\/\//, '')}`;
 
-const RAMP_SCHEDULE = [500_000, 2_000_000, 5_000_000, 9_000_000, 14_000_000, 18_040_320];
+const RAMP_SCHEDULE = [500_000, 2_000_000, 5_000_000, 9_000_000, 14_000_000, 20_000_000];
 
 // Gate criteria per level — must stay in sync with src/config/rampController.ts
 const GATE = [

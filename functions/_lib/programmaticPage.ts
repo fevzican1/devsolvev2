@@ -20,7 +20,7 @@
  * Content requirements and Bing's Webmaster Guidelines for classic + grounding
  * (Copilot) eligibility:
  *   - rich, unique, single-topic content well above the thin-content floor
- *   - <title> 30-70 chars, meta description 140-165 chars
+ *   - <title> 30-69 chars (Bing: strictly less than 70), meta description 150-160 chars
  *   - one <h1> + logical <h2>/<h3> hierarchy, semantic HTML
  *   - canonical, robots index,follow, meta data-snippet (rich citation allowed)
  *   - accurate JSON-LD (TechArticle, BreadcrumbList, HowTo, FAQPage, SoftwareApplication)
@@ -28,6 +28,8 @@
  *   - key information surfaced early, explicit facts/definitions (verifiability)
  *   - clear, consistent entity naming (tool / audience / task / cluster)
  */
+
+import { EMBEDDED_RAMP_LEVEL } from './embeddedRamp';
 
 /* -------------------------------------------------------------------------- */
 /*  Corpus geometry (immutable deployment invariant)                          */
@@ -44,8 +46,22 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * answered with a cheap 304), and the edge cache key (so a deploy cannot keep
  * serving the previous version of a page out of the colo cache).
  */
-export const CONTENT_UPDATED_AT = '2026-08-11T00:00:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-12T00:00:00.000Z';
 export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '');
+
+/*
+ * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
+ * functions/_lib/embeddedRamp.ts — auto-advance updates both).
+ * Advertising all 20M URLs in /sitemap.xml dilutes Googlebot/Bingbot budget
+ * and is the #1 cause of "Discovered – currently not indexed" at this scale.
+ * Every /k/ URL remains crawlable and indexable (200 + canonical); only the
+ * *advertised* set is gated. Advance EMBEDDED_RAMP_LEVEL only when GSC/Bing
+ * indexed-ratio gates in src/config/rampController.ts are met.
+ */
+export { EMBEDDED_RAMP_LEVEL };
+export const RAMP_SITEMAP_LIMITS = [500_000, 2_000_000, 5_000_000, 9_000_000, 14_000_000, 20_000_000] as const;
+export const SITEMAP_PUBLIC_LIMIT = RAMP_SITEMAP_LIMITS[EMBEDDED_RAMP_LEVEL];
+export const SITEMAP_PUBLIC_CHUNKS = SITEMAP_PUBLIC_LIMIT / URLS_PER_SITEMAP;
 
 export const CLUSTERS = [
   ['json', ['json-formatter', 'json-to-typescript'], ['validate-json', 'format-json', 'inspect-json-structure', 'convert-json-to-types', 'compare-json-objects', 'transform-json-keys', 'extract-json-values', 'merge-json-data', 'flatten-nested-json', 'detect-json-syntax-errors', 'generate-json-schema', 'minify-json-payload']],
@@ -781,7 +797,11 @@ function intentMicro(intent: string): string {
 /*  Page identity: <title>, meta description, <h1>                            */
 /* -------------------------------------------------------------------------- */
 
-export const TITLE_MAX = 70;
+/**
+ * Bing Webmaster Tools: "Change the title length to be less than 70 characters."
+ * That is a strict upper bound of 69 (titles of exactly 70 were still flagged).
+ */
+export const TITLE_MAX = 69;
 export const DESCRIPTION_MIN = 150;
 export const DESCRIPTION_MAX = 160;
 
@@ -857,9 +877,20 @@ function buildTitle(forms: Forms): string {
   for (const { tiers: [i, t, a, k, s, c], compact } of SHORTENING_PLANS) {
     const subject = capitalise(forms.intent[i]);
     const audience = `${forms.audience[a]} ${forms.task[k]}`;
-    const detail = `${forms.tool[t]}, ${forms.style[s]} ${forms.context[c]}`;
+    // Compact form drops one ", " vs the previous template so the shortest
+    // tier's worst case lands at ≤69 (Bing: strictly less than 70).
+    const detail = compact
+      ? `${forms.tool[t]} ${forms.style[s]} ${forms.context[c]}`
+      : `${forms.tool[t]}, ${forms.style[s]} ${forms.context[c]}`;
     candidate = compact ? `${subject}: ${audience}, ${detail}` : `${subject} for ${audience}: ${detail}`;
     if (candidate.length <= TITLE_MAX) return candidate;
+  }
+  // Safety net — vocabulary audit proves this is unreachable, but never ship
+  // a Bing-flagged title even if a future vocab edit regresses the guarantee.
+  if (candidate.length > TITLE_MAX) {
+    const cut = candidate.slice(0, TITLE_MAX);
+    const at = cut.lastIndexOf(' ');
+    candidate = (at >= 40 ? cut.slice(0, at) : cut).replace(/[\s,;:.–—-]+$/, '');
   }
   return candidate;
 }
@@ -979,8 +1010,8 @@ export function titleVocabularyAudit(): { problems: string[]; worstCaseTitleLeng
 
   const finalPlan = SHORTENING_PLANS[SHORTENING_PLANS.length - 1];
   const [ti, tt, ta, tk, ts, tc] = finalPlan.tiers;
-  // `${intent}: ${audience} ${task}, ${tool}, ${style} ${context}`
-  const separators = ': '.length + ' '.length + ', '.length + ', '.length + ' '.length;
+  // Compact: `${intent}: ${audience} ${task}, ${tool} ${style} ${context}`
+  const separators = ': '.length + ' '.length + ', '.length + ' '.length + ' '.length;
   const worstCaseTitleLength = separators
     + maxima.intent[ti] + maxima.audience[ta] + maxima.task[tk]
     + maxima.tool[tt] + maxima.style[ts] + maxima.context[tc];
@@ -1367,17 +1398,49 @@ function buildRelated(page: ResolvedPage): { slug: string; label: string }[] {
   const seen = new Set<string>([page.slug]);
   // Coprime-ish stride keeps neighbours spread across the corpus while staying
   // fully deterministic and resolvable (every target is a real /k/ page).
+  // 16 related /k/ links densifies the crawl graph so Googlebot discovers
+  // siblings from any seed URL without waiting on the (ramped) sitemap.
   const stride = 1 + (seed % 9973) * 2;
   let cursor = page.index;
-  for (let k = 0; out.length < 10 && k < 40; k += 1) {
+  for (let k = 0; out.length < 16 && k < 64; k += 1) {
     cursor = (cursor + stride) % CORPUS_SIZE;
     const target = pageForIndex(cursor);
     if (!target || seen.has(target.slug)) continue;
     seen.add(target.slug);
     out.push({ slug: target.slug, label: `${title(target.intent)} with ${toolName(target.tool)} for ${label(target.audience)}` });
   }
+  // Same-tool neighbours (different intent/audience) reinforce topical clusters
+  // so crawlers traverse high-relevance paths instead of only random strides.
+  const pairIndex = Math.floor(page.index / PER_PAIR);
+  for (let k = 0; out.length < 20 && k < 12; k += 1) {
+    const offset = 1 + ((seed >>> (k % 16)) % (PER_PAIR - 1));
+    const neighbour = pageForIndex((pairIndex * PER_PAIR + (page.index + offset) % PER_PAIR) % CORPUS_SIZE);
+    if (!neighbour || seen.has(neighbour.slug)) continue;
+    if (neighbour.tool !== page.tool && neighbour.cluster !== page.cluster) continue;
+    seen.add(neighbour.slug);
+    out.push({ slug: neighbour.slug, label: `${title(neighbour.intent)} · ${toolName(neighbour.tool)}` });
+  }
   return out;
 }
+
+/** Editorial guide that owns this tool — authority backlink for Bing §5. */
+const GUIDE_BY_TOOL: Record<string, { slug: string; title: string }> = {
+  'json-formatter': { slug: 'json-validation-formatting', title: 'JSON validation and formatting' },
+  'json-to-typescript': { slug: 'json-to-types', title: 'JSON to TypeScript types' },
+  'base64-encode-decode': { slug: 'base64-usage', title: 'Base64 encode and decode' },
+  'url-encode-decode': { slug: 'url-encoding-pitfalls', title: 'URL encoding pitfalls' },
+  'html-entity-encode-decode': { slug: 'encoding-pitfalls-deep-dive', title: 'Encoding pitfalls deep dive' },
+  'hash-generator': { slug: 'hashing-integrity', title: 'Hashing and integrity' },
+  'uuid-generator': { slug: 'hashing-integrity', title: 'Hashing and integrity' },
+  'jwt-decoder': { slug: 'jwt-decoding-browser', title: 'JWT decoding in the browser' },
+  'text-case-converter': { slug: 'text-transformations', title: 'Text transformations' },
+  'diff-checker': { slug: 'diffing-techniques', title: 'Diffing techniques' },
+  'regex-tester': { slug: 'regex-testing-debugging', title: 'Regex testing and debugging' },
+  'sql-formatter': { slug: 'sql-formatting', title: 'SQL formatting' },
+  'css-minifier': { slug: 'minification-basics', title: 'Minification basics' },
+  'markdown-preview': { slug: 'markdown-preview-safety', title: 'Markdown preview safety' },
+  'cron-helper': { slug: 'api-contract-validation-deep-dive', title: 'API contract validation' },
+};
 
 /* -------------------------------------------------------------------------- */
 /*  HTML renderer                                                              */
@@ -1502,12 +1565,15 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + c.faq.map((f) => `<h3>${escapeHtml(f.question)}</h3><p>${escapeHtml(f.answer)}</p>`).join('')
     + `</section>`;
 
+  const guide = GUIDE_BY_TOOL[toolSlug];
   const related = `<section aria-labelledby="related"><h2 id="related">Related guides and tools</h2><div class="links">`
     + c.related.map((r) => `<a href="/k/${escapeHtml(r.slug)}">${escapeHtml(r.label)}</a>`).join('')
+    + (guide ? `<a href="/guides/${escapeHtml(guide.slug)}">${escapeHtml(guide.title)}</a>` : '')
     + `<a href="/tools/${escapeHtml(toolSlug)}">Open the ${escapeHtml(toolName(page.tool))} tool</a>`
     + `<a href="/tools">All developer tools</a>`
     + `<a href="/guides">Developer guides hub</a>`
     + `<a href="/k">Browse all scenario guides</a>`
+    + `<a href="/">DevSolve home</a>`
     + `</div></section>`;
 
   const footer = `<footer><p>DevSolve publishes free, privacy-first developer tools and guides. All processing runs locally in your browser.</p>`

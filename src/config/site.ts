@@ -19,7 +19,7 @@ export const siteConfig = {
     /** Unified Bing + Google quality threshold — pages below 90 are noindex */
     minIndexScore: 90,
     minSitemapScore: 90,
-    minMetaDescriptionLength: 140,
+    minMetaDescriptionLength: 150,
     minWordCount: 1200,
     targetEligiblePages: 20_000_000,
     maxSitemapUrls: 20_000_000,
@@ -30,7 +30,7 @@ export const siteConfig = {
   },
 
   launchDate: '2026-01-15T00:00:00Z',
-  contentUpdatedAt: '2026-08-11T00:00:00Z',
+  contentUpdatedAt: '2026-08-12T00:00:00Z',
 
   features: {
     darkMode: true,
