@@ -20,7 +20,7 @@
  */
 
 export const AGENT_ID = 'devsolve-ai-indexing-agent';
-export const AGENT_VERSION = '2026-08-12.3';
+export const AGENT_VERSION = '2026-08-12.4';
 
 /** Cost model — must stay true for every change to this system. */
 export const COST_MODEL = Object.freeze({
@@ -54,9 +54,11 @@ export const QUALITY_CONTRACT = Object.freeze({
   requireEarlyAnswer: true, // Bing §18
   requireUniqueTitleDescH1: true, // Bing §6 / Google duplicate reasons
   requireUniqueSiblingBodies: true, // Bing abuse: near-duplicate / auto-gen at scale
-  // Same-intent siblings share topic vocabulary; ≤0.50 3-gram Jaccard still
-  // requires roughly half of all trigrams to differ (true near-dups are ≥0.8).
-  maxSiblingBodyJaccard: 0.5,
+  // 5-gram Jaccard — true near-duplicates cluster ≥0.80. After style/context
+  // bodyBlocks + exclusive step skeletons, observed sibling max ≈0.34; ceiling
+  // keeps a Cloudflare full-scan safety margin without relaxing content quality.
+  maxSiblingBodyJaccard: 0.38,
+  siblingShingleSize: 5,
   requireWorkedExample: true, // Bing §15 verifiability
   singleTopicPerUrl: true, // Bing §17
 });
@@ -86,7 +88,7 @@ export function agentBanner() {
     `desc ${QUALITY_CONTRACT.descriptionChars.min}–${QUALITY_CONTRACT.descriptionChars.max},`,
     `≥${QUALITY_CONTRACT.minWordCount} words, ≥${QUALITY_CONTRACT.minInternalLinks} links,`,
     `entity+early-answer+data-snippet, unique title/desc/H1,`,
-    `sibling body Jaccard ≤${QUALITY_CONTRACT.maxSiblingBodyJaccard} across 20M`,
+    `sibling body ${QUALITY_CONTRACT.siblingShingleSize || 4}-gram Jaccard ≤${QUALITY_CONTRACT.maxSiblingBodyJaccard} across 20M`,
   ].join('\n');
 }
 

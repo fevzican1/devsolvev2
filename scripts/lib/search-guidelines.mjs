@@ -276,7 +276,7 @@ export const CORPUS_RULES = [
     source: 'BING abuse: automatically generated content at scale / duplicate content across multiple URLs',
     severity: 'critical',
     requirement:
-      'Style×context siblings that share the same (pair × audience × task) must not be near-duplicates: 3-gram Jaccard of <main> prose stays ≤ 0.50 (true near-dups are typically ≥ 0.80).',
+      'Style×context siblings that share the same (pair × audience × task) must not be near-duplicates: 5-gram Jaccard of <main> prose stays ≤ 0.38 (true near-dups are typically ≥ 0.80).',
   },
   {
     id: 'canonical-consistency',
