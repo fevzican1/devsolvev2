@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Code2, Github, Linkedin, Twitter } from 'lucide-react';
+import { Code2, ExternalLink, Github, Linkedin, Twitter } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import { monetizationConfig } from '@/config/monetization';
 import { getBrandProfileLinks } from '@/lib/seo/organization';
@@ -15,7 +15,9 @@ const socialLinks = getBrandProfileLinks().map(({ label, href }) => ({
     ? Github
     : label.includes('LinkedIn')
       ? Linkedin
-      : Twitter,
+      : label.includes('X (Twitter)')
+        ? Twitter
+        : ExternalLink,
 }));
 
 const footerLinks = {
