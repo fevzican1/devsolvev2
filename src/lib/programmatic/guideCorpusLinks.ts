@@ -1,12 +1,13 @@
 /**
- * Guide ↔ /k/ corpus bridges using REAL canonical slugs from the programmatic
- * corpus. The previous clusterMapping helper invented ordinals (`counter % 162`)
- * that 301/404'd — those links burned crawl budget and never transferred equity.
+ * Guide ↔ /k/ corpus bridges using ONLY statically-exported priority slugs.
  *
- * Pure, build-time only. Zero Cloudflare Function cost.
+ * The static export pre-renders ≤5k priority /k/ pages. Linking anything else
+ * from guides/hubs fails `internal-link-redirect-audit` (no `out/k/<slug>.html`)
+ * and would 404 if the request ever missed the Pages Function. Edge-rendered
+ * /k/ pages may still deep-link across the full 20M corpus.
  */
-import { buildGuideOutboundSlugs as legacyMappingShape, getMappingForGuide, type ClusterMapping } from '@/config/clusterMapping';
-import { getSlugByIndex, getTotalPageCount } from '@/data/programmatic';
+import { getMappingForGuide } from '@/config/clusterMapping';
+import { staticProgrammaticSlugs } from '@/lib/programmatic/staticPaths';
 
 export interface GuideCorpusLink {
   slug: string;
@@ -15,9 +16,8 @@ export interface GuideCorpusLink {
 }
 
 /**
- * Resolve up to `maxLinks` real /k/ URLs for a guide by walking the corpus
- * with a deterministic stride seeded from the guide slug. Prefers pages whose
- * tool/intent appear in the guide's ClusterMapping when available.
+ * Resolve up to `maxLinks` real, statically-exported /k/ URLs for a guide.
+ * Prefers slugs whose tool/intent match the guide's ClusterMapping.
  */
 export function buildRealGuideOutboundLinks(
   guideSlug: string,
@@ -25,71 +25,57 @@ export function buildRealGuideOutboundLinks(
 ): GuideCorpusLink[] {
   const mapping = getMappingForGuide(guideSlug);
   const limit = Math.max(1, Math.min(24, maxLinks ?? mapping?.linkCount ?? 12));
-  const total = getTotalPageCount();
-  if (total <= 0) return [];
+  if (staticProgrammaticSlugs.length === 0) return [];
 
   const seed = Math.abs(
     guideSlug.split('').reduce((acc, ch) => ((acc << 5) - acc + ch.charCodeAt(0)) | 0, 0),
   );
   const stride = 1 + (seed % 9973) * 2;
-  const tools = new Set(mapping?.programmaticTools ?? []);
-  const intents = new Set(mapping?.mappedIntents ?? []);
-  const clusters = new Set(mapping?.programmaticClusters ?? []);
+  const tools = mapping?.programmaticTools ?? [];
+  const intents = mapping?.mappedIntents ?? [];
+  const clusters = mapping?.programmaticClusters ?? [];
 
   const preferred: GuideCorpusLink[] = [];
   const fallback: GuideCorpusLink[] = [];
   const seen = new Set<string>();
-
-  // Prefer a dense scan of the first 500k (sitemap-public ramp) so hub→corpus
-  // links reinforce the same URLs Google/Bing are being asked to crawl.
-  const scanWindow = Math.min(total, 500_000);
-  let cursor = seed % scanWindow;
-  const maxAttempts = Math.min(scanWindow, limit * 64);
+  const pool = staticProgrammaticSlugs;
+  const maxAttempts = Math.min(pool.length, limit * 64);
+  let cursor = seed % pool.length;
 
   for (let i = 0; preferred.length + fallback.length < limit * 3 && i < maxAttempts; i += 1) {
-    cursor = (cursor + stride) % scanWindow;
-    const slug = getSlugByIndex(cursor);
+    cursor = (cursor + stride) % pool.length;
+    const slug = pool[cursor];
     if (!slug || seen.has(slug)) continue;
     seen.add(slug);
 
-    const label = humaniseSlug(slug);
-    const link: GuideCorpusLink = { slug, href: `/k/${slug}`, label };
-    const matchesMapping = mapping
-      ? matchesMappingSlug(slug, tools, intents, clusters)
-      : false;
+    const link: GuideCorpusLink = {
+      slug,
+      href: `/k/${slug}`,
+      label: humaniseSlug(slug),
+    };
 
-    if (matchesMapping) preferred.push(link);
+    if (matchesMappingSlug(slug, tools, intents, clusters)) preferred.push(link);
     else fallback.push(link);
 
     if (preferred.length >= limit) break;
   }
 
-  const merged = [...preferred, ...fallback].slice(0, limit);
-  // Absolute last resort: legacy shape (should be unused once corpus is live).
-  if (merged.length === 0) {
-    return legacyMappingShape(guideSlug, limit).map((l) => ({
-      slug: l.slug,
-      href: l.href,
-      label: l.label,
-    }));
-  }
-  return merged;
+  return [...preferred, ...fallback].slice(0, limit);
 }
 
 function matchesMappingSlug(
   slug: string,
-  tools: Set<string>,
-  intents: Set<string>,
-  clusters: Set<string>,
+  tools: string[],
+  intents: string[],
+  clusters: string[],
 ): boolean {
-  for (const tool of Array.from(tools)) {
-    if (slug.includes(`-${tool}-`)) {
-      for (const intent of Array.from(intents)) {
-        if (slug.includes(`-${intent}-`)) return true;
-      }
-      for (const cluster of Array.from(clusters)) {
-        if (slug.startsWith(`${cluster}-`)) return true;
-      }
+  for (const tool of tools) {
+    if (!slug.includes(`-${tool}-`)) continue;
+    for (const intent of intents) {
+      if (slug.includes(`-${intent}-`)) return true;
+    }
+    for (const cluster of clusters) {
+      if (slug.startsWith(`${cluster}-`)) return true;
     }
   }
   return false;
@@ -101,5 +87,3 @@ function humaniseSlug(slug: string): string {
   const text = parts.join(' ');
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
-
-export type { ClusterMapping };

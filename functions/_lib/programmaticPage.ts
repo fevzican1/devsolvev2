@@ -29,6 +29,8 @@
  *   - clear, consistent entity naming (tool / audience / task / cluster)
  */
 
+import { EMBEDDED_RAMP_LEVEL } from './embeddedRamp';
+
 /* -------------------------------------------------------------------------- */
 /*  Corpus geometry (immutable deployment invariant)                          */
 /* -------------------------------------------------------------------------- */
@@ -48,14 +50,15 @@ export const CONTENT_UPDATED_AT = '2026-08-12T00:00:00.000Z';
 export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '');
 
 /*
- * Crawl-budget ramp (must stay in lockstep with /.ramp-level).
+ * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
+ * functions/_lib/embeddedRamp.ts — auto-advance updates both).
  * Advertising all 20M URLs in /sitemap.xml dilutes Googlebot/Bingbot budget
  * and is the #1 cause of "Discovered – currently not indexed" at this scale.
  * Every /k/ URL remains crawlable and indexable (200 + canonical); only the
  * *advertised* set is gated. Advance EMBEDDED_RAMP_LEVEL only when GSC/Bing
  * indexed-ratio gates in src/config/rampController.ts are met.
  */
-export const EMBEDDED_RAMP_LEVEL = 0 as 0 | 1 | 2 | 3 | 4 | 5;
+export { EMBEDDED_RAMP_LEVEL };
 export const RAMP_SITEMAP_LIMITS = [500_000, 2_000_000, 5_000_000, 9_000_000, 14_000_000, 20_000_000] as const;
 export const SITEMAP_PUBLIC_LIMIT = RAMP_SITEMAP_LIMITS[EMBEDDED_RAMP_LEVEL];
 export const SITEMAP_PUBLIC_CHUNKS = SITEMAP_PUBLIC_LIMIT / URLS_PER_SITEMAP;

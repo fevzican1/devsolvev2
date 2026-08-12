@@ -56,13 +56,28 @@ jobs:
         if: steps.gate.outputs.gate_pass == 'true' && steps.gate.outputs.next_level != 'null'
         run: |
           NEXT=${{ steps.gate.outputs.next_level }}
-          echo "Gate passed — advancing .ramp-level from ${{ steps.gate.outputs.current_level }} to $NEXT"
+          CURRENT=${{ steps.gate.outputs.current_level }}
+          echo "Gate passed — advancing ramp from $CURRENT to $NEXT"
           echo "$NEXT" > .ramp-level
+
+          # Keep edge sitemap limit in sync (Functions cannot read .ramp-level at runtime).
+          EDGE_RAMP=functions/_lib/embeddedRamp.ts
+          if [ -f "$EDGE_RAMP" ]; then
+            sed -i "s/export const EMBEDDED_RAMP_LEVEL = [0-5]/export const EMBEDDED_RAMP_LEVEL = $NEXT/" "$EDGE_RAMP"
+            echo "Updated $EDGE_RAMP → EMBEDDED_RAMP_LEVEL = $NEXT"
+            grep EMBEDDED_RAMP_LEVEL "$EDGE_RAMP"
+          else
+            echo "ERROR: $EDGE_RAMP missing — edge sitemap would stay stuck at old ramp"
+            exit 1
+          fi
+
+          # Verify lockstep before commit
+          node --import tsx scripts/verify-ramp-sitemap-sync.mjs
 
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .ramp-level
-          git commit -m "chore(ramp): auto-advance level ${{ steps.gate.outputs.current_level }} → $NEXT [skip ci]" \
+          git add .ramp-level "$EDGE_RAMP"
+          git commit -m "chore(ramp): auto-advance level $CURRENT → $NEXT [skip ci]" \
             -m "GSC gate passed:" \
             -m "${{ steps.gate.outputs.reason }}"
           git push origin "HEAD:${{ github.ref_name }}"

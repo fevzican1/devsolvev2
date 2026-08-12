@@ -14,16 +14,21 @@ const require = createRequire(import.meta.url);
 
 async function main() {
   const fileLevel = Number(readFileSync(join(root, '.ramp-level'), 'utf8').trim());
-  const mod = await import(join(root, 'functions/_lib/programmaticPage.ts'));
-  // tsx may wrap named exports under .default
-  const m = mod.default ?? mod;
-  const embedded = m.EMBEDDED_RAMP_LEVEL;
+  const edgeMod = await import(join(root, 'functions/_lib/embeddedRamp.ts'));
+  const edge = edgeMod.default ?? edgeMod;
+  const embedded = edge.EMBEDDED_RAMP_LEVEL;
+
+  const pageMod = await import(join(root, 'functions/_lib/programmaticPage.ts'));
+  const m = pageMod.default ?? pageMod;
   const limit = m.SITEMAP_PUBLIC_LIMIT;
   const chunks = m.SITEMAP_PUBLIC_CHUNKS;
 
   const problems = [];
   if (embedded !== fileLevel) {
-    problems.push(`EMBEDDED_RAMP_LEVEL=${embedded} does not match .ramp-level=${fileLevel}`);
+    problems.push(`functions/_lib/embeddedRamp.ts EMBEDDED_RAMP_LEVEL=${embedded} does not match .ramp-level=${fileLevel}`);
+  }
+  if (m.EMBEDDED_RAMP_LEVEL !== fileLevel) {
+    problems.push(`programmaticPage re-export EMBEDDED_RAMP_LEVEL=${m.EMBEDDED_RAMP_LEVEL} ≠ .ramp-level=${fileLevel}`);
   }
   if (limit !== m.RAMP_SITEMAP_LIMITS[embedded]) {
     problems.push(`SITEMAP_PUBLIC_LIMIT=${limit} mismatch for ramp ${embedded}`);

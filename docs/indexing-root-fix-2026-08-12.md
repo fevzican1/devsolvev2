@@ -28,3 +28,16 @@ All 20M pages are **indexable** (200, unique title/desc/H1, score ≥90, guideli
 ## Manual step (required)
 
 Cloudflare Dashboard → Security → Settings → **Security Level: Essentially Off** (or Medium). This agent’s token cannot change that setting.
+
+## Build fix (static link audit)
+
+Guides/hubs must only link to the ≤5k **statically exported** `/k/` priority set.
+Edge pages still deep-link across the full corpus. Linking edge-only ordinals
+from static HTML failed `internal-link-redirect-audit` and blocked deploy.
+
+## Ramp auto-advance
+
+Weekly workflow (`.github/workflows/ramp-auto-advance.yml`) advances when GSC
+gates pass. It now updates **both** `.ramp-level` and
+`functions/_lib/embeddedRamp.ts` so the live edge sitemap grows with the ramp
+(500k → 2M → … → 20M). Until gates pass, level stays at 0.

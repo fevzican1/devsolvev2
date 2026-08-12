@@ -1,6 +1,6 @@
 import { guideRegistry } from '../../content/guides';
 import { toolRegistry } from '../../tools/registry';
-import { getSlugByIndex } from '../../data/programmatic';
+import { staticProgrammaticSlugs } from '../programmatic/staticPaths';
 
 const ROTATION_STEP = 7919;
 
@@ -54,19 +54,19 @@ function buildEditorialCandidates(): DiscoveryLink[] {
 }
 
 /**
- * Weekly-rotating /k/ corpus seeds from the ramp-public window (first 500k).
- * Hubs that only linked guides/tools starved Googlebot of paths into the
- * long-tail corpus; a modest, rotating set restores crawl discovery without
- * spamming thousands of near-duplicate anchors on every hub.
+ * Weekly-rotating /k/ seeds from the STATIC EXPORT set only (≤5k priority).
+ * Never emit edge-only corpus URLs from hubs — those fail the static link audit.
  */
 function buildCorpusCandidates(hubPath: string, count: number): DiscoveryLink[] {
+  const pool = staticProgrammaticSlugs;
+  if (pool.length === 0) return [];
+
   const seed = fallbackSeedForHub(hubPath);
   const links: DiscoveryLink[] = [];
   const seen = new Set<string>();
-  const window = 500_000;
   for (let i = 0; links.length < count && i < count * 8; i += 1) {
-    const index = (seed + i * ROTATION_STEP) % window;
-    const slug = getSlugByIndex(index);
+    const index = (seed + i * ROTATION_STEP) % pool.length;
+    const slug = pool[index];
     if (!slug || seen.has(slug)) continue;
     seen.add(slug);
     const label = slug.replace(/-\d+$/, '').split('-').slice(0, 6).join(' ');
@@ -80,8 +80,7 @@ function buildCorpusCandidates(hubPath: string, count: number): DiscoveryLink[] 
 }
 
 /**
- * Editorial hub links + a rotating slice of real /k/ corpus URLs.
- * Mix keeps authority on product pages while feeding crawl discovery.
+ * Editorial hub links + a rotating slice of statically-exported /k/ URLs.
  */
 function buildHubLinkSnapshot(hubPath: string, count: number): HubLinkSnapshot {
   const normalizedHubPath = normalizeHubPath(hubPath);
