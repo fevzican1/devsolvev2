@@ -69,6 +69,7 @@ import {
 } from '../functions/_lib/programmaticPage.ts';
 import { scorePage, MIN_INDEXABLE_SCORE } from './lib/ai-quality-scoring.mjs';
 import { guidelineDigest } from './lib/search-guidelines.mjs';
+import { agentBanner, AGENT_VERSION, COST_MODEL } from './lib/ai-indexing-agent.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
@@ -90,6 +91,9 @@ function fail(phase, detail) {
 }
 
 console.log('[verify-edge-corpus-quality] auditing the exact bytes the edge serves');
+console.log(agentBanner());
+console.log(`  Agent version:      ${AGENT_VERSION}`);
+console.log(`  Cost model:         Function-on-miss=${COST_MODEL.functionOnlyOnCacheMiss} LLM=${COST_MODEL.llmApiCalls} Workers=${COST_MODEL.cloudflareWorkers} cloaking=${!COST_MODEL.identicalHtmlForAllUserAgents}`);
 console.log(`  Corpus size:        ${CORPUS_SIZE.toLocaleString()}`);
 console.log(`  Rulebook:           scripts/lib/search-guidelines.mjs (${guidelineDigest().length} cited rules)`);
 console.log(`  Indexable bar:      score >= ${MIN_INDEXABLE_SCORE} AND zero critical guideline violations`);

@@ -217,6 +217,34 @@ export const DOCUMENT_RULES = [
       return null;
     },
   },
+  {
+    id: 'entity-definition',
+    source: 'BING §16 (define entities clearly and consistently)',
+    severity: 'major',
+    requirement: 'The primary tool/topic entity is named and defined on the page itself.',
+    evaluate: (s) => (s.hasEntityDefinition ? null : 'missing explicit entity definition block'),
+  },
+  {
+    id: 'early-answer',
+    source: 'BING §18 (surface key information early)',
+    severity: 'major',
+    requirement: 'A data-snippet answer appears near the top of <main>, before long secondary sections.',
+    evaluate: (s) => (s.hasEarlyAnswer ? null : 'no early data-snippet answer in the opening of <main>'),
+  },
+  {
+    id: 'single-topic',
+    source: 'BING §17 (focus each URL on a single topic)',
+    severity: 'major',
+    requirement: 'Title and H1 share a primary topic token so the URL stays single-intent.',
+    evaluate: (s) => (s.topicAligned ? null : 'title and H1 do not share a primary topic token'),
+  },
+  {
+    id: 'decision-guide',
+    source: 'BING §11 / §15 (clear, focused, independently verifiable content)',
+    severity: 'major',
+    requirement: 'A decision guide states when this exact workflow applies and when it does not.',
+    evaluate: (s) => (s.hasDecisionGuide ? null : 'missing when-to-use / when-not-to-use decision guide'),
+  },
 ];
 
 /**

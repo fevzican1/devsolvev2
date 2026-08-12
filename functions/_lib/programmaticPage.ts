@@ -39,15 +39,14 @@ export const URLS_PER_SITEMAP = 50_000;
 export const TARGET_CORPUS_SIZE = 20_000_000;
 
 /*
- * Bump this whenever the generated content changes. It drives three things
- * that only work if they move together: the <lastmod> in every sitemap entry
- * and the Last-Modified header (so Bing and Google know to re-crawl —
- * guidelines #3 and #19), the per-URL ETag (so an unchanged page can still be
- * answered with a cheap 304), and the edge cache key (so a deploy cannot keep
- * serving the previous version of a page out of the colo cache).
+ * Bump when the AI Indexing Agent changes the rendered HTML. It drives three
+ * things that must move together: sitemap <lastmod> + Last-Modified (Bing #3 /
+ * #19), per-URL ETag (cheap 304s), and the edge cache key (so a deploy cannot
+ * keep serving the previous HTML from colo cache). A new version orphans old
+ * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-12T00:00:00.000Z';
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '');
+export const CONTENT_UPDATED_AT = '2026-08-12T14:00:00.000Z';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'b';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -1041,6 +1040,12 @@ export interface PageContent {
   description: string;
   h1: string;
   intro: string[];
+  /** Bing §16 — explicit entity naming so grounding can cite a defined thing. */
+  entity: { name: string; definition: string; alsoKnownAs: string[] };
+  /** Bing §11/§15 — when this exact URL applies vs neighbouring siblings. */
+  decision: { heading: string; when: string[]; notWhen: string[]; verdict: string };
+  /** Bing §15 — acceptance criteria a reviewer can verify independently. */
+  acceptance: string[];
   keyTakeaways: string[];
   steps: string[];
   pitfalls: string[];
@@ -1108,6 +1113,45 @@ function buildContent(page: ResolvedPage): PageContent {
   ];
   const intro = introVariants[seed % introVariants.length];
 
+  // Bing §16: name the primary entity once, early, with a definition that
+  // stands alone — grounding engines cite entities, not vague page topics.
+  const entity = {
+    name: `${tn} · ${capitalise(li)}`,
+    definition: `${tn} is the free, browser-local DevSolve tool used on this URL to ${li} ${sv.phrase} for a ${la} during ${TASK_PHRASE[task] ?? lt}, scoped specifically to ${cv.phrase}. The page's single topic is that combination — not a generic overview of ${cd.field}.`,
+    alsoKnownAs: [
+      `${capitalise(li)} with ${tn}`,
+      `${la} ${TASK_PHRASE[task] ?? lt} workflow`,
+      `${sv.micro} ${cv.micro} guide`,
+    ],
+  };
+
+  // Bing §11/§15/§17: make this URL's applicability explicit so sibling pages
+  // (same tool, different style×context) are not near-duplicates.
+  const decision = {
+    heading: `When this exact ${li} guide applies`,
+    when: [
+      `You are a ${la} whose immediate job is ${TASK_PHRASE[task] ?? lt}, and you need to ${li} ${sv.phrase}.`,
+      `The delivery setting is ${cv.phrase}, where the first constraint is time-to-trustworthy-answer rather than polish.`,
+      `The execution style on this URL is ${sv.phrase}, which changes tooling, privacy, and hand-off expectations versus sibling guides.`,
+      `You need a result that another ${la} can regenerate from the same sample without shared tribal knowledge.`,
+    ],
+    notWhen: [
+      `You need a different execution style (for example, not ${sv.phrase}) — open the sibling guide that matches that style instead of stretching this one.`,
+      `The work is outside ${cv.phrase}; neighbouring context pages cover those constraints with different acceptance criteria.`,
+      `You only need a one-line definition of ${cd.field} with no worked verification — start from the tool page, not this scenario guide.`,
+      `You are batching millions of records server-side; keep this page as the reference check and automate the bulk path separately.`,
+    ],
+    verdict: `Use this URL when — and only when — a ${la} must ${li} ${sv.phrase} for ${cv.phrase} while doing ${TASK_PHRASE[task] ?? lt}. That single-topic focus is what makes the page eligible as a grounding citation rather than a generic hub.`,
+  };
+
+  const acceptance = [
+    `Input sample is representative of payloads seen ${cv.phrase}, not a toy string that hides edge cases.`,
+    `The ${tn} run is performed ${sv.phrase}, and the same input + settings reproduce the same output for a second person.`,
+    `Output is compared to a known-good reference before it influences ${TASK_PHRASE[task] ?? lt}.`,
+    `${ac.concern} is explicitly checked, because that is the failure mode that matters for a ${la}.`,
+    `Evidence (input, settings, output) is recorded next to the work item it supports.`,
+  ];
+
   // The section that makes each of the 180 sibling URLs a genuinely different
   // page: what changes about this workflow when it is run in this execution
   // style, in this delivery context.
@@ -1118,6 +1162,7 @@ function buildContent(page: ResolvedPage): PageContent {
       sv.practice,
       cv.demand,
       `Put together, that means the ${tn} is used here as a verification step rather than a convenience: ${ac.concern} is the risk that matters for a ${la}, and ${cv.phrase} is the setting where an unverified assumption is most expensive to discover late.`,
+      `Unlike a generic ${tn} overview, this guide refuses to mix unrelated intents: every section below stays inside ${li} × ${sv.micro} × ${cv.micro} so Bing and Google can treat the URL as a single, citable topic.`,
     ],
     checklist: [
       `Confirm the sample you paste is representative of the payloads you actually see ${cv.phrase}.`,
@@ -1297,7 +1342,7 @@ function buildContent(page: ResolvedPage): PageContent {
     // exists to answer, and they are the ones a grounding engine can quote.
     {
       question: `How do I ${li} ${sv.phrase} ${cv.phrase.startsWith('for ') ? cv.phrase : `for ${cv.phrase}`}?`,
-      answer: `${scenario.summary} ${sv.practice} Work from a small representative sample, run the ${tn}, and compare the output with a known-good reference before it is used anywhere else.`,
+      answer: `${scenario.summary} Prefer a small representative sample, run the ${tn}, and compare the output with a known-good reference before it is used anywhere else.`,
     },
     {
       question: `Why does ${cv.phrase} change how a ${la} approaches ${li}?`,
@@ -1316,7 +1361,28 @@ function buildContent(page: ResolvedPage): PageContent {
   const related = buildRelated(page);
   const description = identity.description;
 
-  return { title: pageTitle, description, h1, intro, keyTakeaways, steps, pitfalls, comparison, proTips, technical, useCases, glossary, faq, keywords, workedExample, related, scenario };
+  return {
+    title: pageTitle,
+    description,
+    h1,
+    intro,
+    entity,
+    decision,
+    acceptance,
+    keyTakeaways,
+    steps,
+    pitfalls,
+    comparison,
+    proTips,
+    technical,
+    useCases,
+    glossary,
+    faq,
+    keywords,
+    workedExample,
+    related,
+    scenario,
+  };
 }
 
 function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
@@ -1370,7 +1436,7 @@ function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
       try { output = JSON.stringify(JSON.parse(sample), null, 2); } catch { output = sample; }
   }
 
-  const note = `Fixture ${fixtureId} is derived deterministically from this page's slug, so it is unique to /k/${slug} and reproduces byte-for-byte on any machine — which is what makes it admissible as evidence in a review or postmortem.`;
+  const note = `Fixture ${fixtureId} is derived deterministically from this page's slug, so it is unique to /k/${slug} and reproduces byte-for-byte on any machine — which is what makes it admissible as evidence in a review or postmortem. Run it ${styleVocab(page).phrase} and judge the result against the constraints of ${contextVocab(page).phrase}.`;
   return { inputLabel, input, outputLabel, output, note };
 }
 
@@ -1468,7 +1534,10 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
       author: { '@type': 'Organization', name: 'DevSolve Editorial Team', url: `${origin}/about` },
       publisher: { '@type': 'Organization', name: 'DevSolve', url: origin, logo: { '@type': 'ImageObject', url: `${origin}/favicon.svg` } },
       mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
-      about: { '@type': 'Thing', name: `${label(page.intent)} with ${toolName(page.tool)}` },
+      about: [
+        { '@type': 'Thing', name: `${label(page.intent)} with ${toolName(page.tool)}` },
+        { '@type': 'DefinedTerm', name: c.entity.name, description: c.entity.definition },
+      ],
     },
     {
       '@context': 'https://schema.org', '@type': 'BreadcrumbList',
@@ -1529,6 +1598,12 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     .map((p, i) => `<p class="lead"${i === 0 ? ' data-snippet' : ''}>${escapeHtml(p)}</p>`)
     .join('');
 
+  // Bing §16 entity block — early, explicit, citable.
+  const entity = `<section id="entity" data-entity aria-labelledby="entity-heading"><h2 id="entity-heading">What this page is about</h2>`
+    + `<p data-snippet><strong>${escapeHtml(c.entity.name)}</strong> — ${escapeHtml(c.entity.definition)}</p>`
+    + `<p class="meta">Also referred to as: ${c.entity.alsoKnownAs.map((a) => escapeHtml(a)).join(' · ')}</p>`
+    + `</section>`;
+
   const takeaways = `<section aria-labelledby="key-takeaways"><h2 id="key-takeaways">Key takeaways</h2><div class="tk" data-snippet>${renderList(c.keyTakeaways)}</div></section>`;
 
   const scenario = `<section aria-labelledby="scenario"><h2 id="scenario">${escapeHtml(c.scenario.heading)}</h2>`
@@ -1536,6 +1611,14 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + c.scenario.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join('')
     + renderList(c.scenario.checklist)
     + `</section>`;
+
+  const decision = `<section id="decision" data-decision aria-labelledby="decision-heading"><h2 id="decision-heading">${escapeHtml(c.decision.heading)}</h2>`
+    + `<p data-snippet>${escapeHtml(c.decision.verdict)}</p>`
+    + `<h3>Use this guide when</h3>${renderList(c.decision.when)}`
+    + `<h3>Choose a different URL when</h3>${renderList(c.decision.notWhen)}`
+    + `</section>`;
+
+  const acceptance = `<section aria-labelledby="acceptance"><h2 id="acceptance">Acceptance criteria (verify independently)</h2>${renderList(c.acceptance)}</section>`;
 
   const stepsHtml = `<section aria-labelledby="steps"><h2 id="steps">Step-by-step: ${escapeHtml(label(page.intent))} with ${escapeHtml(toolName(page.tool))}</h2>${renderList(c.steps, true)}</section>`;
 
@@ -1580,13 +1663,18 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + `<div class="links"><a href="/about">About &amp; editorial standards</a><a href="/contact">Contact</a><a href="/legal/privacy">Privacy</a><a href="/legal/publisher-ethics">Publisher ethics</a></div>`
     + `<p class="meta">Last updated ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}. Canonical URL: <code>/k/${escapeHtml(page.slug)}</code></p></footer>`;
 
+  // Order is intentional for Bing §18 (early answer) and §16 (entity first):
+  // H1 → lead answer → entity → takeaways → scenario/decision → body.
   const body = `<body><div class="wrap"><main>`
     + crumbs
     + `<h1>${escapeHtml(c.h1)}</h1>`
     + `<p class="meta">A DevSolve guide for ${escapeHtml(label(page.audience))} teams · ${escapeHtml(clusterLabel)} · updated ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}</p>`
     + intro
+    + entity
     + takeaways
     + scenario
+    + decision
+    + acceptance
     + stepsHtml
     + example
     + pitfalls
