@@ -35,7 +35,7 @@
  *                   the canonical URL, and unknown slugs 404.
  *
  *   E. SIBLING BODY  style×context siblings must stay below the near-duplicate
- *                   Jaccard ceiling (Bing abuse: auto-gen / duplicate content).
+ *                   5-gram Jaccard ceiling (Bing abuse: auto-gen / duplicate).
  *
  * COST: pure in-process string analysis. No network, no LLM, no Cloudflare
  * Function invocation — it runs during the build only.
@@ -45,7 +45,7 @@
  *                              set lower for a fast local run)
  *   EDGE_VERIFY_SAMPLE         random full-render sample size (default 20000)
  *   EDGE_VERIFY_COMBO_STRIDE   render every Nth template combination (default 1)
- *   EDGE_VERIFY_SIBLING_STEMS  sibling uniqueness stems (default 400)
+ *   EDGE_VERIFY_SIBLING_STEMS  sibling uniqueness stems (default 800)
  *   EDGE_VERIFY_SIBLING_MODS   modifiers compared per stem (default 3)
  *   EDGE_VERIFY_MAX_FAIL       failures recorded before stopping (default 25)
  */
@@ -374,11 +374,12 @@ console.log(`    canonical ${routingChecks.canonical}, redirect ${routingChecks.
 /* ------------------------------------------------------------------------- */
 /*
  * Same (pair × audience × task), different style×context modifiers must not
- * share near-identical <main> copy. 3-gram Jaccard ≤ maxSiblingBodyJaccard.
+ * share near-identical <main> copy. N-gram Jaccard ≤ maxSiblingBodyJaccard.
  */
-const SIBLING_STEMS = Number(process.env.EDGE_VERIFY_SIBLING_STEMS ?? 400);
+const SIBLING_STEMS = Number(process.env.EDGE_VERIFY_SIBLING_STEMS ?? 800);
 const SIBLING_MODS = Number(process.env.EDGE_VERIFY_SIBLING_MODS ?? 3);
 const MAX_SIBLING_JACCARD = QUALITY_CONTRACT.maxSiblingBodyJaccard;
+const SHINGLE_N = QUALITY_CONTRACT.siblingShingleSize ?? 4;
 
 function extractMainText(html) {
   const main = html.match(/<main[\s\S]*?<\/main>/i)?.[0] ?? html;
@@ -398,7 +399,7 @@ function extractMainText(html) {
   return stripped;
 }
 
-function wordShingles(text, n = 3) {
+function wordShingles(text, n = SHINGLE_N) {
   const words = text.split(' ').filter(Boolean);
   const set = new Set();
   for (let i = 0; i + n <= words.length; i += 1) {
@@ -414,7 +415,7 @@ function jaccard(a, b) {
   return union === 0 ? 0 : inter / union;
 }
 
-console.log(`\n[E] sibling body uniqueness — ${SIBLING_STEMS} stems × ${SIBLING_MODS} modifiers (3-gram Jaccard ≤ ${MAX_SIBLING_JACCARD})`);
+console.log(`\n[E] sibling body uniqueness — ${SIBLING_STEMS} stems × ${SIBLING_MODS} modifiers (${SHINGLE_N}-gram Jaccard ≤ ${MAX_SIBLING_JACCARD})`);
 const siblingStats = { stems: 0, pairs: 0, maxJaccard: 0, sumJaccard: 0 };
 let rng3 = 0xc2b2ae35 >>> 0;
 const nextStem = () => {
