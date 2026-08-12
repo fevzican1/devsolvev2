@@ -12,8 +12,9 @@
  * gate can never drift apart.
  */
 import {
-  CORPUS_SIZE,
   URLS_PER_SITEMAP,
+  SITEMAP_PUBLIC_LIMIT,
+  SITEMAP_PUBLIC_CHUNKS,
   CONTENT_UPDATED_AT,
   CONTENT_VERSION,
   pageForIndex,
@@ -36,6 +37,17 @@ function edgeCache(): Cache | undefined {
 
 const STREAM_CHUNK_SIZE = 250;
 const LAST_MODIFIED_HTTP = new Date(CONTENT_UPDATED_AT).toUTCString();
+
+/**
+ * Sitemap index lastmod refreshes every UTC day so Bing sees a daily-updated
+ * sitemap (Webmaster Tools: "updated at least once a day") without lying about
+ * per-URL content freshness — URL entries still use CONTENT_UPDATED_AT.
+ */
+function sitemapIndexLastmod(): string {
+  const day = new Date().toISOString().slice(0, 10);
+  const contentDay = CONTENT_UPDATED_AT.slice(0, 10);
+  return `${day > contentDay ? day : contentDay}T00:00:00.000Z`;
+}
 
 function contentHeaders(type: string, cache = 'public, max-age=300, s-maxage=604800, stale-while-revalidate=86400'): Headers {
   return new Headers({
@@ -93,24 +105,31 @@ function pageResponse(page: ResolvedPage, origin: string): Response {
 }
 
 function sitemapIndexResponse(origin: string): Response {
-  const entries = Array.from({ length: CORPUS_SIZE / URLS_PER_SITEMAP }, (_, i) => `<sitemap><loc>${origin}/sitemaps/sitemap-${i + 1}.xml</loc><lastmod>${CONTENT_UPDATED_AT}</lastmod></sitemap>`).join('');
-  return new Response(`<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries}</sitemapindex>`, { headers: contentHeaders('application/xml; charset=utf-8') });
+  // Only advertise the ramp-limited public set — never the full 20M corpus —
+  // so crawl budget concentrates on pages that can realistically index first.
+  const lastmod = sitemapIndexLastmod();
+  const entries = Array.from({ length: SITEMAP_PUBLIC_CHUNKS }, (_, i) => `<sitemap><loc>${origin}/sitemaps/sitemap-${i + 1}.xml</loc><lastmod>${lastmod}</lastmod></sitemap>`).join('');
+  const headers = contentHeaders('application/xml; charset=utf-8', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
+  return new Response(`<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries}</sitemapindex>`, { headers });
 }
 
 function sitemapResponse(part: number, origin: string): Response {
   const first = (part - 1) * URLS_PER_SITEMAP;
+  const end = Math.min(first + URLS_PER_SITEMAP, SITEMAP_PUBLIC_LIMIT);
   const encoder = new TextEncoder();
   let cursor = first;
+  // Priority chunk (first 200k) gets daily changefreq; the rest weekly/monthly
+  // so crawlers know where to spend budget (Bing guideline #3 / #21).
+  const changefreq = first < 200_000 ? 'daily' : first < 500_000 ? 'weekly' : 'monthly';
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(encoder.encode('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'));
     },
     pull(controller) {
       let xml = '';
-      const end = Math.min(first + URLS_PER_SITEMAP, CORPUS_SIZE);
       for (let count = 0; cursor < end && count < STREAM_CHUNK_SIZE; cursor += 1, count += 1) {
         const page = pageForIndex(cursor);
-        if (page) xml += `<url><loc>${origin}/k/${page.slug}</loc><lastmod>${CONTENT_UPDATED_AT}</lastmod><changefreq>monthly</changefreq></url>`;
+        if (page) xml += `<url><loc>${origin}/k/${page.slug}</loc><lastmod>${CONTENT_UPDATED_AT}</lastmod><changefreq>${changefreq}</changefreq></url>`;
       }
       if (xml) controller.enqueue(encoder.encode(xml));
       if (cursor >= end) {
@@ -119,7 +138,8 @@ function sitemapResponse(part: number, origin: string): Response {
       }
     },
   });
-  return new Response(stream, { headers: contentHeaders('application/xml; charset=utf-8') });
+  const headers = contentHeaders('application/xml; charset=utf-8', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
+  return new Response(stream, { headers });
 }
 
 function notFound(): Response {
@@ -133,7 +153,7 @@ function buildResponse(pathname: string, origin: string): Response | undefined {
   const sitemapMatch = pathname.match(/^\/sitemaps\/sitemap-(\d+)\.xml$/);
   if (sitemapMatch) {
     const part = Number(sitemapMatch[1]);
-    return part >= 1 && part <= CORPUS_SIZE / URLS_PER_SITEMAP ? sitemapResponse(part, origin) : notFound();
+    return part >= 1 && part <= SITEMAP_PUBLIC_CHUNKS ? sitemapResponse(part, origin) : notFound();
   }
   const match = pathname.match(/^\/k\/([a-z0-9-]+)$/);
   if (match) {
@@ -167,8 +187,12 @@ export const onRequest = async (context: PagesContext): Promise<Response> => {
   const cache = request.method === 'GET' ? edgeCache() : undefined;
   // The content version is part of the cache key (never of the public URL), so
   // a deploy that changes the generated HTML cannot be shadowed by entries
-  // cached from the previous version.
-  const cacheKey = new Request(`${url.origin}${pathname}?__v=${CONTENT_VERSION}`, { method: 'GET' });
+  // cached from the previous version. Sitemap keys also include the UTC day so
+  // the index lastmod refreshes daily without a full Function recompute storm.
+  const dayKey = pathname.startsWith('/sitemap') || pathname === '/sitemap.xml'
+    ? new Date().toISOString().slice(0, 10)
+    : '';
+  const cacheKey = new Request(`${url.origin}${pathname}?__v=${CONTENT_VERSION}${dayKey ? `&__d=${dayKey}` : ''}`, { method: 'GET' });
   if (cache) {
     const hit = await cache.match(cacheKey).catch(() => undefined);
     if (hit) return hit;

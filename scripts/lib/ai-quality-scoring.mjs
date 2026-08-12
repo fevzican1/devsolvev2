@@ -202,7 +202,7 @@ export function scoreThinContent(wordCount) {
  */
 export function scoreMetadata(signals) {
   let score = 0;
-  if (signals.titleLength >= 30 && signals.titleLength <= 70) score += 5;
+  if (signals.titleLength >= TITLE_MIN && signals.titleLength <= TITLE_MAX) score += 5;
   else if (signals.titleLength >= 20 && signals.titleLength < 30) score += 3;
   if (signals.descriptionLength >= 150 && signals.descriptionLength <= 160) score += 5;
   else if (signals.descriptionLength >= 120 && signals.descriptionLength <= 165) score += 3;
@@ -502,7 +502,7 @@ function trimToWord(value, max) {
 }
 
 export function repairTitle(rawTitle, limits = {}) {
-  const { max = 70, min = 30 } = limits;
+  const { max = TITLE_MAX, min = TITLE_MIN } = limits;
   const title = rawTitle.replace(/\s+/g, ' ').trim();
   if (title.length <= max && title.length >= min) return title;
   if (title.length > max) {

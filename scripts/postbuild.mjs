@@ -42,6 +42,14 @@ try {
 }
 
 try {
+  console.log('Verifying ramp-level ↔ edge sitemap sync...');
+  execSync(`node --import tsx ${join(__dirname, 'verify-ramp-sitemap-sync.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('Ramp sitemap sync check FAILED');
+  hardFailures.push('verify-ramp-sitemap-sync');
+}
+
+try {
   console.log('Generating core sitemap files with next-sitemap...');
   execSync('npm run sitemap:core', { stdio: 'inherit' });
 } catch (error) {
@@ -180,6 +188,15 @@ try {
   execSync(`node ${join(__dirname, 'indexnow-ping.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
   console.log('IndexNow ping completed with warnings — see logs above');
+}
+
+// Free discovery pings (WebSub hubs + Google sitemap ping). Zero CF cost,
+// guideline-safe (not a link scheme). Best-effort only.
+try {
+  console.log('Running free discovery pings (WebSub + sitemap notify)...');
+  execSync(`node ${join(__dirname, 'free-discovery-ping.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('Free discovery ping completed with warnings');
 }
 
 try {

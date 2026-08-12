@@ -12,6 +12,8 @@
     "ai-quality:edge": "node --import tsx scripts/verify-edge-corpus-quality.mjs",
     "ai-quality:sitemap": "node scripts/generate-ai-quality-sitemaps.mjs",
     "ai-quality:indexnow": "node scripts/ai-quality-indexnow-submit.mjs",
+    "ramp:verify": "node --import tsx scripts/verify-ramp-sitemap-sync.mjs",
+    "discovery:ping": "node scripts/free-discovery-ping.mjs",
     "feed": "node scripts/generate-feed.mjs",
     "edge:waf": "node scripts/deploy-waf-bot-block.mjs",
     "edge:cache-rules": "node scripts/deploy-cache-rules.mjs",
