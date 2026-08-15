@@ -63,9 +63,11 @@ const BING_UA_MARKERS = [
 /** Cloudflare-verified search crawler — never block. */
 const VERIFIED_SEARCH_CRAWLER = 'cf.verified_bot_category eq "Search Engine Crawler"';
 
-/** Free-plan WAF: use contains/lower(), not regex matches (Business+ only). */
+/** Free-plan WAF: use contains/lower(), not regex matches (Business+ only).
+ * Always parenthesize the OR-group so `not uaContainsAny(...)` is safe.
+ */
 function uaContainsAny(markers) {
-  return markers.map((m) => `(lower(http.user_agent) contains "${m}")`).join(' or ');
+  return `(${markers.map((m) => `lower(http.user_agent) contains "${m}"`).join(' or ')})`;
 }
 
 /**
@@ -93,6 +95,8 @@ const WAF_SITEWIDE_BAD_BOT_BLOCK = `(
     'chrome-extension',
     'moz-extension',
     'safari-web-extension',
+    'edge/12.246',
+    'chrome/42.0.2311.135',
   ])}
   or (
     lower(http.user_agent) contains "searchbot"
@@ -128,18 +132,17 @@ const GOOGLE_UA_MARKERS_COMPACT = [
 const BING_UA_MARKERS_COMPACT = ['bingbot', 'bingpreview', 'adidxbot', 'msnbot'];
 
 /**
- * Rule 0 — SKIP for verified search crawlers AND real browsers (sitewide).
- * Real Googlebot/Bingbot (Cloudflare-verified OR right UA + right ASN), the
- * GSC URL Inspection tool, and genuine browsers bypass: Security Level
- * (I'm Under Attack challenges), Browser Integrity Check, Hotlink Protection,
- * UA rules, Zone Lockdown, rate limiting, managed WAF rules, Super Bot Fight
- * Mode and the remaining custom rules.
+ * Rule 0 — SKIP Security Level / Bot Fight / integrity checks for verified
+ * search crawlers AND real browsers (sitewide).
  *
- * Why browsers are included: with Security Level = "I'm Under Attack", every
- * HTML request (including /, /tools, /guides) returns cf-mitigated:challenge
- * to non-skipped clients. That blocks users, social unfurls, and can suppress
- * crawl/render signals even when Googlebot itself is skipped. Scrapers still
- * lack browser Client Hints and remain subject to Under Attack + rule 3.
+ * Critical: this skip must NOT skip the remaining custom WAF ruleset
+ * (`ruleset: current` / product `waf`). The previous skip did, which meant
+ * Chrome + Client Hints scrapers never hit the /k/* allowlist. Cache hit
+ * ratio then collapsed because unique /k/ URLs were rendered on every miss.
+ *
+ * Browsers still skip I'm Under Attack challenges (securityLevel) so humans
+ * and social unfurls are not challenged. Custom WAF (AI-indexer block, fake
+ * Googlebot, allowlist) still evaluates.
  */
 const WAF_VERIFIED_CRAWLER_SKIP = `(
   ${VERIFIED_SEARCH_CRAWLER}
@@ -180,24 +183,20 @@ const WAF_VERIFIED_CRAWLER_SKIP = `(
  */
 const SKIP_PARAMETER_VARIANTS = [
   {
-    ruleset: 'current',
     phases: ['http_ratelimit', 'http_request_firewall_managed', 'http_request_sbfm'],
-    products: ['zoneLockdown', 'uaBlock', 'bic', 'hot', 'securityLevel', 'rateLimit', 'waf'],
-  },
-  {
-    ruleset: 'current',
-    phases: ['http_ratelimit', 'http_request_firewall_managed'],
-    products: ['zoneLockdown', 'uaBlock', 'bic', 'hot', 'securityLevel', 'rateLimit', 'waf'],
-  },
-  {
-    ruleset: 'current',
-    products: ['zoneLockdown', 'uaBlock', 'bic', 'hot', 'securityLevel', 'rateLimit', 'waf'],
-  },
-  {
-    ruleset: 'current',
     products: ['zoneLockdown', 'uaBlock', 'bic', 'hot', 'securityLevel'],
   },
-  { ruleset: 'current' },
+  {
+    products: ['zoneLockdown', 'uaBlock', 'bic', 'hot', 'securityLevel'],
+  },
+  {
+    products: ['securityLevel', 'bic', 'hot'],
+  },
+  // Last resort only — skips remaining custom WAF (do not prefer).
+  {
+    ruleset: 'current',
+    products: ['securityLevel', 'bic', 'hot'],
+  },
 ];
 
 /**
@@ -229,7 +228,8 @@ const WAF_FAKE_SEARCH_BOT_EXPRESSION = kPath(`(
  * are blocked by Rule 2 before this rule is ever evaluated.
  */
 const WAF_ALLOWLIST_EXPRESSION = kPath(`(
-  ${uaContainsAny([
+  (
+    ${uaContainsAny([
     'bot',
     'crawler',
     'spider',
@@ -254,58 +254,43 @@ const WAF_ALLOWLIST_EXPRESSION = kPath(`(
     'facebookexternalhit',
     'whatsapp',
   ])}
-)
-or not (
-  (
-    cf.client.bot
-    and ${VERIFIED_SEARCH_CRAWLER}
+    and not ${uaContainsAny(['googlebot', 'bingbot', 'adsbot-google', 'google-inspectiontool', 'msnbot'])}
   )
-  or ${uaContainsAny(GOOGLE_INSPECTION_UA)}
-  or ${uaContainsAny(GOOGLE_UA_MARKERS_COMPACT)}
-  or ${uaContainsAny(BING_UA_MARKERS_COMPACT)}
-  or (lower(http.user_agent) contains "firefox/" and lower(http.user_agent) contains "gecko/")
-  or (
-    lower(http.user_agent) contains "safari/"
-    and not lower(http.user_agent) contains "chrome/"
-    and not lower(http.user_agent) contains "chromium/"
-    and not lower(http.user_agent) contains "crios/"
-    and not lower(http.user_agent) contains "edg/"
-    and not lower(http.user_agent) contains "opr/"
-    and lower(http.user_agent) contains "version/"
-  )
-  or lower(http.user_agent) contains "crios/"
-  or (
-    lower(http.user_agent) contains "chrome/"
-    and len(http.request.headers["sec-ch-ua"][0]) > 2
-  )
-  or (
-    lower(http.user_agent) contains "edg/"
-    and len(http.request.headers["sec-ch-ua"][0]) > 2
-  )
-  or (lower(http.user_agent) contains "android" and lower(http.user_agent) contains "chrome/")
-  or lower(http.user_agent) contains "samsungbrowser/"
-  or (
-    (lower(http.user_agent) contains "iphone" or lower(http.user_agent) contains "ipad" or lower(http.user_agent) contains "ipod")
-    and lower(http.user_agent) contains "applewebkit/"
-    and lower(http.user_agent) contains "mobile/"
-    and not lower(http.user_agent) contains "bot"
-    and not lower(http.user_agent) contains "crawler"
-    and not lower(http.user_agent) contains "spider"
-    and not lower(http.user_agent) contains "facebookexternalhit"
-    and not lower(http.user_agent) contains "meta-webindexer"
-    and not lower(http.user_agent) contains "applebot"
-    and not lower(http.user_agent) contains "baiduspider"
-  )
-  or (
-    lower(http.user_agent) contains "android"
-    and lower(http.user_agent) contains "applewebkit/"
-    and lower(http.user_agent) contains "mobile"
-    and not lower(http.user_agent) contains "bot"
-    and not lower(http.user_agent) contains "crawler"
-    and not lower(http.user_agent) contains "spider"
-    and not lower(http.user_agent) contains "baiduspider"
-    and not lower(http.user_agent) contains "semrushbot"
-    and not lower(http.user_agent) contains "ahrefsbot"
+  or not (
+    (
+      cf.client.bot
+      and ${VERIFIED_SEARCH_CRAWLER}
+    )
+    or ${uaContainsAny(GOOGLE_INSPECTION_UA)}
+    or ${uaContainsAny(GOOGLE_UA_MARKERS_COMPACT)}
+    or ${uaContainsAny(BING_UA_MARKERS_COMPACT)}
+    or (lower(http.user_agent) contains "firefox/" and lower(http.user_agent) contains "gecko/")
+    or (
+      lower(http.user_agent) contains "safari/"
+      and not lower(http.user_agent) contains "chrome/"
+      and not lower(http.user_agent) contains "chromium/"
+      and not lower(http.user_agent) contains "crios/"
+      and not lower(http.user_agent) contains "edg/"
+      and not lower(http.user_agent) contains "opr/"
+      and lower(http.user_agent) contains "version/"
+    )
+    or lower(http.user_agent) contains "crios/"
+    or (
+      lower(http.user_agent) contains "chrome/"
+      and len(http.request.headers["sec-ch-ua"][0]) > 2
+      and len(http.request.headers["sec-fetch-mode"][0]) > 1
+    )
+    or (
+      lower(http.user_agent) contains "edg/"
+      and len(http.request.headers["sec-ch-ua"][0]) > 2
+    )
+    or lower(http.user_agent) contains "samsungbrowser/"
+    or (
+      (lower(http.user_agent) contains "iphone" or lower(http.user_agent) contains "ipad")
+      and lower(http.user_agent) contains "applewebkit/"
+      and lower(http.user_agent) contains "mobile/"
+      and not lower(http.user_agent) contains "bot"
+    )
   )
 )`);
 
@@ -485,7 +470,7 @@ async function main() {
       }),
     );
     console.log('Created WAF ruleset:', created.result.id);
-    console.log(`Deployed ${RULES.length} rules. Verified Google/Bing skip everything (Rule 0).`);
+    console.log(`Deployed ${RULES.length} rules. Skip does not bypass custom WAF (allowlist still runs).`);
     return;
   }
 
@@ -496,7 +481,7 @@ async function main() {
     }),
   );
   console.log('Updated WAF ruleset:', updated.result.id);
-  console.log(`Deployed ${RULES.length} rules. Verified Google/Bing skip everything (Rule 0).`);
+  console.log(`Deployed ${RULES.length} rules. Skip does not bypass custom WAF (allowlist still runs).`);
 }
 
 main().catch((err) => {

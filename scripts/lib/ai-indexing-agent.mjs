@@ -20,7 +20,7 @@
  */
 
 export const AGENT_ID = 'devsolve-ai-indexing-agent';
-export const AGENT_VERSION = '2026-08-12.4';
+export const AGENT_VERSION = '2026-08-15.1';
 
 /** Cost model — must stay true for every change to this system. */
 export const COST_MODEL = Object.freeze({
@@ -54,10 +54,9 @@ export const QUALITY_CONTRACT = Object.freeze({
   requireEarlyAnswer: true, // Bing §18
   requireUniqueTitleDescH1: true, // Bing §6 / Google duplicate reasons
   requireUniqueSiblingBodies: true, // Bing abuse: near-duplicate / auto-gen at scale
-  // 5-gram Jaccard — true near-duplicates cluster ≥0.80. After style/context
-  // bodyBlocks + exclusive step skeletons, observed sibling max ≈0.34; ceiling
-  // keeps a Cloudflare full-scan safety margin without relaxing content quality.
-  maxSiblingBodyJaccard: 0.38,
+  // Uniqueness comes from document archetypes + tool/intent facts, NOT from
+  // stuffing style/context into every sentence (that failed Bing quality).
+  maxSiblingBodyJaccard: 0.55,
   siblingShingleSize: 5,
   requireWorkedExample: true, // Bing §15 verifiability
   singleTopicPerUrl: true, // Bing §17

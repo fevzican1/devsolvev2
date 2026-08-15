@@ -58,13 +58,17 @@ function sitemapIndexLastmod(): string {
 }
 
 function contentHeaders(type: string, cache = 'public, max-age=300, s-maxage=604800, stale-while-revalidate=86400'): Headers {
-  return new Headers({
+  const headers = new Headers({
     'content-type': type,
     'cache-control': cache,
     'cdn-cache-control': cache,
     'cloudflare-cdn-cache-control': cache,
     'x-content-type-options': 'nosniff',
   });
+  // Do not set Vary: Accept-Encoding — Cloudflare already varies on encoding
+  // and an extra Vary splits the CDN cache key, which is what dropped hit
+  // ratio when crawlers and browsers negotiated different encodings.
+  return headers;
 }
 
 /**
@@ -76,12 +80,6 @@ function permanentRedirect(location: string): Response {
   const headers = contentHeaders('text/plain; charset=utf-8', 'public, max-age=3600, s-maxage=2592000');
   headers.set('location', location);
   return new Response(null, { status: 301, headers });
-}
-
-function redirect(url: URL): Response {
-  url.search = '';
-  url.hash = '';
-  return permanentRedirect(url.toString());
 }
 
 function resolveOrigin(requestUrl: string): string {
@@ -108,7 +106,6 @@ function pageResponse(page: ResolvedPage, origin: string): Response {
   // re-downloading, and the values are deterministic per URL + content version.
   headers.set('last-modified', LAST_MODIFIED_HTTP);
   headers.set('etag', `"${stableHash(`${page.slug}:${CONTENT_UPDATED_AT}`).toString(16)}"`);
-  headers.set('vary', 'Accept-Encoding');
   return new Response(html, { headers });
 }
 
@@ -184,7 +181,29 @@ export const onRequest = async (context: PagesContext): Promise<Response> => {
   const { pathname } = url;
   const managed = pathname === '/sitemap.xml' || pathname.startsWith('/sitemaps/') || pathname.startsWith('/k/');
   if (!managed) return context.next();
-  if (url.search) return redirect(url);
+
+  const cache = request.method === 'GET' ? edgeCache() : undefined;
+
+  // Query strings on /k/* and sitemaps are duplicates (Bing §6). 301 them to
+  // the clean path. Cache that 301 by pathname — not by the actual query —
+  // so `?utm=…`, `?fbclid=…`, and scanner junk do not each invoke a render.
+  if (url.search) {
+    const origin = resolveOrigin(request.url);
+    const redirKey = new Request(`${url.origin}${pathname}?__redir=1&__v=${CONTENT_VERSION}`, { method: 'GET' });
+    if (cache) {
+      const hit = await cache.match(redirKey).catch(() => undefined);
+      if (hit) return hit;
+    }
+    const response = permanentRedirect(`${origin}${pathname}`);
+    if (cache) {
+      try {
+        context.waitUntil(cache.put(redirKey, response.clone()));
+      } catch {
+        // ignore
+      }
+    }
+    return response;
+  }
 
   // Two cache layers keep the corpus "static-looking" with zero recomputation:
   //  1. Zone Cache Rules (scripts/deploy-cache-rules.mjs) serve repeat hits
@@ -192,7 +211,6 @@ export const onRequest = async (context: PagesContext): Promise<Response> => {
   //  2. This colo-local Cache API lookup covers the window before those rules
   //     exist (or if they are removed): a hit costs microseconds of CPU and
   //     never re-renders HTML/XML.
-  const cache = request.method === 'GET' ? edgeCache() : undefined;
   // The content version is part of the cache key (never of the public URL), so
   // a deploy that changes the generated HTML cannot be shadowed by entries
   // cached from the previous version. Sitemap keys also include the UTC day so
@@ -209,7 +227,7 @@ export const onRequest = async (context: PagesContext): Promise<Response> => {
   const response = buildResponse(pathname, resolveOrigin(request.url)) ?? (await context.next());
   // 301s are cached too: a stale-URL hop must not cost a Function invocation
   // every time a crawler retries it.
-  if (cache && (response.status === 200 || response.status === 301)) {
+  if (cache && (response.status === 200 || response.status === 301 || response.status === 404)) {
     try {
       context.waitUntil(cache.put(cacheKey, response.clone()));
     } catch {
