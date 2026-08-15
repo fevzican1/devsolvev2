@@ -103,6 +103,7 @@ const REAL_CRAWLER_CASES = [
     expect: [301],
     expectLocation: '/sitemap.xml',
     allowChallenge: true,
+    allowHostingBlock: true,
   })),
   ...WAF_BLOCK_BOTS.map(([name, ua]) => ({
     name: `${name} /k/*`,
