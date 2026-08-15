@@ -14,12 +14,13 @@
 # Own-product Payoneer checkout. Corpus pages link to /buy-dataset only.
 /buy-dataset             https://link.payoneer.com/Token?t=0E615C7FB99D418B97A4C371A6B47804&src=tpl  302
 
-# Sponsored infrastructure hops. Replace destinations with your referral URLs
-# (Vultr ?ref=, DigitalOcean m.do.co/c/, ScraperAPI fp_ref=). One-line change;
-# 20M pages keep linking to /go/*.
-/go/vultr                https://www.vultr.com/pricing/  302
-/go/digitalocean         https://www.digitalocean.com/try/free-trial-offer  302
-/go/scraperapi           https://www.scraperapi.com/  302
+# Sponsored infrastructure hops. Destinations are the live referral URLs.
+# Corpus/nav pages link only to /go/* so destinations can change in one file.
+/go/vultr                https://www.vultr.com/?ref=9918057  302
+/go/digitalocean         https://m.do.co/c/a23950359d91  302
+/go/scraperapi           https://www.scraperapi.com/?fp_ref=fevzican58  302
+/go/scraperapi-docs      https://www.scraperapi.com/documentation?fp_ref=fevzican58  302
+/go/scraperapi-pricing   https://www.scraperapi.com/pricing?fp_ref=fevzican58  302
 
 /sitemap_index.xml       /sitemap.xml  301
 /sitemaps.xml            /sitemap.xml  301
