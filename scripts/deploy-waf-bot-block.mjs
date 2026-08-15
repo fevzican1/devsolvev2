@@ -3,42 +3,39 @@
  * Deploy Cloudflare WAF rules for bot/scraper protection at the EDGE
  * (zero Pages Function invocation for blocked traffic).
  *
- * No skip rule. Bot Fight Mode should stay OFF — Googlebot, Bingbot, GSC
- * inspection and real humans are allow-listed here, so they are never
- * challenged. Scrapers that spoof Chrome/Edge are blocked by fingerprint,
- * not by Bot Fight.
+ * No skip rule. Googlebot, Bingbot and GSC inspection are allow-listed by
+ * User-Agent only (no ASN). Cloudflare handles spoofed crawler UAs. Scrapers
+ * that spoof Chrome/Edge are blocked by fingerprint.
  *
  * Rule order (first match wins). Free plan: 5 custom rules; user-managed
  * rules (e.g. wp-admin) are preserved.
  *
  *   WAF1 (sitewide block) — malicious scrapers and fake browsers:
- *     - Never matches verified Google/Bing (UA + ASN or Cloudflare-verified
- *       search crawler) or GSC Inspection/site-verification.
+ *     - Never matches Google/Bing/GSC User-Agents. Do not ASN-check them;
+ *       a stale ASN list 403s real crawls. Spoofed Googlebot/Bingbot is
+ *       Cloudflare's job, not this ruleset.
  *     - Blocks AI indexers, headless/automation, HTTP libraries, extension
  *       scrapers, the Wikipedia Chrome/42+Edge/12.246 UA.
  *     - Blocks Chrome/Edge UAs that are missing a real navigation fingerprint
  *       (Client Hints Chromium brand, Fetch Metadata, Accept-Language, and
  *       for navigate: dest=document/iframe + Accept: text/html).
- *     - Blocks Googlebot/Bingbot UAs from the wrong ASN (spoof).
  *
  *   WAF2 (/k/* + sitemaps allowlist) — everything that looks like a browser
  *     still has to be a real client: HTTP/2 or HTTP/3, and not a cloud/hosting
  *     ASN. This is what stops the Chrome/99–136 farm that sends Client Hints.
- *     Google/Bing/GSC still pass (same allow as WAF1).
+ *     Google/Bing/GSC UAs still pass (same allow as WAF1, no ASN).
  *
  * Requires: CLOUDFLARE_API_TOKEN
  * Usage: node scripts/deploy-waf-bot-block.mjs [--dry-run]
  */
 
-import { BING_CRAWLER_ASNS, GOOGLE_CRAWLER_ASNS, wafAsnSet } from './lib/crawler-asns.mjs';
+import { wafAsnSet } from './lib/crawler-asns.mjs';
 
-const BING_ASNS = wafAsnSet(BING_CRAWLER_ASNS);
-const GOOGLE_ASNS = wafAsnSet(GOOGLE_CRAWLER_ASNS);
 const MAX_EXPRESSION_LENGTH = 4096;
 
 /** Cloud/hosting ASNs used by scraper farms. Not mobile/residential ISPs.
- * Google/Bing crawler ASNs are included so a Chrome UA from GCP/Azure is
- * blocked on /k/*; real Googlebot/Bingbot still pass via the crawler allow.
+ * Google Cloud / Azure are here only for Chrome UA spoofs from VPS.
+ * Googlebot/Bingbot UAs are never ASN-checked (see ALLOWED_SEARCH_CRAWLER).
  */
 const HOSTING_ASNS = wafAsnSet([
   16509, 14618, // Amazon
@@ -59,8 +56,6 @@ const HOSTING_ASNS = wafAsnSet([
   8560, // IONOS
   132203, // Tencent
 ]);
-
-const VERIFIED_SEARCH_CRAWLER = 'cf.verified_bot_category eq "Search Engine Crawler"';
 
 /** Free-plan WAF: contains/lower(), not regex (Business+). Parenthesize OR-groups. */
 function uaContainsAny(markers) {
@@ -88,19 +83,13 @@ const GOOGLE_UA_MARKERS = [
 const BING_UA_MARKERS = ['bingbot', 'bingpreview', 'adidxbot', 'msnbot'];
 
 /**
- * Real Google/Bing/GSC — never block, never confuse with Chrome scrapers.
- * GSC Live Test uses InspectionTool from non-Google IPs.
+ * Google/Bing/GSC User-Agents — never block, no ASN, no verified-bot check.
+ * Wrong-ASN spoof detection belongs to Cloudflare, not this ruleset.
  */
 const ALLOWED_SEARCH_CRAWLER = `(
   ${uaContainsAny(GOOGLE_INSPECTION_UA)}
-  or (
-    ${uaContainsAny(GOOGLE_UA_MARKERS)}
-    and (${VERIFIED_SEARCH_CRAWLER} or ip.src.asnum in ${GOOGLE_ASNS})
-  )
-  or (
-    ${uaContainsAny(BING_UA_MARKERS)}
-    and (${VERIFIED_SEARCH_CRAWLER} or ip.src.asnum in ${BING_ASNS})
-  )
+  or ${uaContainsAny(GOOGLE_UA_MARKERS)}
+  or ${uaContainsAny(BING_UA_MARKERS)}
 )`;
 
 /**
@@ -173,9 +162,9 @@ const WAF1_SCRAPER_BLOCK = `(
     or (
       lower(http.user_agent) contains "chrome/"
       and not lower(http.user_agent) contains "googlebot"
+      and not lower(http.user_agent) contains "bingbot"
       and not ${REAL_CHROMIUM_FINGERPRINT}
     )
-    or ${uaContainsAny(['googlebot', 'adsbot-google', 'bingbot', 'bingpreview', 'adidxbot', 'msnbot'])}
   )
 )`;
 

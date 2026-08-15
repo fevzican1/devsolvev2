@@ -53,10 +53,9 @@ an origin.
 
 - **WAF1** (sitewide **block**) detects scrapers: AI indexers, headless/automation,
   HTTP libraries, the Wikipedia Chrome/42+Edge/12.246 UA, Chrome/Edge without a
-  real Client-Hints + Fetch-Metadata fingerprint, and Googlebot/Bingbot UAs from
-  the wrong ASN. Verified Google/Bing (UA + ASN or Cloudflare-verified search
-  crawler) and GSC Inspection are never matched.
-- **WAF2** (`/k/*` + `/sitemap*`) is an allowlist: only those crawlers plus real
+  real Client-Hints + Fetch-Metadata fingerprint. Google/Bing/GSC User-Agents
+  are never matched (no ASN check — spoofed crawlers are Cloudflare’s job).
+- **WAF2** (`/k/*` + `/sitemap*`) is an allowlist: those crawler UAs plus real
   browsers. Chrome still needs HTTP/2 or HTTP/3 and must not come from a
   cloud/hosting ASN — that is the Chrome/99–136 farm that already sends Client
   Hints.

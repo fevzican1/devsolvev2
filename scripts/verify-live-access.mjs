@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Live access matrix — spam blocked at WAF (zero Pages Function invocations).
- * No skip rule. Google/Bing/GSC pass the allow-list; scrapers are blocked.
+ * Google/Bing/GSC UAs are never blocked by custom WAF (no ASN check).
  * GSC InspectionTool always passes. Legacy sitemap URLs 301 to /sitemap.xml.
  */
 const SITE = (process.env.SITE_URL || 'https://devsolvev2.com').replace(/\/$/, '');
@@ -53,8 +53,6 @@ const WAF_BLOCK_BOTS = [
   ['Farm Chrome/99 Windows (no Client Hints)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36', null],
   ['Farm Chrome/100 Windows (no Client Hints)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36', null],
   ['Fake Chrome (extension UA)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Chrome-extension/abc123', null],
-  ['Fake Googlebot (wrong IP)', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', null],
-  ['Fake Bingbot (wrong IP)', 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', null],
   ['DuckDuckBot', 'DuckDuckBot/1.0; (+http://duckduckgo.com/duckduckbot.html)', null],
   ['Twitterbot', 'Twitterbot/1.0', null],
   ['Facebookexternalhit', 'facebookexternalhit/1.1', null],
@@ -88,13 +86,12 @@ const REAL_CRAWLER_CASES = [
   { name: 'Real Chrome sitemap', path: SITEMAP, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200], allowChallenge: true, allowHostingBlock: true },
   { name: 'Real Chrome feed.xml', path: FEED, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200], allowChallenge: true },
   { name: 'Real Chrome /k/*', path: K_PATH, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200], allowChallenge: true, allowHostingBlock: true },
-  // Fake crawlers (this script never runs from Google/Microsoft IPs) must be
-  // stopped at the WAF on sitemaps too — sitemap floods invoke the Function
-  // exactly like /k/* floods.
-  { name: 'Googlebot sitemap (non-Google IP → WAF block)', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', expect: [403], wantWaf: true },
-  { name: 'Bingbot sitemap (non-Microsoft IP → WAF block)', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', expect: [403], wantWaf: true },
-  { name: 'Googlebot /k/* (non-Google IP → WAF block)', path: K_PATH, ua: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', expect: [403], wantWaf: true },
-  { name: 'Bingbot /k/* (non-Microsoft IP → WAF block)', path: K_PATH, ua: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', expect: [403], wantWaf: true },
+  // Googlebot/Bingbot UAs are never blocked by custom WAF (no ASN check).
+  // Cloudflare handles spoofs. This environment is not a Google/Microsoft IP.
+  { name: 'Googlebot sitemap', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', expect: [200], allowChallenge: true },
+  { name: 'Bingbot sitemap', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', expect: [200], allowChallenge: true },
+  { name: 'Googlebot /k/*', path: K_PATH, ua: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', expect: [200], allowChallenge: true },
+  { name: 'Bingbot /k/*', path: K_PATH, ua: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', expect: [200], allowChallenge: true },
   // Every sitemap URL ever submitted to GSC/Bing must 301 to /sitemap.xml —
   // a 404 here renders the HTML error page and produces the
   // "xmlParseEntityRef: no name" parse failure in Search Console.
