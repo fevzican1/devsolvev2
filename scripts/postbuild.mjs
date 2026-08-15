@@ -140,7 +140,14 @@ try {
 // real mass-deindex risk (this is what Bing flagged as "content quality").
 try {
   console.log('Verifying edge-served corpus quality (all 20M /k/ pages)...');
-  execSync(`node --import tsx ${join(__dirname, 'verify-edge-corpus-quality.mjs')}`, { stdio: 'inherit' });
+  execSync(`node --import tsx ${join(__dirname, 'verify-edge-corpus-quality.mjs')}`, {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      // Pages builders default to ~2GB; the identity sweep + HTML scoring needs headroom.
+      NODE_OPTIONS: [process.env.NODE_OPTIONS, '--max-old-space-size=6144'].filter(Boolean).join(' '),
+    },
+  });
 } catch (error) {
   console.log('Edge corpus quality verification FAILED — see out/reports/edge-corpus-quality.json');
   hardFailures.push('verify-edge-corpus-quality');

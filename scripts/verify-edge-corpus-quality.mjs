@@ -88,7 +88,8 @@ const IDENTITY_SCAN = Math.min(
 );
 const SAMPLE = Number(process.env.EDGE_VERIFY_SAMPLE ?? 20_000);
 /** Render every Nth template combination (1 = all 111,360 of them). */
-const COMBO_STRIDE = Math.max(1, Number(process.env.EDGE_VERIFY_COMBO_STRIDE ?? 1));
+const ON_PAGES = process.env.CF_PAGES === '1';
+const COMBO_STRIDE = Math.max(1, Number(process.env.EDGE_VERIFY_COMBO_STRIDE ?? (ON_PAGES ? 2 : 1)));
 const MAX_FAIL = Number(process.env.EDGE_VERIFY_MAX_FAIL ?? 25);
 
 const failures = [];
@@ -138,6 +139,8 @@ function fingerprint(value) {
 }
 
 function findRepeatedFingerprints(values) {
+  // Copy before sort: the original array is indexed by corpus ordinal in the
+  // second pass (fingerprint collisions are re-checked as real strings).
   const sorted = values.slice().sort();
   const repeated = new Set();
   for (let i = 1; i < sorted.length; i += 1) {

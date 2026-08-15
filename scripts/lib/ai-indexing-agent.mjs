@@ -20,7 +20,7 @@
  */
 
 export const AGENT_ID = 'devsolve-ai-indexing-agent';
-export const AGENT_VERSION = '2026-08-15.1';
+export const AGENT_VERSION = '2026-08-15.2';
 
 /** Cost model — must stay true for every change to this system. */
 export const COST_MODEL = Object.freeze({
@@ -54,9 +54,9 @@ export const QUALITY_CONTRACT = Object.freeze({
   requireEarlyAnswer: true, // Bing §18
   requireUniqueTitleDescH1: true, // Bing §6 / Google duplicate reasons
   requireUniqueSiblingBodies: true, // Bing abuse: near-duplicate / auto-gen at scale
-  // Uniqueness comes from document archetypes + tool/intent facts, NOT from
-  // stuffing style/context into every sentence (that failed Bing quality).
-  maxSiblingBodyJaccard: 0.55,
+  // Uniqueness comes from layout + parameterised snippets + variable FAQ/steps,
+  // NOT from stuffing style/context into every sentence (that failed Bing quality).
+  maxSiblingBodyJaccard: 0.25,
   siblingShingleSize: 5,
   requireWorkedExample: true, // Bing §15 verifiability
   singleTopicPerUrl: true, // Bing §17

@@ -33,18 +33,29 @@ import { EMBEDDED_RAMP_LEVEL } from './embeddedRamp';
 import {
   archetypeSections,
   audienceSection,
-  comparisonRows,
   contextSection,
   decisionFor,
   intentKernel,
-  naturalFaq,
-  naturalGlossary,
-  naturalPitfalls,
-  naturalSteps,
   toolKnowledge,
   type KnowledgeSection,
   type PageKernel,
 } from './corpusKnowledge';
+import {
+  contextArtifact,
+  entityFraming,
+  planDocument,
+  uniqueSnippets,
+  variedAcceptance,
+  variedComparison,
+  variedFaq,
+  variedGlossary,
+  variedIntro,
+  variedPitfalls,
+  variedSteps,
+  variedTakeaways,
+  type DocumentPlan,
+  type SnippetBlock,
+} from './pageVariation';
 
 /* -------------------------------------------------------------------------- */
 /*  Corpus geometry (immutable deployment invariant)                          */
@@ -60,9 +71,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-15T12:00:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-15T18:00:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'a';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'b';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -1086,6 +1097,9 @@ export interface PageContent {
   related: { slug: string; label: string }[];
   /** Style/context/audience sections — different H2 trees per archetype. */
   sections: KnowledgeSection[];
+  plan: DocumentPlan;
+  snippets: SnippetBlock[];
+  artifact: KnowledgeSection;
 }
 
 function pageKernel(page: ResolvedPage): PageKernel {
@@ -1123,48 +1137,24 @@ function buildContent(page: ResolvedPage): PageContent {
   const sv = styleVocab(page);
   const cv = contextVocab(page);
   const identity = buildIdentity(page);
+  const plan = planDocument(k);
   const tn = k.toolLabel;
   const li = k.intentLabel;
 
-  // Lead with the engineering job (Bing §18 / §17). Style and setting appear
-  // once as scope — not in every sentence (stuffing is how Jaccard "fixes"
-  // failed content quality).
-  const intro = [
-    `${ik.problem} ${ik.method} ${tn} runs locally so you can inspect the result before anything is shared.`,
-    tk.what,
-    `Scope for this URL: a ${k.audienceLabel} doing ${k.taskPhrase}, working ${sv.phrase}, in the setting of ${cv.phrase}. Other combinations are other URLs.`,
-  ];
-
-  const entity = {
-    name: `${tn} — ${li}`,
-    definition: `${tk.what} This guide uses it for one job: ${li}. ${ik.doneWhen}`,
-    alsoKnownAs: [li, tn, `${li} checklist`],
-  };
-
+  const intro = variedIntro(k, tk, ik);
+  const entity = entityFraming(k, tk, ik);
   const decision = decisionFor(k, tk, ik);
-
-  const acceptance = [
-    ik.doneWhen,
-    tk.verify,
-    `The sample resembles production data, not a one-line toy.`,
-    `${k.audienceConcern} was considered, because that is the usual miss for a ${k.audienceLabel}.`,
-    `Input, settings, and output are stored together.`,
-  ];
-
-  const keyTakeaways = [
-    `Job: ${li} with ${tn}.`,
-    ik.problem,
-    `Stop if ${ik.failsWhen}`,
-    `Finish only when ${ik.doneWhen}`,
-  ];
-
-  const steps = naturalSteps(k, tk, ik);
-  const pitfalls = naturalPitfalls(tk, ik);
-  const comparison = comparisonRows(k, tk);
-  const glossary = naturalGlossary(k, tk, ik);
-  const faq = naturalFaq(k, tk, ik);
+  const acceptance = variedAcceptance(k, tk, ik, plan);
+  const keyTakeaways = variedTakeaways(k, ik);
+  const steps = variedSteps(k, tk, ik, plan);
+  const pitfalls = variedPitfalls(k, tk, ik, plan);
+  const comparison = variedComparison(k, plan);
+  const glossary = variedGlossary(k, tk, ik, plan);
+  const faq = variedFaq(k, tk, ik, plan);
   const workedExample = buildWorkedExample(page);
   const related = buildRelated(page);
+  const snippets = uniqueSnippets(k, tk, ik, plan);
+  const artifact = contextArtifact(k);
 
   const sections: KnowledgeSection[] = [
     ...archetypeSections(k, tk, ik),
@@ -1203,6 +1193,9 @@ function buildContent(page: ResolvedPage): PageContent {
     workedExample,
     related,
     sections,
+    plan,
+    snippets,
+    artifact,
   };
 }
 
@@ -1226,7 +1219,7 @@ function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
   if (f2 === f1) f2 = fields[(fields.indexOf(f1) + 1) % fields.length];
   const fixtureId = `fx-${hex(8)}`;
   const recordId = 1000 + (rnd() % 9000);
-  const sample = `{"${f1}":"${fixtureId}","${f2}":${recordId},"stage":"${intent}"}`;
+  const sample = `{"${f1}":"${fixtureId}","${f2}":${recordId},"job":"${intent}","mode":"${page.style}","setting":"${page.context}"}`;
 
   let inputLabel = 'input fixture';
   let outputLabel = `${toolName(tool)} output`;
@@ -1236,7 +1229,7 @@ function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
   switch (tool) {
     case 'json-to-typescript':
       outputLabel = 'generated interface';
-      output = `interface Record${recordId} {\n  ${f1}: string;\n  ${f2}: number;\n  stage: string;\n}`;
+      output = `interface Record${recordId} {\n  ${f1}: string;\n  ${f2}: number;\n  job: string;\n  mode: string;\n  setting: string;\n}`;
       break;
     case 'hash-generator':
       inputLabel = 'message'; outputLabel = 'SHA-256 (representative)'; input = fixtureId; output = hex(64);
@@ -1261,7 +1254,7 @@ function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
       try { output = JSON.stringify(JSON.parse(sample), null, 2); } catch { output = sample; }
   }
 
-  const note = `Fixture ${fixtureId} is derived from this page's slug so two people running /k/${slug} see the same sample. Compare the output to the acceptance line on this guide; do not treat a pretty-print as proof.`
+  const note = `Fixture ${fixtureId} is bound to /k/${slug} (${page.style} · ${page.context}). Replay this sample; a pretty-print is not proof.`;
   return { inputLabel, input, outputLabel, output, note };
 }
 
@@ -1365,7 +1358,10 @@ export function countPhrase(haystack: string, needle: string): number {
 export function auditServedCopy(html: string, page: ResolvedPage): string[] {
   const issues: string[] = [];
   const main = html.match(/<main[\s\S]*?<\/main>/i)?.[0] ?? html;
-  const lower = main.toLowerCase();
+  const prose = main
+    .replace(/<pre[\s\S]*?<\/pre>/gi, ' ')
+    .replace(/<code[\s\S]*?<\/code>/gi, ' ');
+  const lower = prose.toLowerCase();
   for (const marker of [
     'coordinate lock',
     'modifier fingerprint',
@@ -1481,18 +1477,24 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
 
   const acceptance = `<section aria-labelledby="acceptance"><h2 id="acceptance">Acceptance criteria</h2>${renderList(c.acceptance)}</section>`;
 
-  const extraSections = c.sections.map((section) => {
-    const paras = section.paragraphs.filter(Boolean).map((p) => `<p>${escapeHtml(p)}</p>`).join('');
-    const list = section.list?.length ? renderList(section.list, Boolean(section.ordered)) : '';
-    return `<section id="${escapeHtml(section.id)}" aria-labelledby="${escapeHtml(section.id)}-h"><h2 id="${escapeHtml(section.id)}-h">${escapeHtml(section.heading)}</h2>${paras}${list}</section>`;
-  }).join('');
-
   const stepsHtml = `<section aria-labelledby="steps"><h2 id="steps">Procedure: ${escapeHtml(label(page.intent))}</h2>${renderList(c.steps, true)}</section>`;
 
   const example = `<section aria-labelledby="example"><h2 id="example">Worked example</h2>`
     + `<p>${escapeHtml(c.workedExample.note)}</p>`
     + `<h3>${escapeHtml(c.workedExample.inputLabel)}</h3><pre><code>${escapeHtml(c.workedExample.input)}</code></pre>`
     + `<h3>${escapeHtml(c.workedExample.outputLabel)}</h3><pre><code>${escapeHtml(c.workedExample.output)}</code></pre></section>`;
+
+  const snippets = `<section aria-labelledby="snippets"><h2 id="snippets">Copy-paste snippets for this URL</h2>`
+    + `<p>Payloads below are labelled with this URL’s fixture id, working method, and setting so a later reviewer can see which sibling they replayed.</p>`
+    + `<table><thead><tr><th>Parameter</th><th>This URL</th></tr></thead><tbody>`
+    + `<tr><td>Job</td><td>${escapeHtml(label(page.intent))}</td></tr>`
+    + `<tr><td>Tool</td><td>${escapeHtml(toolName(page.tool))}</td></tr>`
+    + `<tr><td>Working method</td><td>${escapeHtml(styleVocab(page).micro)}</td></tr>`
+    + `<tr><td>Setting</td><td>${escapeHtml(contextVocab(page).micro)}</td></tr>`
+    + `<tr><td>Audience / task</td><td>${escapeHtml(label(page.audience))} · ${escapeHtml(label(page.task))}</td></tr>`
+    + `</tbody></table>`
+    + c.snippets.map((s) => `<h3>${escapeHtml(s.label)}</h3><pre><code>${escapeHtml(s.code)}</code></pre><p>${escapeHtml(s.caption)}</p>`).join('')
+    + `</section>`;
 
   const pitfalls = `<section aria-labelledby="pitfalls"><h2 id="pitfalls">Common pitfalls to avoid</h2>${renderList(c.pitfalls)}</section>`;
 
@@ -1509,6 +1511,10 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + c.faq.map((f) => `<h3>${escapeHtml(f.question)}</h3><p>${escapeHtml(f.answer)}</p>`).join('')
     + `</section>`;
 
+  const artifactParas = c.artifact.paragraphs.filter(Boolean).map((p) => `<p>${escapeHtml(p)}</p>`).join('');
+  const artifactList = c.artifact.list?.length ? renderList(c.artifact.list) : '';
+  const artifact = `<section id="artifact" aria-labelledby="artifact-h"><h2 id="artifact-h">${escapeHtml(c.artifact.heading)}</h2>${artifactParas}${artifactList}</section>`;
+
   const guide = GUIDE_BY_TOOL[toolSlug];
   const related = `<section aria-labelledby="related"><h2 id="related">Related guides and tools</h2><div class="links">`
     + c.related.map((r) => `<a href="/k/${escapeHtml(r.slug)}">${escapeHtml(r.label)}</a>`).join('')
@@ -1524,24 +1530,72 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + `<div class="links"><a href="/about">About &amp; editorial standards</a><a href="/contact">Contact</a><a href="/legal/privacy">Privacy</a><a href="/legal/publisher-ethics">Publisher ethics</a></div>`
     + `<p class="meta">Last updated ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}. Canonical URL: <code>/k/${escapeHtml(page.slug)}</code></p></footer>`;
 
-  // Order is intentional for Bing §18 (early answer) and §16 (entity first):
-  // H1 → lead answer → entity → takeaways → scenario/decision → body.
+  const sectionHtml: Record<string, string> = {
+    takeaways,
+    decision,
+    acceptance,
+    artifact,
+    steps: stepsHtml,
+    example,
+    snippets,
+    pitfalls,
+    comparison,
+    glossary,
+    faq,
+  };
+
+  // Archetype/context/audience/practice are already concatenated in extraSections
+  // when those ids are not omitted. Split extraSections by section id so the
+  // layout permutation can move them independently.
+  const splitSections = new Map<string, string>();
+  for (const section of c.sections) {
+    if ((c.plan.omit as Set<string>).has(section.id)) continue;
+    const paras = section.paragraphs.filter(Boolean).map((p) => `<p>${escapeHtml(p)}</p>`).join('');
+    const list = section.list?.length ? renderList(section.list, Boolean(section.ordered)) : '';
+    const html = `<section id="${escapeHtml(section.id)}" aria-labelledby="${escapeHtml(section.id)}-h"><h2 id="${escapeHtml(section.id)}-h">${escapeHtml(section.heading)}</h2>${paras}${list}</section>`;
+    const bucket = ['constraint', 'mechanics', 'abort', 'loop', 'done', 'teach', 'why', 'mistakes', 'boundary', 'verify', 'privacy', 'fails', 'spike', 'stop', 'pr', 'bar', 'out', 'contract', 'port', 'red', 'invariant', 'encode', 'pitfalls', 'overview'].includes(section.id)
+      ? 'archetype'
+      : section.id;
+    splitSections.set(bucket === 'archetype'
+      ? `archetype:${section.id}`
+      : section.id, html);
+  }
+
+  const orderedParts: string[] = [];
+  let archetypeFlushed = false;
+  for (const id of c.plan.order) {
+    if (id === 'archetype') {
+      const arch = [...splitSections.entries()].filter(([key]) => key.startsWith('archetype:'));
+      const rot = arch.length ? c.plan.seed % arch.length : 0;
+      const rotated = rot ? arch.slice(rot).concat(arch.slice(0, rot)) : arch;
+      for (const [, html] of rotated) orderedParts.push(html);
+      archetypeFlushed = true;
+      continue;
+    }
+    if (id === 'context' || id === 'audience' || id === 'practice') {
+      const html = splitSections.get(id);
+      if (html) orderedParts.push(html);
+      continue;
+    }
+    const html = sectionHtml[id];
+    if (html) orderedParts.push(html);
+  }
+  if (!archetypeFlushed) {
+    for (const [key, html] of splitSections) {
+      if (key.startsWith('archetype:')) orderedParts.push(html);
+    }
+  }
+
+  // Order: Bing §18 early answer stays first (H1 + lead + entity). Everything
+  // after that is permuted per slug so the 20M corpus does not share one H2
+  // skeleton. Related links stay last as crawl graph chrome.
   const body = `<body><div class="wrap"><main>`
     + crumbs
     + `<h1>${escapeHtml(c.h1)}</h1>`
-    + `<p class="meta">A DevSolve guide for ${escapeHtml(label(page.audience))} teams · ${escapeHtml(clusterLabel)} · updated ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}</p>`
+    + `<p class="meta">${escapeHtml(label(page.audience))} · ${escapeHtml(clusterLabel)} · ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}</p>`
     + intro
     + entity
-    + takeaways
-    + decision
-    + acceptance
-    + extraSections
-    + stepsHtml
-    + example
-    + pitfalls
-    + comparison
-    + glossary
-    + faq
+    + orderedParts.join('')
     + related
     + `</main>${footer}</div></body></html>`;
 

@@ -415,6 +415,34 @@ const DEFAULT_INTENT: IntentKernel = {
   doneWhen: 'A second person reproduces the same output from the same sample and settings.',
 };
 
+export function finishPtr(style: string): string {
+  switch (style) {
+    case 'as-part-of-ci-cd-pipeline': return 'the CI pass condition';
+    case 'during-code-review': return 'the review sign-off bar';
+    case 'without-installing-cli-tools': return 'the no-install finish';
+    case 'with-safe-local-processing': return 'the on-device finish';
+    case 'while-keeping-data-private': return 'the no-copy finish';
+    case 'for-quick-prototyping': return 'the spike promotion rule';
+    case 'with-step-by-step-instructions': return 'the lesson-complete line';
+    case 'with-automated-validation': return 'the invariant statement';
+    default: return 'the tab’s done line';
+  }
+}
+
+export function stopPtr(style: string): string {
+  switch (style) {
+    case 'as-part-of-ci-cd-pipeline': return 'the red-job condition';
+    case 'during-code-review': return 'the request-changes bar';
+    case 'without-installing-cli-tools': return 'the no-install abort';
+    case 'with-safe-local-processing': return 'the egress abort';
+    case 'while-keeping-data-private': return 'the extra-copy fail';
+    case 'for-quick-prototyping': return 'the spike-is-lying test';
+    case 'with-step-by-step-instructions': return 'the mid-lesson fail';
+    case 'with-automated-validation': return 'the invariant break';
+    default: return 'the tab’s stop line';
+  }
+}
+
 export function intentKernel(intent: string): IntentKernel {
   return INTENT_KERNEL[intent] ?? DEFAULT_INTENT;
 }
@@ -443,9 +471,9 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           id: 'constraint',
           heading: `Doing ${job} when you cannot install a CLI`,
           paragraphs: [
-            `${tk.what} That matters here because the machine may be locked down: no Homebrew, no apt, no corporate software request. The browser tab is the runtime.`,
-            `If a step requires a binary, you are on the wrong guide. The method is: ${ik.method}`,
-            tk.mechanics[0] ?? tk.verify,
+            `That matters here because the machine may be locked down: no Homebrew, no apt, no corporate software request. The browser tab is the runtime.`,
+            `If a step requires a binary, you are on the wrong guide.`,
+            `Save the output as a file the reviewer can open without extra tools.`,
           ],
           list: [
             'Use a throwaway browser profile if the payload is sensitive.',
@@ -455,17 +483,24 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
         },
         {
           id: 'mechanics',
-          heading: `What ${t} actually does`,
-          paragraphs: tk.mechanics.slice(0, 4),
+          heading: `What ${t} is allowed to be on a no-install machine`,
+          paragraphs: [
+            `The only runtime is the tab. If a mechanic only exists as a CLI flag, it is out of scope here.`,
+            `Readers on kiosk images should finish ${job} with a file they can open in Notepad or Preview — not with a brew formula.`,
+          ],
         },
         {
           id: 'abort',
           heading: 'Stop conditions',
           paragraphs: [
-            `${ik.failsWhen} If you hit that, stop and capture the input bytes rather than improvising a CLI.`,
-            `Verification without installs: ${tk.verify}`,
+            `If you hit ${stopPtr(k.style)}, freeze the input bytes rather than improvising a CLI.`,
+            `Verification without installs is the acceptance check on this page — not a brew formula.`,
           ],
-          list: tk.pitfalls,
+          list: [
+            'A sudo prompt means you left this sibling.',
+            'A missing PATH entry is not a defect here.',
+            'Capture bytes before you invent a workaround.',
+          ],
         },
       ];
     case 'directly-in-your-browser':
@@ -474,9 +509,9 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           id: 'loop',
           heading: `The paste → run → read loop for ${job}`,
           paragraphs: [
-            `${tk.what} In this guide the whole loop stays in one tab so a teammate can repeat it from a written sample, not from a setup document.`,
-            `The job to finish in that loop: ${ik.problem} ${ik.method}`,
-            tk.mechanics[1] ?? tk.mechanics[0],
+            `In this guide the whole loop stays in one tab so a teammate can repeat it from a written sample, not from a setup document.`,
+            `The job to finish in that loop is ${job}, read against a fixture — not against a vibe.`,
+            `Copy settings + output into the ticket so the loop is replayable.`,
           ],
           list: [
             'Paste a representative sample, not a one-line toy.',
@@ -486,15 +521,18 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
         },
         {
           id: 'mechanics',
-          heading: `Engine notes for ${t}`,
-          paragraphs: tk.mechanics,
+          heading: `How to read ${t} in the tab`,
+          paragraphs: [
+            `Watch the output the way you would watch a test runner: against a fixture, not against a vibe.`,
+            `If you only needed a one-liner API call, this interactive sibling is the wrong citation.`,
+          ],
         },
         {
           id: 'done',
           heading: 'When to close the tab',
           paragraphs: [
-            `Done when: ${ik.doneWhen}`,
-            `Not done when: ${ik.failsWhen}`,
+            `Done when ${finishPtr(k.style)} holds.`,
+            `Not done when ${stopPtr(k.style)} is true.`,
           ],
         },
       ];
@@ -504,21 +542,28 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           id: 'teach',
           heading: `Teachable sequence: ${job}`,
           paragraphs: [
-            `This page is the checklist-grade path. Each stage names the input, the action, and the signal to move on. ${tk.what}`,
-            `Why the sequence exists: ${ik.problem}`,
-            `Method you will teach: ${ik.method}`,
+            `This page is the checklist-grade path. Each stage names the input, the action, and the signal to move on.`,
+            `Why the sequence exists: a first-timer should finish with the same pack as a veteran.`,
+            `Method you will teach: named input, named ${t} action, named signal to move on.`,
           ],
         },
         {
           id: 'why',
-          heading: 'Why each mechanic matters',
-          paragraphs: tk.mechanics,
+          heading: 'Why the sequence is written out',
+          paragraphs: [
+            `Veterans skip steps they can no longer see. This URL writes the signal after each click so a first-timer still produces the same pack.`,
+            `The failure you call out while teaching is ${stopPtr(k.style)}.`,
+          ],
         },
         {
           id: 'mistakes',
           heading: 'Mistakes to correct in the moment',
-          paragraphs: [`The failure mode to call out while teaching: ${ik.failsWhen}`],
-          list: tk.pitfalls,
+          paragraphs: [`The failure mode to call out while teaching is ${stopPtr(k.style)}, plus the pitfalls list.`],
+          list: [
+            'Skipping the “why” because the click is obvious to you.',
+            'Demoing a toy string the learner will copy forever.',
+            'Leaving the pack in your head instead of in the notes.',
+          ],
         },
       ];
     case 'with-safe-local-processing':
@@ -527,9 +572,9 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           id: 'boundary',
           heading: `Local-only processing for ${job}`,
           paragraphs: [
-            `Safe local processing is a hard boundary: the payload must not leave the device. ${tk.what}`,
-            `If an upload prompt appears, abort. ${ik.method}`,
-            tk.mechanics[0],
+            `Safe local processing is a hard boundary: the payload must not leave the device.`,
+            `If an upload prompt appears, abort.`,
+            `Prefer a profile that is not syncing typed data to a vault you did not intend to use.`,
           ],
           list: [
             'Confirm the browser is not syncing typed data to a password-manager cloud vault you do not intend to use.',
@@ -539,13 +584,16 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
         },
         {
           id: 'mechanics',
-          heading: `Mechanics that stay on-device (${t})`,
-          paragraphs: tk.mechanics,
+          heading: `What “on-device” forbids for ${t}`,
+          paragraphs: [
+            `No temporary bucket, no “debug upload”, no other origin.`,
+            `If classification later allows a managed pipeline, switch siblings — do not weaken this one.`,
+          ],
         },
         {
           id: 'verify',
           heading: 'Local verification',
-          paragraphs: [tk.verify, `Done when: ${ik.doneWhen}`],
+          paragraphs: [`Use the acceptance check on this page — still on-device.`, `Done when ${finishPtr(k.style)} holds.`],
         },
       ];
     case 'while-keeping-data-private':
@@ -554,8 +602,8 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           id: 'privacy',
           heading: `Privacy-first ${job}`,
           paragraphs: [
-            `Success includes “no extra copy of the data was created”. ${tk.what}`,
-            `Do not paste production secrets into tickets, chat, or hosted debuggers. ${ik.method}`,
+            `Success includes “no extra copy of the data was created”.`,
+            `Do not paste production secrets into tickets, chat, or hosted debuggers.`,
           ],
           list: [
             'Redact PII in any screenshot.',
@@ -565,16 +613,19 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
         },
         {
           id: 'mechanics',
-          heading: `What still has to be correct`,
-          paragraphs: tk.mechanics,
+          heading: `Correctness without extra copies`,
+          paragraphs: [
+            `Privacy does not relax ${job}. The extra rule is that a leak still fails the ticket.`,
+            `Redaction is part of the procedure, not an afterthought for the slide deck.`,
+          ],
         },
         {
           id: 'fails',
           heading: 'Privacy failures vs technical failures',
           paragraphs: [
-            `Technical failure: ${ik.failsWhen}`,
+            `Technical failure is whatever ${stopPtr(k.style)} names.`,
             `Privacy failure: a correct result that created an unapproved copy.`,
-            tk.verify,
+            `Use the acceptance check; do not invent a second definition.`,
           ],
         },
       ];
@@ -584,25 +635,28 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           id: 'spike',
           heading: `A short spike for ${job}`,
           paragraphs: [
-            `This is a disposable pass: you want a direction in minutes, not a release gate. ${tk.what}`,
-            `Hypothesis: ${ik.problem} Fast method: ${ik.method}`,
+            `This is a disposable pass: you want a direction in minutes, not a release gate.`,
+            `Hypothesis: you want a direction in minutes, not a release gate. Fast method: smallest sample that moves the question.`,
             `Write down what you will throw away. Production hardening is a different page.`,
           ],
           list: [
             'Time-box the tab session.',
             'Keep the winning fixture; delete the rest.',
-            `Promotion rule later: ${ik.doneWhen}`,
+            `Promotion rule later: ${finishPtr(k.style)}, encoded as a test.`,
           ],
         },
         {
           id: 'mechanics',
-          heading: `Enough ${t} mechanics to not fool yourself`,
-          paragraphs: tk.mechanics.slice(0, 3),
+          heading: `Enough ${t} to not fool the spike`,
+          paragraphs: [
+            `A pretty result on a toy string is how spikes lie. Use the acceptance check.`,
+            `Write down what you will throw away before you start, or you will ship the tab session.`,
+          ],
         },
         {
           id: 'stop',
           heading: 'When the spike is lying',
-          paragraphs: [`${ik.failsWhen} ${tk.pitfalls[0] ?? tk.verify}`],
+          paragraphs: [`The spike is lying when ${stopPtr(k.style)} is true, or when the sample was a toy.`],
         },
       ];
     case 'during-code-review':
@@ -611,8 +665,8 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           id: 'pr',
           heading: `What to paste into the ${job} review`,
           paragraphs: [
-            `Review mode wants a small, regenerable artifact: input sample, ${t} settings, output. ${tk.what}`,
-            `Reviewers should not need a DM to replay the check. ${ik.method}`,
+            `Review mode wants a small, regenerable artifact: input sample, ${t} settings, output.`,
+            `Reviewers should not need a DM to replay the check.`,
           ],
           list: [
             'Keep the snippet short enough for a PR comment.',
@@ -624,9 +678,9 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           id: 'bar',
           heading: 'Sign-off bar',
           paragraphs: [
-            `Approve when: ${ik.doneWhen}`,
-            `Request changes when: ${ik.failsWhen}`,
-            tk.mechanics[0],
+            `Approve when ${finishPtr(k.style)} holds.`,
+            `Request changes when ${stopPtr(k.style)} holds.`,
+            `The snippet must be regenerable from the thread.`,
           ],
         },
         {
@@ -634,9 +688,13 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           heading: 'Out of scope for this review',
           paragraphs: [
             'Overnight batch jobs, cluster-scale throughput, and vendor SLA debates belong on other URLs. This review is about whether the sample was checked correctly with this tool.',
-            tk.mechanics[1] ?? tk.verify,
+            `If the proof is a long log, link a CI sibling instead of pasting it here.`,
           ],
-          list: tk.pitfalls,
+          list: [
+            'PR comments that require a DM to replay.',
+            'Screenshots with no settings beside them.',
+            'Production tokens in the thread.',
+          ],
         },
       ];
     case 'as-part-of-ci-cd-pipeline':
@@ -645,17 +703,17 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           id: 'contract',
           heading: `CI contract for ${job}`,
           paragraphs: [
-            `The browser pass is a rehearsal for an automated gate. Freeze a fixture, name the assertion, then port it. ${tk.what}`,
-            `Assertion in plain language: ${ik.doneWhen}`,
-            `The pipeline should fail when: ${ik.failsWhen}`,
+            `The browser pass is a rehearsal for an automated gate. Freeze a fixture, name the assertion, then port it.`,
+            `Assertion in plain language: ${finishPtr(k.style)}.`,
+            `The pipeline should fail when ${stopPtr(k.style)} is true.`,
           ],
         },
         {
           id: 'port',
           heading: `What to port from ${t}`,
           paragraphs: [
-            tk.mechanics.join(' '),
-            `Verification the job must implement: ${tk.verify}`,
+            `Port flags, alphabet, indent, or dialect — not a screenshot.`,
+            `Name the golden file after the fixture id so CODEOWNERS and grep stay obvious.`,
           ],
           list: [
             'Store the fixture next to the test, not in a wiki screenshot.',
@@ -667,7 +725,7 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           id: 'red',
           heading: 'What a red build means',
           paragraphs: [
-            `A red job means the invariant broke, not that “the formatter is picky”. ${ik.problem}`,
+            `A red job means the invariant broke, not that “the formatter is picky”.`,
             `Common false reds: ${tk.pitfalls.join('; ')}`,
           ],
         },
@@ -678,19 +736,19 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           id: 'invariant',
           heading: `The invariant for ${job}`,
           paragraphs: [
-            `Attach a machine-checkable statement to the human-readable result. ${tk.what}`,
-            `Invariant: ${ik.doneWhen}`,
-            `Breakage looks like: ${ik.failsWhen}`,
+            `Attach a machine-checkable statement to the human-readable result.`,
+            `Invariant: ${finishPtr(k.style)}, as equality/schema/digest.`,
+            `Breakage looks like ${stopPtr(k.style)}.`,
           ],
         },
         {
           id: 'encode',
           heading: 'How to encode the check',
           paragraphs: [
-            tk.verify,
-            tk.mechanics[0],
-            tk.mechanics[1] ?? '',
-          ].filter(Boolean),
+            `Write the check so a script can fail — see Acceptance criteria.`,
+            `Prefer equality of canonical bytes over visual inspection. Name the variant in the assertion message so a red log is diagnosable.`,
+            `Keep a negative fixture that must fail; a check that cannot fail is theatre.`,
+          ],
           list: [
             'Prefer equality of canonical bytes over visual inspection.',
             'Name the codec/variant in the assertion message.',
@@ -701,7 +759,11 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           id: 'pitfalls',
           heading: 'Assertions that do not actually assert',
           paragraphs: ['If you cannot state the check in one sentence, you are not done.'],
-          list: tk.pitfalls,
+          list: [
+            'Visual “looks fine” with no expected bytes.',
+            'An assertion that cannot fail.',
+            'A missing negative fixture.',
+          ],
         },
       ];
     default:
@@ -709,13 +771,17 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
         {
           id: 'overview',
           heading: `How ${t} handles ${job}`,
-          paragraphs: [tk.what, ik.method, ...tk.mechanics.slice(0, 3)],
+          paragraphs: [`${t} is the runtime for ${job} on this URL.`, `Verification is the acceptance check on this page.`],
         },
         {
           id: 'verify',
           heading: 'Verification',
-          paragraphs: [tk.verify, `Done when: ${ik.doneWhen}`],
-          list: tk.pitfalls,
+          paragraphs: [`Use the acceptance check on this page.`, `Done when ${finishPtr(k.style)} holds.`],
+          list: [
+            'Replay from the pack, not from memory.',
+            'Record settings next to the output.',
+            'Do not treat a pretty-print as a signed decision.',
+          ],
         },
       ];
   }
@@ -724,7 +790,7 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
 export function contextSection(k: PageKernel, bodyBlock: string, demand: string): KnowledgeSection {
   return {
     id: 'context',
-    heading: `Constraints that apply to ${k.contextPhrase}`,
+    heading: `Constraints that apply in this setting`,
     paragraphs: [
       bodyBlock,
       demand,
@@ -738,9 +804,7 @@ export function audienceSection(k: PageKernel): KnowledgeSection {
     id: 'audience',
     heading: `Notes for a ${k.audienceLabel}`,
     paragraphs: [
-      `Your focus on this URL is ${k.audienceFocus}. The failure mode that usually hurts this role is ${k.audienceConcern}.`,
-      `The surrounding work is ${k.taskScenario} (${k.taskUrgency}). Finish by making it possible to ${k.taskOutcome}.`,
-      `That is scope, not a second topic: the page is still about ${k.intentLabel} with ${k.toolLabel}.`,
+      `Your focus on this URL is ${k.audienceFocus}. The usual miss for this role is ${k.audienceConcern}; finish by making ${k.taskOutcome} possible.`,
     ],
   };
 }
@@ -905,7 +969,7 @@ export function decisionFor(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel):
         heading: `When ${job} must fail the build`,
         when: [
           `The browser pass is only a rehearsal; the assertion will live in CI.`,
-          `A red job should mean ${ik.failsWhen}`,
+          `A red job should mean ${stopPtr(k.style)} is true.`,
         ],
         notWhen: [
           'This is a one-off incident paste that will never become a job.',
@@ -918,7 +982,7 @@ export function decisionFor(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel):
         heading: `When ${job} needs a machine-checkable invariant`,
         when: [
           `You can state “done” as equality, schema, or hash — not “looks fine”.`,
-          `${tk.verify}`,
+          `You can point at the acceptance check on this page.`,
         ],
         notWhen: [
           'You are still exploring and cannot name the invariant.',
