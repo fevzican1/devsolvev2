@@ -51,16 +51,14 @@ an origin.
 
 `npm run edge:waf` deploys the custom WAF ruleset:
 
-- Rule 0 **skips** all protection (Under Attack challenges, managed rules,
-  rate limits, and the block rules below) for verified Google/Bing crawlers
-  (Cloudflare-verified bot category, or correct UA + correct ASN) and the GSC
-  URL Inspection tool. Crawlers can never be challenged into "server error
-  (5xx)" states in Search Console again, regardless of attack posture.
-- Rules 1–4 block scrapers, AI bots, fake browsers, and fake Googlebot /
-  Bingbot on `/k/*` **and** every `/sitemap*` path before any Function or
-  cache is touched — blocked traffic costs zero invocations.
-- Rule 5 is an allowlist catch-all: only verified search crawlers and real
-  browsers may reach the Function paths at all.
+- Rule 1 **skips** Under Attack / Bot Fight / BIC **only** for verified
+  Google/Bing crawlers (Cloudflare-verified + Google/Bing UA, or correct UA +
+  ASN) and GSC URL Inspection. Real browser UAs are **not** skipped — spoofed
+  Chrome + Client Hints was bypassing Bot Fight and draining `/k/*`.
+- Rule 2 blocks AI indexers and the Wikipedia-example Chrome/42 + Edge/12.246 UA.
+- Rule 3 is an allowlist catch-all on `/k/*` and `/sitemap*`: only verified
+  Google/Bing, GSC inspection, and real browsers. Fake Googlebot UAs from the
+  wrong ASN are blocked here; Bot Fight Mode also scores them.
 
 `npm run edge:verify` asserts the whole matrix against production.
 

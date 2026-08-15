@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Live access matrix — spam blocked at WAF (zero Pages Function invocations).
- * Real Google/Bing crawlers skip all protection from their ASNs (rule 0).
+ * Real Google/Bing crawlers skip Bot Fight from their ASNs (rule 1).
  * GSC InspectionTool always passes. Legacy sitemap URLs 301 to /sitemap.xml.
  */
 const SITE = (process.env.SITE_URL || 'https://devsolvev2.com').replace(/\/$/, '');
@@ -37,7 +37,7 @@ function isFunctionBlock(body) {
 
 /** Must be blocked at WAF — any 200 or Function 403 = counter leak. */
 const WAF_BLOCK_BOTS = [
-  ['Fake Chrome (no sec-ch-ua)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', null],
+  ['Fake Chrome (Wikipedia example Edge/12.246)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246', null],
   ['Fake Chrome (extension UA)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Chrome-extension/abc123', null],
   ['Fake Googlebot (wrong IP)', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', null],
   ['Fake Bingbot (wrong IP)', 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', null],
