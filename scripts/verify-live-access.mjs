@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Live access matrix — spam blocked at WAF (zero Pages Function invocations).
- * Real Google/Bing crawlers skip Bot Fight from their ASNs (rule 1).
+ * No skip rule. Google/Bing/GSC pass the allow-list; scrapers are blocked.
  * GSC InspectionTool always passes. Legacy sitemap URLs 301 to /sitemap.xml.
  */
 const SITE = (process.env.SITE_URL || 'https://devsolvev2.com').replace(/\/$/, '');
@@ -18,7 +18,16 @@ const LEGACY_SITEMAPS = [
   '/sitemap-programmatic-0008.xml',
 ];
 const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-const CHROME_HEADERS = { 'sec-ch-ua': '"Chromium";v="120", "Google Chrome";v="120", "Not_A Brand";v="99"', 'sec-ch-ua-mobile': '?0' };
+const CHROME_HEADERS = {
+  'sec-ch-ua': '"Chromium";v="120", "Google Chrome";v="120", "Not_A Brand";v="99"',
+  'sec-ch-ua-mobile': '?0',
+  'sec-fetch-mode': 'navigate',
+  'sec-fetch-site': 'none',
+  'sec-fetch-dest': 'document',
+  accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'accept-language': 'en-US,en;q=0.9',
+  'accept-encoding': 'gzip, deflate, br',
+};
 
 function isWafBlock(body, res) {
   // Custom-rule block page, or a Bot Fight Mode / Under Attack managed
@@ -38,6 +47,11 @@ function isFunctionBlock(body) {
 /** Must be blocked at WAF — any 200 or Function 403 = counter leak. */
 const WAF_BLOCK_BOTS = [
   ['Fake Chrome (Wikipedia example Edge/12.246)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246', null],
+  ['Farm Chrome/133 Mac (no Client Hints)', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36', null],
+  ['Farm Chrome/120 Mac (no Client Hints)', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', null],
+  ['Farm Chrome/104 Windows (no Client Hints)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36', null],
+  ['Farm Chrome/99 Windows (no Client Hints)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36', null],
+  ['Farm Chrome/100 Windows (no Client Hints)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36', null],
   ['Fake Chrome (extension UA)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Chrome-extension/abc123', null],
   ['Fake Googlebot (wrong IP)', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', null],
   ['Fake Bingbot (wrong IP)', 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', null],
@@ -65,16 +79,15 @@ const WAF_BLOCK_BOTS = [
 ];
 
 const REAL_CRAWLER_CASES = [
-  // allowChallenge: when Bot Fight Mode / Under Attack is active, requests
-  // from datacenter IPs (where this script runs) get a managed challenge even
-  // with a browser UA. That is a WARN, not a failure — real browsers solve the
-  // challenge and real Google/Bing crawlers are exempt (verified bots + Rule 0).
+  // allowChallenge: Bot Fight / Under Attack may still challenge datacenter
+  // IPs. allowHostingBlock: WAF2 blocks cloud ASNs on /k/* and sitemaps even
+  // with a full Chrome fingerprint — that is intentional (the farm).
   { name: 'GSC InspectionTool sitemap', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)', expect: [200], allowChallenge: true },
   { name: 'GSC InspectionTool feed.xml', path: FEED, ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)', expect: [200], allowChallenge: true },
   { name: 'GSC InspectionTool /k/*', path: K_PATH, ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)', expect: [200], allowChallenge: true },
-  { name: 'Real Chrome sitemap', path: SITEMAP, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200], allowChallenge: true },
+  { name: 'Real Chrome sitemap', path: SITEMAP, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200], allowChallenge: true, allowHostingBlock: true },
   { name: 'Real Chrome feed.xml', path: FEED, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200], allowChallenge: true },
-  { name: 'Real Chrome /k/*', path: K_PATH, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200], allowChallenge: true },
+  { name: 'Real Chrome /k/*', path: K_PATH, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200], allowChallenge: true, allowHostingBlock: true },
   // Fake crawlers (this script never runs from Google/Microsoft IPs) must be
   // stopped at the WAF on sitemaps too — sitemap floods invoke the Function
   // exactly like /k/* floods.
@@ -117,6 +130,12 @@ for (const c of REAL_CRAWLER_CASES) {
 
   if (challenged && c.allowChallenge) {
     console.log(`WARN  ${c.name}: HTTP 403 challenge (expected from datacenter IP — real crawlers/browsers exempt)`);
+    warned += 1;
+    continue;
+  }
+
+  if (c.allowHostingBlock && res.status === 403 && isWafBlock(body, res)) {
+    console.log(`WARN  ${c.name}: HTTP 403 WAF (datacenter/hosting ASN — expected from this environment; residential Chrome is allowed)`);
     warned += 1;
     continue;
   }

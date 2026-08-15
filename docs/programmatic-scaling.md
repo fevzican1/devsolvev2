@@ -49,16 +49,20 @@ an origin.
 
 ## Edge protection (WAF)
 
-`npm run edge:waf` deploys the custom WAF ruleset:
+`npm run edge:waf` deploys the custom WAF ruleset (**no skip rule**):
 
-- Rule 1 **skips** Under Attack / Bot Fight / BIC **only** for verified
-  Google/Bing crawlers (Cloudflare-verified + Google/Bing UA, or correct UA +
-  ASN) and GSC URL Inspection. Real browser UAs are **not** skipped — spoofed
-  Chrome + Client Hints was bypassing Bot Fight and draining `/k/*`.
-- Rule 2 blocks AI indexers and the Wikipedia-example Chrome/42 + Edge/12.246 UA.
-- Rule 3 is an allowlist catch-all on `/k/*` and `/sitemap*`: only verified
-  Google/Bing, GSC inspection, and real browsers. Fake Googlebot UAs from the
-  wrong ASN are blocked here; Bot Fight Mode also scores them.
+- **WAF1** (sitewide **block**) detects scrapers: AI indexers, headless/automation,
+  HTTP libraries, the Wikipedia Chrome/42+Edge/12.246 UA, Chrome/Edge without a
+  real Client-Hints + Fetch-Metadata fingerprint, and Googlebot/Bingbot UAs from
+  the wrong ASN. Verified Google/Bing (UA + ASN or Cloudflare-verified search
+  crawler) and GSC Inspection are never matched.
+- **WAF2** (`/k/*` + `/sitemap*`) is an allowlist: only those crawlers plus real
+  browsers. Chrome still needs HTTP/2 or HTTP/3 and must not come from a
+  cloud/hosting ASN — that is the Chrome/99–136 farm that already sends Client
+  Hints.
+
+Turn **Bot Fight Mode off**. Googlebot, Bingbot, and humans are allow-listed in
+WAF1/WAF2; Bot Fight would only add false challenges.
 
 `npm run edge:verify` asserts the whole matrix against production.
 
