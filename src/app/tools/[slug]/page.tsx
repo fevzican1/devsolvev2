@@ -9,6 +9,7 @@ import { toolRegistry, getToolBySlug, getRelatedTools } from '@/tools/registry';
 import { getGuidesForTool } from '@/content/guides';
 import { ToolRenderer } from '@/components/tools/ToolRenderer';
 import { RecommendedSolutions } from '@/components/monetization/RecommendedSolutions';
+import { StaticRevenueModules } from '@/components/monetization/StaticRevenue';
 import { buildMetadata } from '@/lib/seo/metadata';
 import {
   CommercialOpportunityLinks,
@@ -300,6 +301,7 @@ export default async function ToolPage({ params }: PageProps) {
         </Card>
 
         <RecommendedSolutions toolSlug={slug} />
+        <StaticRevenueModules toolName={tool.name} seed={slug} />
         <OriginalValueCallouts toolName={tool.name} />
 
         <Separator className="my-8" />

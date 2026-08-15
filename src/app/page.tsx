@@ -10,6 +10,7 @@ import { guideRegistry } from '@/content/guides';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
 import { TrustSignals } from '@/components/layout/TrustSignals';
+import { StaticRevenueModules } from '@/components/monetization/StaticRevenue';
 import { isSovrnJourneyEnabled, platformExternalUrls } from '@/config/monetization';
 
 export const metadata: Metadata = buildMetadata({
@@ -199,6 +200,10 @@ export default function HomePage() {
       </section>
 
       <TrustSignals />
+
+      <div className="container mx-auto px-4">
+        <StaticRevenueModules toolName="DevSolve developer tools" seed="home" />
+      </div>
 
       {isSovrnJourneyEnabled() ? (
         <section className="py-8 border-t bg-muted/30">

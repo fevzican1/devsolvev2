@@ -58,6 +58,7 @@ import {
   type DocumentPlan,
   type SnippetBlock,
 } from './pageVariation';
+import { AD_FOOTER_SLOT, AD_HEADER_SLOT, renderRevenueAsides } from './revenuePlacements';
 
 /* -------------------------------------------------------------------------- */
 /*  Corpus geometry (immutable deployment invariant)                          */
@@ -73,9 +74,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-15T21:30:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-15T17:15:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'c';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'd';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -1332,7 +1333,7 @@ const GUIDE_BY_TOOL: Record<string, { slug: string; title: string }> = {
 /*  HTML renderer                                                              */
 /* -------------------------------------------------------------------------- */
 
-const STYLE = 'body{font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#172033;background:#fff;margin:0}.wrap{max-width:820px;margin:0 auto;padding:28px 20px 64px}nav.crumbs{font-size:14px;color:#5a6a82}a{color:#0a5bd6}h1{font-size:2rem;line-height:1.2;margin:.4em 0}h2{font-size:1.4rem;margin:1.6em 0 .5em;border-top:1px solid #e6eaf0;padding-top:1.1em}h3{font-size:1.05rem;margin:1.2em 0 .3em}code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}code{background:#f3f5f8;padding:2px 5px;border-radius:4px;font-size:.92em}pre{background:#0f1626;color:#e6edf7;padding:14px 16px;border-radius:8px;overflow:auto;font-size:.86rem;line-height:1.5}table{border-collapse:collapse;width:100%;font-size:.95rem}th,td{border:1px solid #dde3ec;padding:8px 10px;text-align:left;vertical-align:top}th{background:#f6f8fb}ul,ol{padding-left:1.3em}li{margin:.35em 0}dl dt{font-weight:600;margin-top:.7em}dl dd{margin:0 0 .2em}.lead{font-size:1.08rem;color:#33405a}.tk{background:#f6f8fb;border:1px solid #e2e8f2;border-radius:10px;padding:14px 18px}.meta{font-size:.85rem;color:#5a6a82}.links a{display:inline-block;margin:0 12px 8px 0}footer{margin-top:3em;border-top:1px solid #e6eaf0;padding-top:1.2em;font-size:.9rem;color:#5a6a82}';
+const STYLE = 'body{font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#172033;background:#fff;margin:0;padding-bottom:50px}.wrap{max-width:820px;margin:0 auto;padding:28px 20px 64px}nav.crumbs{font-size:14px;color:#5a6a82}a{color:#0a5bd6}h1{font-size:2rem;line-height:1.2;margin:.4em 0}h2{font-size:1.4rem;margin:1.6em 0 .5em;border-top:1px solid #e6eaf0;padding-top:1.1em}h3{font-size:1.05rem;margin:1.2em 0 .3em}code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}code{background:#f3f5f8;padding:2px 5px;border-radius:4px;font-size:.92em}pre{background:#0f1626;color:#e6edf7;padding:14px 16px;border-radius:8px;overflow:auto;font-size:.86rem;line-height:1.5}table{border-collapse:collapse;width:100%;font-size:.95rem}th,td{border:1px solid #dde3ec;padding:8px 10px;text-align:left;vertical-align:top}th{background:#f6f8fb}ul,ol{padding-left:1.3em}li{margin:.35em 0}dl dt{font-weight:600;margin-top:.7em}dl dd{margin:0 0 .2em}.lead{font-size:1.08rem;color:#33405a}.tk{background:#f6f8fb;border:1px solid #e2e8f2;border-radius:10px;padding:14px 18px}.meta{font-size:.85rem;color:#5a6a82}.links a{display:inline-block;margin:0 12px 8px 0}footer{margin-top:3em;border-top:1px solid #e6eaf0;padding-top:1.2em;font-size:.9rem;color:#5a6a82}';
 
 function renderList(items: string[], ordered = false): string {
   const tag = ordered ? 'ol' : 'ul';
@@ -1530,7 +1531,8 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
 
   const footer = `<footer><p>DevSolve publishes free, privacy-first developer tools and guides. All processing runs locally in your browser.</p>`
     + `<div class="links"><a href="/about">About &amp; editorial standards</a><a href="/contact">Contact</a><a href="/legal/privacy">Privacy</a><a href="/legal/publisher-ethics">Publisher ethics</a></div>`
-    + `<p class="meta">Last updated ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}. Canonical URL: <code>/k/${escapeHtml(page.slug)}</code></p></footer>`;
+    + `<p class="meta">Last updated ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}. Canonical URL: <code>/k/${escapeHtml(page.slug)}</code></p>`
+    + `<p class="meta">Monetization: own-product dataset sales and clearly labeled sponsored infrastructure links. Affiliate links use rel=&quot;nofollow sponsored&quot;.</p></footer>`;
 
   const sectionHtml: Record<string, string> = {
     takeaways,
@@ -1591,7 +1593,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
   // Order: Bing §18 early answer stays first (H1 + lead + entity). Everything
   // after that is permuted per slug so the 20M corpus does not share one H2
   // skeleton. Related links stay last as crawl graph chrome.
-  const body = `<body><div class="wrap"><main>`
+  const body = `<body>${AD_HEADER_SLOT}<div class="wrap"><main>`
     + crumbs
     + `<h1>${escapeHtml(c.h1)}</h1>`
     + `<p class="meta">${escapeHtml(label(page.audience))} · ${escapeHtml(clusterLabel)} · ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}</p>`
@@ -1599,7 +1601,14 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + entity
     + orderedParts.join('')
     + related
-    + `</main>${footer}</div></body></html>`;
+    + `</main>`
+    + renderRevenueAsides({
+      toolName: toolName(page.tool),
+      job: label(page.intent),
+      audience: label(page.audience),
+      index: page.index,
+    })
+    + `${footer}</div>${AD_FOOTER_SLOT}</body></html>`;
 
   return head + body;
 }
