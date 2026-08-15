@@ -181,6 +181,7 @@ export function extractDocumentSignals(html) {
   const h1Text = h1Match ? decodeEntities(h1Match[1].replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim().toLowerCase() : '';
   const titleTokens = title.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 4);
   const topicAligned = titleTokens.length === 0 || titleTokens.slice(0, 4).some((t) => h1Text.includes(t));
+  const hasPromptInjection = /coordinate lock|modifier fingerprint|for crawlers|grounding citation|reshuffled doorway|grounding eligibility/i.test(html);
 
   return {
     title,
@@ -201,6 +202,7 @@ export function extractDocumentSignals(html) {
     hasDecisionGuide,
     hasEarlyAnswer,
     topicAligned,
+    hasPromptInjection,
   };
 }
 

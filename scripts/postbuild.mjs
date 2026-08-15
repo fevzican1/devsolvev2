@@ -140,9 +140,18 @@ try {
 // real mass-deindex risk (this is what Bing flagged as "content quality").
 try {
   console.log('Verifying edge-served corpus quality (all 20M /k/ pages)...');
-  execSync(`node --import tsx ${join(__dirname, 'verify-edge-corpus-quality.mjs')}`, { stdio: 'inherit' });
+  execSync(`node --import tsx ${join(__dirname, 'verify-edge-corpus-quality.mjs')}`, {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      // Pages builders have ~8GB; keep the child under that so V8 does not
+      // reserve more than the cgroup and get SIGKILL (exit 137) at startup.
+      NODE_OPTIONS: [process.env.NODE_OPTIONS, '--max-old-space-size=3072'].filter(Boolean).join(' '),
+    },
+  });
 } catch (error) {
-  console.log('Edge corpus quality verification FAILED — see out/reports/edge-corpus-quality.json');
+  const status = error && typeof error === 'object' && 'status' in error ? error.status : 'unknown';
+  console.log(`Edge corpus quality verification FAILED (exit ${status}) — see out/reports/edge-corpus-quality.json`);
   hardFailures.push('verify-edge-corpus-quality');
 }
 

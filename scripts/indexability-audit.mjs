@@ -181,10 +181,13 @@ function auditEdgeCorpusFunction() {
   }
   const txt = readFileSync(file, 'utf8');
   stats.filesScanned += 1;
-  // "if (url.search) return redirect(url)" is the query-string canonicalization
-  // invariant: every managed path (/k/*, sitemaps) 301s query strings away.
-  // These routing invariants live in the route handler itself.
-  for (const marker of ["pathname === '/sitemap.xml'", 'if (url.search) return redirect(url)']) {
+  // Query-string canonicalization: every managed path (/k/*, sitemaps) 301s
+  // query strings to the clean pathname. The redirect is cacheable and keyed
+  // by pathname (not by each unique query) so scanner junk cannot invoke a
+  // Function per variant. Older drafts used a one-liner
+  // `if (url.search) return redirect(url)` — the invariant is the 301, not
+  // that exact source spelling.
+  for (const marker of ["pathname === '/sitemap.xml'", 'if (url.search)', 'permanentRedirect', '__redir=1']) {
     if (!txt.includes(marker)) {
       record('CRITICAL', 'functions', file, `Edge corpus route is missing required invariant: ${marker}`);
     }

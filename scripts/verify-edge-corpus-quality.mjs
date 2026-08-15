@@ -71,6 +71,7 @@ import {
   renderProgrammaticPage,
   resolveSlugRequest,
   titleVocabularyAudit,
+  auditServedCopy,
 } from '../functions/_lib/programmaticPage.ts';
 import { scorePage, MIN_INDEXABLE_SCORE } from './lib/ai-quality-scoring.mjs';
 import { guidelineDigest } from './lib/search-guidelines.mjs';
@@ -87,7 +88,8 @@ const IDENTITY_SCAN = Math.min(
 );
 const SAMPLE = Number(process.env.EDGE_VERIFY_SAMPLE ?? 20_000);
 /** Render every Nth template combination (1 = all 111,360 of them). */
-const COMBO_STRIDE = Math.max(1, Number(process.env.EDGE_VERIFY_COMBO_STRIDE ?? 1));
+const ON_PAGES = process.env.CF_PAGES === '1';
+const COMBO_STRIDE = Math.max(1, Number(process.env.EDGE_VERIFY_COMBO_STRIDE ?? (ON_PAGES ? 2 : 1)));
 const MAX_FAIL = Number(process.env.EDGE_VERIFY_MAX_FAIL ?? 25);
 
 const failures = [];
@@ -137,6 +139,8 @@ function fingerprint(value) {
 }
 
 function findRepeatedFingerprints(values) {
+  // Copy before sort: the original array is indexed by corpus ordinal in the
+  // second pass (fingerprint collisions are re-checked as real strings).
   const sorted = values.slice().sort();
   const repeated = new Set();
   for (let i = 1; i < sorted.length; i += 1) {
@@ -251,6 +255,7 @@ function checkDocument(index) {
   }
   const html = renderProgrammaticPage(page, ORIGIN);
   const result = scorePage(html, { profile: 'edge', expectedCanonical: `${ORIGIN}/k/${page.slug}` });
+  const copyIssues = auditServedCopy(html, page);
   scored += 1;
   minScore = Math.min(minScore, result.score);
   maxScore = Math.max(maxScore, result.score);
@@ -268,6 +273,9 @@ function checkDocument(index) {
       breakdown: result.breakdown,
       violations: result.violations,
     });
+  }
+  if (copyIssues.length) {
+    fail('C:copy-quality', { slug: page.slug, message: copyIssues.join('; ') });
   }
 }
 
@@ -529,7 +537,7 @@ writeFileSync(join(reportsDir, 'edge-corpus-quality.json'), JSON.stringify(manif
 if (failures.length > 0) {
   console.error(`\nFAIL — ${failures.length} issue(s) block full indexability:`);
   for (const f of failures.slice(0, 10)) {
-    console.error(`  [${f.phase}] ${f.slug || f.message || ''} ${f.sibling ? `vs ${f.sibling}` : ''} ${f.jaccard != null ? `jaccard=${f.jaccard}` : ''} ${f.violations ? `→ ${f.violations.join('; ')}` : ''}`);
+    console.error(`  [${f.phase}] ${f.slug || f.message || ''} ${f.sibling ? `vs ${f.sibling}` : ''} ${f.jaccard != null ? `jaccard=${f.jaccard}` : ''} ${f.message && f.slug ? `→ ${f.message}` : ''} ${f.violations ? `→ ${f.violations.join('; ')}` : ''}`);
   }
   console.error('  Full report: out/reports/edge-corpus-quality.json');
   process.exit(1);

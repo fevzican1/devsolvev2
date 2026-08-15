@@ -30,6 +30,34 @@
  */
 
 import { EMBEDDED_RAMP_LEVEL } from './embeddedRamp';
+import {
+  archetypeSections,
+  audienceSection,
+  contextSection,
+  decisionFor,
+  intentKernel,
+  toolKnowledge,
+  type KnowledgeSection,
+  type PageKernel,
+} from './corpusKnowledge';
+import {
+  contextArtifact,
+  entityFraming,
+  planDocument,
+  uniqueSnippets,
+  variedAcceptance,
+  variedComparison,
+  variedFaq,
+  variedGlossary,
+  variedIntro,
+  variedPitfalls,
+  variedSteps,
+  variedTakeaways,
+  snippetLead,
+  exampleNote,
+  type DocumentPlan,
+  type SnippetBlock,
+} from './pageVariation';
 
 /* -------------------------------------------------------------------------- */
 /*  Corpus geometry (immutable deployment invariant)                          */
@@ -45,9 +73,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-12T15:45:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-15T21:30:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'd';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'c';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -1064,507 +1092,95 @@ export interface PageContent {
   steps: string[];
   pitfalls: string[];
   comparison: { item: string; pros: string; cons: string }[];
-  proTips: string[];
-  technical: string[];
-  useCases: string[];
   glossary: { term: string; definition: string }[];
   faq: { question: string; answer: string }[];
   keywords: string[];
   workedExample: { inputLabel: string; input: string; outputLabel: string; output: string; note: string };
   related: { slug: string; label: string }[];
-  scenario: { heading: string; summary: string; paragraphs: string[]; checklist: string[] };
-  /** Long, style×context-bound block that forces sibling bodies apart (near-dup defence). */
-  differentiation: string[];
+  /** Style/context/audience sections — different H2 trees per archetype. */
+  sections: KnowledgeSection[];
+  plan: DocumentPlan;
+  snippets: SnippetBlock[];
+  artifact: KnowledgeSection;
+}
+
+function pageKernel(page: ResolvedPage): PageKernel {
+  const ac = AUDIENCE_CONTEXT[page.audience] ?? DEFAULT_AUDIENCE;
+  const tc = TASK_CONTEXT[page.task] ?? DEFAULT_TASK;
+  const sv = styleVocab(page);
+  const cv = contextVocab(page);
+  return {
+    cluster: page.cluster,
+    tool: page.tool,
+    intent: page.intent,
+    audience: page.audience,
+    task: page.task,
+    style: page.style,
+    context: page.context,
+    slug: page.slug,
+    toolLabel: toolName(page.tool),
+    intentLabel: label(page.intent),
+    audienceLabel: label(page.audience),
+    taskPhrase: TASK_PHRASE[page.task] ?? label(page.task),
+    stylePhrase: sv.phrase,
+    contextPhrase: cv.phrase,
+    audienceFocus: ac.focus,
+    audienceConcern: ac.concern,
+    taskScenario: tc.scenario,
+    taskOutcome: tc.outcome,
+    taskUrgency: tc.urgency,
+  };
 }
 
 function buildContent(page: ResolvedPage): PageContent {
-  const { cluster, tool, intent, audience, task, slug } = page;
-  const seed = hashString(slug);
-  const tn = toolName(tool);
-  const ac = AUDIENCE_CONTEXT[audience] ?? DEFAULT_AUDIENCE;
-  const cd = CLUSTER_DOMAIN[cluster] ?? { field: `${label(cluster)} workflows`, importance: 'Reliable engineering workflows reduce downstream defects', bestPractice: 'Validate output against a known-good reference before shipping' };
-  const tc = TASK_CONTEXT[task] ?? DEFAULT_TASK;
-  const li = label(intent);
-  const la = label(audience);
-  const lt = label(task);
-
+  const k = pageKernel(page);
+  const tk = toolKnowledge(page.tool);
+  const ik = intentKernel(page.intent);
   const sv = styleVocab(page);
   const cv = contextVocab(page);
   const identity = buildIdentity(page);
-  const pageTitle = identity.title;
-  const h1 = identity.h1;
+  const plan = planDocument(k);
+  const tn = k.toolLabel;
+  const li = k.intentLabel;
 
-  // The opening paragraph answers the page's exact question before anything
-  // else (Bing guideline #18: surface key information early) and names the
-  // execution style and delivery context that make this URL distinct from its
-  // siblings, so the first 40 words already identify the sub-topic.
-  const leadAnswer = `To ${li} ${sv.phrase} as a ${la} working on ${cv.phrase}, open the ${tn}, load a representative sample of your own data, run the ${li} operation, and verify the output against a known-good reference before it reaches anything shared.`;
+  const intro = variedIntro(k, tk, ik);
+  const entity = entityFraming(k, tk, ik);
+  const decision = decisionFor(k, tk, ik);
+  const acceptance = variedAcceptance(k, tk, ik, plan);
+  const keyTakeaways = variedTakeaways(k, ik);
+  const steps = variedSteps(k, tk, ik, plan);
+  const pitfalls = variedPitfalls(k, tk, ik, plan);
+  const comparison = variedComparison(k, plan);
+  const glossary = variedGlossary(k, tk, ik, plan);
+  const faq = variedFaq(k, tk, ik, plan);
+  const workedExample = buildWorkedExample(page);
+  const related = buildRelated(page);
+  const snippets = uniqueSnippets(k, tk, ik, plan);
+  const artifact = contextArtifact(k);
 
-  const introVariants = [
-    [
-      leadAnswer,
-      `${cd.importance}, so the workflow here is written for real projects rather than toy examples. ${sv.practice}`,
-      `The driving scenario is ${tc.scenario} — ${tc.urgency}. By the end you will ${tc.outcome}, with every step reproducible on your own machine.`,
-    ],
-    [
-      leadAnswer,
-      `In ${cd.field}, the gap between a working result and a subtle bug often comes down to how carefully ${li} was handled. ${cv.demand}`,
-      `This walkthrough equips a ${la} with the exact steps, focused on ${ac.focus}. The scenario — ${tc.scenario} — is ${tc.urgency}, so you will ${tc.outcome}.`,
-    ],
-    [
-      leadAnswer,
-      `${title(intent)} is a task nearly every ${la} meets while ${tc.scenario}. ${tn} handles it entirely in your browser, giving deterministic output you can verify before it reaches production.`,
-      `${cd.importance}. ${sv.practice} This page maps that principle to concrete steps tailored for ${ac.focus}.`,
-    ],
-    [
-      leadAnswer,
-      `A ${la} working on ${tc.scenario} cannot afford ambiguity about ${li}. ${tn} removes that ambiguity by running every operation locally and returning transparent, repeatable output.`,
-      `Because ${cd.importance.toLowerCase()}, each step below is designed to surface issues early — particularly ${cv.phrase}, where ${tc.urgency.replace(/^a /, '')}. When you finish, you will ${tc.outcome}.`,
-    ],
-    [
-      leadAnswer,
-      `Speed and accuracy pull in opposite directions when ${la} teams need to ${li} under pressure. ${tn} resolves that tension: it is instant to open, processes data on the client, and shows exactly what changed.`,
-      `${cd.importance}, and this guide makes the principle concrete for ${tc.scenario} ${sv.phrase}. The outcome is simple — you will ${tc.outcome}.`,
-    ],
-  ];
-  const intro = introVariants[seed % introVariants.length];
-
-  // Bing §16: name the primary entity once, early, with a definition that
-  // stands alone — grounding engines cite entities, not vague page topics.
-  const entity = {
-    name: `${tn} · ${capitalise(li)}`,
-    definition: `${tn} is the free, browser-local DevSolve tool used on this URL to ${li} ${sv.phrase} for a ${la} during ${TASK_PHRASE[task] ?? lt}, scoped specifically to ${cv.phrase}. The page's single topic is that combination — not a generic overview of ${cd.field}.`,
-    alsoKnownAs: [
-      `${capitalise(li)} with ${tn}`,
-      `${la} ${TASK_PHRASE[task] ?? lt} workflow`,
-      `${sv.micro} ${cv.micro} guide`,
-    ],
-  };
-
-  // Bing §11/§15/§17: make this URL's applicability explicit so sibling pages
-  // (same tool, different style×context) are not near-duplicates.
-  const decision = {
-    heading: `When this exact ${li} guide applies`,
-    when: [
-      `You are a ${la} whose immediate job is ${TASK_PHRASE[task] ?? lt}, and you need to ${li} ${sv.phrase}.`,
-      `The delivery setting is ${cv.phrase}, where the first constraint is time-to-trustworthy-answer rather than polish.`,
-      `The execution style on this URL is ${sv.phrase}, which changes tooling, privacy, and hand-off expectations versus sibling guides.`,
-      `You need a result that another ${la} can regenerate from the same sample without shared tribal knowledge.`,
-    ],
-    notWhen: [
-      `You need a different execution style (for example, not ${sv.phrase}) — open the sibling guide that matches that style instead of stretching this one.`,
-      `The work is outside ${cv.phrase}; neighbouring context pages cover those constraints with different acceptance criteria.`,
-      `You only need a one-line definition of ${cd.field} with no worked verification — start from the tool page, not this scenario guide.`,
-      `You are batching millions of records server-side; keep this page as the reference check and automate the bulk path separately.`,
-    ],
-    verdict: `Use this URL when — and only when — a ${la} must ${li} ${sv.phrase} for ${cv.phrase} while doing ${TASK_PHRASE[task] ?? lt}. That single-topic focus is what makes the page eligible as a grounding citation rather than a generic hub.`,
-  };
-
-  const acceptance = [
-    `Input sample is representative of payloads seen ${cv.phrase}, not a toy string that hides edge cases.`,
-    `The ${tn} run is performed ${sv.phrase}, and the same input + settings reproduce the same output for a second person.`,
-    `Output is compared to a known-good reference before it influences ${TASK_PHRASE[task] ?? lt}.`,
-    `${ac.concern} is explicitly checked, because that is the failure mode that matters for a ${la}.`,
-    `Evidence (input, settings, output) is recorded next to the work item it supports.`,
-  ];
-
-  // The section that makes each of the 180 sibling URLs a genuinely different
-  // page: what changes about this workflow when it is run in this execution
-  // style, in this delivery context.
-  const scenario = {
-    heading: `${capitalise(li)} ${sv.phrase}: what changes ${cv.phrase.startsWith('for ') ? cv.phrase : `in ${cv.phrase}`}`,
-    summary: `This page covers one specific slice of ${cd.field}: a ${la} doing ${TASK_PHRASE[task] ?? lt} who needs to ${li} ${sv.phrase}, ${cv.phrase}.`,
-    paragraphs: [
-      sv.practice,
-      cv.demand,
-      `Put together, that means the ${tn} is used here as a verification step rather than a convenience: ${ac.concern} is the risk that matters for a ${la}, and ${cv.phrase} is the setting where an unverified assumption is most expensive to discover late.`,
-      `Unlike a generic ${tn} overview, this guide refuses to mix unrelated intents: every section below stays inside ${li} × ${sv.micro} × ${cv.micro} so Bing and Google can treat the URL as a single, citable topic.`,
-    ],
-    checklist: [
-      `Confirm the sample you paste is representative of the payloads you actually see ${cv.phrase}.`,
-      `Keep the run repeatable ${sv.phrase} — the same input and settings must produce the same output for a second person.`,
-      `Record the outcome next to the ${TASK_PHRASE[task] ?? lt} it supports, so the evidence is attached to the work it justifies.`,
-    ],
-  };
-
-  /*
-   * BODY UNIQUENESS CONTRACT (Bing abuse: auto-gen / near-duplicate)
-   * ----------------------------------------------------------------
-   * Every reusable pool sentence MUST bind style (sv) and context (cv) so the
-   * 180 siblings that share (pair × audience × task) cannot share identical
-   * body sentences. Metadata uniqueness alone is not enough for indexability;
-   * the served <main> text must also be a distinct document.
-   */
-  const keyTakeawaysPool = [
-    `${tn} lets a ${la} ${li} ${sv.phrase} without uploading data — critical ${cv.phrase} when ${ac.concern} is on the line.`,
-    `The core outcome ${cv.phrase} is to ${tc.outcome}, using ${tn} ${sv.phrase} rather than a generic ${cd.field} checklist.`,
-    `${cd.bestPractice} — applied here ${sv.phrase} so the evidence still holds ${cv.phrase}.`,
-    `Client-side execution ${sv.phrase} matters most ${cv.phrase}, where ${ac.concern} cannot wait on a shared sandbox.`,
-    `Keep a minimal reproducible sample ${sv.phrase} so the same ${li} result can be regenerated during ${tc.scenario} ${cv.phrase}.`,
-    `Pair a manual ${sv.micro} pass with an automated check so ${cd.field} stays consistent ${cv.phrase} across releases.`,
-    `Document ${tn} settings used ${sv.phrase} so a reviewer ${cv.phrase} can verify the ${li} result independently.`,
-  ];
-  const keyTakeaways = [
-    `${capitalise(li)} ${sv.phrase} is the specific workflow on this page, written for ${cv.phrase}.`,
-    ...seededShuffle(keyTakeawaysPool, seed + 5).slice(0, 3),
-  ];
-
-  const baseSteps = [
-    `Define scope for ${cv.phrase} under the ${sv.micro} method: you are ${tc.scenario}. Gather a representative sample before scaling — the sample must reflect payloads seen ${cv.phrase}, not a toy string.`,
-    `Open the ${tn} and execute ${li} ${sv.phrase}. ${sv.practice}`,
-    `Paste the input for ${li}. If the data is sensitive, confirm the browser environment is trusted first; privacy posture on this URL is ${sv.micro} inside ${cv.phrase}.`,
-    `Adjust ${tn} options for ${ac.focus}, then confirm those options still make sense ${cv.phrase} where ${tc.urgency}.`,
-    `Run ${li} ${sv.phrase} and inspect edge cases that affect ${ac.concern} — happy-path-only checks fail ${cv.phrase}.`,
-    `Validate against a known-good reference. For ${tc.scenario} ${cv.phrase}, the goal is to ${tc.outcome}.`,
-    `Record input, settings, and output together so the ${sv.micro} run remains admissible evidence ${cv.phrase}.`,
-  ];
-  // Style-exclusive step skeletons (different wording trees per style) so siblings
-  // do not share 3-grams even when they describe similar actions.
-  const styleStepExtras: Record<string, string[]> = {
-    'without-installing-cli-tools': [
-      `Refuse any step that requires apt, brew, or a downloaded binary — if ${li} needs a CLI, you are on the wrong sibling for ${cv.phrase}.`,
-      `Prefer copy-paste fixtures over shell redirects so a locked-down laptop can still finish ${sv.phrase}.`,
-    ],
-    'directly-in-your-browser': [
-      `Keep the entire ${li} loop inside one tab: paste → run → read → decide, without bouncing to an IDE for this ${cv.phrase} check.`,
-      `Share a link-ready summary so another ${la} can open the same ${tn} path ${sv.phrase} without a setup doc.`,
-    ],
-    'with-step-by-step-instructions': [
-      `Narrate each ${li} micro-step out loud in notes so a newcomer can replay ${sv.phrase} during ${cv.phrase}.`,
-      `Do not skip the “why” line under each action — onboarding-grade clarity is the point of this sibling.`,
-    ],
-    'with-safe-local-processing': [
-      `Confirm offline/local mode before pasting classified input; egress during ${li} voids this ${cv.phrase} path.`,
-      `Treat any upload prompt as a stop condition when you are committed to ${sv.phrase}.`,
-    ],
-    'while-keeping-data-private': [
-      `Write the privacy constraint into the ticket: ${li} ${sv.phrase} with zero retention beyond the local evidence pack ${cv.phrase}.`,
-      `If a vendor paste box appears, abort and switch siblings — privacy is non-negotiable here.`,
-    ],
-    'for-quick-prototyping': [
-      `Time-box the ${li} pass; the deliverable is a direction, not a release gate, for ${cv.phrase}.`,
-      `Capture the winning fixture so production hardening can start from this ${sv.micro} prototype.`,
-    ],
-    'during-code-review': [
-      `Format the ${tn} output for a PR comment: small, regenerable, and tied to the diff under review ${cv.phrase}.`,
-      `Include settings beside the snippet so reviewers can ${li} ${sv.phrase} without DMing you.`,
-    ],
-    'as-part-of-ci-cd-pipeline': [
-      `Freeze the fixture name and expected hash so the browser rehearsal becomes a CI assertion for ${li}.`,
-      `Note the exact ${tn} options that must be ported into the pipeline job after this ${sv.micro} dry run ${cv.phrase}.`,
-    ],
-    'with-automated-validation': [
-      `Attach a machine-checkable invariant (schema, hash, or roundtrip) before closing the ${li} session ${cv.phrase}.`,
-      `If you cannot state the assertion in one line, you are not done with ${sv.phrase} validation.`,
-    ],
-  };
-  const contextStepExtras: Record<string, string[]> = {
-    'for-time-sensitive-incidents': [`Stop at the first trustworthy sample — incident clocks beat elegance when you ${li} ${sv.phrase}.`],
-    'for-team-onboarding': [`Explain each ${tn} control to the learner while you ${li} ${sv.phrase}; silence is a bug in onboarding.`],
-    'for-audit-readiness': [`Photograph or export the evidence pack immediately; auditors will ask to regenerate ${li} ${sv.phrase}.`],
-    'for-cross-region-teams': [`Avoid timezone slang in notes; ${cv.phrase} readers must ${li} ${sv.phrase} without a live call.`],
-    'for-legacy-system-migrations': [`Compare semantic meaning, not pretty-print; migrations fail when ${li} only “looks” equal ${sv.phrase}.`],
-    'for-large-enterprise-workflows': [`Use the shared fixture library ID in your notes so other squads can ${li} ${sv.phrase} identically.`],
-    'for-api-contract-validation': [`Name the exact field/type mismatch; contract work rejects vague ${li} summaries.`],
-    'for-weekly-ops-routines': [`Keep the checklist identical week to week; drift in ritual is a ${cv.phrase} defect.`],
-    'for-compliance-reporting': [`Map each ${li} check to a policy control ID before you leave the ${sv.micro} session.`],
-    'for-incident-postmortems': [`Store fixtures as if a stranger will replay ${li} ${sv.phrase} next quarter.`],
-    'for-capacity-planning': [`Record sample size and where the browser path stops scaling after ${li} ${sv.phrase}.`],
-    'for-release-management': [`Produce a binary go/no-go from ${li}; indeterminate results fail ${cv.phrase}.`],
-    'for-vendor-integration': [`Label the failing boundary (vendor, parser, transport) while you ${li} ${sv.phrase}.`],
-    'for-data-governance': [`Document lineage: confirm no unapproved copy was created during ${li} ${sv.phrase}.`],
-    'for-service-mesh-debugging': [`Repeat ${li} at each hop until the mutating boundary is identified ${sv.phrase}.`],
-    'for-cost-optimization': [`Prefer this zero-infra ${sv.micro} path unless a pipeline is already paid for ${cv.phrase}.`],
-    'for-performance-benchmarking': [`Freeze the fixture before comparing runs; otherwise ${li} benchmarks lie.`],
-    'for-disaster-recovery': [`Practice ${li} ${sv.phrase} offline; DR drills assume the usual control plane is gone.`],
-    'for-production-rollouts': [`Diff old vs new under the same fixture; single-version ${li} is the wrong sibling.`],
-    'for-observability-pipelines': [`Validate shape before ingest; malformed telemetry after ${li} silently drops.`],
-  };
-  const clusterSteps: Record<string, string[]> = {
-    json: [
-      `Confirm JSON syntax before ${li} ${sv.phrase} — a misplaced comma ${cv.phrase} cascades into misleading results.`,
-      `Check null, empty arrays, and deep nesting ${sv.phrase}; these quiet bugs surface late ${cv.phrase}.`,
-      `If high-precision numbers matter ${cv.phrase}, verify they survive ${li} without losing significant digits.`,
-    ],
-    encoding: [
-      `Decide encode vs decode direction before you ${li} ${sv.phrase} — double-encoding is brutal to unwind ${cv.phrase}.`,
-      `Test Unicode, whitespace, and special characters ${sv.phrase} so coverage matches payloads seen ${cv.phrase}.`,
-      `Roundtrip encode→decode ${sv.phrase} and compare to the original before trusting the result ${cv.phrase}.`,
-    ],
-    security: [
-      `Keep production secrets out of shared sessions before you ${li} ${sv.phrase}, especially ${cv.phrase}.`,
-      `Confirm algorithm and key length for this ${sv.micro} run — browser support may be narrower ${cv.phrase}.`,
-      `Treat ${tn} inspection as convenience, not authority: verify signatures server-side even when you ${li} ${sv.phrase}.`,
-    ],
-    text: [
-      `Define acronym/number/symbol behaviour before ${li} ${sv.phrase} so ${cv.phrase} reviews stay consistent.`,
-      `Test patterns on normal, edge, and adversarial samples ${sv.phrase} before relying on them ${cv.phrase}.`,
-      `Keep the original text before destructive ${li} steps ${sv.phrase}; rollbacks are cheaper ${cv.phrase}.`,
-    ],
-    formatting: [
-      `Confirm the team style guide before reformatting ${sv.phrase} — shared files ${cv.phrase} punish surprise diffs.`,
-      `Run the linter/validator after formatting ${sv.phrase} so syntax still holds ${cv.phrase}.`,
-      `Exercise reformatted output in the real runtime ${sv.phrase}; subtle regressions hide until ${cv.phrase}.`,
-    ],
-    api: [
-      `Review the API contract before you ${li} ${sv.phrase} so constraints match what ${cv.phrase} expects.`,
-      `Test valid and invalid payloads ${sv.phrase} to confirm structured errors remain useful ${cv.phrase}.`,
-      `Document the request/response pair from this ${sv.micro} run — it doubles as integration evidence ${cv.phrase}.`,
-    ],
-    data: [
-      `Snapshot the original dataset before ${li} ${sv.phrase} so unexpected results ${cv.phrase} are reversible.`,
-      `Validate transformed data against the target schema ${sv.phrase} before it influences work ${cv.phrase}.`,
-      `Normalize whitespace and key order ${sv.phrase} so fingerprints stay stable ${cv.phrase}.`,
-    ],
-    debugging: [
-      `Reproduce with the smallest input ${sv.phrase} — isolation is what makes ${cv.phrase} fixes verifiable.`,
-      `Inspect structural diffs first ${sv.phrase}, then values; that order saves time ${cv.phrase}.`,
-      `Write what you checked and concluded ${sv.phrase} so knowledge survives the next ${cv.phrase} incident.`,
-    ],
-    automation: [
-      `Isolate the schedule/extraction pattern ${sv.phrase} on production-like data before promoting it ${cv.phrase}.`,
-      `Validate cron next-run times ${sv.phrase}, not only syntax — timezone mistakes show up ${cv.phrase}.`,
-      `Add monitoring so ${sv.micro} automation failures are visible immediately ${cv.phrase}.`,
-    ],
-    web: [
-      `Sanitize user content before render ${sv.phrase}; XSS risk is unacceptable ${cv.phrase}.`,
-      `Test minified CSS/markup across browsers ${sv.phrase} so optimization does not change rendering ${cv.phrase}.`,
-      `Confirm Content-Type and encoding match receivers ${sv.phrase} to avoid quiet loss ${cv.phrase}.`,
-    ],
-  };
-  const stepPool = [
-    ...baseSteps,
-    ...(clusterSteps[cluster] ?? []),
-    ...(styleStepExtras[page.style] ?? []),
-    ...(contextStepExtras[page.context] ?? []),
-  ];
-  const steps = [
-    ...seededShuffle(stepPool, seed + 11).slice(0, 7),
-    `Close the loop for ${cv.phrase}: ${scenario.checklist[2].charAt(0).toLowerCase()}${scenario.checklist[2].slice(1)}`,
-  ];
-
-  const genericPitfalls = [
-    `Skipping a sanity sample before full-dataset ${li} ${sv.phrase} — ${cv.phrase} amplifies sample bias into outages.`,
-    `Trusting ${tn} defaults ${sv.phrase} without probing malformed input that appears ${cv.phrase}.`,
-    `Transforming without a backup ${sv.phrase}; recovery is slower than prevention ${cv.phrase}.`,
-    `Treating ${tn} output as authoritative ${sv.phrase} without a second source of truth ${cv.phrase}.`,
-    `Ignoring whitespace/encoding drift ${sv.phrase} that only breaks downstream systems ${cv.phrase}.`,
-    `Failing to record settings from the ${sv.micro} run, so the ${li} result cannot be reproduced ${cv.phrase}.`,
-  ];
-  const clusterPitfalls: Record<string, string[]> = {
-    json: [
-      `Treating pretty-printed JSON as validated ${sv.phrase} without a real parser ${cv.phrase}.`,
-      `Assuming key order is preserved ${sv.phrase} when the JSON model says otherwise ${cv.phrase}.`,
-    ],
-    encoding: [
-      `Double-encoding already-encoded values ${sv.phrase} during ${li} ${cv.phrase}.`,
-      `Confusing URL, HTML-entity, and Base64 encodings ${sv.phrase} when the receiver expects one ${cv.phrase}.`,
-    ],
-    security: [
-      `Mixing test and production secrets in one ${sv.micro} browser session ${cv.phrase}.`,
-      `Trusting JWT claims ${sv.phrase} without server-side signature verification ${cv.phrase}.`,
-    ],
-    text: [
-      `Aggressive find-and-replace ${sv.phrase} without scanning the diff ${cv.phrase}.`,
-      `Shipping complex patterns ${sv.phrase} before validating realistic inputs ${cv.phrase}.`,
-    ],
-    formatting: [
-      `Deploying reformatted artifacts ${sv.phrase} without the test suite ${cv.phrase}.`,
-      `Reformatting whitespace-sensitive languages ${sv.phrase} without checking language rules ${cv.phrase}.`,
-    ],
-    api: [
-      `Hardcoding response shapes ${sv.phrase} instead of schema validation ${cv.phrase}.`,
-      `Checking bodies only ${sv.phrase} and ignoring HTTP status codes ${cv.phrase}.`,
-    ],
-    data: [
-      `Transforming the full set ${sv.phrase} before a representative sample ${cv.phrase}.`,
-      `Assuming types from one sample cover every variation ${sv.phrase} seen ${cv.phrase}.`,
-    ],
-    debugging: [
-      `Changing several variables at once ${sv.phrase}, hiding the real fix ${cv.phrase}.`,
-      `Blaming code ${sv.phrase} when the defect is data/config ${cv.phrase}.`,
-    ],
-    automation: [
-      `Deploying schedules ${sv.phrase} without confirming scheduler timezone ${cv.phrase}.`,
-      `Leaving automation failures unalerted ${sv.phrase} so errors pile up ${cv.phrase}.`,
-    ],
-    web: [
-      `Trusting client sanitization alone ${sv.phrase} without server validation ${cv.phrase}.`,
-      `Minifying CSS with custom properties ${sv.phrase} without testing output ${cv.phrase}.`,
-    ],
-  };
-  const pitfalls = [
-    `Applying a generic checklist instead of the one ${cv.phrase} needs — constraints differ when you ${li} ${sv.phrase}.`,
-    ...seededShuffle([...genericPitfalls, ...(clusterPitfalls[cluster] ?? [])], seed + 17).slice(0, 4),
-  ];
-
-  const comparisonPool = [
+  const sections: KnowledgeSection[] = [
+    ...archetypeSections(k, tk, ik),
+    contextSection(k, cv.bodyBlock, cv.demand),
+    audienceSection(k),
     {
-      item: `${tn} ${sv.phrase}`,
-      pros: `Matches this URL’s style: instant open, local processing, and evidence you can regenerate ${cv.phrase}.`,
-      cons: `Not a bulk server job; keep automation elsewhere and use this path for trustworthy ${li} checks.`,
+      id: 'practice',
+      heading: `${sv.micro.charAt(0).toUpperCase() + sv.micro.slice(1)} practice`,
+      paragraphs: [sv.practice, sv.bodyBlock],
     },
-    {
-      item: `CLI utilities vs ${sv.micro}`,
-      pros: `Scriptable and strong for large files once installed.`,
-      cons: `Setup friction fights ${cv.phrase} when a ${la} needs ${li} ${sv.phrase} in minutes.`,
-    },
-    {
-      item: `App-embedded ${li}`,
-      pros: `Maximum control beside business logic.`,
-      cons: `Maintenance cost is wrong for a one-off ${sv.micro} verification ${cv.phrase}.`,
-    },
-    {
-      item: `Hosted ${cd.field} services`,
-      pros: `Dashboards and integrations out of the box.`,
-      cons: `Data egress and rate limits conflict with ${sv.practice}`,
-    },
-    {
-      item: `IDE helpers during ${sv.micro}`,
-      pros: `Inline feedback while editing.`,
-      cons: `Coverage varies by editor and rarely matches the acceptance bar ${cv.phrase}.`,
-    },
-  ];
-  const comparison = seededShuffle(comparisonPool, seed + 23).slice(0, 4);
-
-  const proTipsPool = [
-    `Bookmark ${tn} for ${li} ${sv.phrase} — ${cd.field} work recurs for a ${la}, especially ${cv.phrase}.`,
-    `When ${ac.concern} matters ${cv.phrase}, freeze a sample and validate ${sv.phrase} before touching production config.`,
-    `Start ${lt} with the smallest reproducible input ${sv.phrase}; complexity drops fast ${cv.phrase}.`,
-    `Keep known-good fixtures for ${cd.field} so future ${li} checks ${sv.phrase} start from a trusted baseline ${cv.phrase}.`,
-    `Client-side ${sv.micro} runs work offline — useful ${cv.phrase} when networks or shared sandboxes are restricted.`,
-    `Cross-check ${tn} output with one independent method ${sv.phrase} before ${cv.phrase} decisions go final.`,
-    `Link this ${sv.micro} workflow in the team runbook so ${lt} stays consistent ${cv.phrase}.`,
-    `Version the settings used ${sv.phrase} so ${li} evidence is reviewable like code ${cv.phrase}.`,
-  ];
-  const proTips = seededShuffle(proTipsPool, seed + 29).slice(0, 4);
-
-  const technicalPool = [
-    `${capitalise(li)} ${sv.phrase} is deterministic: same input and settings yield the same output. That is why a ${la} can treat ${tn} output as evidence during ${tc.scenario} ${cv.phrase}.`,
-    `The usual ${cd.field} failure mode is an implicit assumption about input shape or encoding. This ${sv.micro} workflow forces a representative sample first — where ${ac.focus} is won or lost ${cv.phrase}.`,
-    `Best results pair a manual ${sv.phrase} pass (context a ${la} spots immediately) with automation that enforces the same bar later, keeping ${ac.concern} controlled ${cv.phrase}.`,
-    `Reproducibility is the differentiator ${cv.phrase}: record input, ${tn} settings, and output so a stranger can rerun ${li} ${sv.phrase} and reach the same conclusion.`,
-    `Before automating ${li} beyond this ${sv.micro} path, confirm behaviour when size or concurrency jumps — shortcuts in ${cd.field} break first ${cv.phrase}.`,
-  ];
-  const technical = seededShuffle(technicalPool, seed + 37).slice(0, 3);
-
-  const useCasesPool = [
-    `${capitalise(cv.micro)} response: a ${la} uses ${tn} to ${li} ${sv.phrase} during ${tc.scenario} without provisioning infrastructure.`,
-    `Pre-release gate ${cv.phrase}: fold ${li} ${sv.phrase} into the checklist so ${ac.concern} is verified before ship.`,
-    `Distributed ${la} teams rely on identical ${tn} output ${sv.phrase} as a shared reference ${cv.phrase}, ending environment disputes in ${cd.field}.`,
-    `Regulated work ${cv.phrase}: local-only ${sv.micro} processing lets teams ${li} on sensitive payloads without extra egress reviews.`,
-    `Onboarding ${cv.phrase}: a new ${la} learns ${lt} through this exact ${li} ${sv.phrase} guide, glossary, and fixture.`,
-  ];
-  const useCases = seededShuffle(useCasesPool, seed + 41).slice(0, 3);
-
-  const glossaryPool = [
-    {
-      term: `${capitalise(sv.micro)} ${li}`,
-      definition: `Performing ${li} ${sv.phrase} so a ${la} can regenerate the same ${tn} result ${cv.phrase} without shared tribal knowledge.`,
-    },
-    {
-      term: `${capitalise(cv.micro)} acceptance`,
-      definition: `The bar for “done” ${cv.phrase}: representative input, ${sv.micro} execution, known-good comparison, and recorded evidence.`,
-    },
-    {
-      term: `${tn} evidence pack`,
-      definition: `Input sample, ${tn} settings, and output captured together after ${li} ${sv.phrase}, admissible in review ${cv.phrase}.`,
-    },
-    {
-      term: 'Roundtrip validation',
-      definition: `Transform then reverse to prove no loss — required quality gate for ${cd.field} when you ${li} ${sv.phrase} ${cv.phrase}.`,
-    },
-    {
-      term: `${title(cluster)} ${sv.micro} workflow`,
-      definition: `Steps a ${la} follows to execute and verify ${cd.field} tasks ${sv.phrase}, combining manual checks with automation ${cv.phrase}.`,
-    },
-    {
-      term: 'Local processing',
-      definition: `Running ${li} entirely in-browser ${sv.phrase} without egress — the privacy posture this page requires ${cv.phrase}.`,
-    },
-    {
-      term: `${la} focus (${ac.focus})`,
-      definition: `The success criterion for this audience: protect ${ac.focus} while completing ${TASK_PHRASE[task] ?? lt} ${cv.phrase}.`,
-    },
-  ];
-  const glossary = seededShuffle(glossaryPool, seed + 43).slice(0, 5);
-
-  const faqPool = [
-    {
-      question: `Is data safe when I ${li} with ${tn} ${sv.phrase}?`,
-      answer: `Yes. ${tn} processes in-browser ${sv.phrase}, so nothing is uploaded — appropriate for sensitive inputs during ${tc.scenario} ${cv.phrase}.`,
-    },
-    {
-      question: `Can ${tn} support production ${li} ${sv.phrase}?`,
-      answer: `Use it for verification and prototyping ${sv.phrase}. Port proven logic into tested code for bulk paths, and keep this URL as the reference ${cv.phrase}.`,
-    },
-    {
-      question: `What are size limits for ${li} ${sv.phrase}?`,
-      answer: `Browsers are memory-bound; multi‑10MB inputs may stall. Use CLI for bulk and reserve ${tn} ${sv.phrase} for trustworthy checks ${cv.phrase}.`,
-    },
-    {
-      question: `What should a ${la} prioritise on this ${sv.micro} page?`,
-      answer: `Watch ${ac.concern}. Because ${ac.focus} is the goal, confirm output against that bar before relying on it ${cv.phrase}.`,
-    },
-    {
-      question: `How do I validate ${li} output ${sv.phrase}?`,
-      answer: `Compare to a known-good sample, check structure, and verify system invariants. For ${tc.scenario} ${cv.phrase}, aim to ${tc.outcome}.`,
-    },
-    {
-      question: `Does ${tn} work offline ${sv.phrase}?`,
-      answer: `After load, client-side JS runs without network — useful ${cv.phrase} when connectivity is restricted.`,
-    },
-    {
-      question: `What if ${li} output looks wrong ${sv.phrase}?`,
-      answer: `Verify input format/encoding, re-check options, then retest a minimal sample before retrying real data ${cv.phrase}.`,
-    },
-    {
-      question: `How does ${li} ${sv.phrase} protect ${ac.focus}?`,
-      answer: `${title(intent)} catches boundary defects early — cheaper than debugging after promotion ${cv.phrase}.`,
-    },
-  ];
-  const faq = [
-    {
-      question: `How do I ${li} ${sv.phrase} ${cv.phrase.startsWith('for ') ? cv.phrase : `for ${cv.phrase}`}?`,
-      answer: `${scenario.summary} Prefer a small representative sample, run the ${tn}, and compare the output with a known-good reference before it is used anywhere else.`,
-    },
-    {
-      question: `Why does ${cv.phrase} change how a ${la} approaches ${li}?`,
-      answer: `${cv.demand} Execution stays ${sv.phrase} so the acceptance criteria on this URL remain testable.`,
-    },
-    ...seededShuffle(faqPool, seed + 47).slice(0, 4),
   ];
 
   const keywords = Array.from(new Set([
-    intent, tool, cluster, audience, task,
-    `${label(intent)} ${tn}`, `${label(intent)} ${cv.phrase}`, `${tn} ${sv.phrase}`,
-    'browser-based developer tool', 'local processing', 'privacy-first',
-  ])).map((k) => label(k));
-
-  const workedExample = buildWorkedExample(page);
-  const related = buildRelated(page);
-  const description = identity.description;
-
-  // Dedicated anti-near-duplicate block: style-only + context-only long prose
-  // (absent from siblings that change either dimension) plus coordinate locks.
-  const differentiation = [
-    `This URL is not a generic ${tn} overview. It is the ${sv.micro} path for ${li} during ${TASK_PHRASE[task] ?? lt}, written for a ${la}, and scoped only to ${cv.phrase}.`,
-    sv.bodyBlock,
-    cv.bodyBlock,
-    `Locked coordinate pair: (${sv.micro}) × (${cv.micro}). No other style×context sibling may claim this exact ${li} + ${tn} acceptance surface for a ${la} doing ${TASK_PHRASE[task] ?? lt}.`,
-    `Sibling pages that keep the same tool and intent but change execution style are different documents: they do not claim ${sv.phrase}, and their acceptance criteria will not match what ${cv.phrase} demands here.`,
-    `Sibling pages that keep the same style but change delivery context are also different: ${cv.demand}`,
-    `Practically, that means the evidence pack for this page — sample, ${tn} settings, output — is only valid when the run was performed ${sv.phrase} and judged against ${cv.phrase}.`,
-    `If your work is neither ${sv.phrase} nor ${cv.phrase}, stop and open the matching sibling instead of stretching this guide; that is how the corpus stays single-topic and indexable rather than a reshuffled doorway set.`,
-    `For a ${la} focused on ${ac.focus}, the failure mode that matters on this URL is ${ac.concern} while ${tc.scenario} — which is why the worked example and acceptance list stay inside ${li} × ${sv.micro} × ${cv.micro}.`,
-    `Modifier fingerprint ${page.modifier}/${MODIFIER_COUNT}: style=${page.style}; context=${page.context}; cluster=${cluster}; tool=${tool}; intent=${intent}; audience=${audience}; task=${task}.`,
-    `Coordinate lock for crawlers and humans: intent=${li}; tool=${tn}; audience=${la}; task=${TASK_PHRASE[task] ?? lt}; style=${sv.phrase}; context=${cv.phrase}; slug=/k/${slug}.`,
-  ];
+    intentKernelLabel(page.intent, li),
+    tn,
+    page.cluster,
+    li,
+    'browser developer tool',
+  ]));
 
   return {
-    title: pageTitle,
-    description,
-    h1,
+    title: identity.title,
+    description: identity.description,
+    h1: identity.h1,
     intro,
     entity,
     decision,
@@ -1573,17 +1189,20 @@ function buildContent(page: ResolvedPage): PageContent {
     steps,
     pitfalls,
     comparison,
-    proTips,
-    technical,
-    useCases,
     glossary,
     faq,
     keywords,
     workedExample,
     related,
-    scenario,
-    differentiation,
+    sections,
+    plan,
+    snippets,
+    artifact,
   };
+}
+
+function intentKernelLabel(intent: string, fallback: string): string {
+  return fallback || intent.replace(/-/g, ' ');
 }
 
 function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
@@ -1602,7 +1221,7 @@ function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
   if (f2 === f1) f2 = fields[(fields.indexOf(f1) + 1) % fields.length];
   const fixtureId = `fx-${hex(8)}`;
   const recordId = 1000 + (rnd() % 9000);
-  const sample = `{"${f1}":"${fixtureId}","${f2}":${recordId},"stage":"${intent}"}`;
+  const sample = `{"${f1}":"${fixtureId}","${f2}":${recordId},"job":"${intent}","mode":"${page.style}","setting":"${page.context}"}`;
 
   let inputLabel = 'input fixture';
   let outputLabel = `${toolName(tool)} output`;
@@ -1612,7 +1231,7 @@ function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
   switch (tool) {
     case 'json-to-typescript':
       outputLabel = 'generated interface';
-      output = `interface Record${recordId} {\n  ${f1}: string;\n  ${f2}: number;\n  stage: string;\n}`;
+      output = `interface Record${recordId} {\n  ${f1}: string;\n  ${f2}: number;\n  job: string;\n  mode: string;\n  setting: string;\n}`;
       break;
     case 'hash-generator':
       inputLabel = 'message'; outputLabel = 'SHA-256 (representative)'; input = fixtureId; output = hex(64);
@@ -1637,7 +1256,7 @@ function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
       try { output = JSON.stringify(JSON.parse(sample), null, 2); } catch { output = sample; }
   }
 
-  const note = `Fixture ${fixtureId} is derived deterministically from this page's slug, so it is unique to /k/${slug} and reproduces byte-for-byte on any machine — which is what makes it admissible as evidence in a review or postmortem. Run it ${styleVocab(page).phrase} and judge the result against the constraints of ${contextVocab(page).phrase}.`;
+  const note = exampleNote(pageKernel(page), fixtureId);
   return { inputLabel, input, outputLabel, output, note };
 }
 
@@ -1718,6 +1337,51 @@ const STYLE = 'body{font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-
 function renderList(items: string[], ordered = false): string {
   const tag = ordered ? 'ol' : 'ul';
   return `<${tag}>${items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</${tag}>`;
+}
+
+export function countPhrase(haystack: string, needle: string): number {
+  if (!needle) return 0;
+  const lowerHay = haystack.toLowerCase();
+  const lowerNeedle = needle.toLowerCase();
+  let count = 0;
+  let pos = 0;
+  while (true) {
+    const idx = lowerHay.indexOf(lowerNeedle, pos);
+    if (idx === -1) return count;
+    count += 1;
+    pos = idx + lowerNeedle.length;
+  }
+}
+
+/**
+ * Build-time copy audit: stuffing + crawler/AI-manipulation markers.
+ * Jaccard uniqueness is necessary but not sufficient for Bing content quality.
+ */
+export function auditServedCopy(html: string, page: ResolvedPage): string[] {
+  const issues: string[] = [];
+  const main = html.match(/<main[\s\S]*?<\/main>/i)?.[0] ?? html;
+  const prose = main
+    .replace(/<pre[\s\S]*?<\/pre>/gi, ' ')
+    .replace(/<code[\s\S]*?<\/code>/gi, ' ');
+  const lower = prose.toLowerCase();
+  for (const marker of [
+    'coordinate lock',
+    'modifier fingerprint',
+    'for crawlers',
+    'grounding citation',
+    'grounding eligibility',
+    'reshuffled doorway',
+    'single-topic focus is what makes the page eligible',
+  ]) {
+    if (lower.includes(marker)) issues.push(`forbidden quality marker: "${marker}"`);
+  }
+  const sv = styleVocab(page).phrase;
+  const cv = contextVocab(page).phrase;
+  const styleCount = countPhrase(lower, sv);
+  const contextCount = countPhrase(lower, cv);
+  if (styleCount > 8) issues.push(`style phrase "${sv}" repeated ${styleCount}× (keyword stuffing)`);
+  if (contextCount > 8) issues.push(`context phrase "${cv}" repeated ${contextCount}× (keyword stuffing)`);
+  return issues;
 }
 
 export function renderProgrammaticPage(page: ResolvedPage, origin: string): string {
@@ -1807,30 +1471,32 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
 
   const takeaways = `<section aria-labelledby="key-takeaways"><h2 id="key-takeaways">Key takeaways</h2><div class="tk" data-snippet>${renderList(c.keyTakeaways)}</div></section>`;
 
-  const scenario = `<section aria-labelledby="scenario"><h2 id="scenario">${escapeHtml(c.scenario.heading)}</h2>`
-    + `<p data-snippet>${escapeHtml(c.scenario.summary)}</p>`
-    + c.scenario.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join('')
-    + renderList(c.scenario.checklist)
-    + `</section>`;
-
   const decision = `<section id="decision" data-decision aria-labelledby="decision-heading"><h2 id="decision-heading">${escapeHtml(c.decision.heading)}</h2>`
     + `<p data-snippet>${escapeHtml(c.decision.verdict)}</p>`
     + `<h3>Use this guide when</h3>${renderList(c.decision.when)}`
     + `<h3>Choose a different URL when</h3>${renderList(c.decision.notWhen)}`
     + `</section>`;
 
-  const acceptance = `<section aria-labelledby="acceptance"><h2 id="acceptance">Acceptance criteria (verify independently)</h2>${renderList(c.acceptance)}</section>`;
+  const acceptance = `<section aria-labelledby="acceptance"><h2 id="acceptance">Acceptance criteria</h2>${renderList(c.acceptance)}</section>`;
 
-  const differentiation = `<section aria-labelledby="why-this-url" data-differentiation><h2 id="why-this-url">Why this exact URL (not a sibling)</h2>`
-    + c.differentiation.map((p) => `<p>${escapeHtml(p)}</p>`).join('')
-    + `</section>`;
-
-  const stepsHtml = `<section aria-labelledby="steps"><h2 id="steps">Step-by-step: ${escapeHtml(label(page.intent))} with ${escapeHtml(toolName(page.tool))}</h2>${renderList(c.steps, true)}</section>`;
+  const stepsHtml = `<section aria-labelledby="steps"><h2 id="steps">Procedure: ${escapeHtml(label(page.intent))}</h2>${renderList(c.steps, true)}</section>`;
 
   const example = `<section aria-labelledby="example"><h2 id="example">Worked example</h2>`
     + `<p>${escapeHtml(c.workedExample.note)}</p>`
     + `<h3>${escapeHtml(c.workedExample.inputLabel)}</h3><pre><code>${escapeHtml(c.workedExample.input)}</code></pre>`
     + `<h3>${escapeHtml(c.workedExample.outputLabel)}</h3><pre><code>${escapeHtml(c.workedExample.output)}</code></pre></section>`;
+
+  const snippets = `<section aria-labelledby="snippets"><h2 id="snippets">Copy-paste snippets for this URL</h2>`
+    + `<p>${escapeHtml(snippetLead(pageKernel(page)))}</p>`
+    + `<table><thead><tr><th>Parameter</th><th>This URL</th></tr></thead><tbody>`
+    + `<tr><td>Job</td><td>${escapeHtml(label(page.intent))}</td></tr>`
+    + `<tr><td>Tool</td><td>${escapeHtml(toolName(page.tool))}</td></tr>`
+    + `<tr><td>Working method</td><td>${escapeHtml(styleVocab(page).micro)}</td></tr>`
+    + `<tr><td>Setting</td><td>${escapeHtml(contextVocab(page).micro)}</td></tr>`
+    + `<tr><td>Audience / task</td><td>${escapeHtml(label(page.audience))} · ${escapeHtml(label(page.task))}</td></tr>`
+    + `</tbody></table>`
+    + c.snippets.map((s) => `<h3>${escapeHtml(s.label)}</h3><pre><code>${escapeHtml(s.code)}</code></pre><p>${escapeHtml(s.caption)}</p>`).join('')
+    + `</section>`;
 
   const pitfalls = `<section aria-labelledby="pitfalls"><h2 id="pitfalls">Common pitfalls to avoid</h2>${renderList(c.pitfalls)}</section>`;
 
@@ -1839,12 +1505,6 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + c.comparison.map((r) => `<tr><td>${escapeHtml(r.item)}</td><td>${escapeHtml(r.pros)}</td><td>${escapeHtml(r.cons)}</td></tr>`).join('')
     + `</tbody></table></section>`;
 
-  const proTips = `<section aria-labelledby="protips"><h2 id="protips">Pro tips</h2>${renderList(c.proTips, true)}</section>`;
-
-  const technical = `<section aria-labelledby="tech"><h2 id="tech">Technical deep dive</h2>${c.technical.map((p) => `<p>${escapeHtml(p)}</p>`).join('')}</section>`;
-
-  const useCases = `<section aria-labelledby="usecases"><h2 id="usecases">Real-world use cases</h2>${c.useCases.map((p) => `<p>${escapeHtml(p)}</p>`).join('')}</section>`;
-
   const glossary = `<section aria-labelledby="glossary"><h2 id="glossary">Glossary</h2><dl>`
     + c.glossary.map((g) => `<dt>${escapeHtml(g.term)}</dt><dd>${escapeHtml(g.definition)}</dd>`).join('')
     + `</dl></section>`;
@@ -1852,6 +1512,10 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
   const faq = `<section aria-labelledby="faq"><h2 id="faq">Frequently asked questions</h2>`
     + c.faq.map((f) => `<h3>${escapeHtml(f.question)}</h3><p>${escapeHtml(f.answer)}</p>`).join('')
     + `</section>`;
+
+  const artifactParas = c.artifact.paragraphs.filter(Boolean).map((p) => `<p>${escapeHtml(p)}</p>`).join('');
+  const artifactList = c.artifact.list?.length ? renderList(c.artifact.list) : '';
+  const artifact = `<section id="artifact" aria-labelledby="artifact-h"><h2 id="artifact-h">${escapeHtml(c.artifact.heading)}</h2>${artifactParas}${artifactList}</section>`;
 
   const guide = GUIDE_BY_TOOL[toolSlug];
   const related = `<section aria-labelledby="related"><h2 id="related">Related guides and tools</h2><div class="links">`
@@ -1868,28 +1532,72 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + `<div class="links"><a href="/about">About &amp; editorial standards</a><a href="/contact">Contact</a><a href="/legal/privacy">Privacy</a><a href="/legal/publisher-ethics">Publisher ethics</a></div>`
     + `<p class="meta">Last updated ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}. Canonical URL: <code>/k/${escapeHtml(page.slug)}</code></p></footer>`;
 
-  // Order is intentional for Bing §18 (early answer) and §16 (entity first):
-  // H1 → lead answer → entity → takeaways → scenario/decision → body.
+  const sectionHtml: Record<string, string> = {
+    takeaways,
+    decision,
+    acceptance,
+    artifact,
+    steps: stepsHtml,
+    example,
+    snippets,
+    pitfalls,
+    comparison,
+    glossary,
+    faq,
+  };
+
+  // Archetype/context/audience/practice are already concatenated in extraSections
+  // when those ids are not omitted. Split extraSections by section id so the
+  // layout permutation can move them independently.
+  const splitSections = new Map<string, string>();
+  for (const section of c.sections) {
+    if ((c.plan.omit as Set<string>).has(section.id)) continue;
+    const paras = section.paragraphs.filter(Boolean).map((p) => `<p>${escapeHtml(p)}</p>`).join('');
+    const list = section.list?.length ? renderList(section.list, Boolean(section.ordered)) : '';
+    const html = `<section id="${escapeHtml(section.id)}" aria-labelledby="${escapeHtml(section.id)}-h"><h2 id="${escapeHtml(section.id)}-h">${escapeHtml(section.heading)}</h2>${paras}${list}</section>`;
+    const bucket = ['constraint', 'mechanics', 'abort', 'loop', 'done', 'teach', 'why', 'mistakes', 'boundary', 'verify', 'privacy', 'fails', 'spike', 'stop', 'pr', 'bar', 'out', 'contract', 'port', 'red', 'invariant', 'encode', 'pitfalls', 'overview'].includes(section.id)
+      ? 'archetype'
+      : section.id;
+    splitSections.set(bucket === 'archetype'
+      ? `archetype:${section.id}`
+      : section.id, html);
+  }
+
+  const orderedParts: string[] = [];
+  let archetypeFlushed = false;
+  for (const id of c.plan.order) {
+    if (id === 'archetype') {
+      const arch = [...splitSections.entries()].filter(([key]) => key.startsWith('archetype:'));
+      const rot = arch.length ? c.plan.seed % arch.length : 0;
+      const rotated = rot ? arch.slice(rot).concat(arch.slice(0, rot)) : arch;
+      for (const [, html] of rotated) orderedParts.push(html);
+      archetypeFlushed = true;
+      continue;
+    }
+    if (id === 'context' || id === 'audience' || id === 'practice') {
+      const html = splitSections.get(id);
+      if (html) orderedParts.push(html);
+      continue;
+    }
+    const html = sectionHtml[id];
+    if (html) orderedParts.push(html);
+  }
+  if (!archetypeFlushed) {
+    for (const [key, html] of splitSections) {
+      if (key.startsWith('archetype:')) orderedParts.push(html);
+    }
+  }
+
+  // Order: Bing §18 early answer stays first (H1 + lead + entity). Everything
+  // after that is permuted per slug so the 20M corpus does not share one H2
+  // skeleton. Related links stay last as crawl graph chrome.
   const body = `<body><div class="wrap"><main>`
     + crumbs
     + `<h1>${escapeHtml(c.h1)}</h1>`
-    + `<p class="meta">A DevSolve guide for ${escapeHtml(label(page.audience))} teams · ${escapeHtml(clusterLabel)} · updated ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}</p>`
+    + `<p class="meta">${escapeHtml(label(page.audience))} · ${escapeHtml(clusterLabel)} · ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}</p>`
     + intro
     + entity
-    + takeaways
-    + scenario
-    + decision
-    + acceptance
-    + differentiation
-    + stepsHtml
-    + example
-    + pitfalls
-    + comparison
-    + proTips
-    + technical
-    + useCases
-    + glossary
-    + faq
+    + orderedParts.join('')
     + related
     + `</main>${footer}</div></body></html>`;
 

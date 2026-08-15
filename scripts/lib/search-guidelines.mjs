@@ -245,6 +245,13 @@ export const DOCUMENT_RULES = [
     requirement: 'A decision guide states when this exact workflow applies and when it does not.',
     evaluate: (s) => (s.hasDecisionGuide ? null : 'missing when-to-use / when-not-to-use decision guide'),
   },
+  {
+    id: 'no-ai-manipulation',
+    source: 'BING abuse: prompt injection and AI manipulation',
+    severity: 'critical',
+    requirement: 'Served HTML must not contain crawler-directed coordinate locks or other copy written to manipulate ranking/grounding systems.',
+    evaluate: (s) => (s.hasPromptInjection ? 'crawler/AI-manipulation copy present in HTML' : null),
+  },
 ];
 
 /**
@@ -276,7 +283,7 @@ export const CORPUS_RULES = [
     source: 'BING abuse: automatically generated content at scale / duplicate content across multiple URLs',
     severity: 'critical',
     requirement:
-      'Style×context siblings that share the same (pair × audience × task) must not be near-duplicates: 5-gram Jaccard of <main> prose stays ≤ 0.38 (true near-dups are typically ≥ 0.80).',
+      'Style×context siblings must be different documents (distinct archetypes + tool/intent facts), not the same essay with modifiers stuffed into every sentence. 5-gram Jaccard of <main> prose stays ≤ 0.55 (true near-duplicates cluster ≥ 0.80; stuffing every sentence to chase 0.38 failed Bing quality).',
   },
   {
     id: 'canonical-consistency',
