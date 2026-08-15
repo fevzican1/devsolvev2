@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Code2, ExternalLink, Github, Linkedin, Twitter } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import { monetizationConfig } from '@/config/monetization';
+import { REVENUE_HOPS, REVENUE_REL } from '@/config/revenue';
 import { getBrandProfileLinks } from '@/lib/seo/organization';
 import { FeaturedBadges } from '@/components/layout/FeaturedBadges';
 
@@ -40,6 +41,7 @@ const footerLinks = {
     { href: '/guides/base64-usage', label: 'Base64 Usage Guide' },
   ],
   legal: [
+    { href: '/docs', label: 'Docs' },
     { href: '/about', label: 'About DevSolve' },
     { href: '/k', label: 'Technical Library (/k)' },
     { href: '/contact', label: 'Contact Us' },
@@ -147,6 +149,16 @@ export function Footer() {
                   </Link>
                 </li>
               ))}
+              <li>
+                <a
+                  href={REVENUE_HOPS.scraperapiPricing}
+                  target="_blank"
+                  rel={REVENUE_REL.sponsored}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Pricing
+                </a>
+              </li>
             </ul>
           </div>
         </div>

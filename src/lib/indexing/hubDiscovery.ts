@@ -4,7 +4,7 @@ import { staticProgrammaticSlugs } from '../programmatic/staticPaths';
 
 const ROTATION_STEP = 7919;
 
-export const DEFAULT_HUB_PATHS = ['/', '/guides', '/tools', '/about', '/contact', '/k'] as const;
+export const DEFAULT_HUB_PATHS = ['/', '/guides', '/tools', '/docs', '/about', '/contact', '/k'] as const;
 
 export interface DiscoveryLink {
   href: string;

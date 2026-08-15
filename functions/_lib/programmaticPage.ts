@@ -74,9 +74,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-15T17:15:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-15T18:00:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'd';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'e';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -1530,7 +1530,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + `</div></section>`;
 
   const footer = `<footer><p>DevSolve publishes free, privacy-first developer tools and guides. All processing runs locally in your browser.</p>`
-    + `<div class="links"><a href="/about">About &amp; editorial standards</a><a href="/contact">Contact</a><a href="/legal/privacy">Privacy</a><a href="/legal/publisher-ethics">Publisher ethics</a></div>`
+    + `<div class="links"><a href="/docs">Docs</a><a href="/go/scraperapi-pricing" rel="nofollow sponsored">Pricing</a><a href="/about">About &amp; editorial standards</a><a href="/contact">Contact</a><a href="/legal/privacy">Privacy</a><a href="/legal/publisher-ethics">Publisher ethics</a></div>`
     + `<p class="meta">Last updated ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}. Canonical URL: <code>/k/${escapeHtml(page.slug)}</code></p>`
     + `<p class="meta">Monetization: own-product dataset sales and clearly labeled sponsored infrastructure links. Affiliate links use rel=&quot;nofollow sponsored&quot;.</p></footer>`;
 
