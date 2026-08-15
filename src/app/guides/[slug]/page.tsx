@@ -8,6 +8,7 @@ import { guideRegistry, getGuideBySlug } from '@/content/guides';
 import { getToolBySlug } from '@/tools/registry';
 import { GuideContent } from '@/components/guides/GuideContent';
 import { RecommendedSolutions } from '@/components/monetization/RecommendedSolutions';
+import { StaticRevenueModules } from '@/components/monetization/StaticRevenue';
 import { monetizationConfig } from '@/config/monetization';
 import { loadGuideContentCached } from '@/lib/guides/loader';
 import { buildMetadata } from '@/lib/seo/metadata';
@@ -218,6 +219,10 @@ export default async function GuidePage({ params }: PageProps) {
         </div>
 
         <RecommendedSolutions toolSlug={guide.primaryToolSlug} />
+        <StaticRevenueModules
+          toolName={primaryTool?.name ?? guide.title}
+          seed={guide.slug}
+        />
 
         <Separator className="my-8" />
 

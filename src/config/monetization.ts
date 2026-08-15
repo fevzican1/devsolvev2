@@ -115,7 +115,8 @@ export interface CommercialTermLink {
  */
 export const monetizationConfig: MonetizationConfig = {
   payoutPreference: 'Payoneer',
-  payoneerNote: 'Payout is handled by affiliate networks; no on-site payment processing.',
+  payoneerNote:
+    'Own-product dataset checkout uses Payoneer via /buy-dataset (302). Affiliate networks are unused until approved; sponsored hops are static HTML only.',
 
   affiliateDefaults: {
     utmSource: 'devsolve',
@@ -160,6 +161,8 @@ export const monetizationConfig: MonetizationConfig = {
   ],
 
   adSlots: [
+    { id: 'ad-header-slot', location: 'header', enabled: true, placeholder: '' },
+    { id: 'ad-footer-slot', location: 'sticky-footer', enabled: true, placeholder: '' },
     { id: 'tool-sidebar', location: 'tool-sidebar', enabled: false, placeholder: 'Ad space available' },
     { id: 'guide-banner', location: 'guide-banner', enabled: false, placeholder: 'Ad space available' },
   ],

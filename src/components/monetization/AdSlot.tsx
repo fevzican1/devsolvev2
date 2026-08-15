@@ -14,6 +14,10 @@ export function AdSlot({ slotId, className = '' }: AdSlotProps) {
     return null;
   }
 
+  if (!slot.placeholder) {
+    return null;
+  }
+
   return (
     <div className={`bg-muted/50 border border-dashed rounded-lg p-4 text-center ${className}`}>
       <p className="text-xs text-muted-foreground">

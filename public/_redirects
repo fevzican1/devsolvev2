@@ -10,6 +10,17 @@
 # Static (exact) rules first, then dynamic (splat) rules — Pages requires
 # this ordering. Do NOT add rules that shadow real build outputs:
 # sitemap-main-pages*.xml and sitemap-ai-quality-*.xml are real static files.
+
+# Own-product Payoneer checkout. Corpus pages link to /buy-dataset only.
+/buy-dataset             https://link.payoneer.com/Token?t=0E615C7FB99D418B97A4C371A6B47804&src=tpl  302
+
+# Sponsored infrastructure hops. Replace destinations with your referral URLs
+# (Vultr ?ref=, DigitalOcean m.do.co/c/, ScraperAPI fp_ref=). One-line change;
+# 20M pages keep linking to /go/*.
+/go/vultr                https://www.vultr.com/pricing/  302
+/go/digitalocean         https://www.digitalocean.com/try/free-trial-offer  302
+/go/scraperapi           https://www.scraperapi.com/  302
+
 /sitemap_index.xml       /sitemap.xml  301
 /sitemaps.xml            /sitemap.xml  301
 /sitemap-index.xml       /sitemap.xml  301

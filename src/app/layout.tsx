@@ -3,6 +3,7 @@ import Script from 'next/script';
 import './globals.css';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { AdFooterSlot, AdHeaderSlot } from '@/components/monetization/StaticRevenue';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { siteConfig, externalUrls } from '@/config/site';
 import { platformExternalUrls, isInfolinksEnabled } from '@/config/monetization';
@@ -165,11 +166,13 @@ export default function RootLayout({
           <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:top-0 focus:left-0">
             Skip to main content
           </a>
-          <div className="relative flex min-h-screen flex-col">
+          <div className="relative flex min-h-screen flex-col pb-14">
             <Header />
+            <AdHeaderSlot />
             <main id="main-content" className="flex-1">{children}</main>
             <Footer />
           </div>
+          <AdFooterSlot />
         </ThemeProvider>
         <CookieConsent />
         <Script id="ld-brand-graph" type="application/ld+json" strategy="beforeInteractive">

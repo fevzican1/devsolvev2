@@ -14,6 +14,7 @@ import { guideRegistry } from '@/content/guides';
 import { siteConfig, externalUrls } from '@/config/site';
 import { monetizationConfig } from '@/config/monetization';
 import { RecommendedSolutions } from '@/components/monetization/RecommendedSolutions';
+import { StaticRevenueModules } from '@/components/monetization/StaticRevenue';
 import { ComputedExample } from '@/components/programmatic/ComputedExample';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { PROGRAMMATIC_HUB_METADATA } from '@/lib/programmatic/metadata';
@@ -676,6 +677,11 @@ export default async function ProgrammaticPage({ params }: PageProps) {
         </div>
 
         <RecommendedSolutions toolSlug={page.primaryTool} />
+        <StaticRevenueModules
+          toolName={primaryTool?.name ?? 'this tool'}
+          job={page.intent.replace(/-/g, ' ')}
+          seed={page.slug}
+        />
         <OriginalValueCallouts toolName={primaryTool?.name ?? 'this tool'} />
 
         <Separator className="my-8" />
