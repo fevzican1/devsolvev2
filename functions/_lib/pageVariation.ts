@@ -188,6 +188,55 @@ export function uniqueSnippets(k: PageKernel, tk: ToolKnowledge, ik: IntentKerne
   return blocks;
 }
 
+/** Lead-in for the snippets section — style-specific so siblings do not share a 5-gram run. */
+export function snippetLead(k: PageKernel): string {
+  const mode = modeToken(k.style).replace(/-/g, ' ');
+  const setting = settingToken(k.context).replace(/_/g, ' ');
+  switch (k.style) {
+    case 'as-part-of-ci-cd-pipeline':
+      return `Freeze these bytes as the ${mode} golden file. The setting (${setting}) decides which assertion you encode, not which adjectives you sprinkle.`;
+    case 'during-code-review':
+      return `Paste only what fits a PR comment. Mode ${mode} means the reviewer regenerates from the thread, under ${setting}.`;
+    case 'without-installing-cli-tools':
+      return `These samples stay in the tab (${mode}). If a command below is commented out, running it would abandon ${setting}.`;
+    case 'with-safe-local-processing':
+      return `Every sample below is device-bound (${mode}). ${setting} forbids an origin that is not this page.`;
+    case 'while-keeping-data-private':
+      return `Prefer the synthetic fixture. ${mode} fails if these bytes appear in chat, tickets, or a second tool. Setting: ${setting}.`;
+    case 'for-quick-prototyping':
+      return `Throwaway samples for a ${mode} spike. Promote the winner onto a CI sibling; do not ship from ${setting}.`;
+    case 'with-step-by-step-instructions':
+      return `Show these samples in order: input, action, signal. ${mode} is a lesson, and ${setting} is the classroom constraint.`;
+    case 'with-automated-validation':
+      return `The JSON is the invariant rehearsal (${mode}). Encode ${setting} as something a script can fail, not as a screenshot.`;
+    default:
+      return `Label the sample with ${mode} and ${setting} so the next person opens the same tab, not a neighbouring sibling.`;
+  }
+}
+
+export function exampleNote(k: PageKernel, fixtureId: string): string {
+  switch (k.style) {
+    case 'as-part-of-ci-cd-pipeline':
+      return `Fixture ${fixtureId} is what the pipeline job should replay. A log pretty-print is not the assertion.`;
+    case 'during-code-review':
+      return `Fixture ${fixtureId} belongs in the PR comment with settings. The reviewer must regenerate it, not trust a screenshot.`;
+    case 'without-installing-cli-tools':
+      return `Fixture ${fixtureId} must round-trip in the tab. Installing a binary to “help” abandons this URL.`;
+    case 'with-safe-local-processing':
+      return `Fixture ${fixtureId} never leaves this device. Any upload hop invalidates the example.`;
+    case 'while-keeping-data-private':
+      return `Fixture ${fixtureId} is synthetic on purpose. A correct result that created an extra copy still fails.`;
+    case 'for-quick-prototyping':
+      return `Fixture ${fixtureId} is spike-only. Keep it if it moved the hypothesis; otherwise delete it.`;
+    case 'with-step-by-step-instructions':
+      return `Fixture ${fixtureId} is the teaching sample: name the input, the click, and the signal to move on.`;
+    case 'with-automated-validation':
+      return `Fixture ${fixtureId} is the expected bytes. If a script cannot fail this, you are on the wrong sibling.`;
+    default:
+      return `Fixture ${fixtureId} is bound to this tab session. Replay it; a pretty-print by itself is not proof.`;
+  }
+}
+
 function jsonSnippet(
   k: PageKernel,
   _ik: IntentKernel,
@@ -197,23 +246,44 @@ function jsonSnippet(
   setting: string,
 ): SnippetBlock {
   const extra = extraJsonFields(k, fixture, recordId);
+  // Do not repeat job/audience/task here — those 5-grams already sit in the
+  // H1 and are identical across style×context siblings, which inflates Jaccard.
   const body = {
     fixture,
     mode,
     setting,
     recordId,
-    job: k.intent,
-    tool: k.tool,
-    audience: k.audience,
-    task: k.task,
     ...extra,
   };
   return {
-    label: `Fixture ${fixture} (this URL’s parameters)`,
+    label: `Fixture ${fixture} (${modeToken(k.style)})`,
     language: 'json',
     code: JSON.stringify(body, null, 2),
-    caption: `Use this object as the labelled sample for ${k.intentLabel}. The mode and setting fields exist so a later reviewer can see which sibling they replayed — they are documentation, not extra topics.`,
+    caption: jsonCaption(k, fixture, mode, setting),
   };
+}
+
+function jsonCaption(k: PageKernel, fixture: string, mode: string, setting: string): string {
+  switch (k.style) {
+    case 'as-part-of-ci-cd-pipeline':
+      return `Commit ${fixture}.json next to the ${mode} job. ${setting} decides the assertion, not the filename poetry.`;
+    case 'during-code-review':
+      return `Keep ${fixture} short enough for a comment. Reviewers replay ${mode} from the thread, not from Slack.`;
+    case 'without-installing-cli-tools':
+      return `${fixture} is the tab sample. ${mode} means a package manager is out of bounds even if ${setting} is urgent.`;
+    case 'with-safe-local-processing':
+      return `Load ${fixture} on this device only. ${mode} plus ${setting} means no second origin.`;
+    case 'while-keeping-data-private':
+      return `${fixture} is the synthetic stand-in. ${mode} fails if the real payload also lands in a ticket.`;
+    case 'for-quick-prototyping':
+      return `Time-box ${fixture}. If it does not move the hypothesis, delete it before you leave ${mode}.`;
+    case 'with-step-by-step-instructions':
+      return `Show ${fixture} as the named input. ${mode} wants the learner to say the signal out loud under ${setting}.`;
+    case 'with-automated-validation':
+      return `${fixture} is the positive case. Keep a negative twin that must fail the ${mode} check.`;
+    default:
+      return `Paste ${fixture} into the tab, run once, and store output beside ${mode}/${setting}.`;
+  }
 }
 
 function extraJsonFields(k: PageKernel, fixture: string, recordId: number): Record<string, string | number | boolean> {
@@ -779,12 +849,81 @@ export function variedPitfalls(k: PageKernel, tk: ToolKnowledge, ik: IntentKerne
 export function variedIntro(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): string[] {
   const t = k.toolLabel;
   const job = k.intentLabel;
-  const lead = introLead(k, ik, t, job);
   return [
-    lead,
-    `Working ${k.stylePhrase}, in ${k.contextPhrase}. Written for a ${k.audienceLabel}. Neighbouring URLs are different combinations — not reshuffles of this essay.`,
-    `If you only wanted the generic ${t} product page, leave. This URL is one job (${job}) with a written acceptance bar.`,
+    introLead(k, ik, t, job),
+    introSetting(k),
+    introWrongUrl(k, t, job),
   ];
+}
+
+function introSetting(k: PageKernel): string {
+  switch (k.context) {
+    case 'for-time-sensitive-incidents':
+      return `You are on an incident clock: one trustworthy sample beats a long exploratory session.`;
+    case 'for-team-onboarding':
+      return `Treat every click as curriculum — a new hire should finish from this page alone.`;
+    case 'for-audit-readiness':
+      return `The output is not the deliverable; the regenerable evidence pack is.`;
+    case 'for-cross-region-teams':
+      return `No live handover: write times, locales, and bytes so they mean the same thing in every region.`;
+    case 'for-legacy-system-migrations':
+      return `Pretty-print agreement is not a migration proof. Field meaning and encodings have to match.`;
+    case 'for-large-enterprise-workflows':
+      return `Use the names other squads already know. Local nicknames make this setting fail.`;
+    case 'for-api-contract-validation':
+      return `A finding names a field, a type, and an encoding — not “the payload looks weird”.`;
+    case 'for-weekly-ops-routines':
+      return `This is supposed to be boring: same minutes, same drift signal, no surprise theatre.`;
+    case 'for-compliance-reporting':
+      return `Cite the policy next to the pack. A green screenshot without provenance will not survive review.`;
+    case 'for-incident-postmortems':
+      return `Write as if a stranger will replay this next quarter from records, with no live tab left over.`;
+    case 'for-capacity-planning':
+      return `Record how big the sample was and where a browser tab stops representing production volume.`;
+    case 'for-release-management':
+      return `The gate wants a binary go/no-go you can repeat on rollback, not a maybe.`;
+    case 'for-vendor-integration':
+      return `You cannot patch the other side. A boundary test has to say which layer actually broke.`;
+    case 'for-data-governance':
+      return `Lineage is in scope: where the bytes sat matters as much as whether the answer was correct.`;
+    case 'for-service-mesh-debugging':
+      return `Compare hops. A single capture cannot tell you which boundary mutated the payload.`;
+    case 'for-cost-optimization':
+      return `The cheap path is this tab unless you can write down why a cluster job is mandatory.`;
+    case 'for-performance-benchmarking':
+      return `Freeze the fixture before you change code. Moving both in one session throws the series away.`;
+    case 'for-disaster-recovery':
+      return `Practice the path that still works when the usual control plane is missing.`;
+    case 'for-production-rollouts':
+      return `Old and new, same fixture. The rollout artifact is the diff between them.`;
+    case 'for-observability-pipelines':
+      return `Shape-check before ingest. Pipelines drop bad records without a loud error.`;
+    default:
+      return `Keep the evidence pack small enough to repeat between meetings.`;
+  }
+}
+
+function introWrongUrl(k: PageKernel, t: string, job: string): string {
+  switch (k.style) {
+    case 'as-part-of-ci-cd-pipeline':
+      return `Skip this URL if ${job} is a one-off paste that will never become a job — ${t} here is rehearsal for a gate, not a souvenir screenshot.`;
+    case 'during-code-review':
+      return `Skip this URL if nobody will regenerate ${job} from a PR comment. ${t} output that only lives in Slack is the wrong artifact.`;
+    case 'without-installing-cli-tools':
+      return `Skip this URL if a blessed CLI is already on the image and reviewers expect those flags. ${t} in the tab is the legal runtime here.`;
+    case 'with-safe-local-processing':
+      return `Skip this URL if an approved vendor processor is already the path for bulk ${job}. This sibling aborts on upload.`;
+    case 'while-keeping-data-private':
+      return `Skip this URL if creating a ticket copy of the raw ${job} input is acceptable. A correct ${t} result that leaked still fails.`;
+    case 'for-quick-prototyping':
+      return `Skip this URL if you already owe a production test for ${job}. ${t} here is a time-boxed spike, not the ship path.`;
+    case 'with-step-by-step-instructions':
+      return `Skip this URL if the reader already knows why each ${t} click exists. This sibling is the teachable ${job} path.`;
+    case 'with-automated-validation':
+      return `Skip this URL if you cannot state the ${job} check in one sentence a script could fail. ${t} is rehearsal for that invariant.`;
+    default:
+      return `Skip this URL if you only wanted the ${t} product page. The job on this page is ${job}, with a written done-when line.`;
+  }
 }
 
 function introLead(k: PageKernel, _ik: IntentKernel, t: string, job: string): string {
@@ -849,7 +988,7 @@ export function variedAcceptance(k: PageKernel, tk: ToolKnowledge, ik: IntentKer
     `The sample resembles production data for ${k.intentLabel}, not a one-line toy.`,
     `${k.audienceConcern} was considered — that is the usual miss for a ${k.audienceLabel}.`,
     `Input, ${k.toolLabel} settings, and output are stored together.`,
-    stepForContext(k),
+    `The setting-specific pack on this URL is complete (see the heading that names it).`,
     `A second person can replay the tab from the pack without a DM.`,
   ];
   return pickN(pool, 4, next);
@@ -861,7 +1000,7 @@ export function contextArtifact(k: PageKernel): KnowledgeSection {
     id: 'artifact',
     heading: artifactHeading(k),
     paragraphs: [
-      `This block exists only because of this URL’s delivery setting. A sibling with a different setting will keep a different pack — that is how you tell the pages apart without stuffing adjectives into every sentence.`,
+      `${artifactRows(k)[0] ?? `Label the output for ${k.intentLabel}.`} File the rest of the “${artifactHeading(k)}” list beside the ${k.toolLabel} result so the next person does not invent a different pack.`,
     ],
     list: rows,
   };

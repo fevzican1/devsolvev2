@@ -53,6 +53,8 @@ import {
   variedPitfalls,
   variedSteps,
   variedTakeaways,
+  snippetLead,
+  exampleNote,
   type DocumentPlan,
   type SnippetBlock,
 } from './pageVariation';
@@ -71,9 +73,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-15T18:00:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-15T21:30:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'b';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'c';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -1254,7 +1256,7 @@ function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
       try { output = JSON.stringify(JSON.parse(sample), null, 2); } catch { output = sample; }
   }
 
-  const note = `Fixture ${fixtureId} is bound to /k/${slug} (${page.style} · ${page.context}). Replay this sample; a pretty-print is not proof.`;
+  const note = exampleNote(pageKernel(page), fixtureId);
   return { inputLabel, input, outputLabel, output, note };
 }
 
@@ -1485,7 +1487,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + `<h3>${escapeHtml(c.workedExample.outputLabel)}</h3><pre><code>${escapeHtml(c.workedExample.output)}</code></pre></section>`;
 
   const snippets = `<section aria-labelledby="snippets"><h2 id="snippets">Copy-paste snippets for this URL</h2>`
-    + `<p>Payloads below are labelled with this URL’s fixture id, working method, and setting so a later reviewer can see which sibling they replayed.</p>`
+    + `<p>${escapeHtml(snippetLead(pageKernel(page)))}</p>`
     + `<table><thead><tr><th>Parameter</th><th>This URL</th></tr></thead><tbody>`
     + `<tr><td>Job</td><td>${escapeHtml(label(page.intent))}</td></tr>`
     + `<tr><td>Tool</td><td>${escapeHtml(toolName(page.tool))}</td></tr>`
