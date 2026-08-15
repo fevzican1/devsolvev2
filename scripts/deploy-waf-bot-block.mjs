@@ -1,92 +1,129 @@
 #!/usr/bin/env node
 /**
- * Deploy Cloudflare WAF rules for /k/* + sitemap bot protection at the EDGE
+ * Deploy Cloudflare WAF rules for bot/scraper protection at the EDGE
  * (zero Pages Function invocation for blocked traffic).
  *
- * Rule order (first match wins) — kept to 3 managed rules because the Free
- * plan allows at most 5 custom WAF rules per zone (user-managed rules, e.g.
- * the wp-admin block, are preserved):
- *   1. SKIP — ONLY verified Google/Bing (right ASN or Cloudflare-verified
- *      search crawler with a Google/Bing UA) plus GSC inspection. They bypass
- *      Under-Attack / Bot Fight / BIC so real crawls never see 403/challenge.
- *      Real browsers are NOT in this skip: spoofed Chrome + Client Hints was
- *      skipping Bot Fight and draining /k/* Function/cache. Bot Fight Mode
- *      still evaluates humans; it does not challenge ordinary browsers.
- *   2. Site-wide — block AI indexers + Wikipedia-example Chrome/42+Edge/12.246
- *      + browser-extension scraper UAs.
- *   3. /k/* + sitemaps — allowlist catch-all (real Google/Bing with ASN or
- *      verified bot, GSC inspection, real browsers). Fake Googlebot UA without
- *      Google ASN is NOT allowed here — Bot Fight Mode handles spoofed
- *      crawlers; a dedicated ASN-block rule is not used because a stale ASN
- *      list can 403 real Google/Bing.
+ * No skip rule. Bot Fight Mode should stay OFF — Googlebot, Bingbot, GSC
+ * inspection and real humans are allow-listed here, so they are never
+ * challenged. Scrapers that spoof Chrome/Edge are blocked by fingerprint,
+ * not by Bot Fight.
  *
- * Pages Function invocations: ONLY traffic that is skipped (Google/Bing) or
- * that passes the allowlist reaches Function paths, and only on a CDN cache
- * MISS. Everything else is zero invocations.
+ * Rule order (first match wins). Free plan: 5 custom rules; user-managed
+ * rules (e.g. wp-admin) are preserved.
+ *
+ *   WAF1 (sitewide block) — malicious scrapers and fake browsers:
+ *     - Never matches verified Google/Bing (UA + ASN or Cloudflare-verified
+ *       search crawler) or GSC Inspection/site-verification.
+ *     - Blocks AI indexers, headless/automation, HTTP libraries, extension
+ *       scrapers, the Wikipedia Chrome/42+Edge/12.246 UA.
+ *     - Blocks Chrome/Edge UAs that are missing a real navigation fingerprint
+ *       (Client Hints Chromium brand, Fetch Metadata, Accept-Language, and
+ *       for navigate: dest=document/iframe + Accept: text/html).
+ *     - Blocks Googlebot/Bingbot UAs from the wrong ASN (spoof).
+ *
+ *   WAF2 (/k/* + sitemaps allowlist) — everything that looks like a browser
+ *     still has to be a real client: HTTP/2 or HTTP/3, and not a cloud/hosting
+ *     ASN. This is what stops the Chrome/99–136 farm that sends Client Hints.
+ *     Google/Bing/GSC still pass (same allow as WAF1).
  *
  * Requires: CLOUDFLARE_API_TOKEN
- * Usage: node scripts/deploy-waf-bot-block.mjs
+ * Usage: node scripts/deploy-waf-bot-block.mjs [--dry-run]
  */
 
 import { BING_CRAWLER_ASNS, GOOGLE_CRAWLER_ASNS, wafAsnSet } from './lib/crawler-asns.mjs';
 
 const BING_ASNS = wafAsnSet(BING_CRAWLER_ASNS);
 const GOOGLE_ASNS = wafAsnSet(GOOGLE_CRAWLER_ASNS);
+const MAX_EXPRESSION_LENGTH = 4096;
 
-const GOOGLE_UA_MARKERS = [
-  'googlebot',
-  'googlebot-image',
-  'googlebot-news',
-  'googlebot-video',
-  'adsbot-google',
-  'adsbot-google-mobile',
-  'mediapartners-google',
-  'storebot-google',
-  'feedfetcher-google',
-  'apis-google',
-  'duplexweb-google',
-  'googleother',
-  'google-read-aloud',
-  'google-safety',
-  'google-site-verification',
-  'google-inspectiontool',
-];
+/** Cloud/hosting ASNs used by scraper farms. Not mobile/residential ISPs.
+ * Google/Bing crawler ASNs are included so a Chrome UA from GCP/Azure is
+ * blocked on /k/*; real Googlebot/Bingbot still pass via the crawler allow.
+ */
+const HOSTING_ASNS = wafAsnSet([
+  16509, 14618, // Amazon
+  396982, 15169, 19527, 36040, // Google Cloud / Google (browser spoof)
+  8075, 8068, 8069, // Azure / Microsoft (browser spoof)
+  14061, // DigitalOcean
+  24940, 213230, // Hetzner
+  16276, // OVH
+  63949, // Linode
+  20473, // Vultr
+  51167, // Contabo
+  31898, // Oracle
+  45102, // Alibaba
+  12876, // Scaleway
+  9009, // M247
+  212238, 60068, // Datacamp / CDN77
+  40676, // Psychz
+  8560, // IONOS
+  132203, // Tencent
+]);
 
-const BING_UA_MARKERS = [
-  'bingbot',
-  'bingpreview',
-  'adidxbot',
-  'msnbot',
-  'msnbot-media',
-  'bingbot-mobile',
-];
-
-/** Cloudflare-verified search crawler — never block. */
 const VERIFIED_SEARCH_CRAWLER = 'cf.verified_bot_category eq "Search Engine Crawler"';
 
-/** Free-plan WAF: use contains/lower(), not regex matches (Business+ only).
- * Always parenthesize the OR-group so `not uaContainsAny(...)` is safe.
- */
+/** Free-plan WAF: contains/lower(), not regex (Business+). Parenthesize OR-groups. */
 function uaContainsAny(markers) {
   return `(${markers.map((m) => `lower(http.user_agent) contains "${m}"`).join(' or ')})`;
 }
 
-/**
- * Every path that can invoke the Pages Function (per public/_routes.json)
- * plus static sitemap files: /k/*, /sitemap.xml, /sitemaps/*, /sitemap-*.
- * Bot floods on sitemap endpoints burn Function invocations exactly like
- * /k/* floods, so both prefixes get the same edge protection.
- */
-const GUARDED_PATHS = '(starts_with(http.request.uri.path, "/k/") or starts_with(http.request.uri.path, "/sitemap"))';
-
-function kPath(expr) {
-  return `${GUARDED_PATHS} and (${expr})`;
+function headerIn(name, values) {
+  return `http.request.headers["${name}"][0] in {${values.map((v) => `"${v}"`).join(' ')}}`;
 }
 
+function collapse(expr) {
+  return expr.replace(/\s+/g, ' ').trim();
+}
+
+const GOOGLE_INSPECTION_UA = ['google-inspectiontool', 'google-site-verification'];
+const GOOGLE_UA_MARKERS = [
+  'googlebot',
+  'adsbot-google',
+  'mediapartners-google',
+  'storebot-google',
+  'googleother',
+  'google-read-aloud',
+  'google-safety',
+];
+const BING_UA_MARKERS = ['bingbot', 'bingpreview', 'adidxbot', 'msnbot'];
+
 /**
- * Rule 0 — impolite AI indexers + browser-extension scrapers (sitewide).
+ * Real Google/Bing/GSC — never block, never confuse with Chrome scrapers.
+ * GSC Live Test uses InspectionTool from non-Google IPs.
  */
-const WAF_SITEWIDE_BAD_BOT_BLOCK = `(
+const ALLOWED_SEARCH_CRAWLER = `(
+  ${uaContainsAny(GOOGLE_INSPECTION_UA)}
+  or (
+    ${uaContainsAny(GOOGLE_UA_MARKERS)}
+    and (${VERIFIED_SEARCH_CRAWLER} or ip.src.asnum in ${GOOGLE_ASNS})
+  )
+  or (
+    ${uaContainsAny(BING_UA_MARKERS)}
+    and (${VERIFIED_SEARCH_CRAWLER} or ip.src.asnum in ${BING_ASNS})
+  )
+)`;
+
+/**
+ * Real Chromium navigation/fetch fingerprint. Lazy scrapers send Chrome/N
+ * (and sometimes a dummy sec-ch-ua) without Fetch Metadata or Accept-Language.
+ * curl-impersonate still dies on WAF2 (HTTP/1.1 or hosting ASN).
+ */
+const REAL_CHROMIUM_FINGERPRINT = `(
+  ${headerIn('sec-fetch-mode', ['navigate', 'cors', 'no-cors', 'same-origin'])}
+  and len(http.request.headers["sec-ch-ua"][0]) > 20
+  and lower(http.request.headers["sec-ch-ua"][0]) contains "chromium"
+  and ${headerIn('sec-fetch-site', ['none', 'same-origin', 'same-site', 'cross-site'])}
+  and len(http.request.headers["accept-language"][0]) > 1
+  and (
+    not http.request.headers["sec-fetch-mode"][0] eq "navigate"
+    or (
+      ${headerIn('sec-fetch-dest', ['document', 'iframe'])}
+      and lower(http.request.headers["accept"][0]) contains "text/html"
+    )
+  )
+)`;
+
+const KNOWN_SCRAPER_UA = `(
   ${uaContainsAny([
     'meta-webindexer',
     'meta-externalagent',
@@ -98,6 +135,24 @@ const WAF_SITEWIDE_BAD_BOT_BLOCK = `(
     'safari-web-extension',
     'edge/12.246',
     'chrome/42.0.2311.135',
+    'headless',
+    'puppeteer',
+    'playwright',
+    'selenium',
+    'phantomjs',
+    'gptbot',
+    'claudebot',
+    'bytespider',
+    'ahrefsbot',
+    'semrushbot',
+    'ccbot',
+    'petalbot',
+    'amazonbot',
+    'curl/',
+    'wget',
+    'python-',
+    'scrapy',
+    'go-http-client',
   ])}
   or (
     lower(http.user_agent) contains "searchbot"
@@ -107,172 +162,151 @@ const WAF_SITEWIDE_BAD_BOT_BLOCK = `(
   )
 )`;
 
-// NOTE: dedicated "known scraper UA", "fake desktop Chrome without Client
-// Hints", and "fake Googlebot wrong ASN" block rules were folded into the
-// allowlist catch-all: any UA that matches no allow pattern — including
-// curl/wget/scrapy/headless browsers, Chrome without sec-ch-ua, and spoofed
-// Googlebot from the wrong ASN — is blocked there. The Free plan allows only
-// 5 custom WAF rules per zone, so every rule slot counts.
-
-const GOOGLE_INSPECTION_UA = ['google-inspectiontool', 'google-site-verification'];
-
-// Deduplicated marker lists for the allowlist expression — "googlebot" already
-// matches googlebot-image/news/video, "msnbot" matches msnbot-media, etc.
-// Custom WAF expressions are capped at 4096 characters, so every clause counts.
-const GOOGLE_UA_MARKERS_COMPACT = [
-  'googlebot',
-  'adsbot-google',
-  'mediapartners-google',
-  'storebot-google',
-  'feedfetcher-google',
-  'apis-google',
-  'duplexweb-google',
-  'googleother',
-  'google-read-aloud',
-  'google-safety',
-];
-const BING_UA_MARKERS_COMPACT = ['bingbot', 'bingpreview', 'adidxbot', 'msnbot'];
-
 /**
- * Rule 1 — SKIP Security Level / Bot Fight / integrity checks for verified
- * Google and Bing only (sitewide).
- *
- * Do NOT skip for "real browsers" (Chrome + sec-ch-ua, Firefox, Safari, …).
- * Scrapers spoof those headers cheaply; skipping Bot Fight for them is how
- * Chrome/120–143 farms burned Function invocations without paying for ads.
- *
- * Do NOT skip remaining custom WAF (`ruleset: current` / product `waf`).
- *
- * GSC URL Inspection runs from non-Google IPs during Live Test — keep it here
- * so Search Console is never challenged.
+ * WAF1 — sitewide scraper detector. First match; skip rule is gone.
  */
-const WAF_VERIFIED_CRAWLER_SKIP = `(
-  (
-    ${VERIFIED_SEARCH_CRAWLER}
-    and (${uaContainsAny([...GOOGLE_UA_MARKERS_COMPACT, ...BING_UA_MARKERS_COMPACT, ...GOOGLE_INSPECTION_UA])})
+const WAF1_SCRAPER_BLOCK = `(
+  not ${ALLOWED_SEARCH_CRAWLER}
+  and (
+    len(http.user_agent) lt 12
+    or ${KNOWN_SCRAPER_UA}
+    or (
+      lower(http.user_agent) contains "chrome/"
+      and not lower(http.user_agent) contains "googlebot"
+      and not ${REAL_CHROMIUM_FINGERPRINT}
+    )
+    or ${uaContainsAny(['googlebot', 'adsbot-google', 'bingbot', 'bingpreview', 'adidxbot', 'msnbot'])}
   )
-  or (
-    (${uaContainsAny(GOOGLE_UA_MARKERS)})
-    and ip.src.asnum in ${GOOGLE_ASNS}
-  )
-  or (
-    (${uaContainsAny(BING_UA_MARKERS)})
-    and ip.src.asnum in ${BING_ASNS}
-  )
-  or ${uaContainsAny(GOOGLE_INSPECTION_UA)}
+)`;
+
+const GUARDED_PATHS = '(starts_with(http.request.uri.path, "/k/") or starts_with(http.request.uri.path, "/sitemap"))';
+const HTTP2_OR_3 = '(http.request.version eq "HTTP/2" or http.request.version eq "HTTP/3")';
+const NOT_HOSTING = `not ip.src.asnum in ${HOSTING_ASNS}`;
+
+const REAL_SAFARI = `(
+  lower(http.user_agent) contains "safari/"
+  and not lower(http.user_agent) contains "chrome/"
+  and not lower(http.user_agent) contains "chromium/"
+  and not lower(http.user_agent) contains "crios/"
+  and not lower(http.user_agent) contains "edg/"
+  and not lower(http.user_agent) contains "opr/"
+  and lower(http.user_agent) contains "version/"
+)`;
+
+const REAL_IOS = `(
+  (lower(http.user_agent) contains "iphone" or lower(http.user_agent) contains "ipad")
+  and lower(http.user_agent) contains "applewebkit/"
+  and lower(http.user_agent) contains "mobile/"
+  and not lower(http.user_agent) contains "bot"
 )`;
 
 /**
- * Widest skip first; the API rejects parameters unavailable on the current
- * plan (e.g. Super Bot Fight Mode phase on Free), so the deploy retries with
- * progressively narrower skip parameters until one is accepted.
+ * WAF2 — /k/* + sitemaps catch-all. Chrome that already passed WAF1 (has a
+ * real fingerprint) still needs HTTP/2|3 and a non-hosting ASN. That is the
+ * farm: rotating Chrome/99–136 UAs from cloud VPS with Client Hints.
  */
-const SKIP_PARAMETER_VARIANTS = [
-  {
-    phases: ['http_ratelimit', 'http_request_firewall_managed', 'http_request_sbfm'],
-    products: ['zoneLockdown', 'uaBlock', 'bic', 'hot', 'securityLevel'],
-  },
-  {
-    products: ['zoneLockdown', 'uaBlock', 'bic', 'hot', 'securityLevel'],
-  },
-  {
-    products: ['securityLevel', 'bic', 'hot'],
-  },
+function waf2Allowlist({ requireHttp2, blockHosting }) {
+  const chromeOk = [
+    'lower(http.user_agent) contains "chrome/"',
+    requireHttp2 ? HTTP2_OR_3 : null,
+    blockHosting ? NOT_HOSTING : null,
+  ]
+    .filter(Boolean)
+    .join(' and ');
+
+  return `(
+    ${GUARDED_PATHS}
+    and not ${ALLOWED_SEARCH_CRAWLER}
+    and not (
+      not ${uaContainsAny(['bot', 'crawler', 'spider'])}
+      and (
+        (lower(http.user_agent) contains "firefox/" and lower(http.user_agent) contains "gecko/")
+        or ${REAL_SAFARI}
+        or lower(http.user_agent) contains "crios/"
+        or (${chromeOk})
+        or lower(http.user_agent) contains "samsungbrowser/"
+        or ${REAL_IOS}
+      )
+    )
+  )`;
+}
+
+const WAF2_VARIANTS = [
+  { requireHttp2: true, blockHosting: true, label: 'HTTP/2+3 and hosting ASN' },
+  { requireHttp2: false, blockHosting: true, label: 'hosting ASN only' },
+  { requireHttp2: true, blockHosting: false, label: 'HTTP/2+3 only' },
+  { requireHttp2: false, blockHosting: false, label: 'browser UA only (last resort)' },
 ];
 
-/**
- * /k/* + sitemaps allowlist catch-all (block unless allowed).
- * ONLY: verified Google/Bing (UA + ASN or Cloudflare-verified), GSC inspection,
- * real browsers. Fake Googlebot/Bingbot UA from the wrong ASN is blocked here
- * (Bot Fight Mode also scores them — they no longer skip it).
- * NO social unfurl bots, NO DuckDuckGo (Function invocation floods).
- */
-const WAF_ALLOWLIST_EXPRESSION = kPath(`(
-  (
-    ${uaContainsAny([
-    'bot',
-    'crawler',
-    'spider',
-    'headless',
-    'puppeteer',
-    'playwright',
-    'selenium',
-    'phantomjs',
-    'electron',
-    'chrome-extension',
-    'moz-extension',
-    'safari-web-extension',
-    'curl/',
-    'wget',
-    'python-',
-    'scrapy',
-    'go-http-client',
-    'java/',
-    'okhttp',
-    'node-fetch',
-    'axios/',
-    'facebookexternalhit',
-    'whatsapp',
-  ])}
-    and not ${uaContainsAny(['googlebot', 'bingbot', 'adsbot-google', 'google-inspectiontool', 'msnbot'])}
-  )
-  or not (
-    ${uaContainsAny(GOOGLE_INSPECTION_UA)}
-    or (
-      ${uaContainsAny(GOOGLE_UA_MARKERS_COMPACT)}
-      and (${VERIFIED_SEARCH_CRAWLER} or ip.src.asnum in ${GOOGLE_ASNS})
-    )
-    or (
-      ${uaContainsAny(BING_UA_MARKERS_COMPACT)}
-      and (${VERIFIED_SEARCH_CRAWLER} or ip.src.asnum in ${BING_ASNS})
-    )
-    or (lower(http.user_agent) contains "firefox/" and lower(http.user_agent) contains "gecko/")
-    or (
-      lower(http.user_agent) contains "safari/"
-      and not lower(http.user_agent) contains "chrome/"
-      and not lower(http.user_agent) contains "chromium/"
-      and not lower(http.user_agent) contains "crios/"
-      and not lower(http.user_agent) contains "edg/"
-      and not lower(http.user_agent) contains "opr/"
-      and lower(http.user_agent) contains "version/"
-    )
-    or lower(http.user_agent) contains "crios/"
-    or (
-      lower(http.user_agent) contains "chrome/"
-      and len(http.request.headers["sec-ch-ua"][0]) > 2
-      and len(http.request.headers["sec-fetch-mode"][0]) > 1
-    )
-    or (
-      lower(http.user_agent) contains "edg/"
-      and len(http.request.headers["sec-ch-ua"][0]) > 2
-    )
-    or lower(http.user_agent) contains "samsungbrowser/"
-    or (
-      (lower(http.user_agent) contains "iphone" or lower(http.user_agent) contains "ipad")
-      and lower(http.user_agent) contains "applewebkit/"
-      and lower(http.user_agent) contains "mobile/"
-      and not lower(http.user_agent) contains "bot"
-    )
-  )
-)`);
+function rulesForVariant(variant) {
+  return [
+    {
+      description: '[DevSolve] WAF1 block scrapers — keep Google Bing GSC + humans',
+      expression: WAF1_SCRAPER_BLOCK,
+      action: 'block',
+    },
+    {
+      description: '[DevSolve] WAF2 corpus allowlist — Google Bing GSC + real browsers',
+      expression: waf2Allowlist(variant),
+      action: 'block',
+    },
+  ];
+}
 
-const RULES = [
-  {
-    description: '[DevSolve] SKIP verified Google/Bing only (never challenge)',
-    expression: WAF_VERIFIED_CRAWLER_SKIP,
-    action: 'skip',
-  },
-  {
-    description: '[DevSolve] sitewide block AI indexers + extension scrapers',
-    expression: WAF_SITEWIDE_BAD_BOT_BLOCK,
-    action: 'block',
-  },
-  {
-    description: '[DevSolve] corpus+sitemaps allowlist — Google Bing GSC inspection + real browsers',
-    expression: WAF_ALLOWLIST_EXPRESSION,
-    action: 'block',
-  },
-];
+function assertExpressionLengths(rules) {
+  for (const rule of rules) {
+    const expression = collapse(rule.expression);
+    if (expression.length > MAX_EXPRESSION_LENGTH) {
+      throw new Error(
+        `${rule.description} expression is ${expression.length} chars (max ${MAX_EXPRESSION_LENGTH})`,
+      );
+    }
+  }
+}
+
+function printDryRun(variant) {
+  const rules = rulesForVariant(variant);
+  console.log(`WAF2 variant: ${variant.label}`);
+  for (const rule of rules) {
+    const expression = collapse(rule.expression);
+    console.log(`\n${rule.action.toUpperCase()} ${rule.description}`);
+    console.log(`length ${expression.length}/${MAX_EXPRESSION_LENGTH}`);
+    console.log(expression);
+  }
+}
+
+const LEGACY_DESCRIPTIONS = new Set([
+  '[DevSolve] SKIP crawlers + real browsers (never challenge)',
+  '[DevSolve] SKIP verified Google/Bing only (never challenge)',
+  '[DevSolve] SKIP verified Google/Bing crawlers (never challenge/block)',
+  '[DevSolve] single block — fake Chrome + scrapers; Google Bing humans allowed',
+  '[DevSolve] sitewide block AI indexers + extension scrapers',
+  '[DevSolve] sitewide block Meta AI indexer',
+  '[DevSolve] sitewide block AI indexers (Claude-SearchBot, Meta)',
+  '[DevSolve] sitewide block fake desktop Chrome without Client Hints',
+  '[DevSolve] corpus+sitemaps block fake Googlebot/Bingbot (wrong ASN)',
+  '[DevSolve] corpus+sitemaps allowlist — Google Bing GSC inspection + real browsers',
+  '[DevSolve] /k/* block fake Bingbot',
+  '[DevSolve] /k/* allowlist — Google Bing DuckDuckGo + real browsers',
+  '[DevSolve] /k/* block known scraper UAs',
+  '[DevSolve] /k/* block fake desktop Chrome without Client Hints',
+  '[DevSolve] /k/* block fake Googlebot/Bingbot (wrong ASN)',
+  '[DevSolve] /k/* allowlist — Google Bing GSC inspection + real browsers',
+  '[DevSolve] /k/*  Googlebot/Bingbot (wrong ASN)',
+  '[DevSolve] corpus+sitemaps block known scraper UAs',
+  '[DevSolve] corpus+sitemaps block fake desktop Chrome without Client Hints',
+]);
+
+const dryRun = process.argv.includes('--dry-run');
+if (dryRun) {
+  for (const variant of WAF2_VARIANTS) {
+    assertExpressionLengths(rulesForVariant(variant));
+    printDryRun(variant);
+    console.log('\n----\n');
+  }
+  console.log('Dry-run OK — all variants fit the 4096-char cap. Skip rule is not deployed.');
+  process.exit(0);
+}
 
 const token = process.env.CLOUDFLARE_API_TOKEN;
 const zoneName = (process.env.CLOUDFLARE_ZONE_NAME || process.env.SITE_URL || 'https://devsolvev2.com')
@@ -316,6 +350,23 @@ async function resolveZoneId() {
   return zone.id;
 }
 
+async function fetchCustomRuleset(zoneId) {
+  const { result: rulesets } = await cf(
+    `/zones/${zoneId}/rulesets?phase=http_request_firewall_custom`,
+  );
+  const stub = rulesets.find((r) => r.kind === 'zone' && r.phase === 'http_request_firewall_custom');
+  if (!stub) return null;
+  try {
+    const { result } = await cf(`/zones/${zoneId}/rulesets/${stub.id}`);
+    return result;
+  } catch {
+    const { result } = await cf(
+      `/zones/${zoneId}/rulesets/phases/http_request_firewall_custom/entrypoint`,
+    );
+    return result;
+  }
+}
+
 async function disableLegacyBotdRuleset(zoneId) {
   const { result: rulesets } = await cf(
     `/zones/${zoneId}/rulesets?phase=http_request_firewall_custom`,
@@ -343,104 +394,69 @@ async function disableLegacyBotdRuleset(zoneId) {
   }
 }
 
+function assembleRules(ruleset, spec) {
+  const managedDescriptions = new Set(spec.map((r) => r.description));
+  const preserved = (ruleset?.rules ?? []).filter(
+    (r) => !managedDescriptions.has(r.description) && !LEGACY_DESCRIPTIONS.has(r.description),
+  );
+  return [
+    ...spec.map((rule) => {
+      const existing = ruleset?.rules?.find((r) => r.description === rule.description);
+      return {
+        id: existing?.id,
+        action: rule.action,
+        expression: collapse(rule.expression),
+        description: rule.description,
+        enabled: true,
+      };
+    }),
+    ...preserved,
+  ];
+}
+
 async function main() {
   const zoneId = await resolveZoneId();
   await disableLegacyBotdRuleset(zoneId);
-  const { result: rulesets } = await cf(
-    `/zones/${zoneId}/rulesets?phase=http_request_firewall_custom`,
-  );
+  const ruleset = await fetchCustomRuleset(zoneId);
 
-  const rulesetStub = rulesets.find((r) => r.kind === 'zone' && r.phase === 'http_request_firewall_custom');
-  // The list endpoint omits each ruleset's rules — fetch the full ruleset so
-  // user-managed rules are preserved (not silently dropped) by the PUT below.
-  let ruleset;
-  if (rulesetStub) {
-    ({ result: ruleset } = await cf(`/zones/${zoneId}/rulesets/${rulesetStub.id}`));
-  }
-
-  const managedDescriptions = new Set(RULES.map((r) => r.description));
-  /** Retired rules — removed on deploy to avoid duplicate / stale blocks. */
-  const legacyDescriptions = new Set([
-    '[DevSolve] SKIP crawlers + real browsers (never challenge)',
-    '[DevSolve] corpus+sitemaps block fake Googlebot/Bingbot (wrong ASN)',
-    '[DevSolve] SKIP verified Google/Bing crawlers (never challenge/block)',
-    '[DevSolve] sitewide block Meta AI indexer',
-    '[DevSolve] sitewide block AI indexers (Claude-SearchBot, Meta)',
-    '[DevSolve] /k/* block fake Bingbot',
-    '[DevSolve] sitewide block fake desktop Chrome without Client Hints',
-    '[DevSolve] /k/* allowlist — Google Bing DuckDuckGo + real browsers',
-    '[DevSolve] /k/* block known scraper UAs',
-    '[DevSolve] /k/* block fake desktop Chrome without Client Hints',
-    '[DevSolve] /k/* block fake Googlebot/Bingbot (wrong ASN)',
-    '[DevSolve] /k/* allowlist — Google Bing GSC inspection + real browsers',
-    // Manually-created skip rule (note the double space) — superseded by Rule 0.
-    '[DevSolve] /k/*  Googlebot/Bingbot (wrong ASN)',
-    // Interim consolidated rules — folded into the allowlist catch-all.
-    '[DevSolve] corpus+sitemaps block known scraper UAs',
-    '[DevSolve] corpus+sitemaps block fake desktop Chrome without Client Hints',
-  ]);
-  const preserved = (ruleset?.rules ?? []).filter(
-    (r) => !managedDescriptions.has(r.description) && !legacyDescriptions.has(r.description),
-  );
-
-  function buildRules(skipParameters) {
-    return [
-      ...RULES.map((spec) => {
-        const existing = ruleset?.rules?.find((r) => r.description === spec.description);
-        return {
-          id: existing?.id,
-          action: spec.action,
-          ...(spec.action === 'skip'
-            ? { action_parameters: skipParameters, logging: { enabled: true } }
-            : {}),
-          // Collapse formatting whitespace — expressions are capped at 4096 chars.
-          expression: spec.expression.replace(/\s+/g, ' ').trim(),
-          description: spec.description,
-          enabled: true,
-        };
-      }),
-      ...preserved,
-    ];
-  }
-
-  async function deployWithSkipFallback(deploy) {
-    let lastError;
-    for (const skipParameters of SKIP_PARAMETER_VARIANTS) {
-      try {
-        return await deploy(buildRules(skipParameters));
-      } catch (error) {
-        lastError = error;
-        console.warn('Skip-rule parameters rejected, retrying with a narrower variant...');
+  let lastError;
+  for (const variant of WAF2_VARIANTS) {
+    const spec = rulesForVariant(variant);
+    assertExpressionLengths(spec);
+    const rules = assembleRules(ruleset, spec);
+    try {
+      let result;
+      if (!ruleset) {
+        ({ result } = await cf(`/zones/${zoneId}/rulesets`, {
+          method: 'POST',
+          body: JSON.stringify({
+            name: 'devsolve-k-bot-block',
+            kind: 'zone',
+            phase: 'http_request_firewall_custom',
+            rules,
+          }),
+        }));
+        console.log('Created WAF ruleset:', result.id);
+      } else {
+        ({ result } = await cf(`/zones/${zoneId}/rulesets/${ruleset.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ rules }),
+        }));
+        console.log('Updated WAF ruleset:', result.id);
       }
+      console.log(`Deployed ${spec.length} DevSolve rules (WAF2: ${variant.label}).`);
+      console.log('Skip rule removed. Turn Bot Fight Mode OFF so Google/Bing/humans are not challenged.');
+      for (const rule of spec) {
+        console.log(`  ${collapse(rule.expression).length} chars — ${rule.description}`);
+      }
+      return;
+    } catch (error) {
+      lastError = error;
+      console.warn(`WAF2 variant "${variant.label}" rejected, retrying a narrower one...`);
+      console.warn(String(error));
     }
-    throw lastError;
   }
-
-  if (!ruleset) {
-    const created = await deployWithSkipFallback((rules) =>
-      cf(`/zones/${zoneId}/rulesets`, {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'devsolve-k-bot-block',
-          kind: 'zone',
-          phase: 'http_request_firewall_custom',
-          rules,
-        }),
-      }),
-    );
-    console.log('Created WAF ruleset:', created.result.id);
-    console.log(`Deployed ${RULES.length} rules. Skip is Google/Bing only — Bot Fight still scores browsers.`);
-    return;
-  }
-
-  const updated = await deployWithSkipFallback((rules) =>
-    cf(`/zones/${zoneId}/rulesets/${ruleset.id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ rules }),
-    }),
-  );
-  console.log('Updated WAF ruleset:', updated.result.id);
-  console.log(`Deployed ${RULES.length} rules. Skip is Google/Bing only — Bot Fight still scores browsers.`);
+  throw lastError;
 }
 
 main().catch((err) => {
