@@ -34,9 +34,13 @@ export const DESCRIPTION_TARGET_MAX = 160;
 
 /**
  * Bing Webmaster Tools: "Change the title length to be less than 70 characters."
- * Exact 70-character titles were still flagged, so the hard max is 69.
+ * Exact 70-character titles were still flagged, so 69 is the hard ceiling. The
+ * budget the corpus is built to is 66: three characters of slack mean a later
+ * edit, or a report that counts differently, cannot put those URLs back in the
+ * "title too long" list — and a title this short survives Google's SERP
+ * truncation, which is worth more in clicks than the extra words.
  */
-export const TITLE_MAX = 69;
+export const TITLE_MAX = 66;
 export const TITLE_MIN = 30;
 
 /** Below this a page reads as thin content and tends to sit in "Crawled - currently not indexed". */
@@ -54,7 +58,10 @@ export const PROFILES = {
   },
   static: {
     titleMin: 20,
-    titleMax: TITLE_MAX,
+    // The hand-written pages (home, tools, guides, legal) are audited against
+    // Bing's hard ceiling rather than the corpus budget: they are a few dozen
+    // titles a person can read, not 20M generated ones.
+    titleMax: 69,
     descriptionMin: 120,
     descriptionMax: 165,
     minWordCount: 600,

@@ -20,7 +20,7 @@
  */
 
 export const AGENT_ID = 'devsolve-ai-indexing-agent';
-export const AGENT_VERSION = '2026-08-15.3';
+export const AGENT_VERSION = '2026-08-20.1';
 
 /** Cost model — must stay true for every change to this system. */
 export const COST_MODEL = Object.freeze({
@@ -38,7 +38,7 @@ export const COST_MODEL = Object.freeze({
  * Mirrors scripts/lib/search-guidelines.mjs — keep both in sync.
  */
 export const QUALITY_CONTRACT = Object.freeze({
-  titleChars: { min: 30, max: 69 }, // Bing: strictly less than 70
+  titleChars: { min: 30, max: 66 }, // Bing: strictly under 70, with slack
   descriptionChars: { min: 150, max: 160 },
   minWordCount: 1000,
   minInternalLinks: 14,
@@ -60,6 +60,9 @@ export const QUALITY_CONTRACT = Object.freeze({
   siblingShingleSize: 5,
   requireWorkedExample: true, // Bing §15 verifiability
   singleTopicPerUrl: true, // Bing §17
+  // Language quality, not just uniqueness: acronym casing, article agreement,
+  // no template splices, no process vocabulary in reader-facing copy.
+  requireEditedProse: true, // Bing abuse: artificially engineered language
 });
 
 /**

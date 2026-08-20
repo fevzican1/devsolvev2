@@ -11,8 +11,8 @@ export const siteConfig = {
     rampMode: 'manual' as const,
     /** Active ramp level — controlled by PROGRAMMATIC_RAMP_LEVEL env var.
      *  See src/config/rampController.ts for gate metrics and level definitions.
-     *  Default: 0 (500K sitemap, Faz 0 — prove quality before expanding). */
-    defaultRampLevel: 0,
+     *  Level 5 advertises the full 20M corpus. */
+    defaultRampLevel: 5,
   },
 
   programmaticQuality: {

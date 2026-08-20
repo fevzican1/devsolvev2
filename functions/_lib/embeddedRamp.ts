@@ -7,4 +7,4 @@
  *
  * Do not hand-edit without also updating /.ramp-level (verify-ramp-sitemap-sync).
  */
-export const EMBEDDED_RAMP_LEVEL = 0 as 0 | 1 | 2 | 3 | 4 | 5;
+export const EMBEDDED_RAMP_LEVEL = 5 as 0 | 1 | 2 | 3 | 4 | 5;

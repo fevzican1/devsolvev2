@@ -197,8 +197,13 @@ export function resolveRampLevel(): RampLevel {
   const fileLevel = resolveRampLevelFromFile();
   if (fileLevel !== undefined) return fileLevel;
 
-  // 3. Default to 0 — conservative start (500K)
-  return 0;
+  // 3. Full corpus. The ramp exists to protect crawl budget while the content
+  //    was still being proven; the quality gate now clears every one of the 20M
+  //    URLs (unique title/description/H1, ≥1000 words, edited prose, zero
+  //    critical guideline violations), so withholding 19.5M of them from the
+  //    sitemap only delays discovery. Freshness is still tiered — the first
+  //    200K are daily, the tail is monthly — which is what Bing §21 asks for.
+  return 5;
 }
 
 /**
