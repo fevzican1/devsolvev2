@@ -88,12 +88,24 @@ export const BRAND_LAUNCHSTAG_URL = 'https://launchstag.com';
 /** tools.cafe directory listing (badge backlink). */
 export const BRAND_TOOLS_CAFE_URL = 'https://tools.cafe';
 
+/**
+ * Both listings were submitted for a launch on the 30th and neither site
+ * mentions DevSolve yet (`node scripts/verify-backlinks.mjs` confirms it).
+ * Until they do, a "Featured on …" badge is a claim the linked page does not
+ * support, and a `sameAs` entry pointing at a page that never mentions us is an
+ * entity signal search engines cannot verify — both cost trust rather than
+ * earning it. Flip these to `true` on the day the listings appear; the audit
+ * script is how you check rather than assume.
+ */
+export const BRAND_LAUNCHSTAG_LIVE = false;
+export const BRAND_TOOLS_CAFE_LIVE = false;
+
 /** Directory listings that are live and reciprocal today. */
 export const BRAND_LIVE_DIRECTORY_PROFILES: readonly string[] = [
   'https://www.saashub.com/devsolvev2',
   BRAND_PRODUCT_HUNT_URL,
-  BRAND_LAUNCHSTAG_URL,
-  BRAND_TOOLS_CAFE_URL,
+  ...(BRAND_LAUNCHSTAG_LIVE ? [BRAND_LAUNCHSTAG_URL] : []),
+  ...(BRAND_TOOLS_CAFE_LIVE ? [BRAND_TOOLS_CAFE_URL] : []),
 ];
 
 /** Visual "Featured on …" badge embeds for live directory listings. */
@@ -106,20 +118,24 @@ export interface FeaturedBadge {
 }
 
 export const BRAND_FEATURED_BADGES: readonly FeaturedBadge[] = [
-  {
-    href: BRAND_LAUNCHSTAG_URL,
-    src: 'https://launchstag.com/badge-light.svg',
-    alt: 'Featured on Launchstag',
-    width: 198,
-    height: 62,
-  },
-  {
-    href: BRAND_TOOLS_CAFE_URL,
-    src: 'https://tools.cafe/b/light.svg',
-    alt: 'Featured on tools.cafe',
-    width: 256,
-    height: 80,
-  },
+  ...(BRAND_LAUNCHSTAG_LIVE
+    ? [{
+      href: BRAND_LAUNCHSTAG_URL,
+      src: 'https://launchstag.com/badge-light.svg',
+      alt: 'Featured on Launchstag',
+      width: 198,
+      height: 62,
+    }]
+    : []),
+  ...(BRAND_TOOLS_CAFE_LIVE
+    ? [{
+      href: BRAND_TOOLS_CAFE_URL,
+      src: 'https://tools.cafe/b/light.svg',
+      alt: 'Featured on tools.cafe',
+      width: 256,
+      height: 80,
+    }]
+    : []),
 ];
 
 /** Submitted but not yet approved — wired in code, excluded from sameAs until live. */

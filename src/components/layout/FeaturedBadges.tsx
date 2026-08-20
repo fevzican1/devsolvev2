@@ -5,6 +5,11 @@ interface FeaturedBadgesProps {
 }
 
 export function FeaturedBadges({ className }: FeaturedBadgesProps) {
+  // Nothing to show until a directory listing is actually live: an empty
+  // "Featured on" strip is better than a badge for a page that does not
+  // mention the site yet.
+  if (BRAND_FEATURED_BADGES.length === 0) return null;
+
   return (
     <div
       aria-label="Featured on directory listings"
