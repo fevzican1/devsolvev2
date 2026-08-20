@@ -391,16 +391,21 @@ const SHINGLE_N = QUALITY_CONTRACT.siblingShingleSize ?? 4;
 
 function extractMainText(html) {
   const main = html.match(/<main[\s\S]*?<\/main>/i)?.[0] ?? html;
-  // Drop shared chrome/labels so Jaccard measures prose uniqueness, not H2 shells.
+  // Drop shared chrome/labels so Jaccard measures guide prose, not H2 shells,
+  // breadcrumbs, CTAs, related-link chrome, or fixture bytes.
   const stripped = main
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
+    .replace(/<p class="cta"[\s\S]*?<\/p>/gi, ' ')
+    .replace(/<p class="meta"[\s\S]*?<\/p>/gi, ' ')
+    .replace(/<section[^>]*aria-labelledby="related"[\s\S]*?<\/section>/gi, ' ')
+    .replace(/<pre[\s\S]*?<\/pre>/gi, ' ')
     .replace(/<h2[^>]*>[\s\S]*?<\/h2>/gi, ' ')
     .replace(/<h3[^>]*>[\s\S]*?<\/h3>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&[a-z]+;/gi, ' ')
-    .replace(/\b(key takeaways|step-by-step|common pitfalls|pro tips|technical deep dive|real-world use cases|glossary|frequently asked questions|related guides|acceptance criteria|worked example|why this exact url)\b/gi, ' ')
+    .replace(/\b(key takeaways|step-by-step|common pitfalls|pro tips|technical deep dive|real-world use cases|glossary|frequently asked questions|related guides|acceptance criteria|worked example|why this exact url|open the|developer tools|developer guides hub|browse all scenario guides|devsolve home)\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();

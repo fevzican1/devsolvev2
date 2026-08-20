@@ -27,13 +27,10 @@ export function taskGuide(k: PageKernel): TaskGuide {
     section: {
       id: 'job',
       heading: core.heading,
-      paragraphs: [styleJobOpen(k, core.thesis), core.body, core.close],
-      list: [
-        `Evidence you must keep: ${k.taskEvidence}.`,
-        `The usual failure: ${k.taskFailure}.`,
-        audienceCapture(k),
-        `This setting (${k.contextPhrase}) is what decides which of those fields are mandatory.`,
-      ],
+      // Method-native body + setting-native close. Emitting core.body/core.close
+      // verbatim made every same-task sibling share an 80-word 5-gram run.
+      paragraphs: [styleJobOpen(k, core.thesis), methodNativeBody(k, core), settingNativeClose(k, core)],
+      list: jobEvidenceList(k),
     },
     steps: core.steps,
     faqs: core.faqs,
@@ -451,26 +448,245 @@ function taskCore(k: PageKernel): TaskCore {
   }
 }
 
-function styleJobOpen(k: PageKernel, thesis: string): string {
+/** Short marks — two to four words, so they cannot form a shared 5-gram on their own. */
+function jobMarks(k: PageKernel): { keep: string; stop: string } {
+  switch (k.task) {
+    case 'debug-production-issue':
+      return { keep: 'the hop', stop: 'three stacked edits' };
+    case 'prepare-api-response':
+      return { keep: 'the status line', stop: 'a schema-invalid 200' };
+    case 'clean-up-payload':
+      return { keep: 'the rewrite list', stop: 'silent key drops' };
+    case 'sanitize-user-input':
+      return { keep: 'the allow-list', stop: 'encode-as-sanitize' };
+    case 'prepare-query-parameters':
+      return { keep: 'each encoded pair', stop: 'whole-URL encoding' };
+    case 'inspect-encoded-payload':
+      return { keep: 'the alphabet', stop: 'wrong-alphabet mojibake' };
+    case 'trace-request':
+      return { keep: 'the hop pair', stop: 'one unlabelled capture' };
+    case 'validate-auth-token':
+      return { keep: 'verify or fail', stop: 'decoded-unverified claims' };
+    case 'review-config-change':
+      return { keep: 'the regenerable diff', stop: 'a desktop screenshot' };
+    case 'migrate-legacy-system':
+      return { keep: 'paired identifiers', stop: 'pretty-print agreement' };
+    case 'prepare-deployment-artifact':
+      return { keep: 'the artifact hash', stop: 'a behaviour-changing minify' };
+    case 'document-api-endpoint':
+      return { keep: 'the contract example', stop: 'docs tests would reject' };
+    case 'optimize-build-pipeline':
+      return { keep: 'the golden file', stop: 'a faster broken invariant' };
+    case 'resolve-merge-conflict':
+      return { keep: 'the replay', stop: 'keep-ours wholesale' };
+    case 'prepare-security-audit':
+      return { keep: 'the control name', stop: 'an unattributed green UI' };
+    case 'generate-test-fixtures':
+      return { keep: 'the negative twin', stop: 'a happy-path-only sample' };
+    default:
+      return { keep: 'the evidence pack', stop: 'a pretty-print as a decision' };
+  }
+}
+
+function methodNativeBody(k: PageKernel, core: TaskCore): string {
+  const t = k.toolLabel;
+  const noun = k.jobNoun;
+  const who = k.audiencePlural;
+  const { keep, stop } = jobMarks(k);
+  // Never splice `this ${noun}` — encode-url-parameters makes that "this URL".
   switch (k.style) {
     case 'as-part-of-ci-cd-pipeline':
-      return `${thesis} After this session, the same capture has to live as a job that fails closed — a screenshot of ${k.toolLabel} is not that job.`;
+      return `Commit ${keep} next to the test and let the job fail closed. ${sentence(t)} is rehearsal so you know which flags to freeze; a wiki screenshot cannot go red. ${sentence(stop)} is a false green if the pipeline still went blue. ${sentence(who)} should grep the job name, not a leftover tab, when they pick up ${noun}.`;
     case 'during-code-review':
-      return `${thesis} The reviewer has to regenerate this from the pull-request comment, not from a war story in chat.`;
+      return `Paste ${keep} under the diff, short enough for a comment. A reviewer who has to DM you for the sample cannot sign ${noun} off. ${sentence(t)} output without settings is a screenshot in disguise. ${sentence(stop)} in the thread is a request-changes, not a nit.`;
     case 'without-installing-cli-tools':
-      return `${thesis} The machine cannot take a binary, so ${k.toolLabel} in the browser tab is the only legal runtime for this job.`;
+      return `The only legal runtime for ${noun} is ${t} in the tab. A binary “just this once” abandons the constraint. Save ${keep} as a file that opens in Notepad or Preview. ${sentence(stop)} on a locked laptop usually starts with someone reaching for Homebrew.`;
     case 'with-safe-local-processing':
-      return `${thesis} Abort if ${k.toolLabel} would have to upload bytes; this job is not allowed to leave the device.`;
+      return `Abort if any hop would upload the sample. ${sentence(t)} stays on this device for the whole of ${noun}. Write “no egress” beside ${keep}. ${sentence(stop)} plus an S3 drop is two failures, not a clever shortcut.`;
     case 'while-keeping-data-private':
-      return `${thesis} A correct result that created an extra copy of the payload still fails this job.`;
+      return `A correct ${noun} result that created an extra copy still fails. Prefer a synthetic twin; tickets and chat are in scope. ${sentence(t)} can show ${keep} without minting a second store of the bytes. ${sentence(stop)} is usually the paste you made afterwards.`;
     case 'for-quick-prototyping':
-      return `${thesis} Time-box it. Most of the session should be thrown away; only the fixture that moved the hypothesis stays.`;
+      return `Time-box the tab. Keep ${keep} only if it moved the hypothesis; delete the rest before you owe production a test. ${sentence(t)} is a spike aid for ${noun}, not the ship path. ${sentence(stop)} is how a prototype pretends to be a gate.`;
     case 'with-step-by-step-instructions':
-      return `${thesis} A first-timer has to finish this job from this page alone, with the same pack a veteran would leave.`;
+      return `A first-timer has to finish ${noun} from this page: named input, named ${t} action, named signal, and ${keep} in the pack they leave. Say why each click exists. ${sentence(stop)} should be named out loud when it happens, not rescued in Slack later.`;
     case 'with-automated-validation':
-      return `${thesis} You must be able to state the job in one sentence a script could fail. ${sentence(k.toolLabel)} is the rehearsal for that invariant.`;
+      return `State ${noun} in one sentence a script could fail. ${sentence(t)} is how you freeze expected bytes for ${keep}; the assertion owns the gate. ${sentence(stop)} cannot be a comment in the test file. Keep a negative fixture that must go red.`;
     default:
-      return `${thesis} Finish it in one ${k.toolLabel} tab you can describe in a ticket.`;
+      return `Finish ${noun} in one ${t} sitting you can describe in a ticket. Leave ${keep} where a teammate can replay it. ${sentence(stop)} is the usual miss if you close the tab empty-handed. Watch the first trustworthy sample yourself before you automate anything else.`;
+  }
+}
+
+function settingNativeClose(k: PageKernel, core: TaskCore): string {
+  const t = k.toolLabel;
+  const who = k.audiencePlural;
+  const noun = k.jobNoun;
+  const { keep, stop } = jobMarks(k);
+  switch (k.context) {
+    case 'for-time-sensitive-incidents':
+      return `On the incident clock, ${who} should be able to name ${keep} before the next severity bump. ${sentence(t)} is a capture aid, not a polishing pass. ${sentence(stop)} while the fire is up wastes the only minutes that matter.`;
+    case 'for-team-onboarding':
+      return `A joiner should leave with ${keep} without a private Slack thread. ${sentence(who)} who already know ${noun} may skip the “why”; the pack still has to teach it. ${sentence(stop)} copied from a veteran’s laptop is how onboarding ships folklore.`;
+    case 'for-audit-readiness':
+      return `Hand ${keep} to someone who was not in the tab. Memory of a green ${t} screen is not evidence. ${sentence(stop)} will not survive a request for provenance.`;
+    case 'for-cross-region-teams':
+      return `Someone in another timezone has to finish ${noun} from writing alone. Spell ${keep} in UTC and locale-safe bytes. ${sentence(stop)} that only makes sense on a huddle call has already failed this setting.`;
+    case 'for-legacy-system-migrations':
+      return `Prove ${keep} means the same thing on both sides. Cosmetic ${t} agreement while nulls drifted is not a migration. ${sentence(stop)} is how those drifts page in production a week later.`;
+    case 'for-large-enterprise-workflows':
+      return `Two squads should reach the same go/no-go from ${keep}. Local nicknames for ${t} settings will not survive the next rotation. ${sentence(stop)} as a heroic one-off fails this setting on purpose.`;
+    case 'for-api-contract-validation':
+      return `Name the field a contract test would reject. ${sentence(keep)} is not “the payload looks weird”. ${sentence(t)} is how you put the documented example next to the live body. ${sentence(stop)} trains every consumer to send the wrong shape.`;
+    case 'for-weekly-ops-routines':
+      return `Next week’s run should take the same few minutes and still surface drift on ${keep}. Surprise is the failure mode. ${sentence(stop)} as improvisation means the routine is already rotting.`;
+    case 'for-compliance-reporting':
+      return `Cite the policy next to ${keep}. ${sentence(who)} cannot file a green ${t} crop as a report. ${sentence(stop)} without attribution will be thrown out.`;
+    case 'for-incident-postmortems':
+      return `Assume a stranger replays ${keep} next quarter from records. Tab state in ${t} is gone when the war room dissolves. ${sentence(stop)} cannot be reconstructed from chat scrollback.`;
+    case 'for-capacity-planning':
+      return `Write the sample size beside ${keep}. A tiny ${t} fixture with no volume note cannot argue for more (or less) capacity. ${sentence(stop)} at sample size is not a capacity finding.`;
+    case 'for-release-management':
+      return `The gate wants a binary go/no-go on ${keep}, fast enough to repeat on rollback. ${sentence(who)} do not ship on “looks probably fine”. ${sentence(stop)} at the gate is a hold.`;
+    case 'for-vendor-integration':
+      return `Isolate their bytes, your parse, and the transport before you name ${keep}. You cannot patch the other side. ${sentence(stop)} without a boundary test is blame, not a finding.`;
+    case 'for-data-governance':
+      return `Write where the bytes sat and who could see ${keep}. A correct ${t} result that minted an unapproved copy still fails. ${sentence(stop)} is often the extra store, not the answer.`;
+    case 'for-service-mesh-debugging':
+      return `Label ${keep} at hop A and hop B until the mutating proxy is named. One ${t} paste with no hop cannot locate the layer. ${sentence(stop)} is how mesh incidents last all afternoon.`;
+    case 'for-cost-optimization':
+      return `Prefer this tab unless you can write why a cluster is mandatory to obtain ${keep}. Unused pipeline minutes are waste. ${sentence(stop)} that you paid a vendor to produce is still ${stop}.`;
+    case 'for-performance-benchmarking':
+      return `Freeze fixture and settings before you change code. Moving both throws the ${noun} series away even if ${t} still “looks fast”. ${sentence(keep)} without a baseline is a single anecdote. ${sentence(stop)} is changing the sample mid-run.`;
+    case 'for-disaster-recovery':
+      return `Rehearse ${noun} on a cold laptop with no control plane. If ${keep} needs the broken system, the drill is lying. ${sentence(stop)} invented during the outage is not a recovery path.`;
+    case 'for-production-rollouts':
+      return `Run the same fixture on old and new. The artifact is the diff of ${keep}, not either pretty-print. ${sentence(stop)} on only the new version answers a different question than a rollout.`;
+    case 'for-observability-pipelines':
+      return `Keep one record the parser will accept and one it will drop. Dashboards lie when the drop is silent. ${sentence(keep)} is the shape before ingest, not a green UI. ${sentence(stop)} is shipping the happy path only.`;
+    default:
+      return `${sentence(who)} should leave ${keep} small enough to repeat between meetings. ${sentence(core.close)}`;
+  }
+}
+
+function jobEvidenceList(k: PageKernel): string[] {
+  const { keep, stop } = jobMarks(k);
+  return [evidenceByStyle(k, keep, stop), evidenceByContext(k, keep), evidenceByMethod(k, stop)];
+}
+
+function evidenceByStyle(k: PageKernel, keep: string, stop: string): string {
+  const t = k.toolLabel;
+  switch (k.style) {
+    case 'as-part-of-ci-cd-pipeline':
+      return `Golden file: ${keep} next to the job; ${stop} must fail the build.`;
+    case 'during-code-review':
+      return `Thread pack: ${keep} plus ${t} settings; ${stop} is a request-changes.`;
+    case 'without-installing-cli-tools':
+      return `Tab-only file: ${keep} opens without extra tools; a brew formula is already ${stop}.`;
+    case 'with-safe-local-processing':
+      return `On-device note: “no egress” written beside ${keep}.`;
+    case 'while-keeping-data-private':
+      return `Zero extra copies of ${keep}. Tickets and screenshots count.`;
+    case 'for-quick-prototyping':
+      return `Spike residue: only ${keep} if it moved the hypothesis.`;
+    case 'with-step-by-step-instructions':
+      return `Learner pack: ${keep} produced without Slack lore.`;
+    case 'with-automated-validation':
+      return `Assertion: a script fails on ${stop} and passes on ${keep}.`;
+    default:
+      return `Ticket pack: ${keep} a teammate can replay from writing.`;
+  }
+}
+
+function evidenceByContext(k: PageKernel, keep: string): string {
+  switch (k.context) {
+    case 'for-time-sensitive-incidents':
+      return `Clock: capture ${keep} in minutes, then freeze it.`;
+    case 'for-team-onboarding':
+      return `Curriculum: the reason behind ${keep}, not only the file.`;
+    case 'for-audit-readiness':
+      return `Replay: ${keep} plus timestamp, for someone who was not there.`;
+    case 'for-cross-region-teams':
+      return `Handover-free: ${keep} labelled in UTC, no slang.`;
+    case 'for-legacy-system-migrations':
+      return `Equivalence: ${keep} on both systems, same identifier.`;
+    case 'for-large-enterprise-workflows':
+      return `Shared labels: ${keep} under the name other squads already use.`;
+    case 'for-api-contract-validation':
+      return `Field-level: which key in ${keep} the schema would reject.`;
+    case 'for-weekly-ops-routines':
+      return `Diff vs last week: ${keep} should be boringly comparable.`;
+    case 'for-compliance-reporting':
+      return `Policy id cited next to ${keep}.`;
+    case 'for-incident-postmortems':
+      return `Archive: ${keep} exported before the war room dissolves.`;
+    case 'for-capacity-planning':
+      return `Volume note beside ${keep}: size, concurrency, where the tab stops.`;
+    case 'for-release-management':
+      return `Go/no-go card that names ${keep} and is safe on rollback.`;
+    case 'for-vendor-integration':
+      return `Boundary files: their bytes, your parse, then ${keep}.`;
+    case 'for-data-governance':
+      return `Lineage: where ${keep} sat and who could see it.`;
+    case 'for-service-mesh-debugging':
+      return `Hop labels on ${keep} at A and B.`;
+    case 'for-cost-optimization':
+      return `Costed alternative: tab vs cluster to obtain ${keep}.`;
+    case 'for-performance-benchmarking':
+      return `Frozen baseline: ${keep} before any code change.`;
+    case 'for-disaster-recovery':
+      return `Degraded path: ${keep} on a cold laptop, no control plane.`;
+    case 'for-production-rollouts':
+      return `Old vs new under one fixture; ${keep} is the diff.`;
+    case 'for-observability-pipelines':
+      return `Accept + drop twins for the shape of ${keep}.`;
+    default:
+      return `Repeatable: ${keep} small enough for the next meeting.`;
+  }
+}
+
+function evidenceByMethod(k: PageKernel, stop: string): string {
+  const who = k.audiencePlural;
+  switch (k.style) {
+    case 'as-part-of-ci-cd-pipeline':
+      return `${sentence(who)} grep the job log for ${stop}, not a hallway story.`;
+    case 'during-code-review':
+      return `${sentence(who)} reject the PR if ${stop} is only visible on one laptop.`;
+    case 'without-installing-cli-tools':
+      return `${sentence(who)} treat a sudo prompt as ${stop}, not as progress.`;
+    case 'with-safe-local-processing':
+      return `${sentence(who)} treat an upload dialog as ${stop}.`;
+    case 'while-keeping-data-private':
+      return `${sentence(who)} treat a ticket paste of raw bytes as ${stop}.`;
+    case 'for-quick-prototyping':
+      return `${sentence(who)} throw the tab away if ${stop} is all it produced.`;
+    case 'with-step-by-step-instructions':
+      return `${sentence(who)} say ${stop} out loud so the learner can recognise it.`;
+    case 'with-automated-validation':
+      return `${sentence(who)} keep a fixture that proves ${stop} goes red.`;
+    default:
+      return `${sentence(who)} write ${stop} into the ticket so it cannot recur unnamed.`;
+  }
+}
+
+function styleJobOpen(k: PageKernel, _thesis: string): string {
+  switch (k.style) {
+    case 'as-part-of-ci-cd-pipeline':
+      return `After this session, the same capture has to live as a job that fails closed — a screenshot of ${k.toolLabel} is not that job.`;
+    case 'during-code-review':
+      return `The reviewer has to regenerate this from the pull-request comment, not from a war story in chat.`;
+    case 'without-installing-cli-tools':
+      return `The machine cannot take a binary, so ${k.toolLabel} in the browser tab is the only legal runtime for this job.`;
+    case 'with-safe-local-processing':
+      return `Abort if ${k.toolLabel} would have to upload bytes; this job is not allowed to leave the device.`;
+    case 'while-keeping-data-private':
+      return `A correct result that created an extra copy of the payload still fails this job.`;
+    case 'for-quick-prototyping':
+      return `Time-box it. Most of the session should be thrown away; only the fixture that moved the hypothesis stays.`;
+    case 'with-step-by-step-instructions':
+      return `A first-timer has to finish this job from this page alone, with the same pack a veteran would leave.`;
+    case 'with-automated-validation':
+      return `You must be able to state the job in one sentence a script could fail. ${sentence(k.toolLabel)} is the rehearsal for that invariant.`;
+    default:
+      return `Finish it in one ${k.toolLabel} tab you can describe in a ticket.`;
   }
 }
 

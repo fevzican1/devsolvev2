@@ -8,18 +8,14 @@
  *   2. Is everything a search engine or an ownership check needs still
  *      reachable?
  *
- * IMPORTANT about where this runs. Cloudflare classifies the runner's network,
- * not its intentions: from a datacenter IP (CI, this repo's agents, a VPS) the
- * WAF3 rule issues a managed challenge for every non-crawler request, and Bot
- * Fight Mode — if it is switched on — challenges even more, on a pipeline that
- * WAF skip rules cannot touch. Both are reported as `cf-mitigated: challenge`.
- * So a challenge on a "reachable" case is a WARNING here, not a failure; run it
- * from a residential connection to see the real answer.
- *
- * A "stopped" case, on the other hand, is a hard requirement: if a scraper UA
- * gets HTTP 200, or is stopped by the Function instead of the edge (the body is
- * `Access Denied`), that is a real regression — it means we are paying for it.
+ * Real Chrome is probed over HTTP/2 (curl --http2) with Client Hints. Node's
+ * fetch speaks HTTP/1.1, which is the farm signature WAF2 blocks even when
+ * Client Hints are present. A challenge or HTTP/1.1 block from this
+ * datacenter is therefore not the residential-browser answer; Googlebot and
+ * Bingbot 200s are.
  */
+import { spawnSync } from 'node:child_process';
+
 const SITE = (process.env.SITE_URL || 'https://devsolvev2.com').replace(/\/$/, '');
 const K_PATH = '/k/json-validate-json-backend-engineer-debug-production-issue-json-formatter-0';
 const INDEXNOW_KEY = '/ee5098cac2284d92b6ee1c9fca52a120.txt';
@@ -35,6 +31,11 @@ const CHROME_HEADERS = {
   'accept-language': 'en-US,en;q=0.9',
   'accept-encoding': 'gzip, deflate, br',
 };
+const GOOGLEBOT_UA = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+const GOOGLEBOT_SMARTPHONE_UA = 'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+const INSPECTION_UA = 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0;)';
+const BINGBOT_UA = 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)';
+const EXTENSION_UA = `${CHROME_UA} chrome-extension://abcdefghijklmnopqrstuvwxyz123456`;
 
 /** Agents that must never receive corpus HTML. */
 const MUST_BE_STOPPED = [
@@ -62,6 +63,7 @@ const MUST_BE_STOPPED = [
   ['Chrome/145 without Client Hints', CHROME_UA],
   ['Chrome/99 legacy farm UA', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36'],
   ['Wikipedia example Edge/12.246', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246'],
+  ['chrome-extension scraper', EXTENSION_UA],
 ];
 
 /** Endpoints that must answer every client, including unverified machines. */
@@ -70,6 +72,16 @@ const MUST_BE_REACHABLE = [
   { name: 'IndexNow key file (api.indexnow.org)', path: INDEXNOW_KEY },
   { name: 'ads.txt (ad verification crawlers)', path: '/ads.txt' },
   { name: 'opengraph-image.png (social unfurls)', path: '/opengraph-image.png' },
+];
+
+/** Search crawlers skip on User-Agent alone. A challenge here is a real outage. */
+const MUST_BE_CRAWLABLE = [
+  { name: 'corpus as Googlebot', path: K_PATH, ua: GOOGLEBOT_UA },
+  { name: 'corpus as smartphone Googlebot', path: K_PATH, ua: GOOGLEBOT_SMARTPHONE_UA },
+  { name: 'corpus as Google-InspectionTool', path: K_PATH, ua: INSPECTION_UA },
+  { name: 'corpus as Bingbot', path: K_PATH, ua: BINGBOT_UA },
+  { name: 'homepage as Googlebot', path: '/', ua: GOOGLEBOT_UA },
+  { name: 'robots.txt as Googlebot', path: '/robots.txt', ua: GOOGLEBOT_UA },
 ];
 
 /** Reachable for real people and search engines; datacenter runs get a challenge. */
@@ -95,6 +107,20 @@ async function probe({ path, ua, headers }) {
   });
   const body = await res.text();
   return { res, body };
+}
+
+/** Real Chrome uses HTTP/2. Node fetch is HTTP/1.1 and looks like a farm. */
+function probeHttp2({ path, ua, headers }) {
+  const args = ['-sS', '-D', '-', '-o', '/dev/null', '--http2', '-A', ua || 'curl'];
+  for (const [name, value] of Object.entries(headers || {})) {
+    args.push('-H', `${name}: ${value}`);
+  }
+  args.push(`${SITE}${path}`);
+  const out = spawnSync('curl', args, { encoding: 'utf8' });
+  const raw = `${out.stdout || ''}\n${out.stderr || ''}`;
+  const status = Number((raw.match(/HTTP\/[\d.]+ (\d+)/) || [])[1] || 0);
+  const kind = /cf-mitigated:\s*challenge/i.test(raw) ? 'challenge' : (status === 200 || status === 301 ? 'ok' : 'block');
+  return { status, kind };
 }
 
 console.log(`[verify-live-access] ${SITE}`);
@@ -130,21 +156,35 @@ for (const check of MUST_BE_REACHABLE) {
   failed += 1;
 }
 
-for (const check of SHOULD_BE_REACHABLE) {
-  const { res } = await probe(check);
-  if (res.status === 200 || res.status === 301) {
-    console.log(`OK    ${check.name}: HTTP ${res.status}`);
+for (const check of MUST_BE_CRAWLABLE) {
+  const { res, body } = await probe(check);
+  if (res.status === 200 && !body.startsWith('Access Denied')) {
+    console.log(`OK    ${check.name}: HTTP 200`);
     continue;
   }
-  if (mitigation(res) === 'challenge') {
+  console.log(
+    `FAIL  ${check.name}: HTTP ${res.status} (${mitigation(res)}) — Googlebot/Bingbot must`
+    + ' never be challenged or blocked. WAF1 skips them on User-Agent; Bot Fight Mode,'
+    + ' if it is on, cannot be skipped and will deindex the corpus. Turn it OFF.',
+  );
+  failed += 1;
+}
+
+for (const check of SHOULD_BE_REACHABLE) {
+  const { status, kind } = probeHttp2(check);
+  if (status === 200 || status === 301) {
+    console.log(`OK    ${check.name}: HTTP ${status} (HTTP/2)`);
+    continue;
+  }
+  if (kind === 'challenge') {
     console.log(
-      `WARN  ${check.name}: HTTP ${res.status} challenge — expected from a datacenter IP.`
+      `WARN  ${check.name}: HTTP ${status} challenge — expected from a datacenter IP.`
       + ' If a residential browser sees this too, Bot Fight Mode or Security Level is the cause.',
     );
     warned += 1;
     continue;
   }
-  console.log(`FAIL  ${check.name}: HTTP ${res.status} blocked (not a challenge) — a human would see this`);
+  console.log(`FAIL  ${check.name}: HTTP ${status} blocked (not a challenge) — a human would see this`);
   failed += 1;
 }
 

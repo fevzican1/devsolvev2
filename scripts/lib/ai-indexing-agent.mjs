@@ -20,7 +20,7 @@
  */
 
 export const AGENT_ID = 'devsolve-ai-indexing-agent';
-export const AGENT_VERSION = '2026-08-20.5';
+export const AGENT_VERSION = '2026-08-20.6';
 
 /** Cost model — must stay true for every change to this system. */
 export const COST_MODEL = Object.freeze({
@@ -57,7 +57,7 @@ export const QUALITY_CONTRACT = Object.freeze({
   // Uniqueness comes from a job-native thesis (task) plus a genre-native
   // outline (style) plus setting-specific evidence (context) — not from
   // shuffling one universal H2 skeleton (that is itself an auto-generated signal).
-  maxSiblingBodyJaccard: 0.25,
+  maxSiblingBodyJaccard: 0.065,
   siblingShingleSize: 5,
   requireWorkedExample: true, // Bing §15 verifiability
   singleTopicPerUrl: true, // Bing §17

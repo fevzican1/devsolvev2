@@ -297,7 +297,7 @@ export const CORPUS_RULES = [
     source: 'BING abuse: automatically generated content at scale / duplicate content across multiple URLs',
     severity: 'critical',
     requirement:
-      'Style×context siblings must be different documents (distinct genres + job thesis + tool/intent facts), not the same essay with modifiers stuffed into every sentence. 5-gram Jaccard of <main> prose stays ≤ 0.25 (true near-duplicates cluster ≥ 0.80).',
+      'Style×context siblings must be different documents (distinct genres + job thesis + tool/intent facts), not the same essay with modifiers stuffed into every sentence. 5-gram Jaccard of <main> prose stays ≤ 0.065 (true near-duplicates cluster ≥ 0.80).',
   },
   {
     id: 'edited-prose',
