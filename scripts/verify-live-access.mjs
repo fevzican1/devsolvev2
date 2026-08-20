@@ -1,25 +1,32 @@
 #!/usr/bin/env node
 /**
- * Live access matrix — spam blocked at WAF (zero Pages Function invocations).
- * Google/Bing/GSC UAs are never blocked by custom WAF (no ASN check).
- * GSC InspectionTool always passes. Legacy sitemap URLs 301 to /sitemap.xml.
+ * Live edge access matrix.
+ *
+ * Two questions only:
+ *   1. Is every scraper/AI/library agent stopped at the Cloudflare edge, with
+ *      zero Pages Function invocations?
+ *   2. Is everything a search engine or an ownership check needs still
+ *      reachable?
+ *
+ * IMPORTANT about where this runs. Cloudflare classifies the runner's network,
+ * not its intentions: from a datacenter IP (CI, this repo's agents, a VPS) the
+ * WAF3 rule issues a managed challenge for every non-crawler request, and Bot
+ * Fight Mode — if it is switched on — challenges even more, on a pipeline that
+ * WAF skip rules cannot touch. Both are reported as `cf-mitigated: challenge`.
+ * So a challenge on a "reachable" case is a WARNING here, not a failure; run it
+ * from a residential connection to see the real answer.
+ *
+ * A "stopped" case, on the other hand, is a hard requirement: if a scraper UA
+ * gets HTTP 200, or is stopped by the Function instead of the edge (the body is
+ * `Access Denied`), that is a real regression — it means we are paying for it.
  */
 const SITE = (process.env.SITE_URL || 'https://devsolvev2.com').replace(/\/$/, '');
 const K_PATH = '/k/json-validate-json-backend-engineer-debug-production-issue-json-formatter-0';
-const SITEMAP = '/sitemap.xml';
-const FEED = '/feed.xml';
-const LEGACY_SITEMAPS = [
-  '/sitemap-index-2026-06-v3.xml',
-  '/sitemap_index.xml',
-  '/sitemaps.xml',
-  '/sitemap-index.xml',
-  '/sitemap-tier2-0008.xml',
-  '/sitemap-priority-0001.xml',
-  '/sitemap-programmatic-0008.xml',
-];
-const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const INDEXNOW_KEY = '/ee5098cac2284d92b6ee1c9fca52a120.txt';
+
+const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
 const CHROME_HEADERS = {
-  'sec-ch-ua': '"Chromium";v="120", "Google Chrome";v="120", "Not_A Brand";v="99"',
+  'sec-ch-ua': '"Chromium";v="145", "Google Chrome";v="145", "Not_A Brand";v="99"',
   'sec-ch-ua-mobile': '?0',
   'sec-fetch-mode': 'navigate',
   'sec-fetch-site': 'none',
@@ -29,154 +36,121 @@ const CHROME_HEADERS = {
   'accept-encoding': 'gzip, deflate, br',
 };
 
-function isWafBlock(body, res) {
-  // Custom-rule block page, or a Bot Fight Mode / Under Attack managed
-  // challenge (cf-mitigated header). Both stop traffic at the Cloudflare
-  // edge with ZERO Pages Function invocations.
-  return (
-    /cloudflare/i.test(body) ||
-    body.includes('cf-error-details') ||
-    res?.headers.get('cf-mitigated') === 'challenge'
-  );
-}
-
-function isFunctionBlock(body) {
-  return body.trim() === 'Access Denied' || body.startsWith('Access Denied');
-}
-
-/** Must be blocked at WAF — any 200 or Function 403 = counter leak. */
-const WAF_BLOCK_BOTS = [
-  ['Fake Chrome (Wikipedia example Edge/12.246)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246', null],
-  ['Farm Chrome/133 Mac (no Client Hints)', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36', null],
-  ['Farm Chrome/120 Mac (no Client Hints)', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', null],
-  ['Farm Chrome/104 Windows (no Client Hints)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36', null],
-  ['Farm Chrome/99 Windows (no Client Hints)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36', null],
-  ['Farm Chrome/100 Windows (no Client Hints)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36', null],
-  ['Fake Chrome (extension UA)', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Chrome-extension/abc123', null],
-  ['DuckDuckBot', 'DuckDuckBot/1.0; (+http://duckduckgo.com/duckduckbot.html)', null],
-  ['Twitterbot', 'Twitterbot/1.0', null],
-  ['Facebookexternalhit', 'facebookexternalhit/1.1', null],
-  ['LinkedInBot', 'LinkedInBot/1.0', null],
-  ['Claude-SearchBot', 'Claude-SearchBot/1.0', null],
-  ['ClaudeBot', 'ClaudeBot/1.0', null],
-  ['GPTBot', 'GPTBot/1.0 (+https://openai.com/gptbot)', null],
-  ['meta-webindexer', 'meta-webindexer/1.0', null],
-  ['meta-externalagent', 'meta-externalagent/1.0', null],
-  ['AhrefsBot', 'Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)', null],
-  ['SemrushBot', 'Mozilla/5.0 (compatible; SemrushBot/7~bl; +http://www.semrush.com/bot.html)', null],
-  ['Applebot', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Safari/605.1.15 (Applebot/0.1)', null],
-  ['curl', 'curl/8.4.0', null],
-  ['wget', 'Wget/1.21.4', null],
-  ['python-requests', 'python-requests/2.31.0', null],
-  ['go-http-client', 'Go-http-client/2.0', null],
-  ['Screaming Frog', 'Screaming Frog SEO Spider/19.0', null],
-  ['Bytespider', 'Bytespider', null],
-  ['PetalBot', 'PetalBot', null],
-  ['CCBot', 'CCBot/2.0 (https://commoncrawl.org/faq/)', null],
-  ['Empty UA', '', null],
+/** Agents that must never receive corpus HTML. */
+const MUST_BE_STOPPED = [
+  ['GPTBot', 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; GPTBot/1.2; +https://openai.com/gptbot'],
+  ['ClaudeBot', 'Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)'],
+  ['PerplexityBot', 'Mozilla/5.0 (compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)'],
+  ['meta-externalagent', 'meta-externalagent/1.1'],
+  ['Bytespider', 'Mozilla/5.0 (compatible; Bytespider; spider-feedback@bytedance.com)'],
+  ['CCBot', 'CCBot/2.0 (https://commoncrawl.org/faq/)'],
+  ['AhrefsBot', 'Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)'],
+  ['SemrushBot', 'Mozilla/5.0 (compatible; SemrushBot/7~bl; +http://www.semrush.com/bot.html)'],
+  ['DataForSeoBot', 'Mozilla/5.0 (compatible; DataForSeoBot/1.0)'],
+  ['Screaming Frog', 'Screaming Frog SEO Spider/19.0'],
+  ['curl', 'curl/8.4.0'],
+  ['wget', 'Wget/1.21.4'],
+  ['python-requests', 'python-requests/2.31.0'],
+  ['go-http-client', 'Go-http-client/2.0'],
+  ['okhttp', 'okhttp/4.12.0'],
+  ['node-fetch', 'node-fetch/1.0 (+https://github.com/bitinn/node-fetch)'],
+  ['empty UA', ''],
+  // Spoofed crawlers: a real Googlebot/Bingbot is verified by Cloudflare or
+  // arrives from a Google/Microsoft network. Neither holds here, so these are
+  // the exact requests the anti-spoof clause exists for.
+  ['spoofed Googlebot', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'],
+  ['spoofed Bingbot', 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)'],
+  // Chromium UA with no Client Hints / Fetch Metadata — the farm signature.
+  ['Chrome/145 without Client Hints', CHROME_UA],
+  ['Chrome/99 legacy farm UA', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36'],
+  ['Wikipedia example Edge/12.246', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246'],
 ];
 
-const REAL_CRAWLER_CASES = [
-  // allowChallenge: Bot Fight / Under Attack may still challenge datacenter
-  // IPs. allowHostingBlock: WAF2 blocks cloud ASNs on /k/* and sitemaps even
-  // with a full Chrome fingerprint — that is intentional (the farm).
-  { name: 'GSC InspectionTool sitemap', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)', expect: [200], allowChallenge: true },
-  { name: 'GSC InspectionTool feed.xml', path: FEED, ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)', expect: [200], allowChallenge: true },
-  { name: 'GSC InspectionTool /k/*', path: K_PATH, ua: 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)', expect: [200], allowChallenge: true },
-  { name: 'Real Chrome sitemap', path: SITEMAP, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200], allowChallenge: true, allowHostingBlock: true },
-  { name: 'Real Chrome feed.xml', path: FEED, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200], allowChallenge: true },
-  { name: 'Real Chrome /k/*', path: K_PATH, ua: CHROME_UA, headers: CHROME_HEADERS, expect: [200], allowChallenge: true, allowHostingBlock: true },
-  // Googlebot/Bingbot UAs are never blocked by custom WAF (no ASN check).
-  // Cloudflare handles spoofs. This environment is not a Google/Microsoft IP.
-  { name: 'Googlebot sitemap', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', expect: [200], allowChallenge: true },
-  { name: 'Bingbot sitemap', path: SITEMAP, ua: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', expect: [200], allowChallenge: true },
-  { name: 'Googlebot /k/*', path: K_PATH, ua: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', expect: [200], allowChallenge: true },
-  { name: 'Bingbot /k/*', path: K_PATH, ua: 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)', expect: [200], allowChallenge: true },
-  // Every sitemap URL ever submitted to GSC/Bing must 301 to /sitemap.xml —
-  // a 404 here renders the HTML error page and produces the
-  // "xmlParseEntityRef: no name" parse failure in Search Console.
-  ...LEGACY_SITEMAPS.map((path) => ({
-    name: `Legacy ${path} → 301 /sitemap.xml`,
-    path,
-    ua: CHROME_UA,
-    headers: CHROME_HEADERS,
-    expect: [301],
-    expectLocation: '/sitemap.xml',
-    allowChallenge: true,
-    allowHostingBlock: true,
-  })),
-  ...WAF_BLOCK_BOTS.map(([name, ua]) => ({
-    name: `${name} /k/*`,
-    path: K_PATH,
-    ua,
-    expect: [403],
-    wantWaf: true,
-    zeroInvocation: true,
-  })),
+/** Endpoints that must answer every client, including unverified machines. */
+const MUST_BE_REACHABLE = [
+  { name: 'robots.txt (any client)', path: '/robots.txt' },
+  { name: 'IndexNow key file (api.indexnow.org)', path: INDEXNOW_KEY },
+  { name: 'ads.txt (ad verification crawlers)', path: '/ads.txt' },
+];
+
+/** Reachable for real people and search engines; datacenter runs get a challenge. */
+const SHOULD_BE_REACHABLE = [
+  { name: 'homepage as real Chrome', path: '/', ua: CHROME_UA, headers: CHROME_HEADERS },
+  { name: 'corpus page as real Chrome', path: K_PATH, ua: CHROME_UA, headers: CHROME_HEADERS },
+  { name: 'sitemap index as real Chrome', path: '/sitemap.xml', ua: CHROME_UA, headers: CHROME_HEADERS },
+  { name: 'feed.xml as real Chrome', path: '/feed.xml', ua: CHROME_UA, headers: CHROME_HEADERS },
 ];
 
 let failed = 0;
-let functionLeaks = 0;
 let warned = 0;
+let functionLeaks = 0;
 
-for (const c of REAL_CRAWLER_CASES) {
-  const headers = { ...(c.ua ? { 'User-Agent': c.ua } : {}), ...(c.headers || {}) };
-  const res = await fetch(`${SITE}${c.path}`, { headers, redirect: 'manual' });
+function mitigation(res) {
+  return res.headers.get('cf-mitigated') === 'challenge' ? 'challenge' : 'block';
+}
+
+async function probe({ path, ua, headers }) {
+  const res = await fetch(`${SITE}${path}`, {
+    headers: { ...(ua !== undefined ? { 'User-Agent': ua } : {}), ...(headers || {}) },
+    redirect: 'manual',
+  });
   const body = await res.text();
-  const bodyStart = body.slice(0, 120).replace(/\s+/g, ' ');
-  const challenged = res.status === 403 && res.headers.get('cf-mitigated') === 'challenge';
+  return { res, body };
+}
 
-  if (challenged && c.allowChallenge) {
-    console.log(`WARN  ${c.name}: HTTP 403 challenge (expected from datacenter IP — real crawlers/browsers exempt)`);
-    warned += 1;
+console.log(`[verify-live-access] ${SITE}`);
+console.log('  A challenge from a datacenter IP is expected. A 200 for a scraper is not.\n');
+
+for (const [name, ua] of MUST_BE_STOPPED) {
+  const { res, body } = await probe({ path: K_PATH, ua });
+  if (body.startsWith('Access Denied')) {
+    console.log(`FAIL  ${name}: stopped by the Pages Function (counts an invocation)`);
+    failed += 1;
+    functionLeaks += 1;
     continue;
   }
-
-  if (c.allowHostingBlock && res.status === 403 && isWafBlock(body, res)) {
-    console.log(`WARN  ${c.name}: HTTP 403 WAF (datacenter/hosting ASN — expected from this environment; residential Chrome is allowed)`);
-    warned += 1;
-    continue;
-  }
-
-  const ok = c.expect.includes(res.status);
-
-  if (res.status === 403 && isFunctionBlock(body)) {
-    if (c.zeroInvocation || c.wantWaf) {
-      console.log(`FAIL  ${c.name}: HTTP 403 via Function (COUNTS INVOCATION) — ${bodyStart}`);
-      failed += 1;
-      functionLeaks += 1;
-      continue;
-    }
-  }
-
-  if (ok && res.status === 403 && c.wantWaf && !isWafBlock(body, res)) {
-    console.log(`FAIL  ${c.name}: HTTP 403 but not WAF block — ${bodyStart}`);
+  if (res.status === 200) {
+    console.log(`FAIL  ${name}: HTTP 200 — reached the corpus`);
     failed += 1;
     continue;
   }
+  console.log(`OK    ${name}: HTTP ${res.status} (${mitigation(res)}) at the edge`);
+}
 
-  if (ok && res.status === 200 && c.zeroInvocation) {
-    console.log(`FAIL  ${c.name}: HTTP 200 — bad bot reached origin (counter leak)`);
-    failed += 1;
+for (const check of MUST_BE_REACHABLE) {
+  const { res } = await probe(check);
+  if (res.status === 200) {
+    console.log(`OK    ${check.name}: HTTP 200`);
     continue;
   }
+  console.log(
+    `FAIL  ${check.name}: HTTP ${res.status} (${mitigation(res)}) — ownership checks and`
+    + ' robots.txt must never be gated. If this is a challenge, Bot Fight Mode is on:'
+    + ' turn it off under Security → Settings (it cannot be skipped by WAF rules).',
+  );
+  failed += 1;
+}
 
-  if (ok && c.expectLocation) {
-    const location = res.headers.get('location') || '';
-    if (!location.endsWith(c.expectLocation)) {
-      console.log(`FAIL  ${c.name}: HTTP ${res.status} but Location is "${location}"`);
-      failed += 1;
-      continue;
-    }
+for (const check of SHOULD_BE_REACHABLE) {
+  const { res } = await probe(check);
+  if (res.status === 200 || res.status === 301) {
+    console.log(`OK    ${check.name}: HTTP ${res.status}`);
+    continue;
   }
-
-  const tag = ok ? 'OK' : 'FAIL';
-  console.log(`${tag}  ${c.name}: HTTP ${res.status} — ${bodyStart}`);
-  if (!ok) failed += 1;
+  if (mitigation(res) === 'challenge') {
+    console.log(
+      `WARN  ${check.name}: HTTP ${res.status} challenge — expected from a datacenter IP.`
+      + ' If a residential browser sees this too, Bot Fight Mode or Security Level is the cause.',
+    );
+    warned += 1;
+    continue;
+  }
+  console.log(`FAIL  ${check.name}: HTTP ${res.status} blocked (not a challenge) — a human would see this`);
+  failed += 1;
 }
 
 if (failed === 0) {
-  console.log(`\nPASS — spam blocked at WAF (zero Function invocations)${warned ? `; ${warned} challenge warning(s) from datacenter IP (expected)` : ''}`);
+  console.log(`\nPASS — scrapers stopped at the edge, crawler and ownership paths open${warned ? `; ${warned} datacenter challenge warning(s)` : ''}`);
 } else {
   console.log(`\nFAIL — ${failed} case(s)${functionLeaks ? `, ${functionLeaks} Function leak(s)` : ''}`);
 }

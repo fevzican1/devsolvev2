@@ -132,10 +132,38 @@ const SEARCH_CRAWLER_UA = uaContainsAny([
 const VERIFIED = 'cf.client.bot';
 
 /**
- * WAF1 — the skip. Verified Google/Bing crawlers bypass every later rule and
- * every plan-level security product we can legally skip.
+ * Endpoints that must answer any client, because the machines that read them
+ * are not verified bots and are not going to solve a challenge:
+ *   - the IndexNow key file, fetched by api.indexnow.org to prove ownership
+ *     (a challenge here silently invalidates every URL submission);
+ *   - robots.txt, which must never be gated for anyone;
+ *   - the sitemap index (400 lines, cached) — the per-chunk sitemaps under
+ *     /sitemaps/ stay protected;
+ *   - feed.xml, whose readers (Feedly, Inoreader, NetNewsWire relays) fetch
+ *     from AWS/GCP and are a real referral channel.
  */
-const WAF1_CRAWLER_SKIP = `(${VERIFIED} and ${SEARCH_CRAWLER_UA})`;
+const PUBLIC_ENDPOINTS = `(http.request.uri.path in {
+  "/robots.txt"
+  "/sitemap.xml"
+  "/feed.xml"
+  "/ee5098cac2284d92b6ee1c9fca52a120.txt"
+  "/ads.txt"
+  "/sellers.json"
+})`;
+
+/**
+ * WAF1 — the skip. Verified Google/Bing crawlers, plus the handful of public
+ * endpoints that ownership checks and feed readers must be able to fetch,
+ * bypass every later rule and every plan-level security product a custom rule
+ * is allowed to skip (Security Level, Browser Integrity Check, UA blocking,
+ * rate limiting, Managed Rules). Note that Security Level is why an exemption
+ * inside WAF3 is not enough on its own: without this skip, "High" or "I'm
+ * Under Attack" still challenges the request after our rules have passed it.
+ */
+const WAF1_CRAWLER_SKIP = `(
+  (${VERIFIED} and ${SEARCH_CRAWLER_UA})
+  or ${PUBLIC_ENDPOINTS}
+)`;
 
 /**
  * Named agents that are blocked whatever Cloudflare thinks of them: AI training
@@ -216,7 +244,7 @@ const SPOOFED_CRAWLER = `(
 const WAF2_HARD_BLOCK = `(
   ${KNOWN_SCRAPER_UA}
   or ${SPOOFED_CRAWLER}
-  or (len(http.user_agent) lt 12 and not ${VERIFIED})
+  or (len(http.user_agent) lt 12 and not ${VERIFIED} and not ${PUBLIC_ENDPOINTS})
 )`;
 
 /**
@@ -250,6 +278,7 @@ const HTTP2_OR_3 = '(http.request.version eq "HTTP/2" or http.request.version eq
 const WAF3_BROWSER_PROOF = `(
   not ${VERIFIED}
   and not ${SEARCH_CRAWLER_UA}
+  and not ${PUBLIC_ENDPOINTS}
   and (
     (
       lower(http.user_agent) contains "chrome/"
@@ -263,7 +292,7 @@ const SKIP_PRODUCTS = ['zoneLockdown', 'uaBlock', 'bic', 'hot', 'securityLevel',
 
 const RULE_SPEC = [
   {
-    description: '[DevSolve] WAF1 SKIP verified Googlebot + Bingbot (first, never challenged)',
+    description: '[DevSolve] WAF1 SKIP verified Googlebot + Bingbot and public endpoints',
     expression: WAF1_CRAWLER_SKIP,
     action: 'skip',
     action_parameters: { ruleset: 'current', products: SKIP_PRODUCTS },
@@ -324,6 +353,7 @@ function printDryRun() {
 /** Descriptions this script has used before; replaced rather than preserved. */
 const LEGACY_DESCRIPTIONS = new Set([
   '[DevSolve] SKIP crawlers + real browsers (never challenge)',
+  '[DevSolve] WAF1 SKIP verified Googlebot + Bingbot (first, never challenged)',
   '[DevSolve] SKIP verified Google/Bing only (never challenge)',
   '[DevSolve] SKIP verified Google/Bing crawlers (never challenge/block)',
   '[DevSolve] WAF1 block scrapers — keep Google Bing GSC + humans',
