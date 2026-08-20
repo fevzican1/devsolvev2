@@ -286,6 +286,13 @@ export const CORPUS_RULES = [
       'Style×context siblings must be different documents (distinct archetypes + tool/intent facts), not the same essay with modifiers stuffed into every sentence. 5-gram Jaccard of <main> prose stays ≤ 0.55 (true near-duplicates cluster ≥ 0.80; stuffing every sentence to chase 0.38 failed Bing quality).',
   },
   {
+    id: 'edited-prose',
+    source: 'BING abuse: keyword stuffing and artificially engineered language / GOOGLE scaled content abuse',
+    severity: 'critical',
+    requirement:
+      'Copy must read as if a person edited it. No process vocabulary the reader cannot use ("sibling", "this URL", "crawl budget"), acronyms keep their capitals ("validate JSON", not "validate json"), indefinite articles agree with the following word ("an API consumer"), no template splices ("a api consumer guide to", "finish by making <clause> possible"), no doubled words, and no single product name repeated past the stuffing threshold. Enforced per rendered page by auditServedCopy() in functions/_lib/programmaticPage.ts.',
+  },
+  {
     id: 'canonical-consistency',
     source: 'BING §6/§7 / GOOGLE "Page with redirect"',
     severity: 'critical',

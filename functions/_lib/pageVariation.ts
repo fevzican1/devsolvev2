@@ -4,14 +4,15 @@
  * Sibling Jaccard is a SET overlap of word 5-grams (order-invariant). Shuffling
  * H2s barely moves it. What moves it, without modifier stuffing:
  *   1. different section *sets* (omit/include) and different FAQ/step counts
- *   2. code/CLI/JSON whose keys and values are this URL's parameters
+ *   2. code/CLI/JSON whose keys and values are this page's parameters
  *   3. style-genre and context-artifact copy that does not repeat the same
- *      tool-mechanic bullets on every sibling
+ *      tool-mechanic bullets on every neighbouring page
  *
  * Style/context phrases still appear as scope, not in every sentence.
  */
 
 import { finishPtr, stopPtr, type IntentKernel, type KnowledgeSection, type PageKernel, type ToolKnowledge } from './corpusKnowledge';
+import { sentence, withArticle } from './language';
 
 export type SectionId =
   | 'takeaways'
@@ -188,40 +189,38 @@ export function uniqueSnippets(k: PageKernel, tk: ToolKnowledge, ik: IntentKerne
   return blocks;
 }
 
-/** Lead-in for the snippets section — style-specific so siblings do not share a 5-gram run. */
+/** Lead-in for the snippets section — style-specific so neighbours do not share a 5-gram run. */
 export function snippetLead(k: PageKernel): string {
-  const mode = modeToken(k.style).replace(/-/g, ' ');
-  const setting = settingToken(k.context).replace(/_/g, ' ');
   switch (k.style) {
     case 'as-part-of-ci-cd-pipeline':
-      return `Freeze these bytes as the ${mode} golden file. The setting (${setting}) decides which assertion you encode, not which adjectives you sprinkle.`;
+      return `Freeze these bytes as the golden file the pipeline job replays. What ${k.contextPhrase} asks for is a named assertion, not a well-named file.`;
     case 'during-code-review':
-      return `Paste only what fits a PR comment. Mode ${mode} means the reviewer regenerates from the thread, under ${setting}.`;
+      return `Paste only what fits in a PR comment. The reviewer has to regenerate the result from the thread, and ${k.contextPhrase} decides how much of the setup travels with it.`;
     case 'without-installing-cli-tools':
-      return `These samples stay in the tab (${mode}). If a command below is commented out, running it would abandon ${setting}.`;
+      return `Every sample below stays inside the browser tab. Where a command is commented out, running it would break the constraint this guide exists for, however urgent ${k.contextPhrase} feels.`;
     case 'with-safe-local-processing':
-      return `Every sample below is device-bound (${mode}). ${setting} forbids an origin that is not this page.`;
+      return `Each sample is bound to the device you are reading this on. ${sentence(k.contextPhrase)} does not allow a second origin to see the bytes.`;
     case 'while-keeping-data-private':
-      return `Prefer the synthetic fixture. ${mode} fails if these bytes appear in chat, tickets, or a second tool. Setting: ${setting}.`;
+      return `Prefer the synthetic fixture. The run has failed if these bytes end up in chat, a ticket, or a second tool, even when the output was correct — that is what ${k.contextPhrase} means in practice.`;
     case 'for-quick-prototyping':
-      return `Throwaway samples for a ${mode} spike. Promote the winner onto a CI sibling; do not ship from ${setting}.`;
+      return `Throwaway samples for a short spike. Promote the winner into a pipeline check; ${k.contextPhrase} is not a reason to ship from a scratch tab.`;
     case 'with-step-by-step-instructions':
-      return `Show these samples in order: input, action, signal. ${mode} is a lesson, and ${setting} is the classroom constraint.`;
+      return `Work through the samples in order: input, action, signal. The sequence is the lesson, and ${k.contextPhrase} is the constraint you teach alongside it.`;
     case 'with-automated-validation':
-      return `The JSON is the invariant rehearsal (${mode}). Encode ${setting} as something a script can fail, not as a screenshot.`;
+      return `The JSON below is a rehearsal for the invariant. Encode what ${k.contextPhrase} requires as something a script can fail, not as a screenshot.`;
     default:
-      return `Label the sample with ${mode} and ${setting} so the next person opens the same tab, not a neighbouring sibling.`;
+      return `Label the sample with the working method and the setting so the next person opens the same tab, the same fixture, and the same guide.`;
   }
 }
 
 export function exampleNote(k: PageKernel, fixtureId: string): string {
   switch (k.style) {
     case 'as-part-of-ci-cd-pipeline':
-      return `Fixture ${fixtureId} is what the pipeline job should replay. A log pretty-print is not the assertion.`;
+      return `Fixture ${fixtureId} is what the pipeline job should replay. A pretty-printed log line is not an assertion.`;
     case 'during-code-review':
       return `Fixture ${fixtureId} belongs in the PR comment with settings. The reviewer must regenerate it, not trust a screenshot.`;
     case 'without-installing-cli-tools':
-      return `Fixture ${fixtureId} must round-trip in the tab. Installing a binary to “help” abandons this URL.`;
+      return `Fixture ${fixtureId} must round-trip in the tab. Installing a binary to “help” abandons the constraint this guide is written for.`;
     case 'with-safe-local-processing':
       return `Fixture ${fixtureId} never leaves this device. Any upload hop invalidates the example.`;
     case 'while-keeping-data-private':
@@ -231,9 +230,9 @@ export function exampleNote(k: PageKernel, fixtureId: string): string {
     case 'with-step-by-step-instructions':
       return `Fixture ${fixtureId} is the teaching sample: name the input, the click, and the signal to move on.`;
     case 'with-automated-validation':
-      return `Fixture ${fixtureId} is the expected bytes. If a script cannot fail this, you are on the wrong sibling.`;
+      return `Fixture ${fixtureId} is the expected bytes. If a script cannot fail this, you are reading the wrong guide.`;
     default:
-      return `Fixture ${fixtureId} is bound to this tab session. Replay it; a pretty-print by itself is not proof.`;
+      return `Fixture ${fixtureId} belongs to this tab session. Replay it — a pretty-print on its own is not proof.`;
   }
 }
 
@@ -247,7 +246,7 @@ function jsonSnippet(
 ): SnippetBlock {
   const extra = extraJsonFields(k, fixture, recordId);
   // Do not repeat job/audience/task here — those 5-grams already sit in the
-  // H1 and are identical across style×context siblings, which inflates Jaccard.
+  // H1 and are identical across style×context neighbours, which inflates Jaccard.
   const body = {
     fixture,
     mode,
@@ -256,7 +255,7 @@ function jsonSnippet(
     ...extra,
   };
   return {
-    label: `Fixture ${fixture} (${modeToken(k.style)})`,
+    label: `Fixture ${fixture}`,
     language: 'json',
     code: JSON.stringify(body, null, 2),
     caption: jsonCaption(k, fixture, mode, setting),
@@ -266,23 +265,23 @@ function jsonSnippet(
 function jsonCaption(k: PageKernel, fixture: string, mode: string, setting: string): string {
   switch (k.style) {
     case 'as-part-of-ci-cd-pipeline':
-      return `Commit ${fixture}.json next to the ${mode} job. ${setting} decides the assertion, not the filename poetry.`;
+      return `Commit ${fixture}.json next to the job that replays it. The assertion comes from what ${k.contextPhrase} needs to prove, not from the filename.`;
     case 'during-code-review':
-      return `Keep ${fixture} short enough for a comment. Reviewers replay ${mode} from the thread, not from Slack.`;
+      return `Keep ${fixture} short enough for a comment. Reviewers regenerate it from the thread, not from a direct message.`;
     case 'without-installing-cli-tools':
-      return `${fixture} is the tab sample. ${mode} means a package manager is out of bounds even if ${setting} is urgent.`;
+      return `Fixture ${fixture} is the browser-tab sample. A package manager is out of bounds here even when ${k.contextPhrase} is urgent.`;
     case 'with-safe-local-processing':
-      return `Load ${fixture} on this device only. ${mode} plus ${setting} means no second origin.`;
+      return `Load ${fixture} on this device only. Local-only processing plus ${k.contextPhrase} rules out a second origin.`;
     case 'while-keeping-data-private':
-      return `${fixture} is the synthetic stand-in. ${mode} fails if the real payload also lands in a ticket.`;
+      return `Fixture ${fixture} is the synthetic stand-in. Using it is pointless if the real payload also lands in a ticket.`;
     case 'for-quick-prototyping':
-      return `Time-box ${fixture}. If it does not move the hypothesis, delete it before you leave ${mode}.`;
+      return `Time-box ${fixture}. If it does not move the hypothesis, delete it before you close the tab.`;
     case 'with-step-by-step-instructions':
-      return `Show ${fixture} as the named input. ${mode} wants the learner to say the signal out loud under ${setting}.`;
+      return `Show ${fixture} as the named input, then have the learner say the signal out loud. ${sentence(k.contextPhrase)} is the constraint they have to name too.`;
     case 'with-automated-validation':
-      return `${fixture} is the positive case. Keep a negative twin that must fail the ${mode} check.`;
+      return `Fixture ${fixture} is the positive case. Keep a negative twin that must fail the same check.`;
     default:
-      return `Paste ${fixture} into the tab, run once, and store output beside ${mode}/${setting}.`;
+      return `Paste ${fixture} into the tab, run it once, and store the output beside the settings you used (${mode}, ${setting}).`;
   }
 }
 
@@ -313,14 +312,14 @@ function cliSnippet(k: PageKernel, tk: ToolKnowledge, fixture: string, mode: str
   const cmd = toolCli(k.tool, fixture);
   const allowed = k.style !== 'without-installing-cli-tools' && k.style !== 'with-safe-local-processing';
   return {
-    label: allowed ? `CLI equivalent (not required on this sibling)` : `CLI you must not need on this sibling`,
+    label: allowed ? `CLI equivalent (not required here)` : `CLI you must not need for this method`,
     language: 'bash',
     code: allowed
       ? `# mode=${mode} fixture=${fixture}\n${cmd}\n# Keep the flags beside the output so ${k.toolLabel} stays replayable.`
-      : `# Constraint: ${mode}. Do not install a binary to finish ${k.intentLabel}.\n# Reference only — this is what a laptop with a package manager would have run:\n# ${cmd}\n# Stay in the ${k.toolLabel} tab instead.`,
+      : `# Constraint: ${mode}. Do not install a binary to finish ${k.jobGerund}.\n# Reference only — this is what a laptop with a package manager would have run:\n# ${cmd}\n# Stay in the ${k.toolLabel} tab instead.`,
     caption: allowed
       ? `If you later automate this job, copy these flags. Keep the verification written under Acceptance criteria next to the output.`
-      : `The presence of a commented CLI is so a reader can recognise the equivalent — running it would abandon this URL’s constraint.`,
+      : `The commented command is there so a reader recognises the equivalent — running it would abandon the constraint this method is written for.`,
   };
 }
 
@@ -369,7 +368,7 @@ function httpSnippet(
   setting: string,
 ): SnippetBlock {
   return {
-    label: `HTTP boundary check (${setting})`,
+    label: `HTTP boundary check`,
     language: 'http',
     code: [
       `POST /debug/${k.tool} HTTP/1.1`,
@@ -394,7 +393,7 @@ function ciSnippet(
   mode: string,
 ): SnippetBlock {
   return {
-    label: `Pipeline sketch for ${k.intentLabel}`,
+    label: `Pipeline sketch for ${k.jobNoun}`,
     language: 'yaml',
     code: [
       `name: ${k.tool}-${k.intent}`,
@@ -419,7 +418,7 @@ function reviewSnippet(k: PageKernel, ik: IntentKernel, fixture: string, mode: s
     label: `PR comment template`,
     language: 'markdown',
     code: [
-      `### ${k.intentLabel} replay (${mode})`,
+      `### ${k.jobNoun} replay (${mode})`,
       `- fixture: \`${fixture}\``,
       `- tool: ${k.toolLabel}`,
       `- settings: (paste the same options you used)`,
@@ -442,7 +441,7 @@ function jqSnippet(k: PageKernel, fixture: string, mode: string, setting: string
       `jq '{job:.job, tool:.tool, fixture:.fixture, mode:.mode}' ${fixture}.json`,
       `jq 'paths(scalars) | join(".")' ${fixture}.json | sort`,
     ].join('\n'),
-    caption: `A shape probe is not ${k.intentLabel} by itself. It tells you whether the sample you are about to run is the sample you think it is.`,
+    caption: `A shape probe is not ${k.jobNoun} by itself. It tells you whether the sample you are about to run is the sample you think it is.`,
   };
 }
 
@@ -461,10 +460,12 @@ export function variedSteps(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel, 
 function stepsForStyle(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): string[] {
   const t = k.toolLabel;
   const job = k.intentLabel;
+  const noun = k.jobNoun;
+  const doing = k.jobGerund;
   switch (k.style) {
     case 'as-part-of-ci-cd-pipeline':
       return [
-        `Name the job after ${job} so logs grep cleanly.`,
+        `Name the job after ${noun} so logs grep cleanly.`,
         `Commit a positive fixture and a negative fixture next to the test, not in a wiki.`,
         `Record the ${t} options the job must copy (alphabet, indent, dialect).`,
         `Implement the acceptance check as an assertion in CI — not as a screenshot diff.`,
@@ -482,7 +483,7 @@ function stepsForStyle(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): stri
         `Approve only when ${finishPtr(k.style)} holds.`,
         `Request changes when ${stopPtr(k.style)} holds.`,
         `Strip secrets before the comment is submitted.`,
-        `Link this URL so the genre (review-sized evidence) is obvious.`,
+        `Link this guide in the thread so the expected size of the evidence is obvious.`,
       ];
     case 'with-step-by-step-instructions':
       return [
@@ -503,7 +504,7 @@ function stepsForStyle(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): stri
         `Save output as a file a reviewer can open without extra tools.`,
         `Stop if ${stopPtr(k.style)} is true.`,
         `Finish when ${finishPtr(k.style)} holds.`,
-        `If a step requires a CLI, you are on the wrong sibling.`,
+        `If a step requires a CLI, you are reading the wrong guide.`,
         `Record that no install occurred next to the evidence.`,
       ];
     case 'with-safe-local-processing':
@@ -515,7 +516,7 @@ function stepsForStyle(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): stri
         `Verify locally using the acceptance check — no other origin.`,
         `Write “no egress” beside the output.`,
         `Done only when ${finishPtr(k.style)} holds.`,
-        `If a vendor processor is already approved for bulk, use that sibling instead.`,
+        `If a vendor processor is already approved for bulk work, use the guide written for that path instead.`,
       ];
     case 'while-keeping-data-private':
       return [
@@ -525,7 +526,7 @@ function stepsForStyle(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): stri
         `Redact PII in any screenshot even after a correct result.`,
         `Success includes “no extra copy”, plus ${finishPtr(k.style)}.`,
         `A correct answer that leaked is still a fail.`,
-        `If a hosted debugger is required, this URL is the wrong choice.`,
+        `If a hosted debugger is required, this guide is the wrong choice.`,
         `Note retention: none, unless your policy says otherwise in writing.`,
       ];
     case 'for-quick-prototyping':
@@ -537,7 +538,7 @@ function stepsForStyle(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): stri
         `Write the production test you will owe later (${finishPtr(k.style)}).`,
         `Stop if the spike is lying (${stopPtr(k.style)}).`,
         `Do not ship from this tab.`,
-        `Promote the winning fixture onto a CI or review sibling next.`,
+        `Promote the winning fixture into the CI/CD or code-review guide next.`,
       ];
     case 'with-automated-validation':
       return [
@@ -620,21 +621,23 @@ export function variedFaq(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel, pl
 function faqForStyle(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): FaqItem[] {
   const t = k.toolLabel;
   const job = k.intentLabel;
+  const noun = k.jobNoun;
+  const doing = k.jobGerund;
   switch (k.style) {
     case 'as-part-of-ci-cd-pipeline':
       return [
-        { question: `What should the pipeline assert for ${job}?`, answer: `${finishPtr(k.style)}, encoded as equality or a schema check — not as a screenshot diff.` },
+        { question: `What should the pipeline assert for ${doing}?`, answer: `${sentence(finishPtr(k.style))}, encoded as equality or a schema check — not as a screenshot diff.` },
         { question: `Where does the ${t} golden file live?`, answer: `Next to the test, named after the fixture id. Wiki images go stale and cannot fail a build.` },
         { question: `Is the browser pass the gated check?`, answer: `No. The tab is a rehearsal so you know which options to freeze. The job is the gate.` },
         { question: `What does a red build mean here?`, answer: `The invariant moved. First diff the fixture bytes. False reds often come from ${tk.pitfalls[0] ?? 'an unpinned dialect'}.` },
         { question: `Can I call a hosted API from CI for this?`, answer: `No. That adds egress, flakes, and a vendor as a single point of failure.` },
         { question: `How do I name the job?`, answer: `Include ${k.tool} and ${k.intent} so grep and CODEOWNERS stay obvious.` },
-        { question: `When is CI the wrong sibling?`, answer: `When this is a one-off incident paste that will never become a job.` },
+        { question: `When is CI the wrong place for this check?`, answer: `When this is a one-off incident paste that will never become a job.` },
       ];
     case 'during-code-review':
       return [
-        { question: `What belongs in the ${job} review comment?`, answer: `Fixture id, ${t} settings, output, and the done-when line. A reviewer must replay without a DM.` },
-        { question: `How long can the snippet be?`, answer: `Short enough for a PR comment. Batch logs belong on a CI sibling.` },
+        { question: `What belongs in the ${noun} review comment?`, answer: `Fixture id, ${t} settings, output, and the done-when line. A reviewer must replay without a DM.` },
+        { question: `How long can the snippet be?`, answer: `Short enough for a PR comment. Batch logs belong in a pipeline job.` },
         { question: `May I paste production tokens?`, answer: `No. Redact or use a synthetic fixture. Secrets in review threads are a separate incident.` },
         { question: `Who regenerates the check?`, answer: `The reviewer, from the comment. If they cannot, the artifact is incomplete.` },
         { question: `Approve when?`, answer: `When ${finishPtr(k.style)} holds and the reviewer regenerated from the comment.` },
@@ -643,33 +646,33 @@ function faqForStyle(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): FaqIte
       ];
     case 'without-installing-cli-tools':
       return [
-        { question: `Can I install a binary “just this once”?`, answer: `No. That abandons the constraint this URL is for. Use a CLI sibling if installs are allowed.` },
+        { question: `Can I install a binary “just this once”?`, answer: `No. That abandons the constraint this guide is written for. Use the CLI guide if installs are allowed.` },
         { question: `How do I ${job} on a locked-down laptop?`, answer: `Use ${t} in the browser tab. Save output as a file the reviewer can open without extra tools.` },
         { question: `What if the file is huge?`, answer: `This page is the reference check, not the bulk path. Sample a representative slice.` },
         { question: `Does ${t} need a package manager?`, answer: `No. If a step requires one, you followed the wrong guide.` },
         { question: `How do I prove I did not install anything?`, answer: `Note it next to the evidence pack. The absence of a new binary is part of “done”.` },
         { question: `Throwaway profile?`, answer: `Yes, when the payload is sensitive. Extensions can sync pastes.` },
-        { question: `When is this the wrong URL?`, answer: `When a blessed CLI is already on the image and the reviewer expects those flags.` },
+        { question: `When is this the wrong guide?`, answer: `When a blessed CLI is already on the machine image and the reviewer expects its flags.` },
       ];
     case 'with-safe-local-processing':
       return [
-        { question: `Does ${t} upload the sample?`, answer: `No. Abort if any hop asks for egress. Local-only is a hard boundary on this sibling.` },
-        { question: `What if a vendor processor is already approved?`, answer: `Then bulk speed may belong on a different URL. This one exists for payloads that must not leave the device.` },
+        { question: `Does ${t} upload the sample?`, answer: `No. Abort if any hop asks for egress. Local-only is a hard boundary here.` },
+        { question: `What if a vendor processor is already approved?`, answer: `Then bulk speed may belong on a different route. This procedure exists for payloads that must not leave the device.` },
         { question: `How do I verify on-device?`, answer: `Use the acceptance check on this page. Abort if any hop asks for egress.` },
         { question: `Password-manager sync?`, answer: `Treat unexpected cloud sync as egress. Use a profile that does not sync typed data.` },
         { question: `Done when?`, answer: `When ${finishPtr(k.style)} holds and you can write that no egress occurred.` },
-        { question: `Failure mode?`, answer: `${stopPtr(k.style)}, or any hop that left the device.` },
+        { question: `Failure mode?`, answer: `${sentence(stopPtr(k.style))}, or any hop that left the device.` },
         { question: `May I paste into another origin?`, answer: `No. Another origin is a different processor.` },
       ];
     case 'while-keeping-data-private':
       return [
-        { question: `Is a correct ${job} result enough?`, answer: `No. An extra copy of the data still fails this sibling.` },
+        { question: `Is a correct ${noun} result enough?`, answer: `No. An extra copy of the data is still a failure.` },
         { question: `Screenshots?`, answer: `Redact PII even after ${t} succeeds.` },
         { question: `Hosted debugger?`, answer: `Wrong trade for secrets. Stay on-device.` },
         { question: `Synthetic fixtures?`, answer: `Prefer them when the real payload is classified.` },
         { question: `Tickets and chat?`, answer: `Do not paste production secrets there either. Link a redacted pack.` },
         { question: `What does ${t} itself do with the bytes?`, answer: `It runs in your browser. The privacy failure is usually the copy you make afterwards.` },
-        { question: `Done when?`, answer: `${finishPtr(k.style)}, plus zero extra copies of the payload.` },
+        { question: `Done when?`, answer: `${sentence(finishPtr(k.style))}, plus zero extra copies of the payload.` },
       ];
     case 'for-quick-prototyping':
       return [
@@ -678,33 +681,33 @@ function faqForStyle(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): FaqIte
         { question: `What do I keep?`, answer: `Only the fixture that moved the hypothesis.` },
         { question: `What do I owe production?`, answer: `A real test that encodes ${finishPtr(k.style)} — not this tab session.` },
         { question: `When is the spike lying?`, answer: `When ${stopPtr(k.style)} is true, or when the sample was a toy string.` },
-        { question: `Can I ship from this tab?`, answer: `No. That is a different sibling with stricter acceptance.` },
+        { question: `Can I ship from this tab?`, answer: `No. Shipping needs the stricter acceptance bar of the CI/CD guide.` },
         { question: `Why use ${t} at all?`, answer: `To get a direction without standing up a pipeline you will throw away.` },
       ];
     case 'with-step-by-step-instructions':
       return [
-        { question: `Who is this ${job} sequence for?`, answer: `Someone who has not done it before and still needs the same evidence pack.` },
+        { question: `Who is this sequence written for?`, answer: `Someone who has not done it before and still needs the same evidence pack.` },
         { question: `What does each stage need?`, answer: `Named input, named ${t} action, named signal to move on.` },
-        { question: `Can veterans skip the why?`, answer: `They can use a shorter sibling. This URL is the teachable path.` },
+        { question: `Can veterans skip the why?`, answer: `They can use a shorter guide. This one is written to be taught.` },
         { question: `What do I say when it fails mid-lesson?`, answer: `Read ${stopPtr(k.style)} out loud, then name the pitfall from the list below.` },
-        { question: `What is done?`, answer: `${finishPtr(k.style)}, produced by the learner without Slack lore.` },
+        { question: `What is done?`, answer: `${sentence(finishPtr(k.style))}, produced by the learner without Slack lore.` },
         { question: `Toy samples?`, answer: `No. Learners will copy whatever you demonstrate.` },
         { question: `Where does the pack live afterwards?`, answer: `Somewhere the next new hire can find without asking you.` },
       ];
     case 'with-automated-validation':
       return [
-        { question: `What is the invariant for ${job}?`, answer: `Whatever ${finishPtr(k.style)} states — equality, schema, or digest, not “looks fine”.` },
+        { question: `What is the invariant for ${doing}?`, answer: `Whatever ${finishPtr(k.style)} states — equality, schema, or digest, not “looks fine”.` },
         { question: `How do I encode it?`, answer: `Prefer canonical bytes over visual inspection. Name the codec or variant in the assertion message.` },
         { question: `Do I need a negative fixture?`, answer: `Yes. A check that cannot fail is not a check.` },
-        { question: `Looks fine?`, answer: `Not an assertion. If you cannot name equality/schema/hash, use a spike sibling first.` },
-        { question: `Breakage looks like?`, answer: `${stopPtr(k.style)}. A check that cannot fail is not a check.` },
+        { question: `Looks fine?`, answer: `Not an assertion. If you cannot name equality, schema, or hash, run a prototyping pass first.` },
+        { question: `Breakage looks like?`, answer: `${sentence(stopPtr(k.style))}. A check that cannot fail is not a check.` },
         { question: `Where does ${t} fit?`, answer: `Rehearsal to freeze expected bytes, then the script owns the gate.` },
         { question: `Assertion message?`, answer: `Name the codec or variant so a red log is diagnosable.` },
       ];
     default:
       return [
         { question: `How do I ${job} with ${t} in one tab?`, answer: `Paste a representative sample, run it, and read the output against a known-good fixture.` },
-        { question: `Does the tab replace a pipeline?`, answer: `No. It is the interactive pass. Automate on a CI sibling once the options are frozen.` },
+        { question: `Does the tab replace a pipeline?`, answer: `No. It is the interactive pass. Automate in a pipeline once the options are frozen.` },
         { question: `Toy strings?`, answer: `They hide encoding, null, and size behaviour. Use production-shaped data.` },
         { question: `Done when?`, answer: `When ${finishPtr(k.style)} holds and a teammate can repeat the tab from the ticket.` },
         { question: `Stop when?`, answer: `When ${stopPtr(k.style)} is true, or the sample was a toy string.` },
@@ -720,11 +723,11 @@ function faqForContext(k: PageKernel): FaqItem[] {
       return [
         { question: `How fast must the first sample be during an incident?`, answer: `Minutes. Capture a trustworthy fixture, then stop exploring until the fire is down.` },
         { question: `What survives into the postmortem?`, answer: `The frozen sample and settings. A forgotten tab does not.` },
-        { question: `Is elegance in scope?`, answer: `Not on this sibling. Speed-to-evidence ranks first.` },
+        { question: `Is elegance in scope?`, answer: `Not here. Speed to evidence ranks first.` },
       ];
     case 'for-audit-readiness':
       return [
-        { question: `What does an auditor need to replay ${k.intentLabel}?`, answer: `Inputs, settings, outputs, and a timestamp. Memory-based “we checked it” fails.` },
+        { question: `What does an auditor need to replay the ${k.jobNoun}?`, answer: `Inputs, settings, outputs, and a timestamp. Memory-based “we checked it” fails.` },
         { question: `Is a screenshot enough for audit?`, answer: `Only with the regenerable pack beside it.` },
         { question: `Who regenerates the evidence?`, answer: `Someone who was not in the original session.` },
       ];
@@ -737,7 +740,7 @@ function faqForContext(k: PageKernel): FaqItem[] {
     case 'for-production-rollouts':
       return [
         { question: `Old or new version?`, answer: `Both, same fixture. The interesting artifact is the diff.` },
-        { question: `Single-version check?`, answer: `That belongs on a different sibling.` },
+        { question: `Single-version check?`, answer: `A single-version check belongs in a different guide.` },
         { question: `Rollback?`, answer: `The same pack must be safe to re-run.` },
       ];
     case 'for-observability-pipelines':
@@ -766,9 +769,9 @@ function faqForContext(k: PageKernel): FaqItem[] {
       ];
     default:
       return [
-        { question: `How does this setting change the evidence I keep?`, answer: `It changes the pack (timestamps, hops, policy refs), not the core job of ${k.intentLabel}.` },
+        { question: `How does this setting change the evidence I keep?`, answer: `It changes the pack (timestamps, hops, policy refs), not the core job of ${k.jobGerund}.` },
         { question: `Can I copy a procedure from a different setting?`, answer: `Not and expect the same acceptance bar.` },
-        { question: `What stays in scope?`, answer: `${k.intentLabel} with ${k.toolLabel} — the setting is a constraint, not a second topic.` },
+        { question: `What stays in scope?`, answer: `${sentence(k.jobNoun)} with ${k.toolLabel} — the setting is a constraint, not a second topic.` },
       ];
   }
 }
@@ -783,14 +786,14 @@ function faqForTool(k: PageKernel, tk: ToolKnowledge): FaqItem[] {
 export function variedGlossary(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel, plan: DocumentPlan): { term: string; definition: string }[] {
   const next = rng(plan.seed ^ 0x1b873593);
   const pool = [
-    { term: k.toolLabel, definition: `Browser-local DevSolve tool used on this URL to ${k.intentLabel}. See the entity block for the full definition.` },
-    { term: k.intentLabel, definition: `The single job this URL is about. Neighbouring intents are other URLs.` },
-    { term: modeToken(k.style).replace(/-/g, ' '), definition: `Working method for this URL: ${k.stylePhrase}. Other methods are other URLs.` },
-    { term: `${modeToken(k.style)} pack`, definition: `Evidence kept because this sibling’s delivery setting is ${k.context}, not a generic daily loop.` },
-    { term: `Fixture ${k.tool}`, definition: `A saved input plus expected output for ${k.intentLabel} that a second person can run without extra context.` },
+    { term: k.toolLabel, definition: `The browser-local DevSolve tool this guide uses to ${k.intentLabel}.` },
+    { term: sentence(k.jobNoun), definition: `The single job this guide covers. Related jobs have guides of their own.` },
+    { term: 'Working method', definition: `How the work is done here: ${k.stylePhrase}. Other methods have guides of their own.` },
+    { term: 'Evidence pack', definition: `What you keep after the run, because this guide is written for ${k.contextPhrase} rather than a generic daily loop.` },
+    { term: 'Fixture', definition: `A saved input plus expected output for ${k.jobGerund} that a second person can run without extra context.` },
     { term: 'Canonical bytes', definition: 'The agreed spelling of a result (key order, padding, encoding) so two systems can compare without ad-hoc trim hacks.' },
     { term: 'Replay pack', definition: `Input, ${k.toolLabel} settings, and output stored together.` },
-    { term: 'Acceptance', definition: `${finishPtr(k.style)} — not a second, conflicting definition.` },
+    { term: 'Acceptance', definition: `${sentence(finishPtr(k.style))} — not a second, conflicting definition.` },
   ];
   return pickN(pool, plan.glossaryCount, next);
 }
@@ -800,8 +803,8 @@ export function variedComparison(k: PageKernel, plan: DocumentPlan): { item: str
   const pool = [
     {
       item: `${k.toolLabel} in this working method`,
-      pros: `Matches the constraint in the title (${k.stylePhrase}).`,
-      cons: `Wrong when you actually needed a different method’s sibling.`,
+      pros: `Keeps the work ${k.stylePhrase}, which is the constraint this guide assumes.`,
+      cons: `The wrong choice when a different working method was actually available.`,
     },
     {
       item: `Same tool, this delivery setting ignored`,
@@ -821,7 +824,7 @@ export function variedComparison(k: PageKernel, plan: DocumentPlan): { item: str
     {
       item: 'Ad-hoc script in the ticket',
       pros: 'Maximum control.',
-      cons: `Easy to miss a ${k.toolLabel} rule unless a fixture is kept.`,
+      cons: `Easy to miss ${withArticle(k.toolLabel)} rule unless a fixture is kept.`,
     },
     {
       item: 'Pipeline job without a rehearsal',
@@ -836,12 +839,12 @@ export function variedPitfalls(k: PageKernel, tk: ToolKnowledge, ik: IntentKerne
   const next = rng(plan.seed ^ 0xc2b2ae35);
   const pool = [
     `Treating a green UI as done without reading ${finishPtr(k.style)}.`,
-    `Using a toy sample that hides the behaviour ${k.intentLabel} will hit in production.`,
+    `Using a toy sample that hides the behaviour ${k.jobGerund} will hit in production.`,
     `Leaving no fixture, so the next person cannot replay ${k.toolLabel}.`,
     tk.pitfalls[0] ?? 'Treating a UI result as a signed production decision.',
     tk.pitfalls[1] ?? `Copying a procedure from a different setting than ${k.contextPhrase}.`,
     `Repeating the working method in every sentence instead of following the procedure once.`,
-    `Skipping this setting’s extra check: ${stepForContext(k)}`,
+    `Skipping the extra check this setting asks for: ${stepForContext(k)}`,
   ];
   return pickN(pool, 3 + Math.floor(next() * 3), next);
 }
@@ -849,6 +852,8 @@ export function variedPitfalls(k: PageKernel, tk: ToolKnowledge, ik: IntentKerne
 export function variedIntro(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): string[] {
   const t = k.toolLabel;
   const job = k.intentLabel;
+  const noun = k.jobNoun;
+  const doing = k.jobGerund;
   return [
     introLead(k, ik, t, job),
     introSetting(k),
@@ -904,56 +909,60 @@ function introSetting(k: PageKernel): string {
 }
 
 function introWrongUrl(k: PageKernel, t: string, job: string): string {
+  const noun = k.jobNoun;
+  const doing = k.jobGerund;
   switch (k.style) {
     case 'as-part-of-ci-cd-pipeline':
-      return `Skip this URL if ${job} is a one-off paste that will never become a job — ${t} here is rehearsal for a gate, not a souvenir screenshot.`;
+      return `Skip this guide if ${doing} is a one-off paste that will never become a job — here ${t} is a rehearsal for a build gate, not a souvenir screenshot.`;
     case 'during-code-review':
-      return `Skip this URL if nobody will regenerate ${job} from a PR comment. ${t} output that only lives in Slack is the wrong artifact.`;
+      return `Skip this guide if nobody will regenerate the ${noun} from a PR comment. ${t} output that only lives in Slack is the wrong artifact.`;
     case 'without-installing-cli-tools':
-      return `Skip this URL if a blessed CLI is already on the image and reviewers expect those flags. ${t} in the tab is the legal runtime here.`;
+      return `Skip this guide if a blessed CLI is already on the machine image and reviewers expect its flags. Here the browser tab is the only runtime.`;
     case 'with-safe-local-processing':
-      return `Skip this URL if an approved vendor processor is already the path for bulk ${job}. This sibling aborts on upload.`;
+      return `Skip this guide if an approved vendor processor is already the path for ${doing} in bulk. The procedure here aborts on upload.`;
     case 'while-keeping-data-private':
-      return `Skip this URL if creating a ticket copy of the raw ${job} input is acceptable. A correct ${t} result that leaked still fails.`;
+      return `Skip this guide if creating a ticket copy of the raw input is acceptable. A correct ${t} result that leaked is still a failure.`;
     case 'for-quick-prototyping':
-      return `Skip this URL if you already owe a production test for ${job}. ${t} here is a time-boxed spike, not the ship path.`;
+      return `Skip this guide if you already owe a production test for ${doing}. Here ${t} is a time-boxed spike, not the ship path.`;
     case 'with-step-by-step-instructions':
-      return `Skip this URL if the reader already knows why each ${t} click exists. This sibling is the teachable ${job} path.`;
+      return `Skip this guide if the reader already knows why each ${t} click exists. This is the teachable ${noun} path.`;
     case 'with-automated-validation':
-      return `Skip this URL if you cannot state the ${job} check in one sentence a script could fail. ${t} is rehearsal for that invariant.`;
+      return `Skip this guide if you cannot state the ${noun} in one sentence a script could fail. ${t} is the rehearsal for that invariant.`;
     default:
-      return `Skip this URL if you only wanted the ${t} product page. The job on this page is ${job}, with a written done-when line.`;
+      return `Skip this guide if you only wanted the ${t} tool page. The job here is ${doing}, with a written done-when line.`;
   }
 }
 
 function introLead(k: PageKernel, _ik: IntentKernel, t: string, job: string): string {
+  const noun = k.jobNoun;
+  const doing = k.jobGerund;
   switch (k.style) {
     case 'as-part-of-ci-cd-pipeline':
-      return `Freeze ${job} into a pipeline with ${t}: the tab is rehearsal, the job is the gate.`;
+      return `Freeze ${noun} into a pipeline with ${t}: the tab is the rehearsal, the job is the gate.`;
     case 'during-code-review':
-      return `Reviewers should replay ${job} from a PR comment. ${t} is how you generate that small artifact.`;
+      return `Reviewers should be able to replay the ${noun} from a PR comment, and ${t} is how you produce that small artifact.`;
     case 'without-installing-cli-tools':
-      return `You cannot install a binary here. ${t} in the tab is the legal runtime for ${job}.`;
+      return `You cannot install a binary here, so ${t} in the browser tab is the only runtime available for ${doing}.`;
     case 'with-safe-local-processing':
-      return `Bytes stay on this device for ${job}. Abort if ${t} would have to upload.`;
+      return `Bytes stay on this device while ${doing}. Abort if ${t} would have to upload them.`;
     case 'while-keeping-data-private':
-      return `A correct ${job} result that created an extra copy still fails. Stay on ${t} in this tab.`;
+      return `A correct ${noun} result that created an extra copy is still a failure, so stay on ${t} in this tab.`;
     case 'for-quick-prototyping':
-      return `Time-box a ${job} spike with ${t}, then throw most of it away.`;
+      return `Time-box ${withArticle(noun)} spike with ${t}, then throw most of it away.`;
     case 'with-step-by-step-instructions':
-      return `This is the teachable ${job} path on ${t}: named input, named action, named signal.`;
+      return `This is the teachable ${noun} path on ${t}: named input, named action, named signal.`;
     case 'with-automated-validation':
-      return `Attach a machine-checkable invariant to ${job}. ${t} is the rehearsal, not the whole check.`;
+      return `Attach a machine-checkable invariant to ${doing}. ${t} is the rehearsal, not the whole check.`;
     default:
-      return `Finish ${job} in one ${t} tab you can describe in a ticket.`;
+      return `Finish ${doing} in one ${t} tab you can describe in a ticket.`;
   }
 }
 
 export function variedTakeaways(k: PageKernel, ik: IntentKernel): string[] {
   const extra = takeawayPair(k, ik);
   return [
-    `Job: ${k.intentLabel} with ${k.toolLabel} (${modeToken(k.style)}).`,
-    `Setting extra (do not skip): ${stepForContext(k)}`,
+    `The job: ${k.jobNoun} with ${k.toolLabel}, ${k.stylePhrase}.`,
+    `The extra check this setting adds: ${stepForContext(k)}`,
     extra[0]!,
     extra[1]!,
   ];
@@ -966,7 +975,7 @@ function takeawayPair(k: PageKernel, _ik: IntentKernel): [string, string] {
     case 'during-code-review':
       return ['The artifact must be regenerable from the PR comment.', 'Secrets do not belong in the thread.'];
     case 'without-installing-cli-tools':
-      return ['A binary install abandons this URL.', 'Save output as a file that opens without extra tools.'];
+      return ['A binary install abandons the constraint this guide is written for.', 'Save output as a file that opens without extra tools.'];
     case 'with-safe-local-processing':
       return ['Any upload prompt is an abort.', 'Write “no egress” beside the output.'];
     case 'while-keeping-data-private':
@@ -985,10 +994,10 @@ function takeawayPair(k: PageKernel, _ik: IntentKernel): [string, string] {
 export function variedAcceptance(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel, plan: DocumentPlan): string[] {
   const next = rng(plan.seed ^ 0x5bd1e995);
   const pool = [
-    `The sample resembles production data for ${k.intentLabel}, not a one-line toy.`,
-    `${k.audienceConcern} was considered — that is the usual miss for a ${k.audienceLabel}.`,
+    `The sample resembles production data for ${k.jobGerund}, not a one-line toy.`,
+    `You accounted for ${k.audienceConcern}, which is what ${k.audiencePlural} most often miss here.`,
     `Input, ${k.toolLabel} settings, and output are stored together.`,
-    `The setting-specific pack on this URL is complete (see the heading that names it).`,
+    `The evidence pack this setting asks for is complete — ${k.contextPhrase} needs every field, not most of them.`,
     `A second person can replay the tab from the pack without a DM.`,
   ];
   return pickN(pool, 4, next);
@@ -1000,7 +1009,7 @@ export function contextArtifact(k: PageKernel): KnowledgeSection {
     id: 'artifact',
     heading: artifactHeading(k),
     paragraphs: [
-      `${artifactRows(k)[0] ?? `Label the output for ${k.intentLabel}.`} File the rest of the “${artifactHeading(k)}” list beside the ${k.toolLabel} result so the next person does not invent a different pack.`,
+      `Keep this list beside the ${k.toolLabel} result. ${sentence(k.contextPhrase)} is what decides which fields matter, and writing them down is what stops the next person from inventing a different pack.`,
     ],
     list: rows,
   };
@@ -1034,10 +1043,12 @@ function artifactHeading(k: PageKernel): string {
 
 function artifactRows(k: PageKernel): string[] {
   const job = k.intentLabel;
+  const noun = k.jobNoun;
+  const doing = k.jobGerund;
   switch (k.context) {
     case 'for-time-sensitive-incidents':
       return [
-        `T+0: capture one trustworthy ${job} sample; do not pretty-print forever.`,
+        `T+0: capture one trustworthy ${noun} sample; do not pretty-print forever.`,
         'T+15: freeze settings next to the sample; assign an owner for the pack.',
         'T+60: the pack must still make sense to someone joining the call late.',
       ];
@@ -1045,7 +1056,7 @@ function artifactRows(k: PageKernel): string[] {
       return [
         `A defined term list for ${k.toolLabel} in this job.`,
         'A finished evidence pack the new hire produced without private Slack lore.',
-        `The reason under each ${job} click, not only the click.`,
+        `The reason behind each click, not only the click itself.`,
       ];
     case 'for-audit-readiness':
       return [
@@ -1057,7 +1068,7 @@ function artifactRows(k: PageKernel): string[] {
       return [
         'Hop A capture (client-side).',
         'Hop B capture (after the first proxy).',
-        `Same ${job} check until the mutating hop is named.`,
+        `The same ${noun} at each hop, until the mutating one is named.`,
       ];
     case 'for-production-rollouts':
       return [
@@ -1086,13 +1097,13 @@ function artifactRows(k: PageKernel): string[] {
     case 'for-disaster-recovery':
       return [
         'Cold laptop, browser only.',
-        `No dependency on the broken control plane to finish ${job}.`,
+        `No dependency on the broken control plane to finish ${doing}.`,
         'Written degraded path, practiced, not invented during the outage.',
       ];
     case 'for-compliance-reporting':
       return [
         'Policy identifier you are citing.',
-        `What ${job} checked.`,
+        `What the ${noun} actually checked.`,
         'When, with which fixture, signed or at least attributed.',
       ];
     case 'for-performance-benchmarking':
@@ -1116,12 +1127,12 @@ function artifactRows(k: PageKernel): string[] {
     case 'for-release-management':
       return [
         'Binary outcome: go or no-go.',
-        `The ${job} check is fast enough to run at the gate.`,
+        `The ${noun} runs fast enough to sit at the gate.`,
         'Safe to repeat on rollback.',
       ];
     default:
       return [
-        `Fixture labelled for ${job}.`,
+        `A fixture labelled for ${doing}.`,
         `${k.toolLabel} settings written down.`,
         'Output a stranger could regenerate.',
       ];
@@ -1130,8 +1141,8 @@ function artifactRows(k: PageKernel): string[] {
 
 export function entityFraming(k: PageKernel, _tk: ToolKnowledge, _ik: IntentKernel): { name: string; definition: string; alsoKnownAs: string[] } {
   return {
-    name: `${k.toolLabel} — ${k.intentLabel}`,
-    definition: `${k.toolLabel} is the in-browser runtime this URL uses for ${k.intentLabel} (${modeToken(k.style).replace(/-/g, ' ')} / ${settingToken(k.context).replace(/_/g, ' ')}).`,
-    alsoKnownAs: [k.intentLabel, k.toolLabel, `${k.intentLabel} ${modeToken(k.style)}`],
+    name: `${sentence(k.jobNoun)} with ${k.toolLabel}`,
+    definition: `${k.intentLabel} ${k.stylePhrase}, using a browser-based tool for ${k.clusterField}. ${sentence(k.contextPhrase)} is the setting this guide is written for.`,
+    alsoKnownAs: [k.jobNoun, k.toolLabel, k.clusterField],
   };
 }

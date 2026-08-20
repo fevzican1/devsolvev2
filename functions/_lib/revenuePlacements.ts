@@ -1,6 +1,6 @@
 /**
  * Zero-JS commercial HTML for the edge /k/* template.
- * Lives outside <main> so sibling Jaccard / stuffing gates ignore it.
+ * Lives outside <main> so the body uniqueness and stuffing gates ignore it.
  * Destinations are internal hops (public/_redirects) — never vendor URLs.
  */
 
@@ -50,7 +50,7 @@ export function renderRevenueAsides(input: {
 
   const native = `<aside class="native-affiliate-box" style="background:#f8fafc;border-left:4px solid #2563eb;padding:15px;margin:20px 0">`
     + `<strong style="color:#1e293b;font-size:14px">Recommended developer infrastructure</strong>`
-    + `<p style="color:#475569;font-size:12px;margin:5px 0 10px 0">To run this ${tool} ${job} check in production, claim startup cloud credit. Featured this URL: ${esc(featured.name)}.</p>`
+    + `<p style="color:#475569;font-size:12px;margin:5px 0 10px 0">To run this ${tool} ${job} check in production, claim startup cloud credit. Featured today: ${esc(featured.name)}.</p>`
     + links
     + `<p style="color:#64748b;font-size:11px;margin:10px 0 0">Sponsored. We may earn a commission at no extra cost to you. <code>rel=nofollow sponsored</code>.</p>`
     + `</aside>`;

@@ -1,7 +1,7 @@
 /**
  * Unique, non-Mad-Libs knowledge for the /k/ corpus.
  *
- * Previous drafts lowered sibling Jaccard by injecting style/context phrases
+ * Previous drafts lowered neighbour-page Jaccard by injecting style/context phrases
  * into every sentence. That passed a shingle gate and failed Bing/Google
  * content quality: keyword stuffing, mixed-topic URLs, and crawler-facing
  * "coordinate lock" copy (prompt-injection / AI-manipulation abuse).
@@ -13,6 +13,8 @@
  *   - context/audience/task appear once, as scope, not in every paragraph
  */
 
+import { sentence } from './language';
+
 export interface PageKernel {
   cluster: string;
   tool: string;
@@ -23,11 +25,22 @@ export interface PageKernel {
   context: string;
   slug: string;
   toolLabel: string;
+  /** Verb phrase: "validate JSON". Correct after "to" or as an imperative. */
   intentLabel: string;
+  /** Noun phrase: "JSON validation". Use as a subject or an object. */
+  jobNoun: string;
+  /** Gerund: "validating JSON". Use after another verb or a preposition. */
+  jobGerund: string;
+  /** Field this job belongs to, e.g. "JSON data handling". */
+  clusterField: string;
   audienceLabel: string;
+  /** Plural role name — prose says "for API consumers", never "for a api consumer". */
+  audiencePlural: string;
   taskPhrase: string;
   stylePhrase: string;
   contextPhrase: string;
+  /** Prepositional form of the context, e.g. "during team onboarding". */
+  contextSituation: string;
   audienceFocus: string;
   audienceConcern: string;
   taskScenario: string;
@@ -464,12 +477,14 @@ export function toolKnowledge(tool: string): ToolKnowledge {
 export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): KnowledgeSection[] {
   const t = k.toolLabel;
   const job = k.intentLabel;
+  const noun = k.jobNoun;
+  const doing = k.jobGerund;
   switch (k.style) {
     case 'without-installing-cli-tools':
       return [
         {
           id: 'constraint',
-          heading: `Doing ${job} when you cannot install a CLI`,
+          heading: `${sentence(doing)} when you cannot install a CLI`,
           paragraphs: [
             `That matters here because the machine may be locked down: no Homebrew, no apt, no corporate software request. The browser tab is the runtime.`,
             `If a step requires a binary, you are on the wrong guide.`,
@@ -486,7 +501,7 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           heading: `What ${t} is allowed to be on a no-install machine`,
           paragraphs: [
             `The only runtime is the tab. If a mechanic only exists as a CLI flag, it is out of scope here.`,
-            `Readers on kiosk images should finish ${job} with a file they can open in Notepad or Preview — not with a brew formula.`,
+            `Readers on kiosk images should finish ${doing} with a file they can open in Notepad or Preview — not with a brew formula.`,
           ],
         },
         {
@@ -497,7 +512,7 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
             `Verification without installs is the acceptance check on this page — not a brew formula.`,
           ],
           list: [
-            'A sudo prompt means you left this sibling.',
+            'A sudo prompt means you have left the no-install path.',
             'A missing PATH entry is not a defect here.',
             'Capture bytes before you invent a workaround.',
           ],
@@ -507,10 +522,10 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
       return [
         {
           id: 'loop',
-          heading: `The paste → run → read loop for ${job}`,
+          heading: `The paste → run → read loop for ${doing}`,
           paragraphs: [
             `In this guide the whole loop stays in one tab so a teammate can repeat it from a written sample, not from a setup document.`,
-            `The job to finish in that loop is ${job}, read against a fixture — not against a vibe.`,
+            `The job to finish in that loop is ${doing}, read against a fixture — not against a vibe.`,
             `Copy settings + output into the ticket so the loop is replayable.`,
           ],
           list: [
@@ -524,7 +539,7 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           heading: `How to read ${t} in the tab`,
           paragraphs: [
             `Watch the output the way you would watch a test runner: against a fixture, not against a vibe.`,
-            `If you only needed a one-liner API call, this interactive sibling is the wrong citation.`,
+            `If a one-line API call was all you needed, an interactive walk-through is more ceremony than the job deserves.`,
           ],
         },
         {
@@ -540,7 +555,7 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
       return [
         {
           id: 'teach',
-          heading: `Teachable sequence: ${job}`,
+          heading: `Teachable sequence for ${doing}`,
           paragraphs: [
             `This page is the checklist-grade path. Each stage names the input, the action, and the signal to move on.`,
             `Why the sequence exists: a first-timer should finish with the same pack as a veteran.`,
@@ -551,7 +566,7 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           id: 'why',
           heading: 'Why the sequence is written out',
           paragraphs: [
-            `Veterans skip steps they can no longer see. This URL writes the signal after each click so a first-timer still produces the same pack.`,
+            `Veterans skip steps they can no longer see. This guide writes the signal after each click so a first-timer still produces the same pack.`,
             `The failure you call out while teaching is ${stopPtr(k.style)}.`,
           ],
         },
@@ -570,7 +585,7 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
       return [
         {
           id: 'boundary',
-          heading: `Local-only processing for ${job}`,
+          heading: `Local-only processing for ${doing}`,
           paragraphs: [
             `Safe local processing is a hard boundary: the payload must not leave the device.`,
             `If an upload prompt appears, abort.`,
@@ -587,7 +602,7 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           heading: `What “on-device” forbids for ${t}`,
           paragraphs: [
             `No temporary bucket, no “debug upload”, no other origin.`,
-            `If classification later allows a managed pipeline, switch siblings — do not weaken this one.`,
+            `If the data classification later allows a managed pipeline, move to the guide written for that path rather than weakening this procedure.`,
           ],
         },
         {
@@ -600,7 +615,7 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
       return [
         {
           id: 'privacy',
-          heading: `Privacy-first ${job}`,
+          heading: `Privacy-first ${noun}`,
           paragraphs: [
             `Success includes “no extra copy of the data was created”.`,
             `Do not paste production secrets into tickets, chat, or hosted debuggers.`,
@@ -608,14 +623,14 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           list: [
             'Redact PII in any screenshot.',
             'Use synthetic fixtures when the real payload is classified.',
-            'If a vendor paste box is required, this is the wrong URL.',
+            'If a vendor paste box is required, this is the wrong procedure.',
           ],
         },
         {
           id: 'mechanics',
           heading: `Correctness without extra copies`,
           paragraphs: [
-            `Privacy does not relax ${job}. The extra rule is that a leak still fails the ticket.`,
+            `Privacy does not relax ${noun}. The extra rule is that a leak still fails the ticket.`,
             `Redaction is part of the procedure, not an afterthought for the slide deck.`,
           ],
         },
@@ -633,7 +648,7 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
       return [
         {
           id: 'spike',
-          heading: `A short spike for ${job}`,
+          heading: `A short spike for ${doing}`,
           paragraphs: [
             `This is a disposable pass: you want a direction in minutes, not a release gate.`,
             `Hypothesis: you want a direction in minutes, not a release gate. Fast method: smallest sample that moves the question.`,
@@ -663,7 +678,7 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
       return [
         {
           id: 'pr',
-          heading: `What to paste into the ${job} review`,
+          heading: `What to paste into the ${noun} review`,
           paragraphs: [
             `Review mode wants a small, regenerable artifact: input sample, ${t} settings, output.`,
             `Reviewers should not need a DM to replay the check.`,
@@ -687,8 +702,8 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
           id: 'out',
           heading: 'Out of scope for this review',
           paragraphs: [
-            'Overnight batch jobs, cluster-scale throughput, and vendor SLA debates belong on other URLs. This review is about whether the sample was checked correctly with this tool.',
-            `If the proof is a long log, link a CI sibling instead of pasting it here.`,
+            'Overnight batch jobs, cluster-scale throughput, and vendor SLA debates are separate discussions. This review is only about whether the sample was checked correctly with this tool.',
+            `If the proof is a long log, link the pipeline run instead of pasting it into the thread.`,
           ],
           list: [
             'PR comments that require a DM to replay.',
@@ -701,7 +716,7 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
       return [
         {
           id: 'contract',
-          heading: `CI contract for ${job}`,
+          heading: `CI contract for ${doing}`,
           paragraphs: [
             `The browser pass is a rehearsal for an automated gate. Freeze a fixture, name the assertion, then port it.`,
             `Assertion in plain language: ${finishPtr(k.style)}.`,
@@ -734,7 +749,7 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
       return [
         {
           id: 'invariant',
-          heading: `The invariant for ${job}`,
+          heading: `The invariant for ${doing}`,
           paragraphs: [
             `Attach a machine-checkable statement to the human-readable result.`,
             `Invariant: ${finishPtr(k.style)}, as equality/schema/digest.`,
@@ -770,8 +785,8 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
       return [
         {
           id: 'overview',
-          heading: `How ${t} handles ${job}`,
-          paragraphs: [`${t} is the runtime for ${job} on this URL.`, `Verification is the acceptance check on this page.`],
+          heading: `How ${t} handles ${noun}`,
+          paragraphs: [`${t} is the runtime this guide uses for ${doing}.`, `Verification is the acceptance check further down the page.`],
         },
         {
           id: 'verify',
@@ -802,9 +817,10 @@ export function contextSection(k: PageKernel, bodyBlock: string, demand: string)
 export function audienceSection(k: PageKernel): KnowledgeSection {
   return {
     id: 'audience',
-    heading: `Notes for a ${k.audienceLabel}`,
+    heading: `Notes for ${k.audiencePlural}`,
     paragraphs: [
-      `Your focus on this URL is ${k.audienceFocus}. The usual miss for this role is ${k.audienceConcern}; finish by making ${k.taskOutcome} possible.`,
+      `${sentence(k.audiencePlural)} come to ${k.intentLabel} for ${k.audienceFocus}, and the detail they most often miss is ${k.audienceConcern}.`,
+      `Treat the job as finished when you can ${k.taskOutcome} — that is the outcome ${k.taskPhrase} is measured against, ${k.contextSituation}.`,
     ],
   };
 }
@@ -813,7 +829,7 @@ export function naturalSteps(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel)
   switch (k.style) {
     case 'as-part-of-ci-cd-pipeline':
       return [
-        `Commit a fixture that demonstrates ${k.intentLabel} (include a negative case).`,
+        `Commit a fixture that demonstrates ${k.jobNoun} (include a negative case).`,
         `Record the ${k.toolLabel} options that the job must copy.`,
         `Implement ${tk.verify} as an assertion in CI.`,
         `Fail the build when ${ik.failsWhen}`,
@@ -845,7 +861,7 @@ export function naturalSteps(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel)
       ];
     default:
       return [
-        `Take a sample that looks like production data for ${k.intentLabel}.`,
+        `Take a sample that looks like production data for ${k.jobGerund}.`,
         `Run it through ${k.toolLabel}.`,
         `Follow the method in the job section above, then verify.`,
       `Compare the result to a known-good fixture.`,
@@ -872,62 +888,64 @@ export function decisionFor(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel):
 } {
   const t = k.toolLabel;
   const job = k.intentLabel;
+  const noun = k.jobNoun;
+  const doing = k.jobGerund;
   switch (k.style) {
     case 'without-installing-cli-tools':
       return {
-        heading: `When a no-install ${job} pass is the right move`,
+        heading: `When a no-install ${noun} pass is the right move`,
         when: [
           `The laptop cannot take a package install, and ${t} in a browser is the only legal runtime.`,
-          `You still need a real ${job} result, not a screenshot of someone else’s CLI.`,
+          `You still need a real ${noun} result, not a screenshot of someone else’s CLI.`,
         ],
         notWhen: [
           'A blessed CLI is already on the image and the reviewer expects that binary’s flags.',
           'The file is too large for a tab; this page is the reference check, not the bulk path.',
         ],
-        verdict: `Stay here when ${job} must happen with zero installs using ${t}.`,
+        verdict: `Stay here when ${doing} must happen with zero installs, using ${t}.`,
       };
     case 'directly-in-your-browser':
       return {
-        heading: `When an interactive ${job} tab is enough`,
+        heading: `When an interactive ${noun} tab is enough`,
         when: [
           `You can paste a sample, run ${t}, and read the result in one sitting.`,
           `A teammate should be able to repeat the same paste from the ticket.`,
         ],
         notWhen: [
-          'The check must run unattended on every commit — use the CI sibling.',
+          'The check must run unattended on every commit — that belongs in a pipeline.',
           'You only needed an API one-liner.',
         ],
-        verdict: `This URL is the interactive ${job} pass with ${t}, not the pipeline spec.`,
+        verdict: `This is the interactive ${noun} pass with ${t}, not the pipeline specification.`,
       };
     case 'with-step-by-step-instructions':
       return {
-        heading: `When ${job} has to be teachable`,
+        heading: `When ${doing} has to be teachable`,
         when: [
-          `Someone who has not done ${job} before must finish with the same evidence pack.`,
+          `Someone who has not done ${noun} before must finish with the same evidence pack.`,
           `You are willing to write the “why” under each click in ${t}.`,
         ],
         notWhen: [
           'The reader already knows the flow and only wants a one-line reminder.',
-          'You are mid-incident and need the short runbook sibling.',
+          'You are mid-incident and need a short runbook instead of a lesson.',
         ],
-        verdict: `Use this page as the teachable ${job} sequence on ${t}.`,
+        verdict: `Use this page as the teachable ${noun} sequence on ${t}.`,
       };
     case 'with-safe-local-processing':
       return {
-        heading: `When ${job} cannot leave the device`,
+        heading: `When ${doing} cannot leave the device`,
         when: [
           `The payload’s classification forbids upload, and ${t} stays in-process.`,
           `You can abort if any hop asks for egress.`,
         ],
         notWhen: [
           'A vendor processor is already approved and you only need bulk speed.',
-          'The data is synthetic and egress is irrelevant — a faster sibling is fine.',
+          'The data is synthetic and egress is irrelevant — a faster procedure is fine.',
         ],
-        verdict: `Local-only ${job} with ${t}: if it uploaded, you used the wrong guide.`,
+        verdict: `Local-only ${noun} with ${t}: if it uploaded, you used the wrong guide.`,
       };
     case 'while-keeping-data-private':
       return {
-        heading: `When privacy is part of “done” for ${job}`,
+        heading: `When privacy is part of “done” for ${doing}`,
         when: [
           `A correct answer that created an extra copy still fails the ticket.`,
           `Screenshots and chat pastes must be redacted even after ${t} succeeds.`,
@@ -936,37 +954,37 @@ export function decisionFor(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel):
           'The sample is public test data and privacy overhead is wasted motion.',
           'You need a hosted debugger — that is a different, worse trade for secrets.',
         ],
-        verdict: `Privacy-first ${job}: no extra copies, ${t} on-device.`,
+        verdict: `Privacy-first ${noun}: no extra copies, ${t} on-device.`,
       };
     case 'for-quick-prototyping':
       return {
-        heading: `When ${job} is a spike, not a gate`,
+        heading: `When ${doing} is a spike, not a gate`,
         when: [
           `You need a direction in minutes with ${t}, and you will throw most of it away.`,
           `A follow-up test will be written later; it is not this tab’s job.`,
         ],
         notWhen: [
-          'Release management needs a binary go/no-go — use that sibling.',
+          'Release management needs a binary go/no-go, which is a stricter bar than a spike.',
           'You are already past prototype and skipping the assertion.',
         ],
-        verdict: `Spike-only ${job} with ${t}; promote the winning fixture, not the tab session.`,
+        verdict: `Spike-only ${noun} with ${t}; promote the winning fixture, not the tab session.`,
       };
     case 'during-code-review':
       return {
-        heading: `When ${job} belongs in the review thread`,
+        heading: `When ${noun} belongs in the review thread`,
         when: [
-          `A reviewer must replay ${t} from the PR comment without a DM.`,
+          `A reviewer must be able to replay the ${noun} from the PR comment without a direct message.`,
           `The artifact is small enough to paste next to the diff.`,
         ],
         notWhen: [
-          'The proof is a long batch log — link a CI sibling instead.',
+          'The proof is a long batch log — link the pipeline run instead.',
           'Production secrets would have to go in the comment.',
         ],
-        verdict: `Review-sized ${job} evidence from ${t}, regenerable from the thread.`,
+        verdict: `Review-sized ${noun} evidence from ${t}, regenerable from the thread.`,
       };
     case 'as-part-of-ci-cd-pipeline':
       return {
-        heading: `When ${job} must fail the build`,
+        heading: `When ${noun} must fail the build`,
         when: [
           `The browser pass is only a rehearsal; the assertion will live in CI.`,
           `A red job should mean ${stopPtr(k.style)} is true.`,
@@ -975,11 +993,11 @@ export function decisionFor(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel):
           'This is a one-off incident paste that will never become a job.',
           'You cannot freeze a fixture yet — finish a spike first.',
         ],
-        verdict: `CI contract for ${job}: fixture + ${t} options + assertion.`,
+        verdict: `CI contract for ${doing}: fixture, ${t} options + assertion.`,
       };
     case 'with-automated-validation':
       return {
-        heading: `When ${job} needs a machine-checkable invariant`,
+        heading: `When ${noun} needs a machine-checkable invariant`,
         when: [
           `You can state “done” as equality, schema, or hash — not “looks fine”.`,
           `You can point at the acceptance check on this page.`,
@@ -988,11 +1006,11 @@ export function decisionFor(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel):
           'You are still exploring and cannot name the invariant.',
           'The check is inherently visual with no expected bytes.',
         ],
-        verdict: `Automated ${job}: if it cannot fail a script, it is not this page.`,
+        verdict: `Automated ${noun}: if it cannot fail a script, it is not this page.`,
       };
     default:
       return {
-        heading: `When this ${job} guide applies`,
+        heading: `When this guide applies`,
         when: [`You need to ${job} and ${t} is the right class of tool.`],
         notWhen: ['You only wanted the generic tool page.'],
         verdict: `Use this page to ${job} with ${t}.`,
@@ -1024,7 +1042,7 @@ export function naturalFaq(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): 
     },
     {
       question: `How is this different from the generic ${k.toolLabel} page?`,
-      answer: `The tool page is the product. This URL is one job (${k.intentLabel}) written for the method and setting named in the title.`,
+      answer: `The tool page is the product itself. This guide covers one job — ${k.intentLabel} — written for the working method and setting named in the heading.`,
     },
   ];
 }

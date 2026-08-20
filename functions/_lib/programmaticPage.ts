@@ -22,7 +22,7 @@
  *   - rich, unique, single-topic content well above the thin-content floor
  *   - <title> 30-69 chars (Bing: strictly less than 70), meta description 150-160 chars
  *   - one <h1> + logical <h2>/<h3> hierarchy, semantic HTML
- *   - canonical, robots index,follow, meta data-snippet (rich citation allowed)
+ *   - canonical, robots index,follow, meta data-snippet (rich snippets allowed)
  *   - accurate JSON-LD (TechArticle, BreadcrumbList, HowTo, FAQPage, SoftwareApplication)
  *   - crawlable <a href> internal links with descriptive anchor text
  *   - key information surfaced early, explicit facts/definitions (verifiability)
@@ -30,6 +30,7 @@
  */
 
 import { EMBEDDED_RAMP_LEVEL } from './embeddedRamp';
+import { prose, titleCase, sentence, pluralRole, gerund, articleFor } from './language';
 import {
   archetypeSections,
   audienceSection,
@@ -74,9 +75,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-15T18:00:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-20T12:00:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'e';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'a';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -295,12 +296,16 @@ export function escapeHtml(value: string): string {
   })[character] as string);
 }
 
+/**
+ * Slug segment as reader-facing prose. Acronyms keep their real spelling, so a
+ * page about `validate-json` says "validate JSON" rather than "validate json".
+ */
 function label(value: string): string {
-  return value.replace(/-/g, ' ');
+  return prose(value);
 }
 
 export function title(value: string): string {
-  return value.replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return titleCase(value);
 }
 
 /* Classic 31-multiplier string hash → stable per-slug seed. */
@@ -596,63 +601,63 @@ const STYLE_VOCAB: Record<string, StyleVocab> = {
     tiny: 'no CLI',
     phrase: 'without installing CLI tools',
     practice: 'Nothing has to be installed, so the workflow is available on a locked-down laptop, a borrowed machine, or a fresh container where you have no package manager rights.',
-    bodyBlock: 'Operating without installing CLI tools changes the entire trust model: there is no binary to pin, no PATH conflict, no sudo prompt, and no leftover package that a later audit has to justify. The browser tab is the only runtime, which means the same person can finish the check on a Chromebook, a kiosk image, or a contractor laptop that forbids Homebrew. That constraint is why this URL refuses to recommend shell one-liners as the primary path — the moment a CLI is required, this page is the wrong sibling.',
+    bodyBlock: 'Operating without installing CLI tools changes the entire trust model: there is no binary to pin, no PATH conflict, no sudo prompt, and no leftover package that a later audit has to justify. The browser tab is the only runtime, which means the same person can finish the check on a Chromebook, a kiosk image, or a contractor laptop that forbids Homebrew. That constraint is why the primary path here is never a shell one-liner: the moment a CLI is required, you need a different guide.',
   },
   'directly-in-your-browser': {
     micro: 'in-browser',
     tiny: 'browser',
     phrase: 'directly in your browser',
     practice: 'The whole operation happens in a browser tab, which keeps the feedback loop to a few seconds and means a teammate can reproduce it from a shared link rather than a setup guide.',
-    bodyBlock: 'Running the work directly in your browser collapses the feedback loop into a single tab: paste, run, read, decide. There is no editor plugin matrix, no remote desktop hop, and no waiting for a job queue. The trade-off is deliberate — this sibling optimises for interactive verification, not for batch throughput — so citations and acceptance criteria here assume a human is watching the first trustworthy sample before anything is automated elsewhere.',
+    bodyBlock: 'Running the work directly in your browser collapses the feedback loop into a single tab: paste, run, read, decide. There is no editor plugin matrix, no remote desktop hop, and no waiting for a job queue. The trade-off is deliberate: this route optimises for interactive verification rather than batch throughput, so the acceptance criteria assume a person is watching the first trustworthy sample before anything is automated elsewhere.',
   },
   'with-step-by-step-instructions': {
     micro: 'stepwise',
     tiny: 'stepwise',
     phrase: 'with step-by-step instructions',
     practice: 'Each stage is written out explicitly, so the procedure can be handed to someone who has never done it before and still produce the same result.',
-    bodyBlock: 'A stepwise instruction style exists for hand-offs: every stage names the input it needs, the action to take, and the signal that means “move on”. Readers are not expected to invent missing steps from tribal knowledge. If you already know the flow by heart and only need a one-line reminder, a different sibling is a better citation — this URL is the teachable, checklist-grade path.',
+    bodyBlock: 'A stepwise instruction style exists for hand-offs: every stage names the input it needs, the action to take, and the signal that means “move on”. Readers are not expected to invent missing steps from tribal knowledge. If you already know the flow by heart and only need a one-line reminder, a shorter guide will serve you better; this is the teachable, checklist-grade path.',
   },
   'with-safe-local-processing': {
     micro: 'local-only',
     tiny: 'local',
     phrase: 'with safe local processing',
     practice: 'Data never leaves the device, which is what makes the procedure usable on payloads you are not allowed to paste into a hosted service.',
-    bodyBlock: 'Safe local processing is a hard boundary, not a marketing line: the payload stays on the device for the entire transformation. That removes egress reviews, temporary S3 drops, and “just this once” uploads that later become permanent exceptions. Choose this sibling when the data classification forbids third-party processors; choose another when a managed pipeline is already approved and you only need bulk speed.',
+    bodyBlock: 'Safe local processing is a hard boundary, not a marketing line: the payload stays on the device for the entire transformation. That removes egress reviews, temporary S3 drops, and “just this once” uploads that later become permanent exceptions. Choose this route when the data classification forbids third-party processors, and a managed pipeline when one is already approved and you only need bulk speed.',
   },
   'while-keeping-data-private': {
     micro: 'private',
     tiny: 'private',
     phrase: 'while keeping data private',
     practice: 'Privacy is treated as a requirement rather than a preference: no upload, no account, no retention, and therefore no new data-processing agreement to negotiate.',
-    bodyBlock: 'Keeping data private reframes success: the correct result is one that never created a copy outside your control. No account gate, no retention bucket, no “debug upload”. This page’s evidence pack is therefore local-first by design, and any workflow that requires a SaaS paste box belongs on a different URL even if the tool name looks similar.',
+    bodyBlock: 'Keeping data private reframes success: the correct result is one that never created a copy outside your control. No account gate, no retention bucket, no “debug upload”. The evidence pack is therefore local-first by design, and a workflow that requires a hosted paste box is a different procedure even when the tool name looks similar.',
   },
   'for-quick-prototyping': {
     micro: 'prototyping',
     tiny: 'draft',
     phrase: 'for quick prototyping',
     practice: 'The goal is a fast, disposable answer — enough confidence to choose a direction, with the understanding that the production implementation gets its own tests.',
-    bodyBlock: 'Quick prototyping accepts disposable answers: you want direction in minutes, not a hardened pipeline. The sample can be smaller, the assertions lighter, and the follow-up is “encode the winner in tests”, not “ship from this tab”. If you need release-gate certainty, stop — that is a different sibling with stricter acceptance criteria.',
+    bodyBlock: 'Quick prototyping accepts disposable answers: you want direction in minutes, not a hardened pipeline. The sample can be smaller, the assertions lighter, and the follow-up is “encode the winner in tests”, not “ship from this tab”. If you need release-gate certainty, stop here: that job has a stricter acceptance bar than a spike.',
   },
   'during-code-review': {
     micro: 'in code review',
     tiny: 'review',
     phrase: 'during code review',
     practice: 'The output is meant to be pasted into a review thread, so it has to be small, self-explanatory, and reproducible by the reviewer without extra context.',
-    bodyBlock: 'Code-review mode optimises for a pasteable artifact: short enough for a PR comment, complete enough that a reviewer can regenerate it without DMing you. Settings and sample must travel with the screenshot or snippet. Long-running batch proofs and overnight jobs are out of scope for this sibling even when they use the same underlying tool.',
+    bodyBlock: 'Code-review mode optimises for a pasteable artifact: short enough for a PR comment, complete enough that a reviewer can regenerate it without DMing you. Settings and sample must travel with the screenshot or snippet. Long-running batch proofs and overnight jobs are out of scope here, even when they use the same underlying tool.',
   },
   'as-part-of-ci-cd-pipeline': {
     micro: 'in CI/CD',
     tiny: 'CI/CD',
     phrase: 'as part of a CI/CD pipeline',
     practice: 'The manual pass is the specification for an automated one: once the expected output is agreed, the same check runs on every commit and fails the build when it drifts.',
-    bodyBlock: 'CI/CD framing means the manual browser pass is a specification rehearsal for an automated gate. Freeze the fixture, name the assertion, then port the check into the pipeline so drift fails the build. This sibling is wrong for one-off incident pastes that will never become a job — use an incident-oriented URL instead.',
+    bodyBlock: 'CI/CD framing means the manual browser pass is a specification rehearsal for an automated gate. Freeze the fixture, name the assertion, then port the check into the pipeline so drift fails the build. This framing is wrong for one-off incident pastes that will never become a job; an incident runbook is the better fit.',
   },
   'with-automated-validation': {
     micro: 'auto-validated',
     tiny: 'checked',
     phrase: 'with automated validation',
     practice: 'A machine-checkable assertion is attached to the result, so a later change that quietly breaks the invariant is caught by the check rather than by a user.',
-    bodyBlock: 'Automated validation attaches a machine-checkable invariant to the human-readable result. The page expects you to leave behind something a script can re-assert later — golden output, schema hash, or roundtrip equality — not only a subjective “looks fine”. Pure exploratory clicking without an assertion belongs on a prototyping sibling.',
+    bodyBlock: 'Automated validation attaches a machine-checkable invariant to the human-readable result. The page expects you to leave behind something a script can re-assert later — golden output, schema hash, or roundtrip equality — not only a subjective “looks fine”. Pure exploratory clicking with no assertion attached is prototyping, which is a different job.',
   },
 };
 
@@ -660,6 +665,8 @@ interface ContextVocab {
   micro: string;
   tiny: string;
   phrase: string;
+  /** Prepositional form, so headings read as English instead of as a label. */
+  situation: string;
   /** What this delivery context demands from the workflow. */
   demand: string;
   /** Long, context-only prose — absent from siblings with a different context. */
@@ -667,30 +674,30 @@ interface ContextVocab {
 }
 
 const CONTEXT_VOCAB: Record<string, ContextVocab> = {
-  'for-time-sensitive-incidents': { micro: 'incidents', tiny: 'incidents', phrase: 'time-sensitive incidents', demand: 'During an incident the constraint is minutes, not elegance: the procedure has to give a trustworthy answer on the first attempt and leave a trace that survives into the postmortem.', bodyBlock: 'Incident time budgets punish hesitation. This context wants the first trustworthy sample in minutes, with a trail that still makes sense in the postmortem hours later. Polished enterprise ceremony is deferred; speed-to-evidence is the ranking signal for every step on this URL.' },
-  'for-team-onboarding': { micro: 'onboarding', tiny: 'onboarding', phrase: 'team onboarding', demand: 'For onboarding the procedure doubles as teaching material, so every step names the reason behind it instead of assuming shared context a new joiner does not have yet.', bodyBlock: 'Onboarding context turns the guide into curriculum. Terms are defined, reasons are spoken aloud, and shortcuts that veterans take silently are written down. A new hire should finish with the same evidence pack a senior would, without private Slack lore.' },
-  'for-audit-readiness': { micro: 'audits', tiny: 'audits', phrase: 'audit readiness', demand: 'Audit readiness means the result must be evidence: recorded inputs, recorded settings, and an output an auditor can regenerate without your help.', bodyBlock: 'Audit readiness demands regenerable evidence: inputs, settings, outputs, and timestamps an external reviewer can replay. Memory-based “we checked it” fails this context. Every recommendation on this page prefers artifacts over anecdotes.' },
-  'for-cross-region-teams': { micro: 'global teams', tiny: 'global', phrase: 'cross-region teams', demand: 'Across regions the workflow runs without a live handover, so it has to be unambiguous in writing and give identical output regardless of locale or timezone.', bodyBlock: 'Cross-region collaboration removes live handovers. Instructions must be timezone-agnostic, locale-safe, and identical in output whether run in Bengaluru or Berlin. Ambiguous relative times and slang are treated as defects on this URL.' },
-  'for-legacy-system-migrations': { micro: 'legacy moves', tiny: 'migrations', phrase: 'legacy system migrations', demand: 'Migrations mix old and new formats in the same pipeline, so the check has to prove the two representations mean the same thing rather than merely look similar.', bodyBlock: 'Legacy migrations mix formats that only look alike. This context insists on semantic equivalence proofs — field meaning, null handling, encoding — not cosmetic pretty-print matches. If both sides are already modern and identical, pick a simpler sibling.' },
-  'for-large-enterprise-workflows': { micro: 'enterprise', tiny: 'enterprise', phrase: 'large enterprise workflows', demand: 'At enterprise scale the same procedure is executed by many teams, so it has to be standardised enough that two engineers reach the same conclusion independently.', bodyBlock: 'Enterprise scale means many teams will execute the same steps. Standardisation beats heroics: shared fixtures, shared acceptance language, shared failure labels. Local improvisation that cannot be taught to the next squad fails this context.' },
-  'for-api-contract-validation': { micro: 'API contracts', tiny: 'contracts', phrase: 'API contract validation', demand: 'Contract validation compares reality against the documented schema, so the output has to be precise about which field, type, or encoding actually diverged.', bodyBlock: 'API contract validation is forensic: name the field, type, and encoding that diverged from the documented schema. Vague “payload weird” notes are insufficient. This URL ranks precise diffs over narrative summaries.' },
-  'for-weekly-ops-routines': { micro: 'weekly ops', tiny: 'weekly ops', phrase: 'weekly ops routines', demand: 'A weekly routine is judged on repeatability: it should take the same few minutes every time and surface drift early rather than accumulate surprises.', bodyBlock: 'Weekly ops routines prize boring repeatability. The same minutes, the same fixtures, the same drift signals. Surprise is a failure mode. Optimise for muscle memory and early detection, not for novelty.' },
-  'for-compliance-reporting': { micro: 'compliance', tiny: 'compliance', phrase: 'compliance reporting', demand: 'Compliance reporting needs a defensible paper trail — what was checked, when, with which inputs — not just a green result someone remembers seeing.', bodyBlock: 'Compliance reporting needs a defensible paper trail: what was checked, when, with which inputs, under which policy reference. A green screenshot without provenance is not enough for this context.' },
-  'for-incident-postmortems': { micro: 'postmortems', tiny: 'postmortem', phrase: 'incident postmortems', demand: 'A postmortem re-runs the evidence after the fact, so the procedure must be reproducible from records alone, weeks after the original session ended.', bodyBlock: 'Postmortem context re-runs evidence weeks later from records alone. Anything that depended on a live terminal state or a forgotten browser tab fails. Freeze fixtures as if a stranger will replay them next quarter.' },
-  'for-capacity-planning': { micro: 'capacity', tiny: 'capacity', phrase: 'capacity planning', demand: 'Capacity work cares about behaviour as volume grows, so a sample-sized result is only useful when you also note how it scales with payload size and concurrency.', bodyBlock: 'Capacity planning asks how behaviour changes as volume grows. Record sample size, concurrency notes, and where the browser path stops being representative. A single tiny fixture without scaling commentary is incomplete here.' },
-  'for-release-management': { micro: 'releases', tiny: 'releases', phrase: 'release management', demand: 'Release management wants a go/no-go signal: the check has to be decisive, fast enough to run at the gate, and safe to repeat on a rollback.', bodyBlock: 'Release management wants a binary go/no-go that is fast at the gate and safe on rollback. Indeterminate “maybe fine” outcomes are process failures. This sibling prefers decisive checks over exploratory browsing.' },
-  'for-vendor-integration': { micro: 'vendor work', tiny: 'vendors', phrase: 'vendor integrations', demand: 'With a vendor you cannot change the other side, so the workflow has to isolate whether the defect is in their payload, your parsing, or the transport between them.', bodyBlock: 'Vendor integrations assume you cannot patch the other side. Isolate whether the defect is their payload, your parsing, or the transport. Blame-shifting without a boundary test fails this context.' },
-  'for-data-governance': { micro: 'governance', tiny: 'governance', phrase: 'data governance', demand: 'Governance asks where the data went as much as what the result was, which is why a local, no-upload procedure is easier to approve than a hosted equivalent.', bodyBlock: 'Data governance scores lineage as highly as correctness. Where did the bytes go? Who could see them? A correct answer that created an unapproved copy still fails. Prefer no-upload paths and explicit retention notes.' },
-  'for-service-mesh-debugging': { micro: 'mesh debug', tiny: 'mesh', phrase: 'service mesh debugging', demand: 'In a mesh the payload passes through several hops, so the check has to be applied at each boundary to find the hop that changed it.', bodyBlock: 'Service mesh debugging is hop-oriented. Apply the same check at each boundary until the mutating hop is identified. Single-point inspection without hop comparison misses the point of this context.' },
-  'for-cost-optimization': { micro: 'cost control', tiny: 'cost', phrase: 'cost optimisation', demand: 'Cost work rewards doing the check locally: an answer that needs no cluster, no job, and no egress is both faster and cheaper than the pipeline equivalent.', bodyBlock: 'Cost optimisation rewards local answers: no cluster spin-up, no egress fees, no idle jobs. If the only approved path is an expensive pipeline, document why — otherwise this sibling prefers the zero-infra verification.' },
-  'for-performance-benchmarking': { micro: 'benchmarks', tiny: 'benchmarks', phrase: 'performance benchmarking', demand: 'Benchmarking needs a fixed baseline, so the input sample and settings have to be frozen before any comparison between runs means anything.', bodyBlock: 'Benchmarking is meaningless without a frozen baseline. Lock the fixture and settings before comparing runs. Changing both the code and the sample in the same session invalidates this context.' },
-  'for-disaster-recovery': { micro: 'DR drills', tiny: 'DR drills', phrase: 'disaster recovery drills', demand: 'A recovery drill assumes your usual tooling is unavailable, so a procedure that runs offline in a browser is exactly the kind that still works at the worst moment.', bodyBlock: 'Disaster recovery drills assume familiar tooling is gone. Offline browser procedures that still work on a cold laptop beat anything that needs the broken control plane. Practice the degraded path, not the happy path.' },
-  'for-production-rollouts': { micro: 'rollouts', tiny: 'rollouts', phrase: 'production rollouts', demand: 'During a rollout the check runs against both the old and the new version, and the interesting result is the difference between them rather than either one alone.', bodyBlock: 'Production rollouts compare old versus new under the same fixture. The interesting artifact is the diff, not either side alone. Single-version checks belong on a different sibling.' },
-  'for-observability-pipelines': { micro: 'observability', tiny: 'telemetry', phrase: 'observability pipelines', demand: 'Observability pipelines silently drop malformed records, so validating the shape before ingestion is the difference between a usable dashboard and a misleading one.', bodyBlock: 'Observability pipelines drop malformed records quietly. Validate shape before ingestion or the dashboard lies. This context treats pre-ingest verification as mandatory, not optional polish.' },
+  'for-time-sensitive-incidents': { micro: 'incidents', tiny: 'incident', phrase: 'time-sensitive incidents', situation: 'while an incident is open', demand: 'During an incident the constraint is minutes, not elegance: the procedure has to give a trustworthy answer on the first attempt and leave a trace that survives into the postmortem.', bodyBlock: 'Incident time budgets punish hesitation. This context wants the first trustworthy sample in minutes, with a trail that still makes sense in the postmortem hours later. Polished enterprise ceremony is deferred; speed to evidence is what every step here optimises for.' },
+  'for-team-onboarding': { micro: 'onboarding', tiny: 'joiners', phrase: 'team onboarding', situation: 'during team onboarding', demand: 'For onboarding the procedure doubles as teaching material, so every step names the reason behind it instead of assuming shared context a new joiner does not have yet.', bodyBlock: 'Onboarding context turns the guide into curriculum. Terms are defined, reasons are spoken aloud, and shortcuts that veterans take silently are written down. A new hire should finish with the same evidence pack a senior would, without private Slack lore.' },
+  'for-audit-readiness': { micro: 'audits', tiny: 'audits', phrase: 'audit readiness', situation: 'ahead of an audit', demand: 'Audit readiness means the result must be evidence: recorded inputs, recorded settings, and an output an auditor can regenerate without your help.', bodyBlock: 'Audit readiness demands regenerable evidence: inputs, settings, outputs, and timestamps an external reviewer can replay. Memory-based “we checked it” fails this context. Every recommendation here prefers artifacts over anecdotes.' },
+  'for-cross-region-teams': { micro: 'global teams', tiny: 'global', phrase: 'cross-region teams', situation: 'across regions', demand: 'Across regions the workflow runs without a live handover, so it has to be unambiguous in writing and give identical output regardless of locale or timezone.', bodyBlock: 'Cross-region collaboration removes live handovers. Instructions must be timezone-agnostic, locale-safe, and identical in output whether run in Bengaluru or Berlin. Ambiguous relative times and slang are treated as defects.' },
+  'for-legacy-system-migrations': { micro: 'legacy moves', tiny: 'legacy', phrase: 'legacy system migrations', situation: 'in a legacy migration', demand: 'Migrations mix old and new formats in the same pipeline, so the check has to prove the two representations mean the same thing rather than merely look similar.', bodyBlock: 'Legacy migrations mix formats that only look alike. This context insists on semantic equivalence proofs — field meaning, null handling, encoding — not cosmetic pretty-print matches. If both sides are already modern and identical, a simpler comparison is enough.' },
+  'for-large-enterprise-workflows': { micro: 'enterprise', tiny: 'scale', phrase: 'large enterprise workflows', situation: 'in enterprise workflows', demand: 'At enterprise scale the same procedure is executed by many teams, so it has to be standardised enough that two engineers reach the same conclusion independently.', bodyBlock: 'Enterprise scale means many teams will execute the same steps. Standardisation beats heroics: shared fixtures, shared acceptance language, shared failure labels. Local improvisation that cannot be taught to the next squad fails this context.' },
+  'for-api-contract-validation': { micro: 'API contracts', tiny: 'API spec', phrase: 'API contract validation', situation: 'in API contract validation', demand: 'Contract validation compares reality against the documented schema, so the output has to be precise about which field, type, or encoding actually diverged.', bodyBlock: 'API contract validation is forensic: name the field, type, and encoding that diverged from the documented schema. Vague “payload weird” notes are insufficient. Precise diffs are worth more here than narrative summaries.' },
+  'for-weekly-ops-routines': { micro: 'weekly ops', tiny: 'weekly', phrase: 'weekly ops routines', situation: 'in a weekly ops routine', demand: 'A weekly routine is judged on repeatability: it should take the same few minutes every time and surface drift early rather than accumulate surprises.', bodyBlock: 'Weekly ops routines prize boring repeatability. The same minutes, the same fixtures, the same drift signals. Surprise is a failure mode. Optimise for muscle memory and early detection, not for novelty.' },
+  'for-compliance-reporting': { micro: 'compliance', tiny: 'policy', phrase: 'compliance reporting', situation: 'for compliance reporting', demand: 'Compliance reporting needs a defensible paper trail — what was checked, when, with which inputs — not just a green result someone remembers seeing.', bodyBlock: 'Compliance reporting needs a defensible paper trail: what was checked, when, with which inputs, under which policy reference. A green screenshot without provenance is not enough for this context.' },
+  'for-incident-postmortems': { micro: 'postmortems', tiny: 'retro', phrase: 'incident postmortems', situation: 'in an incident postmortem', demand: 'A postmortem re-runs the evidence after the fact, so the procedure must be reproducible from records alone, weeks after the original session ended.', bodyBlock: 'Postmortem context re-runs evidence weeks later from records alone. Anything that depended on a live terminal state or a forgotten browser tab fails. Freeze fixtures as if a stranger will replay them next quarter.' },
+  'for-capacity-planning': { micro: 'capacity', tiny: 'capacity', phrase: 'capacity planning', situation: 'in capacity planning', demand: 'Capacity work cares about behaviour as volume grows, so a sample-sized result is only useful when you also note how it scales with payload size and concurrency.', bodyBlock: 'Capacity planning asks how behaviour changes as volume grows. Record sample size, concurrency notes, and where the browser path stops being representative. A single tiny fixture without scaling commentary is incomplete here.' },
+  'for-release-management': { micro: 'releases', tiny: 'releases', phrase: 'release management', situation: 'in release management', demand: 'Release management wants a go/no-go signal: the check has to be decisive, fast enough to run at the gate, and safe to repeat on a rollback.', bodyBlock: 'Release management wants a binary go/no-go that is fast at the gate and safe on rollback. Indeterminate “maybe fine” outcomes are process failures. A decisive check is worth more here than exploratory browsing.' },
+  'for-vendor-integration': { micro: 'vendor work', tiny: 'vendors', phrase: 'vendor integrations', situation: 'in a vendor integration', demand: 'With a vendor you cannot change the other side, so the workflow has to isolate whether the defect is in their payload, your parsing, or the transport between them.', bodyBlock: 'Vendor integrations assume you cannot patch the other side. Isolate whether the defect is their payload, your parsing, or the transport. Blame-shifting without a boundary test fails this context.' },
+  'for-data-governance': { micro: 'governance', tiny: 'lineage', phrase: 'data governance', situation: 'under data governance', demand: 'Governance asks where the data went as much as what the result was, which is why a local, no-upload procedure is easier to approve than a hosted equivalent.', bodyBlock: 'Data governance scores lineage as highly as correctness. Where did the bytes go? Who could see them? A correct answer that created an unapproved copy still fails. Prefer no-upload paths and explicit retention notes.' },
+  'for-service-mesh-debugging': { micro: 'mesh debug', tiny: 'mesh', phrase: 'service mesh debugging', situation: 'in service mesh debugging', demand: 'In a mesh the payload passes through several hops, so the check has to be applied at each boundary to find the hop that changed it.', bodyBlock: 'Service mesh debugging is hop-oriented. Apply the same check at each boundary until the mutating hop is identified. Inspecting one point without comparing hops misses the point.' },
+  'for-cost-optimization': { micro: 'cost control', tiny: 'cost', phrase: 'cost optimisation', situation: 'under cost pressure', demand: 'Cost work rewards doing the check locally: an answer that needs no cluster, no job, and no egress is both faster and cheaper than the pipeline equivalent.', bodyBlock: 'Cost optimisation rewards local answers: no cluster spin-up, no egress fees, no idle jobs. If the only approved path is an expensive pipeline, document why — otherwise the zero-infra verification is the better trade.' },
+  'for-performance-benchmarking': { micro: 'benchmarks', tiny: 'bench', phrase: 'performance benchmarking', situation: 'in performance benchmarking', demand: 'Benchmarking needs a fixed baseline, so the input sample and settings have to be frozen before any comparison between runs means anything.', bodyBlock: 'Benchmarking is meaningless without a frozen baseline. Lock the fixture and settings before comparing runs. Changing both the code and the sample in the same session invalidates this context.' },
+  'for-disaster-recovery': { micro: 'DR drills', tiny: 'DR', phrase: 'disaster recovery drills', situation: 'in a disaster recovery drill', demand: 'A recovery drill assumes your usual tooling is unavailable, so a procedure that runs offline in a browser is exactly the kind that still works at the worst moment.', bodyBlock: 'Disaster recovery drills assume familiar tooling is gone. Offline browser procedures that still work on a cold laptop beat anything that needs the broken control plane. Practice the degraded path, not the happy path.' },
+  'for-production-rollouts': { micro: 'rollouts', tiny: 'rollouts', phrase: 'production rollouts', situation: 'during a production rollout', demand: 'During a rollout the check runs against both the old and the new version, and the interesting result is the difference between them rather than either one alone.', bodyBlock: 'Production rollouts compare old versus new under the same fixture. The interesting artifact is the diff, not either side alone. Checking only one version answers a different question.' },
+  'for-observability-pipelines': { micro: 'observability', tiny: 'logs', phrase: 'observability pipelines', situation: 'in an observability pipeline', demand: 'Observability pipelines silently drop malformed records, so validating the shape before ingestion is the difference between a usable dashboard and a misleading one.', bodyBlock: 'Observability pipelines drop malformed records quietly. Validate shape before ingestion or the dashboard lies. This context treats pre-ingest verification as mandatory, not optional polish.' },
 };
 
 const DEFAULT_STYLE: StyleVocab = { micro: 'in-browser', tiny: 'browser', phrase: 'directly in your browser', practice: 'The operation runs locally in a browser tab, so it is quick to repeat and easy to share.', bodyBlock: 'This fallback style keeps the work inside a browser tab so the loop stays short and shareable without installing tooling.' };
-const DEFAULT_CONTEXT: ContextVocab = { micro: 'daily work', tiny: 'daily', phrase: 'everyday engineering work', demand: 'The procedure is written to be repeatable during ordinary day-to-day engineering work.', bodyBlock: 'Everyday engineering work needs a repeatable loop that fits between meetings without special ceremony.' };
+const DEFAULT_CONTEXT: ContextVocab = { micro: 'daily work', tiny: 'daily', phrase: 'everyday engineering work', situation: 'in everyday engineering work', demand: 'The procedure is written to be repeatable during ordinary day-to-day engineering work.', bodyBlock: 'Everyday engineering work needs a repeatable loop that fits between meetings without special ceremony.' };
 
 function styleVocab(page: ResolvedPage): StyleVocab {
   return STYLE_VOCAB[page.style] ?? DEFAULT_STYLE;
@@ -707,18 +714,18 @@ function contextVocab(page: ResolvedPage): ContextVocab {
  */
 const INTENT_MICRO_OVERRIDES: Record<string, string> = {
   'find-and-replace-patterns': 'find and replace',
-  'detect-json-syntax-errors': 'JSON syntax errors',
+  'detect-json-syntax-errors': 'syntax errors',
   'convert-json-to-types': 'JSON to types',
   'generate-unique-identifiers': 'unique IDs',
   'rotate-unique-identifiers': 'ID rotation',
   'generate-identifiers': 'ID generation',
   'anonymize-sensitive-fields': 'field anonymising',
-  'format-api-documentation': 'API doc formatting',
+  'format-api-documentation': 'API doc format',
   'authenticate-api-request': 'request auth',
   'secure-api-communication': 'secure transport',
   'escape-template-variables': 'template escaping',
-  'escape-special-characters': 'special characters',
-  'serialize-complex-objects': 'object serialising',
+  'escape-special-characters': 'char escaping',
+  'serialize-complex-objects': 'serialising',
   'configure-periodic-cleanup': 'periodic cleanup',
   'automate-data-extraction': 'data extraction',
   'monitor-scheduled-tasks': 'job monitoring',
@@ -746,7 +753,7 @@ const INTENT_MICRO_OVERRIDES: Record<string, string> = {
   'convert-character-sets': 'character sets',
   'handle-unicode-text': 'Unicode text',
   'decode-nested-encodings': 'nested encodings',
-  'verify-encoding-roundtrip': 'encoding roundtrip',
+  'verify-encoding-roundtrip': 'roundtrip check',
   'analyze-text-differences': 'text differences',
   'split-text-by-delimiter': 'text splitting',
   'match-complex-patterns': 'complex patterns',
@@ -763,7 +770,7 @@ const INTENT_MICRO_OVERRIDES: Record<string, string> = {
   'generate-batch-ids': 'batch IDs',
   'parse-automation-output': 'automation output',
   'extract-log-data': 'log extraction',
-  'aggregate-data-records': 'record aggregation',
+  'aggregate-data-records': 'aggregation',
   'migrate-data-schema': 'schema migration',
   'create-data-fingerprint': 'data fingerprints',
   'generate-data-models': 'data models',
@@ -822,7 +829,7 @@ const INTENT_MICRO_OVERRIDES: Record<string, string> = {
   'encode-url-parameters': 'URL parameters',
   'render-documentation': 'doc rendering',
   'compress-stylesheet': 'stylesheet size',
-  'indent-nested-code': 'nested indentation',
+  'indent-nested-code': 'indentation',
   'format-sql': 'SQL formatting',
   'minify-assets': 'asset minifying',
   'preview-markdown': 'Markdown preview',
@@ -841,9 +848,13 @@ function intentMicro(intent: string): string {
 
 /**
  * Bing Webmaster Tools: "Change the title length to be less than 70 characters."
- * That is a strict upper bound of 69 (titles of exactly 70 were still flagged).
+ * The budget here is 66, not 69. Three characters of slack are what keeps a
+ * later edit — a brand suffix, a wider spelling, a report that counts
+ * differently — from putting the corpus back in that report, and titles at or
+ * under ~66 also survive Google's SERP truncation, which is worth more in
+ * clicks than the extra words would have been.
  */
-export const TITLE_MAX = 69;
+export const TITLE_MAX = 66;
 export const DESCRIPTION_MIN = 150;
 export const DESCRIPTION_MAX = 160;
 
@@ -902,7 +913,7 @@ function formsFor(page: ResolvedPage): Forms {
 }
 
 function capitalise(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  return sentence(value);
 }
 
 /**
@@ -914,16 +925,37 @@ function capitalise(value: string): string {
  * boilerplate that repeats 20 million times (the brand is still carried by
  * og:site_name and the JSON-LD publisher).
  */
-function buildTitle(forms: Forms): string {
+/**
+ * "JSON validation … : JSON, in code review onboarding" spends characters
+ * naming the tool twice. When the subject already contains the tool's spelling,
+ * the tool is dropped from the title and the saved characters buy a more
+ * readable spelling elsewhere.
+ *
+ * Uniqueness is preserved because at most one tool per (cluster, intent) is
+ * ever dropped — the other tools of that cluster keep a spelling the dropped
+ * one does not have. The condition is checked against both intent tiers so the
+ * decision does not depend on which shortening plan wins, and
+ * titleVocabularyAudit() proves the "at most one" part for the whole corpus.
+ */
+function toolNamedBySubject(page: ResolvedPage): boolean {
+  const tools = CLUSTERS.find(([cluster]) => cluster === page.cluster)?.[1] ?? [];
+  const named = tools.filter((tool) => {
+    const spelling = (TOOL_MICRO[tool] ?? toolName(tool)).toLowerCase();
+    return label(page.intent).toLowerCase().includes(spelling)
+      && intentMicro(page.intent).toLowerCase().includes(spelling);
+  });
+  return named.length === 1 && named[0] === page.tool;
+}
+
+function buildTitle(forms: Forms, omitTool = false): string {
   let candidate = '';
   for (const { tiers: [i, t, a, k, s, c], compact } of SHORTENING_PLANS) {
     const subject = capitalise(forms.intent[i]);
     const audience = `${forms.audience[a]} ${forms.task[k]}`;
     // Compact form drops one ", " vs the previous template so the shortest
-    // tier's worst case lands at ≤69 (Bing: strictly less than 70).
-    const detail = compact
-      ? `${forms.tool[t]} ${forms.style[s]} ${forms.context[c]}`
-      : `${forms.tool[t]}, ${forms.style[s]} ${forms.context[c]}`;
+    // tier's worst case lands inside the limit (Bing: strictly under 70).
+    const tool = omitTool ? '' : compact ? `${forms.tool[t]} ` : `${forms.tool[t]}, `;
+    const detail = `${tool}${forms.style[s]} ${forms.context[c]}`;
     candidate = compact ? `${subject}: ${audience}, ${detail}` : `${subject} for ${audience}: ${detail}`;
     if (candidate.length <= TITLE_MAX) return candidate;
   }
@@ -989,10 +1021,37 @@ function buildDescription(page: ResolvedPage, forms: Forms): string {
   return base;
 }
 
+/**
+ * The H1 has to name all six dimensions (otherwise siblings share a heading)
+ * and still read like a headline a person wrote. The previous template stacked
+ * them into "…: a api consumer guide to config change review for team
+ * onboarding" — ungrammatical, and the kind of sentence that makes a reviewer
+ * classify a page as unedited machine output. Two clauses separated by an em
+ * dash carry the same information as English: what you are doing and how, then
+ * who it is for and when.
+ */
+const H1_MAX = 125;
+
 function buildH1(page: ResolvedPage, forms: Forms): string {
   const style = styleVocab(page);
   const context = contextVocab(page);
-  return `${capitalise(forms.intent[0])} with ${forms.tool[0]} ${style.phrase}: a ${forms.audience[0]} guide to ${forms.task[0]} for ${context.phrase}`;
+  const audience = pluralRole(page.audience);
+  const subject = capitalise(forms.intent[0]);
+
+  // "during code review … during team onboarding" is grammatical but reads like
+  // a template; when the two phrases open with the same word, use the
+  // parenthetical form for the setting instead.
+  const repeatsPreposition = style.phrase.split(' ')[0] === context.situation.split(' ')[0];
+
+  const plans = [
+    ...(repeatsPreposition
+      ? []
+      : [`${subject} with ${forms.tool[0]} — ${style.phrase}, ${forms.task[0]} for ${audience} ${context.situation}`]),
+    `${subject} with ${forms.tool[0]} — ${style.phrase}, ${forms.task[0]} for ${audience} (${context.micro})`,
+    `${subject} with ${forms.tool[0]} — ${style.phrase}, ${forms.task[1]} for ${audience} (${context.micro})`,
+    `${subject} with ${forms.tool[1]} — ${style.micro}, ${forms.task[1]} for ${audience} (${context.micro})`,
+  ];
+  return plans.find((plan) => plan.length <= H1_MAX) ?? plans[plans.length - 1];
 }
 
 /**
@@ -1068,7 +1127,7 @@ export function titleVocabularyAudit(): { problems: string[]; worstCaseTitleLeng
 export function buildIdentity(page: ResolvedPage): PageIdentity {
   const forms = formsFor(page);
   return {
-    title: buildTitle(forms),
+    title: buildTitle(forms, toolNamedBySubject(page)),
     description: buildDescription(page, forms),
     h1: buildH1(page, forms),
   };
@@ -1085,7 +1144,7 @@ export interface PageContent {
   intro: string[];
   /** Bing §16 — explicit entity naming so grounding can cite a defined thing. */
   entity: { name: string; definition: string; alsoKnownAs: string[] };
-  /** Bing §11/§15 — when this exact URL applies vs neighbouring siblings. */
+  /** Bing §11/§15 — when this exact page applies vs the neighbouring ones. */
   decision: { heading: string; when: string[]; notWhen: string[]; verdict: string };
   /** Bing §15 — acceptance criteria a reviewer can verify independently. */
   acceptance: string[];
@@ -1121,10 +1180,15 @@ function pageKernel(page: ResolvedPage): PageKernel {
     slug: page.slug,
     toolLabel: toolName(page.tool),
     intentLabel: label(page.intent),
+    jobNoun: intentMicro(page.intent),
+    jobGerund: gerund(page.intent),
+    clusterField: (CLUSTER_DOMAIN[page.cluster] ?? { field: `${page.cluster} work` }).field,
     audienceLabel: label(page.audience),
+    audiencePlural: pluralRole(page.audience),
     taskPhrase: TASK_PHRASE[page.task] ?? label(page.task),
     stylePhrase: sv.phrase,
     contextPhrase: cv.phrase,
+    contextSituation: cv.situation,
     audienceFocus: ac.focus,
     audienceConcern: ac.concern,
     taskScenario: tc.scenario,
@@ -1165,7 +1229,7 @@ function buildContent(page: ResolvedPage): PageContent {
     audienceSection(k),
     {
       id: 'practice',
-      heading: `${sv.micro.charAt(0).toUpperCase() + sv.micro.slice(1)} practice`,
+      heading: `Working method: ${sv.phrase}`,
       paragraphs: [sv.practice, sv.bodyBlock],
     },
   ];
@@ -1294,7 +1358,16 @@ function buildRelated(page: ResolvedPage): { slug: string; label: string }[] {
     const target = pageForIndex(cursor);
     if (!target || seen.has(target.slug)) continue;
     seen.add(target.slug);
-    out.push({ slug: target.slug, label: `${title(target.intent)} with ${toolName(target.tool)} for ${label(target.audience)} (${styleVocab(target).micro} · ${contextVocab(target).micro})` });
+    // Anchor text names the tool only when it differs from this page's tool:
+    // twenty anchors repeating one product name is keyword stuffing, and the
+    // reader learns nothing from the repetition either.
+    const sameTool = target.tool === page.tool;
+    out.push({
+      slug: target.slug,
+      label: sameTool
+        ? `${title(target.intent)} for ${pluralRole(target.audience)} (${styleVocab(target).micro} · ${contextVocab(target).micro})`
+        : `${title(target.intent)} with ${toolName(target.tool)} (${styleVocab(target).micro} · ${contextVocab(target).micro})`,
+    });
   }
   // Same-tool neighbours (different intent/audience) reinforce topical clusters
   // so crawlers traverse high-relevance paths instead of only random strides.
@@ -1305,7 +1378,12 @@ function buildRelated(page: ResolvedPage): { slug: string; label: string }[] {
     if (!neighbour || seen.has(neighbour.slug)) continue;
     if (neighbour.tool !== page.tool && neighbour.cluster !== page.cluster) continue;
     seen.add(neighbour.slug);
-    out.push({ slug: neighbour.slug, label: `${title(neighbour.intent)} · ${toolName(neighbour.tool)}` });
+    out.push({
+      slug: neighbour.slug,
+      label: neighbour.tool === page.tool
+        ? `${title(neighbour.intent)} for ${pluralRole(neighbour.audience)} (${styleVocab(neighbour).micro} · ${contextVocab(neighbour).micro})`
+        : `${title(neighbour.intent)} with ${toolName(neighbour.tool)} (${styleVocab(neighbour).micro} · ${contextVocab(neighbour).micro})`,
+    });
   }
   return out;
 }
@@ -1355,33 +1433,114 @@ export function countPhrase(haystack: string, needle: string): number {
 }
 
 /**
- * Build-time copy audit: stuffing + crawler/AI-manipulation markers.
- * Jaccard uniqueness is necessary but not sufficient for Bing content quality.
+ * Phrases that describe how the corpus is built rather than what the reader
+ * came for. A person reading "you are on the wrong sibling" learns that the
+ * page is one of a generated family; Bing lists exactly that — content written
+ * for ranking systems instead of users — under artificially engineered
+ * language. The bare word "URL" is fine (several tools are about URLs); the
+ * self-referential forms are not.
+ */
+const FORBIDDEN_PROSE = [
+  'sibling',
+  'this url',
+  'these urls',
+  'other urls',
+  'wrong url',
+  'a different url',
+  'neighbouring url',
+  'coordinate lock',
+  'modifier fingerprint',
+  'for crawlers',
+  'grounding',
+  'crawl budget',
+  'jaccard',
+  'near-duplicate',
+  'doorway',
+  'keyword',
+  'reshuffled',
+  'single-topic focus is what makes the page eligible',
+];
+
+/** Acronyms that must never appear lowercase in prose. */
+const LOWERCASE_ACRONYMS = ['json', 'sql', 'css', 'html', 'jwt', 'uuid', 'api', 'url', 'xss', 'csv', 'yaml', 'utf'];
+
+/**
+ * Build-time copy audit. Jaccard uniqueness proves two pages are not the same
+ * text; it says nothing about whether either of them reads like something a
+ * person wrote. This is the check for that: template-splice grammar, acronyms
+ * that lost their capitals on the way out of a slug, wrong indefinite articles,
+ * process vocabulary that belongs in this repository rather than on the page.
  */
 export function auditServedCopy(html: string, page: ResolvedPage): string[] {
   const issues: string[] = [];
   const main = html.match(/<main[\s\S]*?<\/main>/i)?.[0] ?? html;
-  const prose = main
+  const withoutCode = main
     .replace(/<pre[\s\S]*?<\/pre>/gi, ' ')
     .replace(/<code[\s\S]*?<\/code>/gi, ' ');
-  const lower = prose.toLowerCase();
-  for (const marker of [
-    'coordinate lock',
-    'modifier fingerprint',
-    'for crawlers',
-    'grounding citation',
-    'grounding eligibility',
-    'reshuffled doorway',
-    'single-topic focus is what makes the page eligible',
-  ]) {
-    if (lower.includes(marker)) issues.push(`forbidden quality marker: "${marker}"`);
+  const text = withoutCode
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ');
+  const lower = text.toLowerCase();
+
+  for (const marker of FORBIDDEN_PROSE) {
+    if (lower.includes(marker)) issues.push(`process vocabulary in reader-facing copy: "${marker}"`);
   }
+
+  for (const acronym of LOWERCASE_ACRONYMS) {
+    if (new RegExp(`(^|[\\s("'])${acronym}([\\s.,;:)"']|$)`).test(text)) {
+      issues.push(`acronym printed lowercase: "${acronym}"`);
+    }
+  }
+
+  // Indefinite articles, checked against the same helper the copy uses, so the
+  // template cannot print "a api consumer" again.
+  for (const [, article, word] of text.matchAll(/\b(an?) ([A-Za-z][\w-]*)/g)) {
+    const expected = articleFor(word);
+    if (article.toLowerCase() !== expected) {
+      issues.push(`wrong article: "${article} ${word}" should be "${expected} ${word}"`);
+    }
+  }
+
+  // Sentence-level splices: a block that starts lowercase, or punctuation that
+  // no editor would leave behind.
+  for (const [, block] of withoutCode.matchAll(/<(?:p|li|dd)[^>]*>([\s\S]*?)<\/(?:p|li|dd)>/gi)) {
+    const plain = block.replace(/<[^>]+>/g, '').trim();
+    if (plain && /^[a-z]/.test(plain) && !LOWERCASE_ACRONYMS.includes(plain.split(' ')[0]!.toLowerCase())) {
+      issues.push(`block starts lowercase: "${plain.slice(0, 60)}"`);
+    }
+  }
+  for (const [, block] of withoutCode.matchAll(/<(?:p|li|dd|h[123])[^>]*>([\s\S]*?)<\/(?:p|li|dd|h[123])>/gi)) {
+    const plain = block.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    for (const pattern of [/ {2,}/, / [,.;:]/, /\b(\w+) \1\b/i, /\bmaking [a-z]+ [a-z]+ possible\b/]) {
+      const match = plain.match(pattern);
+      if (match) issues.push(`copy-editing defect: "${match[0].trim()}"`);
+    }
+  }
+
   const sv = styleVocab(page).phrase;
   const cv = contextVocab(page).phrase;
   const styleCount = countPhrase(lower, sv);
   const contextCount = countPhrase(lower, cv);
-  if (styleCount > 8) issues.push(`style phrase "${sv}" repeated ${styleCount}× (keyword stuffing)`);
-  if (contextCount > 8) issues.push(`context phrase "${cv}" repeated ${contextCount}× (keyword stuffing)`);
+  if (styleCount > 12) issues.push(`style phrase "${sv}" repeated ${styleCount}× (keyword stuffing)`);
+  if (contextCount > 12) issues.push(`context phrase "${cv}" repeated ${contextCount}× (keyword stuffing)`);
+
+  // The tool name is the single most repeatable token on the page. A few pages
+  // name a tool after the job itself ("Markdown Preview" for preview-markdown),
+  // where a higher count is the topic rather than stuffing.
+  const toolPhrase = toolName(page.tool).toLowerCase();
+  const jobPhrase = label(page.intent).toLowerCase();
+  const words = (value: string) => value.split(/\s+/).filter(Boolean).sort().join(' ');
+  const namesTheJob = jobPhrase.includes(toolPhrase)
+    || toolPhrase.includes(jobPhrase)
+    || words(jobPhrase) === words(toolPhrase);
+  const toolCount = countPhrase(lower, toolPhrase);
+  const toolLimit = namesTheJob ? 45 : 30;
+  if (toolCount > toolLimit) issues.push(`tool name repeated ${toolCount}× (keyword stuffing)`);
   return issues;
 }
 
@@ -1475,25 +1634,25 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
   const decision = `<section id="decision" data-decision aria-labelledby="decision-heading"><h2 id="decision-heading">${escapeHtml(c.decision.heading)}</h2>`
     + `<p data-snippet>${escapeHtml(c.decision.verdict)}</p>`
     + `<h3>Use this guide when</h3>${renderList(c.decision.when)}`
-    + `<h3>Choose a different URL when</h3>${renderList(c.decision.notWhen)}`
+    + `<h3>Choose a different guide when</h3>${renderList(c.decision.notWhen)}`
     + `</section>`;
 
   const acceptance = `<section aria-labelledby="acceptance"><h2 id="acceptance">Acceptance criteria</h2>${renderList(c.acceptance)}</section>`;
 
-  const stepsHtml = `<section aria-labelledby="steps"><h2 id="steps">Procedure: ${escapeHtml(label(page.intent))}</h2>${renderList(c.steps, true)}</section>`;
+  const stepsHtml = `<section aria-labelledby="steps"><h2 id="steps">How to ${escapeHtml(label(page.intent))}</h2>${renderList(c.steps, true)}</section>`;
 
   const example = `<section aria-labelledby="example"><h2 id="example">Worked example</h2>`
     + `<p>${escapeHtml(c.workedExample.note)}</p>`
     + `<h3>${escapeHtml(c.workedExample.inputLabel)}</h3><pre><code>${escapeHtml(c.workedExample.input)}</code></pre>`
     + `<h3>${escapeHtml(c.workedExample.outputLabel)}</h3><pre><code>${escapeHtml(c.workedExample.output)}</code></pre></section>`;
 
-  const snippets = `<section aria-labelledby="snippets"><h2 id="snippets">Copy-paste snippets for this URL</h2>`
+  const snippets = `<section aria-labelledby="snippets"><h2 id="snippets">Copy-paste snippets for this procedure</h2>`
     + `<p>${escapeHtml(snippetLead(pageKernel(page)))}</p>`
-    + `<table><thead><tr><th>Parameter</th><th>This URL</th></tr></thead><tbody>`
+    + `<table><thead><tr><th>Parameter</th><th>This guide</th></tr></thead><tbody>`
     + `<tr><td>Job</td><td>${escapeHtml(label(page.intent))}</td></tr>`
     + `<tr><td>Tool</td><td>${escapeHtml(toolName(page.tool))}</td></tr>`
-    + `<tr><td>Working method</td><td>${escapeHtml(styleVocab(page).micro)}</td></tr>`
-    + `<tr><td>Setting</td><td>${escapeHtml(contextVocab(page).micro)}</td></tr>`
+    + `<tr><td>Working method</td><td>${escapeHtml(styleVocab(page).phrase)}</td></tr>`
+    + `<tr><td>Setting</td><td>${escapeHtml(contextVocab(page).phrase)}</td></tr>`
     + `<tr><td>Audience / task</td><td>${escapeHtml(label(page.audience))} · ${escapeHtml(label(page.task))}</td></tr>`
     + `</tbody></table>`
     + c.snippets.map((s) => `<h3>${escapeHtml(s.label)}</h3><pre><code>${escapeHtml(s.code)}</code></pre><p>${escapeHtml(s.caption)}</p>`).join('')
@@ -1596,7 +1755,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
   const body = `<body>${AD_HEADER_SLOT}<div class="wrap"><main>`
     + crumbs
     + `<h1>${escapeHtml(c.h1)}</h1>`
-    + `<p class="meta">${escapeHtml(label(page.audience))} · ${escapeHtml(clusterLabel)} · ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}</p>`
+    + `<p class="meta">${escapeHtml(titleCase(page.audience))} · ${escapeHtml(clusterLabel)} · ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}</p>`
     + intro
     + entity
     + orderedParts.join('')
