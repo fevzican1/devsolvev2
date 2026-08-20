@@ -99,45 +99,45 @@ function hex(next: () => number, n: number): string {
  */
 const GENRE_OUTLINE: Record<string, { order: SectionId[]; omit: SectionId[] }> = {
   'without-installing-cli-tools': {
-    order: ['decision', 'job', 'archetype', 'context', 'steps', 'example', 'snippets', 'acceptance', 'pitfalls', 'audience', 'faq'],
+    order: ['decision', 'job', 'artifact', 'archetype', 'context', 'steps', 'example', 'snippets', 'acceptance', 'pitfalls', 'audience', 'faq'],
     omit: ['glossary', 'comparison', 'practice', 'takeaways'],
   },
   'directly-in-your-browser': {
-    order: ['decision', 'job', 'takeaways', 'steps', 'example', 'snippets', 'archetype', 'context', 'pitfalls', 'audience', 'faq'],
+    order: ['decision', 'job', 'artifact', 'takeaways', 'steps', 'example', 'snippets', 'archetype', 'context', 'pitfalls', 'audience', 'faq'],
     omit: ['glossary', 'practice', 'comparison'],
   },
   'with-step-by-step-instructions': {
-    order: ['decision', 'job', 'takeaways', 'archetype', 'steps', 'example', 'snippets', 'pitfalls', 'glossary', 'audience', 'context', 'faq'],
+    order: ['decision', 'job', 'artifact', 'takeaways', 'archetype', 'steps', 'example', 'snippets', 'pitfalls', 'glossary', 'audience', 'context', 'faq'],
     omit: ['comparison', 'practice'],
   },
   'with-safe-local-processing': {
-    order: ['decision', 'job', 'archetype', 'acceptance', 'context', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
+    order: ['decision', 'job', 'artifact', 'archetype', 'acceptance', 'context', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
     omit: ['glossary', 'comparison', 'practice', 'takeaways'],
   },
   'while-keeping-data-private': {
-    order: ['decision', 'job', 'archetype', 'acceptance', 'context', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
+    order: ['decision', 'job', 'artifact', 'archetype', 'acceptance', 'context', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
     omit: ['glossary', 'comparison', 'practice', 'takeaways'],
   },
   'for-quick-prototyping': {
-    order: ['decision', 'job', 'archetype', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
-    omit: ['glossary', 'comparison', 'practice', 'takeaways', 'acceptance', 'context'],
+    order: ['decision', 'job', 'artifact', 'context', 'archetype', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
+    omit: ['glossary', 'comparison', 'practice', 'takeaways', 'acceptance'],
   },
   'during-code-review': {
-    order: ['decision', 'job', 'archetype', 'acceptance', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'context', 'faq'],
+    order: ['decision', 'job', 'artifact', 'archetype', 'acceptance', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'context', 'faq'],
     omit: ['glossary', 'comparison', 'practice', 'takeaways'],
   },
   'as-part-of-ci-cd-pipeline': {
-    order: ['decision', 'job', 'archetype', 'acceptance', 'snippets', 'example', 'steps', 'pitfalls', 'comparison', 'audience', 'faq'],
-    omit: ['glossary', 'practice', 'takeaways', 'context'],
+    order: ['decision', 'job', 'artifact', 'context', 'archetype', 'acceptance', 'snippets', 'example', 'steps', 'pitfalls', 'comparison', 'audience', 'faq'],
+    omit: ['glossary', 'practice', 'takeaways'],
   },
   'with-automated-validation': {
-    order: ['decision', 'job', 'archetype', 'acceptance', 'snippets', 'example', 'steps', 'pitfalls', 'audience', 'faq'],
-    omit: ['glossary', 'comparison', 'practice', 'takeaways', 'context'],
+    order: ['decision', 'job', 'artifact', 'context', 'archetype', 'acceptance', 'snippets', 'example', 'steps', 'pitfalls', 'audience', 'faq'],
+    omit: ['glossary', 'comparison', 'practice', 'takeaways'],
   },
 };
 
 const DEFAULT_OUTLINE: { order: SectionId[]; omit: SectionId[] } = {
-  order: ['decision', 'job', 'takeaways', 'archetype', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
+  order: ['decision', 'job', 'artifact', 'takeaways', 'archetype', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
   omit: ['glossary', 'comparison', 'practice'],
 };
 

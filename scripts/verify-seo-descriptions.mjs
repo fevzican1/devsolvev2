@@ -23,7 +23,7 @@ for (const [slug, raw] of samples) {
   const out = ensureSeoDescription(raw);
   const isGenericFallback = out.startsWith('DevSolve offers free, privacy-first developer tools and in-depth technical guides');
   const allowFallback = slug === 'cmd-center';
-  const ok = out.length >= 160 && out.length <= 165 && /[.!?…]$/.test(out) && (allowFallback || !isGenericFallback);
+  const ok = out.length >= 150 && out.length <= 160 && /[.!?…]$/.test(out) && (allowFallback || !isGenericFallback);
   console.log(`${ok ? 'OK' : 'FAIL'} ${slug}: len=${out.length}${isGenericFallback ? ' (GENERIC FALLBACK)' : ''} ${out}`);
   if (!ok) failed = true;
 }

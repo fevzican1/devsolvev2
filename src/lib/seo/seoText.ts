@@ -4,8 +4,8 @@
  *
  * Bing Webmaster Tools flags meta descriptions that are too short ("Birçok
  * sayfadaki meta açıklamaları çok kısa") and titles that lack context. Bing's
- * preferred description length is ~150–160 characters, so we guarantee every
- * description lands in a healthy [160, 165] window: long inputs are trimmed at
+ * preferred description length is 150–160 characters, so we guarantee every
+ * description lands in that window: long inputs are trimmed at
  * sentence boundaries first, short inputs are padded with COMPLETE, on-topic
  * clauses (never a dangling fragment). Pure deterministic string work — no I/O —
  * so the Cloudflare Function stays edge-cacheable at zero extra cost.
@@ -103,7 +103,8 @@ const ALL_FILLERS: readonly string[] = [...DESCRIPTION_FILLERS, ...SHORT_DESCRIP
  * instead of whichever one a greedy walk happened to try first.
  */
 function padDescription(text: string, minLength: number, maxLength: number, targetLength: number): string {
-  const padded = stripTrailingEllipsis(text);
+  let padded = stripTrailingEllipsis(text).replace(/[,;:\s]+$/g, '').trim();
+  if (padded && !/[.!?]$/.test(padded)) padded = `${padded}.`;
   if (padded.length >= minLength) return padded;
 
   let best: string | null = null;
@@ -160,9 +161,9 @@ function padDescription(text: string, minLength: number, maxLength: number, targ
 
 export function ensureSeoDescription(
   raw: string,
-  minLength = 160,
-  maxLength = 165,
-  targetLength = 160,
+  minLength = 150,
+  maxLength = 160,
+  targetLength = 155,
 ): string {
   const rawNormalized = normalizeDescriptionText(raw);
   let text = rawNormalized;

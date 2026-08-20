@@ -125,6 +125,18 @@ const SEARCH_CRAWLER_UA = uaContainsAny([
   'microsoftpreview',
 ]);
 
+/** Link-preview crawlers. Skip only when Cloudflare has verified the client. */
+const SOCIAL_CRAWLER_UA = uaContainsAny([
+  'twitterbot',
+  'linkedinbot',
+  'facebookexternalhit',
+  'facebot',
+  'slackbot',
+  'discordbot',
+  'whatsapp',
+  'telegrambot',
+]);
+
 /** Cloudflare's verified-bot signal — available on every plan, unspoofable. */
 const VERIFIED = 'cf.client.bot';
 
@@ -143,6 +155,7 @@ const PUBLIC_ENDPOINTS = `(http.request.uri.path in {
   "/robots.txt"
   "/sitemap.xml"
   "/feed.xml"
+  "/opengraph-image.png"
   "/ee5098cac2284d92b6ee1c9fca52a120.txt"
   "/ads.txt"
   "/sellers.json"
@@ -159,6 +172,7 @@ const PUBLIC_ENDPOINTS = `(http.request.uri.path in {
  */
 const WAF1_CRAWLER_SKIP = `(
   (${VERIFIED} and ${SEARCH_CRAWLER_UA})
+  or (${VERIFIED} and ${SOCIAL_CRAWLER_UA})
   or ${PUBLIC_ENDPOINTS}
 )`;
 
@@ -284,7 +298,7 @@ const SKIP_PRODUCTS = ['zoneLockdown', 'uaBlock', 'bic', 'hot', 'securityLevel',
 
 const RULE_SPEC = [
   {
-    description: '[DevSolve] WAF1 SKIP verified Googlebot + Bingbot and public endpoints',
+    description: '[DevSolve] WAF1 SKIP verified search + social preview crawlers and public endpoints',
     expression: WAF1_CRAWLER_SKIP,
     action: 'skip',
     action_parameters: { ruleset: 'current', products: SKIP_PRODUCTS },
@@ -352,6 +366,7 @@ function printDryRun() {
 /** Descriptions this script has used before; replaced rather than preserved. */
 const LEGACY_DESCRIPTIONS = new Set([
   '[DevSolve] SKIP crawlers + real browsers (never challenge)',
+  '[DevSolve] WAF1 SKIP verified Googlebot + Bingbot and public endpoints',
   '[DevSolve] WAF1 SKIP verified Googlebot + Bingbot (first, never challenged)',
   '[DevSolve] SKIP verified Google/Bing only (never challenge)',
   '[DevSolve] SKIP verified Google/Bing crawlers (never challenge/block)',

@@ -76,9 +76,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-20T16:40:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-20T16:50:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'd';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'e';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -992,6 +992,7 @@ const DESCRIPTION_TAILS = [
 function buildDescription(page: ResolvedPage, forms: Forms): string {
   const style = styleVocab(page);
   const context = contextVocab(page);
+  const tc = TASK_CONTEXT[page.task] ?? DEFAULT_TASK;
 
   let base = '';
   for (const { tiers: [i, t, a, k] } of SHORTENING_PLANS) {
@@ -1005,20 +1006,23 @@ function buildDescription(page: ResolvedPage, forms: Forms): string {
     base = `${base.replace(/[\s,;:.–—-]+$/, '')}.`;
   }
 
-  // Longest-tail-first keeps the padding to as few clauses as possible; the
-  // short entries guarantee the window is always reachable.
+  const tails = [
+    ` Keep ${tc.evidence}.`,
+    ` Avoid ${tc.failure}.`,
+    ...DESCRIPTION_TAILS,
+  ];
   const used = new Set<number>();
   while (base.length < DESCRIPTION_MIN) {
     let chosen = -1;
-    for (let i = 0; i < DESCRIPTION_TAILS.length; i += 1) {
+    for (let i = 0; i < tails.length; i += 1) {
       if (used.has(i)) continue;
-      const length = base.length + DESCRIPTION_TAILS[i].length;
+      const length = base.length + tails[i].length;
       if (length > DESCRIPTION_MAX) continue;
-      if (chosen === -1 || DESCRIPTION_TAILS[i].length > DESCRIPTION_TAILS[chosen].length) chosen = i;
+      if (chosen === -1 || tails[i].length > tails[chosen].length) chosen = i;
     }
     if (chosen === -1) break;
     used.add(chosen);
-    base += DESCRIPTION_TAILS[chosen];
+    base += tails[chosen];
   }
   return base;
 }
@@ -1034,26 +1038,37 @@ function buildDescription(page: ResolvedPage, forms: Forms): string {
  */
 const H1_MAX = 125;
 
+const TASK_HEADLINE: Record<string, string> = {
+  'debug-production-issue': 'Incident capture',
+  'prepare-api-response': 'Ship a contract-testable response',
+  'clean-up-payload': 'Rewrite without silent drops',
+  'sanitize-user-input': 'Sanitize, do not merely encode',
+  'prepare-query-parameters': 'Encode each query pair',
+  'inspect-encoded-payload': 'Decode with the right alphabet',
+  'trace-request': 'Trace every hop',
+  'validate-auth-token': 'Verify, do not only decode',
+  'review-config-change': 'Regenerate the config diff',
+  'migrate-legacy-system': 'Prove semantic equivalence',
+  'prepare-deployment-artifact': 'Hash, settings, behaviour fixture',
+  'document-api-endpoint': 'Docs the contract tests accept',
+  'optimize-build-pipeline': 'Faster only if the golden matches',
+  'resolve-merge-conflict': 'Merge both sides, then replay',
+  'prepare-security-audit': 'A control the auditor can replay',
+  'generate-test-fixtures': 'Positive, negative, named assertion',
+};
+
 function buildH1(page: ResolvedPage, forms: Forms): string {
   const style = styleVocab(page);
   const context = contextVocab(page);
-  const audience = pluralRole(page.audience);
+  const headline = TASK_HEADLINE[page.task] ?? capitalise(forms.task[0]);
   const subject = capitalise(forms.intent[0]);
 
-  // "during code review … during team onboarding" is grammatical but reads like
-  // a template; when the two phrases open with the same word, use the
-  // parenthetical form for the setting instead.
-  const repeatsPreposition = style.phrase.split(' ')[0] === context.situation.split(' ')[0];
-
   const plans = [
-    ...(repeatsPreposition
-      ? []
-      : [`${subject} with ${forms.tool[0]} — ${style.phrase}, ${forms.task[0]} for ${audience} ${context.situation}`]),
-    `${subject} with ${forms.tool[0]} — ${style.phrase}, ${forms.task[0]} for ${audience} (${context.micro})`,
-    `${subject} with ${forms.tool[0]} — ${style.phrase}, ${forms.task[1]} for ${audience} (${context.micro})`,
-    `${subject} with ${forms.tool[1]} — ${style.micro}, ${forms.task[1]} for ${audience} (${context.micro})`,
+    `${headline}: ${subject} with ${forms.tool[0]} — ${forms.audience[0]}, ${style.micro}, ${context.micro}`,
+    `${headline}: ${subject} with ${forms.tool[1]} — ${forms.audience[1]}, ${style.micro}, ${context.micro}`,
+    `${headline}: ${subject} with ${forms.tool[1]} — ${forms.audience[2]}, ${style.tiny}, ${context.tiny}`,
   ];
-  return plans.find((plan) => plan.length <= H1_MAX) ?? plans[plans.length - 1];
+  return plans.find((plan) => plan.length <= H1_MAX) ?? plans[plans.length - 1]!;
 }
 
 /**
@@ -1594,8 +1609,8 @@ export function auditServedCopy(html: string, page: ResolvedPage): string[] {
     issues.push('CMS-style parameter table (job/tool/method/setting) — auto-generated signal');
   }
 
-  if (!/<section\b[^>]*id=["']job["']/i.test(html)) {
-    issues.push('missing independent-job thesis section');
+  if (!/<section\b[^>]*id=["']artifact["']/i.test(html)) {
+    issues.push('missing setting-specific evidence pack (artifact)');
   }
 
   const leadMatch = html.match(/<p class="lead"[^>]*>([\s\S]*?)<\/p>/i);
