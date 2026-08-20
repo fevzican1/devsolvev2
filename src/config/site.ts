@@ -9,10 +9,10 @@ export const siteConfig = {
     safeDefaultTotal: 1000,
     rampSchedule: [500000, 2000000, 5000000, 9000000, 14000000, 20000000] as const,
     rampMode: 'manual' as const,
-    /** Active ramp level — controlled by PROGRAMMATIC_RAMP_LEVEL env var.
-     *  See src/config/rampController.ts for gate metrics and level definitions.
-     *  Level 5 advertises the full 20M corpus. */
-    defaultRampLevel: 5,
+    /** Fallback advertised ramp level. Live value is `.ramp-level` +
+     *  `EMBEDDED_RAMP_LEVEL` (must stay in lockstep). Level 1 = 2M URLs.
+     *  All 20M pages remain 200 + indexable; only sitemap advertisement is gated. */
+    defaultRampLevel: 1,
   },
 
   programmaticQuality: {

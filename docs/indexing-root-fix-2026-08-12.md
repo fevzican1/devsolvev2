@@ -40,4 +40,4 @@ from static HTML failed `internal-link-redirect-audit` and blocked deploy.
 Weekly workflow (`.github/workflows/ramp-auto-advance.yml`) advances when GSC
 gates pass. It now updates **both** `.ramp-level` and
 `functions/_lib/embeddedRamp.ts` so the live edge sitemap grows with the ramp
-(500k → 2M → … → 20M). Until gates pass, level stays at 0.
+(500k → 2M → … → 20M). Until gates pass, level stays at 1 (2M advertised).

@@ -20,7 +20,7 @@
  * Ramp level priority order:
  * 1. PROGRAMMATIC_RAMP_LEVEL env var (manual override — highest priority)
  * 2. .ramp-level file (CI auto-updated — read at build time only, not edge)
- * 3. defaultRampLevel = 0 (fallback)
+ * 3. fallback = 1 (2M advertised — crawl-budget band until GSC gates prove more)
  */
 
 import { siteConfig } from './site';
@@ -180,10 +180,10 @@ export function resolveRampLevelFromFile(): RampLevel | undefined {
  * Priority order:
  * 1. PROGRAMMATIC_RAMP_LEVEL env var (manual override — highest priority)
  * 2. .ramp-level file (CI auto-updated — build-time only, not edge runtime)
- * 3. defaultRampLevel = 0 (fallback)
- *
- * NOTE: In Faz 0 we START at level 0 (500K). The default was previously
- * level 5 (18M wide open) — this is the "musluk kapatma" fix.
+ * 3. fallback = 1 (2M advertised). Never fall back to 5 — advertising the
+ *    full 20M corpus without GSC proof dilutes crawl budget and inflates
+ *    "Discovered – currently not indexed". All 20M URLs stay 200 + indexable;
+ *    only the *advertised* sitemap set is gated.
  */
 export function resolveRampLevel(): RampLevel {
   // 1. Explicit env override (manual / Cloudflare Dashboard / CI inject)
@@ -197,13 +197,7 @@ export function resolveRampLevel(): RampLevel {
   const fileLevel = resolveRampLevelFromFile();
   if (fileLevel !== undefined) return fileLevel;
 
-  // 3. Full corpus. The ramp exists to protect crawl budget while the content
-  //    was still being proven; the quality gate now clears every one of the 20M
-  //    URLs (unique title/description/H1, ≥1000 words, edited prose, zero
-  //    critical guideline violations), so withholding 19.5M of them from the
-  //    sitemap only delays discovery. Freshness is still tiered — the first
-  //    200K are daily, the tail is monthly — which is what Bing §21 asks for.
-  return 5;
+  return 1;
 }
 
 /**

@@ -45,11 +45,13 @@ jobs:
           GATE_PASS=$(echo "$GSC_OUTPUT" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(String(d.gatePass))")
           CURRENT_LEVEL=$(echo "$GSC_OUTPUT" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(String(d.currentLevel))")
           NEXT_LEVEL=$(echo "$GSC_OUTPUT" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(d.nextLevel !== null ? String(d.nextLevel) : 'null')")
+          CONTRACT_LEVEL=$(echo "$GSC_OUTPUT" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(d.contractLevel !== null && d.contractLevel !== undefined ? String(d.contractLevel) : 'null')")
           REASON=$(echo "$GSC_OUTPUT" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(d.reason)")
 
           echo "gate_pass=$GATE_PASS"     >> $GITHUB_OUTPUT
           echo "current_level=$CURRENT_LEVEL" >> $GITHUB_OUTPUT
           echo "next_level=$NEXT_LEVEL"   >> $GITHUB_OUTPUT
+          echo "contract_level=$CONTRACT_LEVEL" >> $GITHUB_OUTPUT
           echo "reason=$REASON"           >> $GITHUB_OUTPUT
 
       - name: Advance ramp level
@@ -82,8 +84,36 @@ jobs:
             -m "${{ steps.gate.outputs.reason }}"
           git push origin "HEAD:${{ github.ref_name }}"
 
+      - name: Contract ramp level
+        if: steps.gate.outputs.gate_pass != 'true' && steps.gate.outputs.contract_level != 'null'
+        run: |
+          TARGET=${{ steps.gate.outputs.contract_level }}
+          CURRENT=${{ steps.gate.outputs.current_level }}
+          echo "Indexed ratio severely diluted — contracting ramp from $CURRENT to $TARGET"
+          echo "$TARGET" > .ramp-level
+
+          EDGE_RAMP=functions/_lib/embeddedRamp.ts
+          if [ -f "$EDGE_RAMP" ]; then
+            sed -i "s/export const EMBEDDED_RAMP_LEVEL = [0-5]/export const EMBEDDED_RAMP_LEVEL = $TARGET/" "$EDGE_RAMP"
+            echo "Updated $EDGE_RAMP → EMBEDDED_RAMP_LEVEL = $TARGET"
+            grep EMBEDDED_RAMP_LEVEL "$EDGE_RAMP"
+          else
+            echo "ERROR: $EDGE_RAMP missing — edge sitemap would stay stuck at old ramp"
+            exit 1
+          fi
+
+          node --import tsx scripts/verify-ramp-sitemap-sync.mjs
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .ramp-level "$EDGE_RAMP"
+          git commit -m "chore(ramp): auto-contract level $CURRENT → $TARGET [skip ci]" \
+            -m "GSC indexed ratio below 20% of advertised sitemap:" \
+            -m "${{ steps.gate.outputs.reason }}"
+          git push origin "HEAD:${{ github.ref_name }}"
+
       - name: Trigger Cloudflare Pages deploy
-        if: steps.gate.outputs.gate_pass == 'true' && steps.gate.outputs.next_level != 'null'
+        if: (steps.gate.outputs.gate_pass == 'true' && steps.gate.outputs.next_level != 'null') || (steps.gate.outputs.gate_pass != 'true' && steps.gate.outputs.contract_level != 'null')
         env:
           CLOUDFLARE_DEPLOY_HOOK_URL: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK_URL }}
         run: |
@@ -101,13 +131,13 @@ jobs:
             exit 1
           fi
 
-      - name: Log gate result (no advance)
-        if: steps.gate.outputs.gate_pass != 'true'
+      - name: Log gate result (hold)
+        if: steps.gate.outputs.gate_pass != 'true' && steps.gate.outputs.contract_level == 'null'
         run: |
           echo "Gate not passed — ramp level stays at ${{ steps.gate.outputs.current_level }}"
           echo "Reason: ${{ steps.gate.outputs.reason }}"
 
       - name: Log already at max level
-        if: steps.gate.outputs.next_level == 'null'
+        if: steps.gate.outputs.gate_pass == 'true' && steps.gate.outputs.next_level == 'null'
         run: |
           echo "Already at maximum ramp level (${{ steps.gate.outputs.current_level }}) — nothing to advance."

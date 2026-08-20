@@ -1,5 +1,7 @@
 # Kenar koruması, içerik kalitesi, ramp 5, backlink gerçeği — 2026-08-20
 
+**Güncelleme (aynı gün, sonraki PR):** Ramp 5 geri alındı. GSC kapıları kanıtlanmadan 20M URL ilan etmek crawl budget'ı seyreldiği ve scaled-content değerlendirmesini şişirdiği için aktif seviye **1** (sitemap 2M). 20M sayfa hâlâ 200 + indexlenebilir; yalnızca advertised set kısılıyor. Canlı kaynak: `docs/ramp-auto-advance.md`.
+
 **Branch:** `cursor/waf-content-quality-ramp-traffic-aca1`
 **Content version:** `20260820b` (`CONTENT_UPDATED_AT=2026-08-20T13:40:00.000Z`)
 **Agent contract:** `devsolve-ai-indexing-agent v2026-08-20.1`
@@ -180,19 +182,20 @@ kaydedildi; `scripts/verify-edge-corpus-quality.mjs` Faz C'de her sayfa için
 
 ## 3. Ramp 5 — 20M URL artık sitemap'te
 
-Kararı bana bıraktığınız yer. Gerekçe: ramp, içerik henüz kanıtlanmamışken crawl
+> **Superseded the same day.** Level 5 skipped every GSC gate (indexed ratio, CNI, impressions). Advertising 20M URLs recreates the crawl-budget stall this repo already documented in `docs/indexing-root-fix-2026-08-12.md`. Active level is **1** (2M advertised, 20M still 200 + indexable). Auto-advance resumes 1→2→…→5 when gates pass; indexed ratio <20% contracts one step, never below 1. See `docs/ramp-auto-advance.md`.
+
+Kararı bana bıraktığınız yer. Gerekçe (o turda): ramp, içerik henüz kanıtlanmamışken crawl
 bütçesini korumak için vardı. Bugün 20M URL'in tamamı indexability sözleşmesini
 geçiyor (tekil title/description/H1, ≥1000 kelime, düzenlenmiş metin, sıfır
-kritik ihlal), dolayısıyla 19.5M URL'i sitemap'ten saklamak yalnızca keşfi
-geciktiriyordu.
+kritik ihlal). Indexability ≠ "hepsini sitemap'te ilan et". 19.5M URL'i
+sitemap'ten saklamak keşfi yavaşlatır; hepsini birden ilan etmek ise Google'ın
+ayırdığı tarama bütçesini seyreder. Doğru valf GSC kapısıdır, el ile 0→5 atlamak değil.
 
-- `.ramp-level` = 5, `EMBEDDED_RAMP_LEVEL` = 5, `defaultRampLevel` = 5,
-  `resolveRampLevel()` fallback = 5 (dosya silinse bile küçülmüyor).
-- Doğrulama: `[ramp-sync] file=5 embedded=5 sitemapLimit=20000000 chunks=400`.
+- O turda yazılan değerler (`.ramp-level` = 5, `EMBEDDED_RAMP_LEVEL` = 5, fallback = 5) **geri alındı.** Şimdi `.ramp-level` = 1, `EMBEDDED_RAMP_LEVEL` = 1, `defaultRampLevel` = 1, `resolveRampLevel()` fallback = 1.
+- Doğrulama hedefi: `[ramp-sync] file=1 embedded=1 sitemapLimit=2000000 chunks=40`.
 - Tazelik hâlâ katmanlı: ilk 200K `daily`, sonrası `weekly`, kuyruk `monthly`
   (Bing §21 crawl verimliliği).
-- Günlük IndexNow dilimi 200 → 2.000 URL (protokolün 10.000/istek sınırının ve
-  Bing'in "stream, batch değil" tavsiyesinin içinde).
+- IndexNow dilimi level 1 schedule'ına döner (`indexNowSliceSize` = 4.000 / run).
 
 ---
 
@@ -273,7 +276,7 @@ metadata'sı ve `/k/*` Function HTML'inde işaret edilir.
 - `functions/_lib/revenuePlacements.ts` — "Featured this URL" ifadesi düzeltildi
 - `scripts/lib/search-guidelines.mjs` — `edited-prose` kuralı, TITLE_MAX 66
 - `scripts/lib/ai-indexing-agent.mjs` — sözleşme v2026-08-20.1
-- `.ramp-level`, `functions/_lib/embeddedRamp.ts`, `src/config/*` — ramp 5
+- `.ramp-level`, `functions/_lib/embeddedRamp.ts`, `src/config/*` — o turda ramp 5; aynı gün level 1'e çekildi
 - `src/lib/seo/organization.ts`, `src/components/layout/FeaturedBadges.tsx` — rozet bayrakları
 - `.github/workflows/daily-discovery-ping.yml` — IndexNow dilimi
 

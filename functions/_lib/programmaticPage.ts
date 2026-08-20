@@ -86,7 +86,8 @@ export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '')
  * and is the #1 cause of "Discovered – currently not indexed" at this scale.
  * Every /k/ URL remains crawlable and indexable (200 + canonical); only the
  * *advertised* set is gated. Advance EMBEDDED_RAMP_LEVEL only when GSC/Bing
- * indexed-ratio gates in src/config/rampController.ts are met.
+ * indexed-ratio gates in src/config/rampController.ts are met. Active band
+ * is level 1 (2M) until those gates pass; the full 20M stay 200 + indexable.
  */
 export { EMBEDDED_RAMP_LEVEL };
 export const RAMP_SITEMAP_LIMITS = [500_000, 2_000_000, 5_000_000, 9_000_000, 14_000_000, 20_000_000] as const;
