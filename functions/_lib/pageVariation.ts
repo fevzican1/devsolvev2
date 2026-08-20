@@ -1171,7 +1171,7 @@ function artifactNarrative(k: PageKernel): string {
     case 'for-time-sensitive-incidents':
       return `Write the clock on the pack itself: when the sample was captured, when settings were frozen, and who owns the next fifteen minutes. ${sentence(t)} is only useful here if that timeline still makes sense to someone joining the call late.`;
     case 'for-team-onboarding':
-      return `A new hire should be able to rebuild this ${noun} pack from the page without a private Slack thread. If a veteran has to narrate a hidden click, the pack is not yet teaching material.`;
+      return `A new hire should be able to rebuild the ${noun} pack from the page without a private Slack thread. If a veteran has to narrate a hidden click, the pack is not yet teaching material.`;
     case 'for-audit-readiness':
       return `An auditor will ask for input, settings, output, and a timestamp — not a memory of a green tab. Spell the ${t} settings out; “defaults” is not a regenerable field.`;
     case 'for-cross-region-teams':

@@ -77,7 +77,7 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-20T17:10:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-20T17:25:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
 export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'f';
 
