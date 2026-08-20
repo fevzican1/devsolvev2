@@ -807,13 +807,87 @@ export function archetypeSections(k: PageKernel, tk: ToolKnowledge, ik: IntentKe
 export function contextSection(k: PageKernel, bodyBlock: string, demand: string): KnowledgeSection {
   return {
     id: 'context',
-    heading: `Constraints that apply in this setting`,
+    heading: contextHeading(k),
     paragraphs: [
       bodyBlock,
       demand,
-      `Those constraints change the evidence you keep, not the core mechanics of ${k.toolLabel}. Do not copy a procedure from a different setting and expect the same acceptance bar.`,
+      contextClose(k),
     ],
   };
+}
+
+function contextHeading(k: PageKernel): string {
+  switch (k.context) {
+    case 'for-time-sensitive-incidents': return 'Minutes, not ceremony';
+    case 'for-team-onboarding': return 'What a new hire cannot be expected to know';
+    case 'for-audit-readiness': return 'Evidence an outsider can replay';
+    case 'for-cross-region-teams': return 'No live handover';
+    case 'for-legacy-system-migrations': return 'Equivalence, not resemblance';
+    case 'for-large-enterprise-workflows': return 'The same conclusion in two squads';
+    case 'for-api-contract-validation': return 'Name the field that diverged';
+    case 'for-weekly-ops-routines': return 'Boring on purpose';
+    case 'for-compliance-reporting': return 'Cite the policy';
+    case 'for-incident-postmortems': return 'Replay from records next quarter';
+    case 'for-capacity-planning': return 'Where the sample stops scaling';
+    case 'for-release-management': return 'Go or no-go at the gate';
+    case 'for-vendor-integration': return 'Which side of the boundary broke';
+    case 'for-data-governance': return 'Where the bytes sat';
+    case 'for-service-mesh-debugging': return 'Which hop mutated it';
+    case 'for-cost-optimization': return 'Why a cluster would be waste';
+    case 'for-performance-benchmarking': return 'Freeze the baseline first';
+    case 'for-disaster-recovery': return 'The path that still works offline';
+    case 'for-production-rollouts': return 'Old versus new under one fixture';
+    case 'for-observability-pipelines': return 'What the parser will silently drop';
+    default: return `What ${k.contextPhrase} changes about the pack`;
+  }
+}
+
+function contextClose(k: PageKernel): string {
+  const t = k.toolLabel;
+  switch (k.context) {
+    case 'for-time-sensitive-incidents':
+      return `If a step would take longer than naming the first diverging field, skip it until the fire is down. ${sentence(t)} is a capture aid here, not a polishing pass.`;
+    case 'for-team-onboarding':
+      return `Write the “why” under each click. Veterans may skip this page; joiners cannot, and the pack has to survive that.`;
+    case 'for-audit-readiness':
+      return `If you cannot hand the pack to someone who was not in the tab, you do not yet have audit evidence.`;
+    case 'for-cross-region-teams':
+      return `Spell times in UTC and avoid “today/tomorrow”. A pack that needs a voice call to decode has already failed this setting.`;
+    case 'for-legacy-system-migrations':
+      return `Compare meaning, nulls, and encoding — not indent. Cosmetic matches hide the migrations that later page in production.`;
+    case 'for-large-enterprise-workflows':
+      return `Use the shared labels this organisation already has for ${t}. Inventing a private dialect makes the next squad fail the same check.`;
+    case 'for-api-contract-validation':
+      return `Put the documented example next to the live body. The finding is the first field a contract test would reject.`;
+    case 'for-weekly-ops-routines':
+      return `Keep last week’s pack and diff it. Surprise is the failure mode this setting exists to catch.`;
+    case 'for-compliance-reporting':
+      return `Attribute the run (name or bot id) and keep the fixture id. Unattributed green results do not survive a request for proof.`;
+    case 'for-incident-postmortems':
+      return `Export the capture out of the live tab before the war room dissolves. Tab state is not an archive.`;
+    case 'for-capacity-planning':
+      return `Note concurrency and payload size beside the ${t} result. Without those, the sample cannot argue for more (or less) capacity.`;
+    case 'for-release-management':
+      return `The check has to finish inside the gate window and still be valid on rollback. Exploratory browsing belongs on a different page.`;
+    case 'for-vendor-integration':
+      return `Keep their bytes, your parse, and the status line as three separate files. Mixing them hides which side you can actually change.`;
+    case 'for-data-governance':
+      return `If the payload left this device, write the destination and the retention. Silence here is treated as an unapproved copy.`;
+    case 'for-service-mesh-debugging':
+      return `Label every capture with the hop. Unlabelled pastes cannot locate the proxy that mutated the body.`;
+    case 'for-cost-optimization':
+      return `Cost the alternative: minutes of ${t} in a tab versus the pipeline you would have spun. If you still need the pipeline, write the reason.`;
+    case 'for-performance-benchmarking':
+      return `Do not change the fixture and the code in the same session. That pairing invalidates the series even if ${t} still “looks fast”.`;
+    case 'for-disaster-recovery':
+      return `Practice this on a machine that cannot reach the usual cluster. A drill that needs the broken control plane is a tabletop, not a recovery.`;
+    case 'for-production-rollouts':
+      return `Keep old output, new output, and the diff. Checking only the new version answers a different question than a rollout.`;
+    case 'for-observability-pipelines':
+      return `If the parser drops a record, the dashboard will not show a hole — it will show a confident lie. Keep the negative fixture.`;
+    default:
+      return `Those constraints change the evidence you keep, not the core mechanics of ${t}. Do not copy a procedure from a different setting and expect the same acceptance bar.`;
+  }
 }
 
 export function audienceSection(k: PageKernel): KnowledgeSection {

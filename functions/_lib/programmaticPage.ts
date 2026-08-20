@@ -45,6 +45,7 @@ import {
   contextArtifact,
   entityFraming,
   planDocument,
+  practiceHeading,
   uniqueSnippets,
   variedAcceptance,
   variedComparison,
@@ -76,9 +77,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-20T16:50:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-20T17:25:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'e';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'f';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -1250,7 +1251,7 @@ function buildContent(page: ResolvedPage): PageContent {
     audienceSection(k),
     {
       id: 'practice',
-      heading: `Working method: ${sv.phrase}`,
+      heading: practiceHeading(k),
       paragraphs: [sv.practice, sv.bodyBlock],
     },
   ];
@@ -1611,6 +1612,9 @@ export function auditServedCopy(html: string, page: ResolvedPage): string[] {
 
   if (!/<section\b[^>]*id=["']artifact["']/i.test(html)) {
     issues.push('missing setting-specific evidence pack (artifact)');
+  }
+  if (!/<section\b[^>]*id=["']practice["']/i.test(html)) {
+    issues.push('missing method-specific practice section (style prose was planned but not rendered)');
   }
 
   const leadMatch = html.match(/<p class="lead"[^>]*>([\s\S]*?)<\/p>/i);
