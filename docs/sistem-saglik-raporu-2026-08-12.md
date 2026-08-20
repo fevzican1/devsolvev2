@@ -1,9 +1,11 @@
 # DevSolve Sistem Sağlık & İndeksleme Raporu
 
+**Güncelleme 2026-08-20:** Aktif ramp **level 1** (sitemap 2M). 20M sayfa teknik olarak indexlenebilir kalır; tam corpus GSC kapıları geçmeden sitemap'e sürülmez. Canlı tablo: `docs/ramp-auto-advance.md`.
+
 **Tarih:** 2026-08-12  
 **Site:** https://devsolvev2.com  
 **Zone:** `devsolvev2.com` (Free plan, active)  
-**Ramp:** Level **0** (sitemap’te **500.000** URL; corpus **20.000.000** URL edge’de 200 ile servis edilir)  
+**Ramp:** Level **0** at report date (500K advertised). **Now level 1 (2M advertised);** corpus **20.000.000** URL edge’de 200 ile servis edilir.  
 **Kaynaklar:** Canlı Cloudflare API (WAF entrypoint), kod tabanı, edge probe, kullanıcı GSC gözlemi
 
 ---
@@ -12,7 +14,7 @@
 
 | Soru | Kısa cevap |
 |------|------------|
-| 20M sayfanın **tamamı** Google/Bing’de indekslenir mi? | **Teknik olarak indexable (evet)**; **hepsi birden indekslenmez (hayır)**. Şu an sitemap yalnızca **500K** duyuruyor. Tam corpus ramp 5’e çıkmadan “20M indexed” beklenmez. |
+| 20M sayfanın **tamamı** Google/Bing’de indekslenir mi? | **Teknik olarak indexable (evet)**; **hepsi birden indekslenmez (hayır)**. Sitemap şu an **2M** duyuruyor (ramp 1). Tam corpus ramp 5’e, GSC kapıları geçmeden “20M indexed” beklenmez. |
 | Cloudflare Function sürekli tetikleniyor / maliyet yaratıyor mu? | **Tasarım: hayır (agresif maliyet yok).** Function yalnızca `/k/*` + sitemap path’lerinde ve **cache MISS**’te çalışır. WAF engeli Function’a **hiç uğratmaz**. HIT = $0 invocation. |
 | Backlink’ler otomatik kazanılacak mı? / Ben bir şey yapmadan olur mu? | **Hayır.** Kod üçüncü taraf backlink üretemez. Verdiğin **4 backlink** faydalı başlangıç; otorite için ek white-hat listing/ içerik paylaşımı gerekir. |
 | Google taramaları artacak mı? Tekrar ~50K bulur mu? | **Artış mümkün**, otomatik garanti yok. Under Attack kapalı + son 24h başarılı crawl iyi sinyal. 50K/gün crawl **otorite + indeks oranı + ramp** ile gelir; günler–haftalar içinde dalgalanır. |
@@ -41,16 +43,16 @@ Search engine’ler 20M kombinatoryal URL’yi bir anda indekslemez:
 
 | Ramp | Sitemap’te duyurulan | Gate (GSC) — `rampController.ts` |
 |------|----------------------|-----------------------------------|
-| **0 (aktif)** | **500.000** | indexed ≥%95, CNI ≤%5, impressions ≥10K → Level 1 |
-| 1 | 2.000.000 | … |
+| 0 | 500.000 | indexed ≥%95, CNI ≤%5, impressions ≥10K → Level 1 |
+| **1 (aktif)** | **2.000.000** | indexed ≥%95, CNI ≤%5, impressions ≥100K → Level 2 |
 | 2 | 5.000.000 | … |
 | 3 | 9.000.000 | … |
 | 4 | 14.000.000 | … |
 | 5 | **20.000.000** | tam corpus |
 
-**Kritik:** Edge sitemap (`EMBEDDED_RAMP_LEVEL = 0`) bilerek **500K** ile sınırlı. 20M’yi tekrar sitemap’e koymak crawl budget’ı seyreltir ve “Discovered – currently not indexed” şişirir (bkz. `docs/indexing-root-fix-2026-08-12.md`).
+**Kritik:** Edge sitemap (`EMBEDDED_RAMP_LEVEL = 1`) **2M** ile sınırlı. 20M’yi sitemap’e koymak crawl budget’ı seyreltir ve “Discovered – currently not indexed” şişirir (bkz. `docs/indexing-root-fix-2026-08-12.md`).
 
-**Sonuç:** “Tamamı indexable” ≠ “tamamı indexed”. Strateji: 500K’yı yüksek oranda indeksle → otomatik ramp → kademeli büyüme.
+**Sonuç:** “Tamamı indexable” ≠ “tamamı indexed”. Strateji: 2M’yi yüksek oranda indeksle → otomatik ramp → kademeli büyüme.
 
 ---
 

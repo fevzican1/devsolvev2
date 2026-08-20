@@ -62,10 +62,10 @@ function calculateLayerDiversity(page) {
 function calculateStructureScore(page) {
   let score = 0;
 
-  if (page.title.length >= 30 && page.title.length <= 70) score += 5;
+  if (page.title.length >= 30 && page.title.length <= 66) score += 5;
   else if (page.title.length >= 20) score += 3;
 
-  if (page.description.length >= 140 && page.description.length <= 165) score += 5;
+  if (page.description.length >= 150 && page.description.length <= 160) score += 5;
   else if (page.description.length >= 120) score += 3;
 
   if (page.h1.length >= 20 && page.h1.length <= 80) score += 5;

@@ -16,6 +16,7 @@
  *     gatePass:         boolean,        // true if ALL available criteria are met
  *     currentLevel:     number,         // level read from .ramp-level or env
  *     nextLevel:        number | null,  // null if already at max (5)
+ *     contractLevel:    number | null,  // set when indexed ratio is severely diluted
  *     reason:           string,         // human-readable gate result explanation
  *   }
  *
@@ -308,8 +309,34 @@ async function main() {
     reasons.push(`? CNI ratio unknown — treating as not passing`);
   }
 
-  // Never go backwards
+  // Advance target (never past 5). Contraction is separate so a failed
+  // advance gate does not automatically mean "go down" — impressions can
+  // lag a healthy indexed set.
   const nextLevel = currentLevel < 5 ? currentLevel + 1 : null;
+
+  // Emergency contraction: advertising far more URLs than Google has
+  // indexed dilutes crawl budget ("Discovered – currently not indexed").
+  // Only fire when the ratio is known AND severely low, and never drop
+  // below level 1 (2M) — that band is the recovery target. Missing GSC
+  // data must NOT contract (same fail-safe as a failed advance).
+  const SEVERE_INDEXED_RATIO = 0.20;
+  const MIN_HOLD_LEVEL = 1;
+  let contractLevel = null;
+  if (
+    !gatePass &&
+    currentLevel > MIN_HOLD_LEVEL &&
+    indexedUrls !== null &&
+    totalSitemapUrls !== null &&
+    totalSitemapUrls > 0
+  ) {
+    const ratio = indexedUrls / totalSitemapUrls;
+    if (ratio < SEVERE_INDEXED_RATIO) {
+      contractLevel = currentLevel - 1;
+      reasons.push(
+        `↓ indexed ratio ${(ratio * 100).toFixed(1)}% < ${(SEVERE_INDEXED_RATIO * 100).toFixed(0)}% — contract ${currentLevel} → ${contractLevel}`,
+      );
+    }
+  }
 
   const result = {
     impressions,
@@ -319,6 +346,7 @@ async function main() {
     gatePass,
     currentLevel,
     nextLevel,
+    contractLevel,
     reason: reasons.join(' | '),
   };
 
@@ -326,7 +354,12 @@ async function main() {
   process.stdout.write(JSON.stringify(result) + '\n');
 
   // Also log human-readable summary to stderr so it appears in CI logs
-  console.error(`\n[check-gsc-gate] Level ${currentLevel} → ${gatePass ? `PASS → advance to ${nextLevel}` : 'FAIL — stay at current level'}`);
+  const direction = gatePass && nextLevel !== null
+    ? `PASS → advance to ${nextLevel}`
+    : contractLevel !== null
+      ? `CONTRACT → ${contractLevel}`
+      : 'HOLD — stay at current level';
+  console.error(`\n[check-gsc-gate] Level ${currentLevel} → ${direction}`);
   console.error(`  ${reasons.join('\n  ')}\n`);
 }
 

@@ -259,6 +259,13 @@ export const DOCUMENT_RULES = [
     requirement: 'Served HTML must not contain crawler-directed coordinate locks or other copy written to manipulate ranking/grounding systems.',
     evaluate: (s) => (s.hasPromptInjection ? 'crawler/AI-manipulation copy present in HTML' : null),
   },
+  {
+    id: 'independent-guide-opening',
+    source: 'BING §11 / abuse: automatically generated content at scale / GOOGLE scaled content',
+    severity: 'major',
+    requirement: 'The opening names a specific audience or task so the URL reads as an independent guide, not a reshuffled template.',
+    evaluate: (s) => (s.hasIndependentOpening ? null : 'opening lead does not start as an independent guide (When {audience} are {task}…)'),
+  },
 ];
 
 /**
@@ -290,7 +297,7 @@ export const CORPUS_RULES = [
     source: 'BING abuse: automatically generated content at scale / duplicate content across multiple URLs',
     severity: 'critical',
     requirement:
-      'Style×context siblings must be different documents (distinct archetypes + tool/intent facts), not the same essay with modifiers stuffed into every sentence. 5-gram Jaccard of <main> prose stays ≤ 0.55 (true near-duplicates cluster ≥ 0.80; stuffing every sentence to chase 0.38 failed Bing quality).',
+      'Style×context siblings must be different documents (distinct genres + job thesis + tool/intent facts), not the same essay with modifiers stuffed into every sentence. 5-gram Jaccard of <main> prose stays ≤ 0.25 (true near-duplicates cluster ≥ 0.80).',
   },
   {
     id: 'edited-prose',

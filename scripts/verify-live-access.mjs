@@ -69,6 +69,7 @@ const MUST_BE_REACHABLE = [
   { name: 'robots.txt (any client)', path: '/robots.txt' },
   { name: 'IndexNow key file (api.indexnow.org)', path: INDEXNOW_KEY },
   { name: 'ads.txt (ad verification crawlers)', path: '/ads.txt' },
+  { name: 'opengraph-image.png (social unfurls)', path: '/opengraph-image.png' },
 ];
 
 /** Reachable for real people and search engines; datacenter runs get a challenge. */

@@ -46,6 +46,8 @@ export interface PageKernel {
   taskScenario: string;
   taskOutcome: string;
   taskUrgency: string;
+  taskEvidence: string;
+  taskFailure: string;
 }
 
 export interface KnowledgeSection {
@@ -815,14 +817,173 @@ export function contextSection(k: PageKernel, bodyBlock: string, demand: string)
 }
 
 export function audienceSection(k: PageKernel): KnowledgeSection {
+  const desk = audienceDesk(k);
   return {
     id: 'audience',
-    heading: `Notes for ${k.audiencePlural}`,
+    heading: desk.heading,
     paragraphs: [
-      `${sentence(k.audiencePlural)} come to ${k.intentLabel} for ${k.audienceFocus}, and the detail they most often miss is ${k.audienceConcern}.`,
-      `Treat the job as finished when you can ${k.taskOutcome} — that is the outcome ${k.taskPhrase} is measured against, ${k.contextSituation}.`,
+      `${sentence(k.audiencePlural)} do this job from ${desk.desk}. The miss that shows up in review is ${desk.miss}.`,
+      `Treat ${k.jobGerund} as finished when you can ${k.taskOutcome} — ${k.contextSituation}, not as a generic ${k.toolLabel} walkthrough.`,
+      `The working method on this page is ${k.stylePhrase}; a pack from a different method will fail the acceptance checks below.`,
+    ],
+    list: [
+      desk.artifact,
+      `Focus: ${k.audienceFocus}.`,
+      `If you cannot name ${k.audienceConcern} in the pack, you are not done.`,
     ],
   };
+}
+
+function audienceDesk(k: PageKernel): { heading: string; desk: string; artifact: string; miss: string } {
+  switch (k.audience) {
+    case 'backend-engineer':
+      return {
+        heading: 'What backend engineers should freeze',
+        desk: 'service logs, request IDs, and the payload that left the process',
+        artifact: 'A structured log line or handler dump, not a browser screenshot.',
+        miss: 'assuming the JSON that left the handler is the JSON the next service received',
+      };
+    case 'frontend-developer':
+      return {
+        heading: 'What frontend developers should freeze',
+        desk: 'the Network panel, the failing fetch, and the component that rendered it',
+        artifact: 'Status, content-type, and body from the wire — not an in-memory object after parse.',
+        miss: 'pretty-printing the object in memory and never looking at the bytes on the wire',
+      };
+    case 'fullstack-developer':
+      return {
+        heading: 'What fullstack developers should freeze',
+        desk: 'both the client-visible body and the server log of the same request',
+        artifact: 'A pair: browser capture and server capture, same identifier.',
+        miss: 'fixing one layer and assuming the other still matches',
+      };
+    case 'api-consumer':
+      return {
+        heading: 'What API consumers should freeze',
+        desk: 'the documented example next to the live response',
+        artifact: 'Documented shape versus observed shape, field by field.',
+        miss: 'treating an undocumented extra field as harmless',
+      };
+    case 'integration-engineer':
+      return {
+        heading: 'What integrators should freeze',
+        desk: 'both sides of the mapping under the same identifier',
+        artifact: 'Theirs, yours, and the rule that produced the mapping.',
+        miss: 'patching only the side you own and calling the boundary done',
+      };
+    case 'security-conscious-developer':
+      return {
+        heading: 'What security-conscious developers should freeze',
+        desk: 'a synthetic twin of the classified payload',
+        artifact: 'Redacted or synthetic bytes plus the verify/fail, never a live secret.',
+        miss: 'pasting production tokens into the pack “just this once”',
+      };
+    case 'ops-engineer':
+      return {
+        heading: 'What ops engineers should freeze',
+        desk: 'the payload or config as deployed, with the environment name',
+        artifact: 'Environment, version, and the bytes that environment actually ran.',
+        miss: 'using a laptop copy and calling it production',
+      };
+    case 'devops-engineer':
+      return {
+        heading: 'What DevOps engineers should freeze',
+        desk: 'the job log and the fixture the job used',
+        artifact: 'Job name, fixture id, and the assertion that went red or green.',
+        miss: 'a pipeline screenshot with no golden file next to it',
+      };
+    case 'technical-writer':
+      return {
+        heading: 'What docs teams should freeze',
+        desk: 'the example that will be published',
+        artifact: 'An example the contract tests would accept.',
+        miss: 'simplifying types until the example is fiction',
+      };
+    case 'data-engineer':
+      return {
+        heading: 'What data engineers should freeze',
+        desk: 'a record the pipeline will actually ingest',
+        artifact: 'Types and encodings the parser will see, including JSON number coercion.',
+        miss: 'a pretty sample that the ingest job would drop',
+      };
+    case 'mobile-developer':
+      return {
+        heading: 'What mobile developers should freeze',
+        desk: 'the on-the-wire bytes after the platform SDK',
+        artifact: 'Size, encoding, and body — not the decoded object in the debugger.',
+        miss: 'trusting a Swift/Kotlin dump that already coerced types',
+      };
+    case 'qa-engineer':
+      return {
+        heading: 'What QA engineers should freeze',
+        desk: 'expected and actual as two named fixtures',
+        artifact: 'The assertion printed on each fixture, plus both files.',
+        miss: 'one happy-path sample that cannot fail the test',
+      };
+    case 'site-reliability-engineer':
+      return {
+        heading: 'What SREs should freeze',
+        desk: 'hop, severity, and timestamp on the incident timeline',
+        artifact: 'A replayable capture a stranger can use next quarter.',
+        miss: 'an unreproducible live tab that dies with the incident call',
+      };
+    case 'database-administrator':
+      return {
+        heading: 'What DBAs should freeze',
+        desk: 'the statement or document as the engine stored it',
+        artifact: 'Engine bytes, not a client pretty-print of them.',
+        miss: 'diffing client printers and calling it a storage change',
+      };
+    case 'cloud-architect':
+      return {
+        heading: 'What cloud architects should freeze',
+        desk: 'the contract at the service boundary being signed off',
+        artifact: 'The interoperability sample the decision record cites.',
+        miss: 'an interior dump that no consumer will ever see',
+      };
+    case 'performance-engineer':
+      return {
+        heading: 'What performance engineers should freeze',
+        desk: 'fixture size and a frozen setting set, before code changes',
+        artifact: 'Baseline card: fixture id, settings, size, repeats.',
+        miss: 'changing fixture and code in the same session',
+      };
+    case 'platform-engineer':
+      return {
+        heading: 'What platform engineers should freeze',
+        desk: 'the self-service path a squad would actually use',
+        artifact: 'The golden path without privileged internal shortcuts.',
+        miss: 'documenting a path that only platform-admins can run',
+      };
+    case 'solution-architect':
+      return {
+        heading: 'What solution architects should freeze',
+        desk: 'the interoperability sample the decision record cites',
+        artifact: 'A boundary test, not a vendor slide.',
+        miss: 'selecting a component without a replayable contract sample',
+      };
+    case 'tech-lead':
+      return {
+        heading: 'What tech leads should freeze',
+        desk: 'the pack the next reviewer can run without asking you',
+        artifact: 'Replay notes a new teammate can follow from the thread.',
+        miss: 'keeping the “why” in your head instead of in the pack',
+      };
+    case 'release-engineer':
+      return {
+        heading: 'What release engineers should freeze',
+        desk: 'artifact hash, settings, and a behaviour fixture',
+        artifact: 'A rollback-safe pack: hash, settings, behaviour still passing.',
+        miss: 'shipping on byte-count alone',
+      };
+    default:
+      return {
+        heading: `Notes for ${k.audiencePlural}`,
+        desk: k.audienceFocus,
+        artifact: `A pack that records ${k.audienceConcern}.`,
+        miss: k.audienceConcern,
+      };
+  }
 }
 
 export function naturalSteps(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): string[] {
@@ -881,6 +1042,28 @@ export function naturalPitfalls(tk: ToolKnowledge, ik: IntentKernel): string[] {
 }
 
 export function decisionFor(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): {
+  heading: string;
+  when: string[];
+  notWhen: string[];
+  verdict: string;
+} {
+  const t = k.toolLabel;
+  const base = styleDecision(k, tk, ik);
+  return {
+    heading: base.heading,
+    when: [
+      `The work in front of you is ${k.taskScenario}, and “done” includes ${k.taskEvidence}.`,
+      ...base.when,
+    ],
+    notWhen: [
+      `Skip this guide if you are not ${k.taskScenario}. A different guide covers that job with ${t}.`,
+      ...base.notWhen,
+    ],
+    verdict: base.verdict,
+  };
+}
+
+function styleDecision(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): {
   heading: string;
   when: string[];
   notWhen: string[];

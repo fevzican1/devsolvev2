@@ -1,22 +1,21 @@
 /**
- * Per-URL document variation — layout, snippets, FAQ/step cardinality.
+ * Per-URL document variation — genre outline, snippets, job-native copy.
  *
- * Sibling Jaccard is a SET overlap of word 5-grams (order-invariant). Shuffling
- * H2s barely moves it. What moves it, without modifier stuffing:
- *   1. different section *sets* (omit/include) and different FAQ/step counts
- *   2. code/CLI/JSON whose keys and values are this page's parameters
- *   3. style-genre and context-artifact copy that does not repeat the same
- *      tool-mechanic bullets on every neighbouring page
- *
- * Style/context phrases still appear as scope, not in every sentence.
+ * Independent guides are not one H2 skeleton with shuffled furniture. Each
+ * URL is a job (task) told for a working method (style) in a setting
+ * (context) for a reader (audience). Jaccard is a near-duplicate defence,
+ * not the definition of independence: the job thesis has to change what a
+ * human would actually do.
  */
 
 import { finishPtr, stopPtr, type IntentKernel, type KnowledgeSection, type PageKernel, type ToolKnowledge } from './corpusKnowledge';
 import { sentence, withArticle } from './language';
+import { taskGuide } from './taskGuides';
 
 export type SectionId =
   | 'takeaways'
   | 'decision'
+  | 'job'
   | 'acceptance'
   | 'archetype'
   | 'context'
@@ -91,6 +90,57 @@ function hex(next: () => number, n: number): string {
   return out;
 }
 
+/**
+ * Genre-native outlines. Shuffling one universal H2 skeleton was itself the
+ * auto-generated signal: every URL looked like the same essay with furniture
+ * moved. Independent guides keep a professional order for their genre and
+ * drop sections that genre would never carry (a spike has no glossary; a
+ * review checklist is not a comparison essay).
+ */
+const GENRE_OUTLINE: Record<string, { order: SectionId[]; omit: SectionId[] }> = {
+  'without-installing-cli-tools': {
+    order: ['decision', 'job', 'artifact', 'archetype', 'context', 'steps', 'example', 'snippets', 'acceptance', 'pitfalls', 'audience', 'faq'],
+    omit: ['glossary', 'comparison', 'practice', 'takeaways'],
+  },
+  'directly-in-your-browser': {
+    order: ['decision', 'job', 'artifact', 'takeaways', 'steps', 'example', 'snippets', 'archetype', 'context', 'pitfalls', 'audience', 'faq'],
+    omit: ['glossary', 'practice', 'comparison'],
+  },
+  'with-step-by-step-instructions': {
+    order: ['decision', 'job', 'artifact', 'takeaways', 'archetype', 'steps', 'example', 'snippets', 'pitfalls', 'glossary', 'audience', 'context', 'faq'],
+    omit: ['comparison', 'practice'],
+  },
+  'with-safe-local-processing': {
+    order: ['decision', 'job', 'artifact', 'archetype', 'acceptance', 'context', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
+    omit: ['glossary', 'comparison', 'practice', 'takeaways'],
+  },
+  'while-keeping-data-private': {
+    order: ['decision', 'job', 'artifact', 'archetype', 'acceptance', 'context', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
+    omit: ['glossary', 'comparison', 'practice', 'takeaways'],
+  },
+  'for-quick-prototyping': {
+    order: ['decision', 'job', 'artifact', 'context', 'archetype', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
+    omit: ['glossary', 'comparison', 'practice', 'takeaways', 'acceptance'],
+  },
+  'during-code-review': {
+    order: ['decision', 'job', 'artifact', 'archetype', 'acceptance', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'context', 'faq'],
+    omit: ['glossary', 'comparison', 'practice', 'takeaways'],
+  },
+  'as-part-of-ci-cd-pipeline': {
+    order: ['decision', 'job', 'artifact', 'context', 'archetype', 'acceptance', 'snippets', 'example', 'steps', 'pitfalls', 'comparison', 'audience', 'faq'],
+    omit: ['glossary', 'practice', 'takeaways'],
+  },
+  'with-automated-validation': {
+    order: ['decision', 'job', 'artifact', 'context', 'archetype', 'acceptance', 'snippets', 'example', 'steps', 'pitfalls', 'audience', 'faq'],
+    omit: ['glossary', 'comparison', 'practice', 'takeaways'],
+  },
+};
+
+const DEFAULT_OUTLINE: { order: SectionId[]; omit: SectionId[] } = {
+  order: ['decision', 'job', 'artifact', 'takeaways', 'archetype', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
+  omit: ['glossary', 'comparison', 'practice'],
+};
+
 export function planDocument(k: PageKernel): DocumentPlan {
   const seed = fnv(k.slug) ^ 0x9e3779b9;
   const next = rng(seed);
@@ -99,12 +149,8 @@ export function planDocument(k: PageKernel): DocumentPlan {
   const glossaryCount = 3 + Math.floor(next() * 4); // 3–6
   const comparisonCount = 2 + Math.floor(next() * 3); // 2–4
 
-  const omit = new Set<SectionId>();
-  const tableLane = Math.floor(next() * 3);
-  if (tableLane === 0) omit.add('glossary');
-  else if (tableLane === 1) omit.add('comparison');
-  if (next() > 0.55) omit.add('practice');
-  else if (next() > 0.45 && k.style !== 'with-step-by-step-instructions') omit.add('acceptance');
+  const genre = GENRE_OUTLINE[k.style] ?? DEFAULT_OUTLINE;
+  const omit = new Set<SectionId>(genre.omit);
 
   const kinds: SnippetKind[] = ['json'];
   if (k.style === 'as-part-of-ci-cd-pipeline' || k.style === 'with-automated-validation') kinds.push('ci');
@@ -117,34 +163,16 @@ export function planDocument(k: PageKernel): DocumentPlan {
     kinds.push('jq');
   }
 
-  const allSections: SectionId[] = [
-    'takeaways',
-    'decision',
-    'acceptance',
-    'archetype',
-    'context',
-    'artifact',
-    'audience',
-    'practice',
-    'steps',
-    'example',
-    'snippets',
-    'pitfalls',
-    'comparison',
-    'glossary',
-    'faq',
-  ];
-  const permutable = allSections.filter((id) => !omit.has(id));
-
-  for (let i = permutable.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(next() * (i + 1));
-    const tmp = permutable[i]!;
-    permutable[i] = permutable[j]!;
-    permutable[j] = tmp;
-  }
-
-  // Decision + FAQ stay in the body; related is appended by the renderer.
-  return { seed, order: permutable, faqCount, stepCount, glossaryCount, comparisonCount, omit, snippetKinds: kinds };
+  return {
+    seed,
+    order: genre.order.filter((id) => !omit.has(id)),
+    faqCount,
+    stepCount,
+    glossaryCount,
+    comparisonCount,
+    omit,
+    snippetKinds: kinds,
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -449,12 +477,37 @@ function jqSnippet(k: PageKernel, fixture: string, mode: string, setting: string
 /*  Variable steps / FAQ / glossary / comparison                               */
 /* -------------------------------------------------------------------------- */
 
-export function variedSteps(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel, plan: DocumentPlan): string[] {
-  const next = rng(plan.seed ^ 0x27d4eb2f);
-  const styleSteps = stepsForStyle(k, tk, ik);
-  const contextStep = stepForContext(k);
-  const pool = [...styleSteps, contextStep];
-  return pickN(pool, plan.stepCount, next);
+export function variedSteps(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel, _plan: DocumentPlan): string[] {
+  const styleBound = styleBoundStep(k, tk, ik);
+  const contextCheck = stepForContext(k);
+  // Genre-native procedure plus the setting's extra check. The job thesis
+  // (what this URL is actually for) lives in the independent-job section, not
+  // as a shared step list stamped onto every working method.
+  return [styleBound, ...stepsForStyle(k, tk, ik), contextCheck];
+}
+
+function styleBoundStep(k: PageKernel, _tk: ToolKnowledge, ik: IntentKernel): string {
+  const t = k.toolLabel;
+  switch (k.style) {
+    case 'as-part-of-ci-cd-pipeline':
+      return `Name the pipeline job after ${k.jobNoun} and fail the build when ${stopPtr(k.style)} is true.`;
+    case 'during-code-review':
+      return `Approve only when a stranger can regenerate the ${k.jobNoun} from the thread without a direct message.`;
+    case 'without-installing-cli-tools':
+      return `If a remaining move needs a package manager, you are on the wrong guide — the only runtime here is ${t} in the tab.`;
+    case 'with-safe-local-processing':
+      return `Write “no egress” beside the output. Any upload hop invalidates the ${k.jobNoun}.`;
+    case 'while-keeping-data-private':
+      return `A correct ${t} result that created an extra copy of the payload still fails.`;
+    case 'for-quick-prototyping':
+      return `Do not ship from this tab. Promote the winning fixture into a stricter guide.`;
+    case 'with-step-by-step-instructions':
+      return `Have the learner say the signal out loud before they click the next control in ${t}.`;
+    case 'with-automated-validation':
+      return `If you cannot state the ${k.jobNoun} in one sentence a script could fail, you are not done.`;
+    default:
+      return `Finish when ${finishPtr(k.style)} holds; stop if ${ik.failsWhen}`;
+  }
 }
 
 function stepsForStyle(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): string[] {
@@ -612,10 +665,36 @@ function stepForContext(k: PageKernel): string {
   }
 }
 
-export function variedFaq(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel, plan: DocumentPlan): FaqItem[] {
-  const next = rng(plan.seed ^ 0x165667b1);
-  const pool = [...faqForStyle(k, tk, ik), ...faqForContext(k), ...faqForTool(k, tk)];
-  return pickN(pool, plan.faqCount, next);
+export function variedFaq(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel, _plan: DocumentPlan): FaqItem[] {
+  const job = taskGuide(k);
+  const taskFaq = job.faqs[0] ? [{
+    question: job.faqs[0].question,
+    answer: `${job.faqs[0].answer} ${styleFaqTail(k)}`,
+  }] : [];
+  return [...taskFaq, ...faqForStyle(k, tk, ik).slice(0, 3), ...faqForContext(k).slice(0, 2)];
+}
+
+function styleFaqTail(k: PageKernel): string {
+  switch (k.style) {
+    case 'as-part-of-ci-cd-pipeline':
+      return 'The pipeline job is the source of truth, not a leftover tab.';
+    case 'during-code-review':
+      return 'If the reviewer cannot replay it from the thread, the answer is incomplete.';
+    case 'without-installing-cli-tools':
+      return 'A binary install is not a valid workaround on this path.';
+    case 'with-safe-local-processing':
+      return 'Any hop off this device invalidates the answer.';
+    case 'while-keeping-data-private':
+      return 'An extra copy of the payload still counts as a fail.';
+    case 'for-quick-prototyping':
+      return 'Throw the session away if it did not move the hypothesis.';
+    case 'with-step-by-step-instructions':
+      return 'A first-timer should be able to repeat this answer from the page.';
+    case 'with-automated-validation':
+      return 'If a script cannot fail the same answer, it is not this guide.';
+    default:
+      return 'Write the pack down before you close the tab.';
+  }
 }
 
 function faqForStyle(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): FaqItem[] {
@@ -835,18 +914,13 @@ export function variedComparison(k: PageKernel, plan: DocumentPlan): { item: str
   return pickN(pool, plan.comparisonCount, next);
 }
 
-export function variedPitfalls(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel, plan: DocumentPlan): string[] {
-  const next = rng(plan.seed ^ 0xc2b2ae35);
-  const pool = [
-    `Treating a green UI as done without reading ${finishPtr(k.style)}.`,
-    `Using a toy sample that hides the behaviour ${k.jobGerund} will hit in production.`,
-    `Leaving no fixture, so the next person cannot replay ${k.toolLabel}.`,
+export function variedPitfalls(k: PageKernel, tk: ToolKnowledge, _ik: IntentKernel, _plan: DocumentPlan): string[] {
+  const job = taskGuide(k);
+  return [
+    job.pitfalls[0] ?? `Treating a green ${k.toolLabel} UI as done.`,
     tk.pitfalls[0] ?? 'Treating a UI result as a signed production decision.',
-    tk.pitfalls[1] ?? `Copying a procedure from a different setting than ${k.contextPhrase}.`,
-    `Repeating the working method in every sentence instead of following the procedure once.`,
     `Skipping the extra check this setting asks for: ${stepForContext(k)}`,
   ];
-  return pickN(pool, 3 + Math.floor(next() * 3), next);
 }
 
 export function variedIntro(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): string[] {
@@ -857,8 +931,34 @@ export function variedIntro(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel):
   return [
     introLead(k, ik, t, job),
     introSetting(k),
+    introEvidence(k),
     introWrongUrl(k, t, job),
   ];
+}
+
+function introEvidence(k: PageKernel): string {
+  const keep = k.taskEvidence;
+  const fail = k.taskFailure;
+  switch (k.style) {
+    case 'as-part-of-ci-cd-pipeline':
+      return `The job log should still show ${keep}. A green build that hid “${fail}” is a false green.`;
+    case 'during-code-review':
+      return `The review thread should contain ${keep}. If the thread cannot explain “${fail}”, request changes.`;
+    case 'without-installing-cli-tools':
+      return `Keep ${keep} as a file that opens without extra tools. Installing a binary to dodge “${fail}” abandons this guide.`;
+    case 'with-safe-local-processing':
+      return `Keep ${keep} on this device. Uploading to “fix” “${fail}” is still egress.`;
+    case 'while-keeping-data-private':
+      return `Keep ${keep} without creating an extra copy. “${fail}” plus a leak is two failures.`;
+    case 'for-quick-prototyping':
+      return `Keep ${keep} only if it moved the hypothesis. Do not spend the time-box on “${fail}”.`;
+    case 'with-step-by-step-instructions':
+      return `The learner should be able to point at ${keep}. Call out “${fail}” when it happens.`;
+    case 'with-automated-validation':
+      return `Encode ${keep} so a script can fail. “${fail}” should be a red assertion, not a comment.`;
+    default:
+      return `Keep ${keep}. The usual failure here is ${fail}.`;
+  }
 }
 
 function introSetting(k: PageKernel): string {
@@ -934,38 +1034,63 @@ function introWrongUrl(k: PageKernel, t: string, job: string): string {
 }
 
 function introLead(k: PageKernel, _ik: IntentKernel, t: string, job: string): string {
+  const who = k.audiencePlural;
+  const scene = k.taskScenario;
   const noun = k.jobNoun;
   const doing = k.jobGerund;
   switch (k.style) {
     case 'as-part-of-ci-cd-pipeline':
-      return `Freeze ${noun} into a pipeline with ${t}: the tab is the rehearsal, the job is the gate.`;
+      return `When ${who} are ${scene}, ${noun} cannot live as a screenshot. Rehearse it in ${t}, then freeze the same check as a job that fails closed.`;
     case 'during-code-review':
-      return `Reviewers should be able to replay the ${noun} from a PR comment, and ${t} is how you produce that small artifact.`;
+      return `When ${who} are ${scene}, a reviewer should replay the ${noun} from the thread. ${t} is how you produce that small, regenerable artifact.`;
     case 'without-installing-cli-tools':
-      return `You cannot install a binary here, so ${t} in the browser tab is the only runtime available for ${doing}.`;
+      return `When ${who} are ${scene} on a machine that cannot take a binary, ${t} in the browser tab is the only legal runtime for ${doing}.`;
     case 'with-safe-local-processing':
-      return `Bytes stay on this device while ${doing}. Abort if ${t} would have to upload them.`;
+      return `When ${who} are ${scene}, the payload must not leave this device. Abort if ${t} would have to upload bytes to finish ${doing}.`;
     case 'while-keeping-data-private':
-      return `A correct ${noun} result that created an extra copy is still a failure, so stay on ${t} in this tab.`;
+      return `When ${who} are ${scene}, a correct ${noun} result that created an extra copy still fails. Stay on ${t} in this tab.`;
     case 'for-quick-prototyping':
-      return `Time-box ${withArticle(noun)} spike with ${t}, then throw most of it away.`;
+      return `When ${who} are ${scene} and only need a direction, time-box ${doing} in ${t} and throw most of the session away.`;
     case 'with-step-by-step-instructions':
-      return `This is the teachable ${noun} path on ${t}: named input, named action, named signal.`;
+      return `When ${who} are ${scene} and a first-timer has to finish, this is the teachable ${noun} path on ${t}: named input, named action, named signal.`;
     case 'with-automated-validation':
-      return `Attach a machine-checkable invariant to ${doing}. ${t} is the rehearsal, not the whole check.`;
+      return `When ${who} are ${scene}, ${doing} needs a statement a script can fail. ${t} is the rehearsal for that invariant, not the whole check.`;
     default:
-      return `Finish ${doing} in one ${t} tab you can describe in a ticket.`;
+      return `When ${who} are ${scene}, finish ${doing} in one ${t} tab you can describe in a ticket.`;
   }
 }
 
 export function variedTakeaways(k: PageKernel, ik: IntentKernel): string[] {
   const extra = takeawayPair(k, ik);
   return [
-    `The job: ${k.jobNoun} with ${k.toolLabel}, ${k.stylePhrase}.`,
+    takeawayJob(k, ik),
     `The extra check this setting adds: ${stepForContext(k)}`,
     extra[0]!,
     extra[1]!,
   ];
+}
+
+function takeawayJob(k: PageKernel, ik: IntentKernel): string {
+  switch (k.style) {
+    case 'as-part-of-ci-cd-pipeline':
+      return `A green job means ${ik.doneWhen} A red job means ${ik.failsWhen}`;
+    case 'during-code-review':
+      return `Approve only if a stranger can regenerate the ${k.jobNoun} from the thread without a direct message.`;
+    case 'without-installing-cli-tools':
+      return `If a step needs a package manager, stop — this page is the no-install path for ${k.jobGerund}.`;
+    case 'with-safe-local-processing':
+      return `Done includes “no egress”. A correct ${k.toolLabel} result that uploaded still fails.`;
+    case 'while-keeping-data-private':
+      return `Done includes “no extra copy”. Tickets, chat, and screenshots are in scope.`;
+    case 'for-quick-prototyping':
+      return `Keep the fixture that moved the hypothesis; delete the rest before the time-box ends.`;
+    case 'with-step-by-step-instructions':
+      return `A first-timer should finish ${k.jobGerund} with the same pack as a veteran, from this page alone.`;
+    case 'with-automated-validation':
+      return `If you cannot state the ${k.jobNoun} in one sentence a script could fail, you are not done.`;
+    default:
+      return `${sentence(k.jobNoun)} is finished when ${ik.doneWhen}`;
+  }
 }
 
 function takeawayPair(k: PageKernel, _ik: IntentKernel): [string, string] {
@@ -991,16 +1116,14 @@ function takeawayPair(k: PageKernel, _ik: IntentKernel): [string, string] {
   }
 }
 
-export function variedAcceptance(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel, plan: DocumentPlan): string[] {
-  const next = rng(plan.seed ^ 0x5bd1e995);
-  const pool = [
+export function variedAcceptance(k: PageKernel, _tk: ToolKnowledge, _ik: IntentKernel, _plan: DocumentPlan): string[] {
+  return [
     `The sample resembles production data for ${k.jobGerund}, not a one-line toy.`,
     `You accounted for ${k.audienceConcern}, which is what ${k.audiencePlural} most often miss here.`,
-    `Input, ${k.toolLabel} settings, and output are stored together.`,
-    `The evidence pack this setting asks for is complete — ${k.contextPhrase} needs every field, not most of them.`,
-    `A second person can replay the tab from the pack without a DM.`,
+    `Evidence for this job is complete: ${k.taskEvidence}.`,
+    `The usual failure did not happen: ${k.taskFailure}.`,
+    `A second person can replay the tab from the pack without a direct message.`,
   ];
-  return pickN(pool, 4, next);
 }
 
 export function contextArtifact(k: PageKernel): KnowledgeSection {
@@ -1140,9 +1263,10 @@ function artifactRows(k: PageKernel): string[] {
 }
 
 export function entityFraming(k: PageKernel, _tk: ToolKnowledge, _ik: IntentKernel): { name: string; definition: string; alsoKnownAs: string[] } {
+  const job = taskGuide(k);
   return {
-    name: `${sentence(k.jobNoun)} with ${k.toolLabel}`,
-    definition: `${k.intentLabel} ${k.stylePhrase}, using a browser-based tool for ${k.clusterField}. ${sentence(k.contextPhrase)} is the setting this guide is written for.`,
-    alsoKnownAs: [k.jobNoun, k.toolLabel, k.clusterField],
+    name: `${sentence(k.jobNoun)} for ${k.taskPhrase}`,
+    definition: `${job.section.paragraphs[1] ?? `${k.intentLabel} using ${k.toolLabel}.`} Working method: ${k.stylePhrase}. Setting: ${k.contextPhrase}.`,
+    alsoKnownAs: [k.jobNoun, k.toolLabel, k.taskPhrase],
   };
 }
