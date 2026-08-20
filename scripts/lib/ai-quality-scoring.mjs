@@ -182,6 +182,8 @@ export function extractDocumentSignals(html) {
   const titleTokens = title.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 4);
   const topicAligned = titleTokens.length === 0 || titleTokens.slice(0, 4).some((t) => h1Text.includes(t));
   const hasPromptInjection = /coordinate lock|modifier fingerprint|for crawlers|grounding citation|reshuffled doorway|grounding eligibility/i.test(html);
+  const firstLead = decodeEntities((html.match(/<p class="lead"[^>]*>([\s\S]*?)<\/p>/i)?.[1] || '').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+  const hasIndependentOpening = /^when\s/i.test(firstLead);
 
   return {
     title,
@@ -203,6 +205,7 @@ export function extractDocumentSignals(html) {
     hasEarlyAnswer,
     topicAligned,
     hasPromptInjection,
+    hasIndependentOpening,
   };
 }
 

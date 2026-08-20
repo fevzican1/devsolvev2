@@ -59,6 +59,7 @@ import {
   type DocumentPlan,
   type SnippetBlock,
 } from './pageVariation';
+import { taskGuide } from './taskGuides';
 import { AD_FOOTER_SLOT, AD_HEADER_SLOT, renderRevenueAsides } from './revenuePlacements';
 
 /* -------------------------------------------------------------------------- */
@@ -75,9 +76,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-20T13:40:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-20T16:40:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'b';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'd';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -405,28 +406,28 @@ const CLUSTER_DOMAIN: Record<string, ClusterDomain> = {
   web: { field: 'web security and optimization', importance: 'Secure, optimized web content protects users and improves core performance metrics', bestPractice: 'Sanitize all user-supplied content and test minified assets for correctness before deployment' },
 };
 
-interface TaskContext { scenario: string; urgency: string; outcome: string }
+interface TaskContext { scenario: string; urgency: string; outcome: string; evidence: string; failure: string }
 const TASK_CONTEXT: Record<string, TaskContext> = {
-  'debug-production-issue': { scenario: 'diagnosing a live production problem', urgency: 'time-sensitive, because users may be affected', outcome: 'identify the root cause and apply a targeted fix' },
-  'prepare-api-response': { scenario: 'constructing or validating an API response', urgency: 'important for downstream consumer reliability', outcome: 'produce a well-formed response that matches the documented schema' },
-  'clean-up-payload': { scenario: 'normalizing messy or inconsistent data', urgency: 'a way to prevent cascading errors in downstream processing', outcome: 'deliver a clean, predictable data structure for further use' },
-  'sanitize-user-input': { scenario: 'making user-provided data safe for processing', urgency: 'critical for preventing injection attacks and data corruption', outcome: 'ensure all input meets expected format and safety constraints' },
-  'prepare-query-parameters': { scenario: 'building properly encoded query strings', urgency: 'required for correct API communication', outcome: 'produce query parameters that survive URL parsing without data loss' },
-  'inspect-encoded-payload': { scenario: 'examining encoded or obfuscated data', urgency: 'necessary for understanding data flow between systems', outcome: 'decode the payload and verify its structure and content' },
-  'trace-request': { scenario: 'following a request through multiple system layers', urgency: 'essential for diagnosing integration issues', outcome: 'map the complete request lifecycle and locate where failures occur' },
-  'validate-auth-token': { scenario: 'checking authentication token structure and claims', urgency: 'important for confirming access control works correctly', outcome: 'confirm the token carries the expected claims and has not expired' },
-  'review-config-change': { scenario: 'verifying a configuration modification before deployment', urgency: 'a safeguard that keeps misconfigurations out of production', outcome: 'confirm the change is correct, complete, and backward-compatible' },
-  'migrate-legacy-system': { scenario: 'moving data or logic from an older system', urgency: 'a change that demands careful validation to prevent data loss', outcome: 'transfer data while preserving integrity and format compatibility' },
-  'prepare-deployment-artifact': { scenario: 'packaging assets for a release deployment', urgency: 'directly tied to deployment reliability and performance', outcome: 'produce optimized, validated artifacts ready for production' },
-  'document-api-endpoint': { scenario: 'creating or updating endpoint documentation', urgency: 'what keeps external and internal consumers aligned with the current API', outcome: 'produce accurate documentation with working examples and clear parameters' },
-  'optimize-build-pipeline': { scenario: 'improving build speed and artifact quality in CI/CD', urgency: 'directly tied to developer iteration speed and deployment frequency', outcome: 'reduce build times while preserving output correctness and reproducibility' },
-  'resolve-merge-conflict': { scenario: 'reconciling divergent code or configuration changes', urgency: 'a blocker that delays feature delivery until resolved correctly', outcome: 'produce a clean merge that preserves the intent of every contributing change' },
-  'prepare-security-audit': { scenario: 'gathering evidence and validating controls for a security review', urgency: 'required for compliance deadlines and organizational trust', outcome: 'compile a verifiable set of security controls and configuration evidence' },
-  'generate-test-fixtures': { scenario: 'creating realistic sample data for automated tests', urgency: 'foundational for test coverage and regression detection', outcome: 'produce representative test data covering normal, edge, and adversarial cases' },
+  'debug-production-issue': { scenario: 'diagnosing a live production problem', urgency: 'time-sensitive, because users may be affected', outcome: 'identify the root cause and apply a targeted fix', evidence: 'one captured payload with a timestamp, a severity, and the hop that produced it', failure: 'changing three things at once so you cannot say which edit stopped the incident' },
+  'prepare-api-response': { scenario: 'constructing or validating an API response', urgency: 'important for downstream consumer reliability', outcome: 'produce a well-formed response that matches the documented schema', evidence: 'status, content-type, and a body that validates against the published schema', failure: 'returning 200 with a body the documented schema would reject' },
+  'clean-up-payload': { scenario: 'normalizing messy or inconsistent data', urgency: 'a way to prevent cascading errors in downstream processing', outcome: 'deliver a clean, predictable data structure for further use', evidence: 'before/after bytes plus the list of fields you rewrote', failure: 'silently dropping keys that a downstream consumer still needs' },
+  'sanitize-user-input': { scenario: 'making user-provided data safe for processing', urgency: 'critical for preventing injection attacks and data corruption', outcome: 'ensure all input meets expected format and safety constraints', evidence: 'the original string, the sanitizer settings, and the accepted form', failure: 'calling encode “sanitization” and inserting the result as HTML' },
+  'prepare-query-parameters': { scenario: 'building properly encoded query strings', urgency: 'required for correct API communication', outcome: 'produce query parameters that survive URL parsing without data loss', evidence: 'each name/value pair encoded with the rule that part of the URI requires', failure: 'encoding a whole URL with encodeURIComponent and destroying the path' },
+  'inspect-encoded-payload': { scenario: 'examining encoded or obfuscated data', urgency: 'necessary for understanding data flow between systems', outcome: 'decode the payload and verify its structure and content', evidence: 'alphabet, padding rule, and the decoded bytes next to the encoded spelling', failure: 'decoding with the wrong alphabet and treating mojibake as the source bug' },
+  'trace-request': { scenario: 'following a request through multiple system layers', urgency: 'essential for diagnosing integration issues', outcome: 'map the complete request lifecycle and locate where failures occur', evidence: 'a hop list with the payload shape at each boundary', failure: 'a single capture that cannot tell you which layer mutated the bytes' },
+  'validate-auth-token': { scenario: 'checking authentication token structure and claims', urgency: 'important for confirming access control works correctly', outcome: 'confirm the token carries the expected claims and has not expired', evidence: 'header, claims, and a verify/fail result — never a production token in a ticket', failure: 'trusting decoded claims without a signature check' },
+  'review-config-change': { scenario: 'verifying a configuration modification before deployment', urgency: 'a safeguard that keeps misconfigurations out of production', outcome: 'confirm the change is correct, complete, and backward-compatible', evidence: 'old file, new file, and a diff a reviewer can regenerate', failure: 'approving a screenshot of a local editor with no settings beside it' },
+  'migrate-legacy-system': { scenario: 'moving data or logic from an older system', urgency: 'a change that demands careful validation to prevent data loss', outcome: 'transfer data while preserving integrity and format compatibility', evidence: 'paired fixtures from the old system and the new one, same identifiers', failure: 'calling pretty-print agreement a migration proof' },
+  'prepare-deployment-artifact': { scenario: 'packaging assets for a release deployment', urgency: 'directly tied to deployment reliability and performance', outcome: 'produce optimized, validated artifacts ready for production', evidence: 'artifact hash, tool settings, and a behaviour fixture that still passes', failure: 'shipping a minify that changed runtime behaviour to save a few bytes' },
+  'document-api-endpoint': { scenario: 'creating or updating endpoint documentation', urgency: 'what keeps external and internal consumers aligned with the current API', outcome: 'produce accurate documentation with working examples and clear parameters', evidence: 'an example that validates against the same schema the service uses', failure: 'docs examples that the contract tests would reject' },
+  'optimize-build-pipeline': { scenario: 'improving build speed and artifact quality in CI/CD', urgency: 'directly tied to developer iteration speed and deployment frequency', outcome: 'reduce build times while preserving output correctness and reproducibility', evidence: 'before/after duration plus a golden file the faster job still matches', failure: 'a faster job that no longer fails the invariant you cared about' },
+  'resolve-merge-conflict': { scenario: 'reconciling divergent code or configuration changes', urgency: 'a blocker that delays feature delivery until resolved correctly', outcome: 'produce a clean merge that preserves the intent of every contributing change', evidence: 'both sides, the merge result, and a replay the other author can run', failure: 'keeping one side wholesale and calling the conflict resolved' },
+  'prepare-security-audit': { scenario: 'gathering evidence and validating controls for a security review', urgency: 'required for compliance deadlines and organizational trust', outcome: 'compile a verifiable set of security controls and configuration evidence', evidence: 'control name, fixture, and a regenerable pass/fail — not a slide screenshot', failure: 'a green UI with no provenance the auditor can replay' },
+  'generate-test-fixtures': { scenario: 'creating realistic sample data for automated tests', urgency: 'foundational for test coverage and regression detection', outcome: 'produce representative test data covering normal, edge, and adversarial cases', evidence: 'a positive fixture, a negative fixture, and the assertion each one is for', failure: 'one happy-path sample that cannot fail the test' },
 };
 
 const DEFAULT_AUDIENCE: AudienceContext = { focus: 'engineering quality', concern: 'data correctness', workflow: 'within your development process' };
-const DEFAULT_TASK: TaskContext = { scenario: 'completing a development task', urgency: 'important for project quality', outcome: 'achieve the desired result efficiently' };
+const DEFAULT_TASK: TaskContext = { scenario: 'completing a development task', urgency: 'important for project quality', outcome: 'achieve the desired result efficiently', evidence: 'input, settings, and output stored together', failure: 'treating a pretty-print as a signed decision' };
 
 /* -------------------------------------------------------------------------- */
 /*  Compact entity forms                                                       */
@@ -1195,6 +1196,8 @@ function pageKernel(page: ResolvedPage): PageKernel {
     taskScenario: tc.scenario,
     taskOutcome: tc.outcome,
     taskUrgency: tc.urgency,
+    taskEvidence: tc.evidence,
+    taskFailure: tc.failure,
   };
 }
 
@@ -1224,7 +1227,9 @@ function buildContent(page: ResolvedPage): PageContent {
   const snippets = uniqueSnippets(k, tk, ik, plan);
   const artifact = contextArtifact(k);
 
+  const job = taskGuide(k);
   const sections: KnowledgeSection[] = [
+    job.section,
     ...archetypeSections(k, tk, ik),
     contextSection(k, cv.bodyBlock, cv.demand),
     audienceSection(k),
@@ -1271,8 +1276,47 @@ function intentKernelLabel(intent: string, fallback: string): string {
   return fallback || intent.replace(/-/g, ' ');
 }
 
+function taskExampleFields(task: string, fixtureId: string, recordId: number): Record<string, string | number | boolean> {
+  switch (task) {
+    case 'debug-production-issue':
+      return { incidentId: `inc-${recordId}`, capturedAt: '2026-08-20T13:40:00Z', severity: 'sev-2' };
+    case 'prepare-api-response':
+      return { httpStatus: 200, schema: 'response.v1', contentType: 'application/json' };
+    case 'clean-up-payload':
+      return { droppedKeys: 0, rewritten: fixtureId, keepUnknown: false };
+    case 'sanitize-user-input':
+      return { origin: 'user-form', allowHtml: false, maxBytes: 4096 };
+    case 'prepare-query-parameters':
+      return { spaceEncoding: '%20', repeatArrays: true };
+    case 'inspect-encoded-payload':
+      return { alphabet: 'url-safe', padding: true };
+    case 'trace-request':
+      return { hop: 'ingress', nextHop: 'service', traceId: fixtureId };
+    case 'validate-auth-token':
+      return { alg: 'HS256', verifySignature: true, productionToken: false };
+    case 'review-config-change':
+      return { beforeSha: fixtureId.slice(0, 12), environment: 'staging' };
+    case 'migrate-legacy-system':
+      return { sourceSystem: 'legacy', targetSystem: 'current', pairedId: recordId };
+    case 'prepare-deployment-artifact':
+      return { artifact: `${fixtureId}.tgz`, minify: true };
+    case 'document-api-endpoint':
+      return { exampleOf: 'success-body', contractTest: true };
+    case 'optimize-build-pipeline':
+      return { budgetMs: 90000, golden: `${fixtureId}.json` };
+    case 'resolve-merge-conflict':
+      return { ours: 'HEAD', theirs: 'origin/main', replayable: true };
+    case 'prepare-security-audit':
+      return { control: 'input-validation', regenerable: true };
+    case 'generate-test-fixtures':
+      return { positive: true, negativeTwin: `neg-${fixtureId}` };
+    default:
+      return { fixtureId, recordId };
+  }
+}
+
 function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
-  const { intent, tool, slug } = page;
+  const { tool, slug, task } = page;
   let x = (hashString(slug) ^ 0x9e3779b9) >>> 0;
   const rnd = () => {
     x ^= x << 13; x >>>= 0;
@@ -1287,7 +1331,9 @@ function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
   if (f2 === f1) f2 = fields[(fields.indexOf(f1) + 1) % fields.length];
   const fixtureId = `fx-${hex(8)}`;
   const recordId = 1000 + (rnd() % 9000);
-  const sample = `{"${f1}":"${fixtureId}","${f2}":${recordId},"job":"${intent}","mode":"${page.style}","setting":"${page.context}"}`;
+  const extra = taskExampleFields(task, fixtureId, recordId);
+  const sampleObj: Record<string, string | number | boolean> = { [f1]: fixtureId, [f2]: recordId, ...extra };
+  const sample = JSON.stringify(sampleObj);
 
   let inputLabel = 'input fixture';
   let outputLabel = `${toolName(tool)} output`;
@@ -1297,7 +1343,7 @@ function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
   switch (tool) {
     case 'json-to-typescript':
       outputLabel = 'generated interface';
-      output = `interface Record${recordId} {\n  ${f1}: string;\n  ${f2}: number;\n  job: string;\n  mode: string;\n  setting: string;\n}`;
+      output = `interface Record${recordId} {\n  ${f1}: string;\n  ${f2}: number;\n}`;
       break;
     case 'hash-generator':
       inputLabel = 'message'; outputLabel = 'SHA-256 (representative)'; input = fixtureId; output = hex(64);
@@ -1322,7 +1368,8 @@ function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
       try { output = JSON.stringify(JSON.parse(sample), null, 2); } catch { output = sample; }
   }
 
-  const note = exampleNote(pageKernel(page), fixtureId);
+  const k = pageKernel(page);
+  const note = `${exampleNote(k, fixtureId)} The sample is for ${k.taskScenario}: keep ${k.taskEvidence}.`;
   return { inputLabel, input, outputLabel, output, note };
 }
 
@@ -1530,6 +1577,39 @@ export function auditServedCopy(html: string, page: ResolvedPage): string[] {
   if (styleCount > 12) issues.push(`style phrase "${sv}" repeated ${styleCount}× (keyword stuffing)`);
   if (contextCount > 12) issues.push(`context phrase "${cv}" repeated ${contextCount}× (keyword stuffing)`);
 
+  const genericHeadings = [
+    'what this page is about',
+    'key takeaways',
+    'copy-paste snippets for this procedure',
+    'how this compares to other approaches',
+    'frequently asked questions',
+    'common pitfalls to avoid',
+    'related guides and tools',
+    'worked example',
+  ];
+  for (const heading of genericHeadings) {
+    if (lower.includes(heading)) issues.push(`generic template heading: "${heading}"`);
+  }
+  if (/<th>parameter<\/th>/i.test(withoutCode) && /<th>this guide<\/th>/i.test(withoutCode)) {
+    issues.push('CMS-style parameter table (job/tool/method/setting) — auto-generated signal');
+  }
+
+  if (!/<section\b[^>]*id=["']job["']/i.test(html)) {
+    issues.push('missing independent-job thesis section');
+  }
+
+  const leadMatch = html.match(/<p class="lead"[^>]*>([\s\S]*?)<\/p>/i);
+  if (leadMatch) {
+    const lead = leadMatch[1].replace(/<[^>]+>/g, ' ').toLowerCase();
+    const who = pluralRole(page.audience).toLowerCase();
+    const scene = (TASK_CONTEXT[page.task]?.scenario ?? '').toLowerCase();
+    const namedAudience = who.split(/\s+/).some((w) => w.length > 4 && lead.includes(w));
+    const namedTask = scene.split(/\s+/).some((w) => w.length > 5 && lead.includes(w));
+    if (!namedAudience && !namedTask) {
+      issues.push('opening does not name the audience or the task this independent guide is for');
+    }
+  }
+
   // The tool name is the single most repeatable token on the page. A few pages
   // name a tool after the job itself ("Markdown Preview" for preview-markdown),
   // where a higher count is the topic rather than stuffing.
@@ -1543,6 +1623,76 @@ export function auditServedCopy(html: string, page: ResolvedPage): string[] {
   const toolLimit = namesTheJob ? 45 : 30;
   if (toolCount > toolLimit) issues.push(`tool name repeated ${toolCount}× (keyword stuffing)`);
   return issues;
+}
+
+function genreHeading(id: string, page: ResolvedPage, c: PageContent): string {
+  const job = label(page.intent);
+  const tool = toolName(page.tool);
+  switch (id) {
+    case 'entity':
+      switch (page.style) {
+        case 'as-part-of-ci-cd-pipeline': return `The invariant ${tool} is rehearsing`;
+        case 'during-code-review': return `What a reviewer must be able to regenerate`;
+        case 'without-installing-cli-tools': return `The only runtime this job is allowed`;
+        case 'with-safe-local-processing': return `What “on-device” means for ${job}`;
+        case 'while-keeping-data-private': return `What counts as an extra copy`;
+        case 'for-quick-prototyping': return `What this spike is allowed to decide`;
+        case 'with-step-by-step-instructions': return `The skill this lesson is teaching`;
+        case 'with-automated-validation': return `The statement a script has to fail`;
+        default: return `${tool} in this procedure`;
+      }
+    case 'takeaways':
+      switch (page.style) {
+        case 'with-step-by-step-instructions': return `What a first-timer should be able to repeat`;
+        case 'as-part-of-ci-cd-pipeline': return `What a red or green job is actually saying`;
+        case 'during-code-review': return `Sign-off in one glance`;
+        default: return `What has to be true when you stop`;
+      }
+    case 'acceptance':
+      return `Done-when checks a second person can run`;
+    case 'steps':
+      switch (page.style) {
+        case 'as-part-of-ci-cd-pipeline': return `Porting ${job} into CI`;
+        case 'during-code-review': return `Review loop for ${job}`;
+        case 'without-installing-cli-tools': return `${sentence(job)} with no package manager`;
+        case 'with-step-by-step-instructions': return `Teachable sequence for ${job}`;
+        case 'for-quick-prototyping': return `Time-boxed path for ${job}`;
+        default: return `Procedure for ${job}`;
+      }
+    case 'example':
+      return `A fixture from ${contextVocab(page).phrase}`;
+    case 'snippets':
+      switch (page.style) {
+        case 'as-part-of-ci-cd-pipeline': return `Golden files the job must replay`;
+        case 'during-code-review': return `What belongs in the pull-request comment`;
+        case 'without-installing-cli-tools': return `Samples that stay in the tab`;
+        case 'with-automated-validation': return `Positive and negative bytes for the invariant`;
+        case 'with-safe-local-processing': return `On-device samples with no egress`;
+        default: return `Samples for this procedure`;
+      }
+    case 'pitfalls':
+      switch (page.style) {
+        case 'as-part-of-ci-cd-pipeline': return `False reds and false greens`;
+        case 'during-code-review': return `Review comments that cannot be replayed`;
+        case 'while-keeping-data-private': return `Correct results that still leak`;
+        default: return `Mistakes this procedure still sees`;
+      }
+    case 'comparison':
+      return `When a different method is the better guide`;
+    case 'glossary':
+      return `Terms this page uses strictly`;
+    case 'faq':
+      switch (page.style) {
+        case 'as-part-of-ci-cd-pipeline': return `Pipeline questions this job still gets`;
+        case 'during-code-review': return `Review questions that keep coming back`;
+        case 'without-installing-cli-tools': return `No-install questions this still gets`;
+        case 'with-step-by-step-instructions': return `Questions learners still ask`;
+        case 'for-quick-prototyping': return `Spike questions that waste the time-box`;
+        default: return `Questions this procedure still gets`;
+      }
+    default:
+      return c.decision.heading;
+  }
 }
 
 export function renderProgrammaticPage(page: ResolvedPage, origin: string): string {
@@ -1634,12 +1784,12 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     .join('');
 
   // Bing §16 entity block — early, explicit, citable.
-  const entity = `<section id="entity" data-entity aria-labelledby="entity-heading"><h2 id="entity-heading">What this page is about</h2>`
-    + `<p data-snippet><strong>${escapeHtml(c.entity.name)}</strong> — ${escapeHtml(c.entity.definition)}</p>`
+  const entity = `<section id="entity" data-entity aria-labelledby="entity-heading"><h2 id="entity-heading">${escapeHtml(genreHeading('entity', page, c))}</h2>`
+    + `<dl><dt>${escapeHtml(c.entity.name)}</dt><dd data-snippet>${escapeHtml(c.entity.definition)}</dd></dl>`
     + `<p class="meta">Also referred to as: ${c.entity.alsoKnownAs.map((a) => escapeHtml(a)).join(' · ')}</p>`
     + `</section>`;
 
-  const takeaways = `<section aria-labelledby="key-takeaways"><h2 id="key-takeaways">Key takeaways</h2><div class="tk" data-snippet>${renderList(c.keyTakeaways)}</div></section>`;
+  const takeaways = `<section aria-labelledby="key-takeaways"><h2 id="key-takeaways">${escapeHtml(genreHeading('takeaways', page, c))}</h2><div class="tk" data-snippet>${renderList(c.keyTakeaways)}</div></section>`;
 
   // A reader who arrives on a scenario page from a long-tail query wants the
   // tool, not a scroll. The call to action sits directly under the lead so the
@@ -1654,39 +1804,32 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + `<h3>Choose a different guide when</h3>${renderList(c.decision.notWhen)}`
     + `</section>`;
 
-  const acceptance = `<section aria-labelledby="acceptance"><h2 id="acceptance">Acceptance criteria</h2>${renderList(c.acceptance)}</section>`;
+  const acceptance = `<section aria-labelledby="acceptance"><h2 id="acceptance">${escapeHtml(genreHeading('acceptance', page, c))}</h2>${renderList(c.acceptance)}</section>`;
 
-  const stepsHtml = `<section aria-labelledby="steps"><h2 id="steps">How to ${escapeHtml(label(page.intent))}</h2>${renderList(c.steps, true)}</section>`;
+  const stepsHtml = `<section aria-labelledby="steps"><h2 id="steps">${escapeHtml(genreHeading('steps', page, c))}</h2>${renderList(c.steps, true)}</section>`;
 
-  const example = `<section aria-labelledby="example"><h2 id="example">Worked example</h2>`
+  const example = `<section aria-labelledby="example"><h2 id="example">${escapeHtml(genreHeading('example', page, c))}</h2>`
     + `<p>${escapeHtml(c.workedExample.note)}</p>`
     + `<h3>${escapeHtml(c.workedExample.inputLabel)}</h3><pre><code>${escapeHtml(c.workedExample.input)}</code></pre>`
     + `<h3>${escapeHtml(c.workedExample.outputLabel)}</h3><pre><code>${escapeHtml(c.workedExample.output)}</code></pre></section>`;
 
-  const snippets = `<section aria-labelledby="snippets"><h2 id="snippets">Copy-paste snippets for this procedure</h2>`
+  const snippets = `<section aria-labelledby="snippets"><h2 id="snippets">${escapeHtml(genreHeading('snippets', page, c))}</h2>`
     + `<p>${escapeHtml(snippetLead(pageKernel(page)))}</p>`
-    + `<table><thead><tr><th>Parameter</th><th>This guide</th></tr></thead><tbody>`
-    + `<tr><td>Job</td><td>${escapeHtml(label(page.intent))}</td></tr>`
-    + `<tr><td>Tool</td><td>${escapeHtml(toolName(page.tool))}</td></tr>`
-    + `<tr><td>Working method</td><td>${escapeHtml(styleVocab(page).phrase)}</td></tr>`
-    + `<tr><td>Setting</td><td>${escapeHtml(contextVocab(page).phrase)}</td></tr>`
-    + `<tr><td>Audience / task</td><td>${escapeHtml(label(page.audience))} · ${escapeHtml(label(page.task))}</td></tr>`
-    + `</tbody></table>`
     + c.snippets.map((s) => `<h3>${escapeHtml(s.label)}</h3><pre><code>${escapeHtml(s.code)}</code></pre><p>${escapeHtml(s.caption)}</p>`).join('')
     + `</section>`;
 
-  const pitfalls = `<section aria-labelledby="pitfalls"><h2 id="pitfalls">Common pitfalls to avoid</h2>${renderList(c.pitfalls)}</section>`;
+  const pitfalls = `<section aria-labelledby="pitfalls"><h2 id="pitfalls">${escapeHtml(genreHeading('pitfalls', page, c))}</h2>${renderList(c.pitfalls)}</section>`;
 
-  const comparison = `<section aria-labelledby="compare"><h2 id="compare">How this compares to other approaches</h2>`
+  const comparison = `<section aria-labelledby="compare"><h2 id="compare">${escapeHtml(genreHeading('comparison', page, c))}</h2>`
     + `<table><thead><tr><th>Approach</th><th>Strengths</th><th>Trade-offs</th></tr></thead><tbody>`
     + c.comparison.map((r) => `<tr><td>${escapeHtml(r.item)}</td><td>${escapeHtml(r.pros)}</td><td>${escapeHtml(r.cons)}</td></tr>`).join('')
     + `</tbody></table></section>`;
 
-  const glossary = `<section aria-labelledby="glossary"><h2 id="glossary">Glossary</h2><dl>`
+  const glossary = `<section aria-labelledby="glossary"><h2 id="glossary">${escapeHtml(genreHeading('glossary', page, c))}</h2><dl>`
     + c.glossary.map((g) => `<dt>${escapeHtml(g.term)}</dt><dd>${escapeHtml(g.definition)}</dd>`).join('')
     + `</dl></section>`;
 
-  const faq = `<section aria-labelledby="faq"><h2 id="faq">Frequently asked questions</h2>`
+  const faq = `<section aria-labelledby="faq"><h2 id="faq">${escapeHtml(genreHeading('faq', page, c))}</h2>`
     + c.faq.map((f) => `<h3>${escapeHtml(f.question)}</h3><p>${escapeHtml(f.answer)}</p>`).join('')
     + `</section>`;
 
@@ -1695,7 +1838,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
   const artifact = `<section id="artifact" aria-labelledby="artifact-h"><h2 id="artifact-h">${escapeHtml(c.artifact.heading)}</h2>${artifactParas}${artifactList}</section>`;
 
   const guide = GUIDE_BY_TOOL[toolSlug];
-  const related = `<section aria-labelledby="related"><h2 id="related">Related guides and tools</h2><div class="links">`
+  const related = `<section aria-labelledby="related"><h2 id="related">Where to go next</h2><div class="links">`
     + c.related.map((r) => `<a href="/k/${escapeHtml(r.slug)}">${escapeHtml(r.label)}</a>`).join('')
     + (guide ? `<a href="/guides/${escapeHtml(guide.slug)}">${escapeHtml(guide.title)}</a>` : '')
     + `<a href="/tools/${escapeHtml(toolSlug)}">Open the ${escapeHtml(toolName(page.tool))} tool</a>`
@@ -1746,13 +1889,11 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
   for (const id of c.plan.order) {
     if (id === 'archetype') {
       const arch = [...splitSections.entries()].filter(([key]) => key.startsWith('archetype:'));
-      const rot = arch.length ? c.plan.seed % arch.length : 0;
-      const rotated = rot ? arch.slice(rot).concat(arch.slice(0, rot)) : arch;
-      for (const [, html] of rotated) orderedParts.push(html);
+      for (const [, html] of arch) orderedParts.push(html);
       archetypeFlushed = true;
       continue;
     }
-    if (id === 'context' || id === 'audience' || id === 'practice') {
+    if (id === 'job' || id === 'context' || id === 'audience' || id === 'practice') {
       const html = splitSections.get(id);
       if (html) orderedParts.push(html);
       continue;
@@ -1766,9 +1907,9 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     }
   }
 
-  // Order: Bing §18 early answer stays first (H1 + lead + entity). Everything
-  // after that is permuted per slug so the 20M corpus does not share one H2
-  // skeleton. Related links stay last as crawl graph chrome.
+  // Order: Bing §18 early answer stays first (H1 + lead + entity). Body order
+  // is the professional outline for this document genre — not a shuffled
+  // copy of one universal skeleton. Related links stay last as crawl chrome.
   const body = `<body>${AD_HEADER_SLOT}<div class="wrap"><main>`
     + crumbs
     + `<h1>${escapeHtml(c.h1)}</h1>`

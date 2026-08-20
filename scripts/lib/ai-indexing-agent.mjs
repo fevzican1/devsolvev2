@@ -20,7 +20,7 @@
  */
 
 export const AGENT_ID = 'devsolve-ai-indexing-agent';
-export const AGENT_VERSION = '2026-08-20.1';
+export const AGENT_VERSION = '2026-08-20.3';
 
 /** Cost model — must stay true for every change to this system. */
 export const COST_MODEL = Object.freeze({
@@ -54,8 +54,9 @@ export const QUALITY_CONTRACT = Object.freeze({
   requireEarlyAnswer: true, // Bing §18
   requireUniqueTitleDescH1: true, // Bing §6 / Google duplicate reasons
   requireUniqueSiblingBodies: true, // Bing abuse: near-duplicate / auto-gen at scale
-  // Uniqueness comes from layout + parameterised snippets + variable FAQ/steps,
-  // NOT from stuffing style/context into every sentence (that failed Bing quality).
+  // Uniqueness comes from a job-native thesis (task) plus a genre-native
+  // outline (style) plus setting-specific evidence (context) — not from
+  // shuffling one universal H2 skeleton (that is itself an auto-generated signal).
   maxSiblingBodyJaccard: 0.25,
   siblingShingleSize: 5,
   requireWorkedExample: true, // Bing §15 verifiability
