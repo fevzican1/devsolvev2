@@ -99,46 +99,46 @@ function hex(next: () => number, n: number): string {
  */
 const GENRE_OUTLINE: Record<string, { order: SectionId[]; omit: SectionId[] }> = {
   'without-installing-cli-tools': {
-    order: ['decision', 'job', 'artifact', 'archetype', 'context', 'steps', 'example', 'snippets', 'acceptance', 'pitfalls', 'audience', 'faq'],
-    omit: ['glossary', 'comparison', 'practice', 'takeaways'],
+    order: ['decision', 'job', 'practice', 'artifact', 'archetype', 'context', 'steps', 'example', 'snippets', 'acceptance', 'pitfalls', 'audience', 'faq'],
+    omit: ['glossary', 'comparison', 'takeaways'],
   },
   'directly-in-your-browser': {
-    order: ['decision', 'job', 'artifact', 'takeaways', 'steps', 'example', 'snippets', 'archetype', 'context', 'pitfalls', 'audience', 'faq'],
-    omit: ['glossary', 'practice', 'comparison'],
+    order: ['decision', 'job', 'artifact', 'takeaways', 'practice', 'steps', 'example', 'snippets', 'archetype', 'context', 'pitfalls', 'audience', 'faq'],
+    omit: ['glossary', 'comparison'],
   },
   'with-step-by-step-instructions': {
-    order: ['decision', 'job', 'artifact', 'takeaways', 'archetype', 'steps', 'example', 'snippets', 'pitfalls', 'glossary', 'audience', 'context', 'faq'],
-    omit: ['comparison', 'practice'],
+    order: ['decision', 'job', 'artifact', 'takeaways', 'archetype', 'steps', 'practice', 'example', 'snippets', 'pitfalls', 'glossary', 'audience', 'context', 'faq'],
+    omit: ['comparison'],
   },
   'with-safe-local-processing': {
-    order: ['decision', 'job', 'artifact', 'archetype', 'acceptance', 'context', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
-    omit: ['glossary', 'comparison', 'practice', 'takeaways'],
+    order: ['decision', 'job', 'artifact', 'archetype', 'acceptance', 'practice', 'context', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
+    omit: ['glossary', 'comparison', 'takeaways'],
   },
   'while-keeping-data-private': {
-    order: ['decision', 'job', 'artifact', 'archetype', 'acceptance', 'context', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
-    omit: ['glossary', 'comparison', 'practice', 'takeaways'],
+    order: ['decision', 'job', 'artifact', 'archetype', 'practice', 'acceptance', 'context', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
+    omit: ['glossary', 'comparison', 'takeaways'],
   },
   'for-quick-prototyping': {
-    order: ['decision', 'job', 'artifact', 'context', 'archetype', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
-    omit: ['glossary', 'comparison', 'practice', 'takeaways', 'acceptance'],
+    order: ['decision', 'job', 'artifact', 'context', 'practice', 'archetype', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
+    omit: ['glossary', 'comparison', 'takeaways', 'acceptance'],
   },
   'during-code-review': {
-    order: ['decision', 'job', 'artifact', 'archetype', 'acceptance', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'context', 'faq'],
-    omit: ['glossary', 'comparison', 'practice', 'takeaways'],
+    order: ['decision', 'job', 'artifact', 'practice', 'archetype', 'acceptance', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'context', 'faq'],
+    omit: ['glossary', 'comparison', 'takeaways'],
   },
   'as-part-of-ci-cd-pipeline': {
-    order: ['decision', 'job', 'artifact', 'context', 'archetype', 'acceptance', 'snippets', 'example', 'steps', 'pitfalls', 'comparison', 'audience', 'faq'],
-    omit: ['glossary', 'practice', 'takeaways'],
+    order: ['decision', 'job', 'artifact', 'context', 'practice', 'archetype', 'acceptance', 'snippets', 'example', 'steps', 'pitfalls', 'comparison', 'audience', 'faq'],
+    omit: ['glossary', 'takeaways'],
   },
   'with-automated-validation': {
-    order: ['decision', 'job', 'artifact', 'context', 'archetype', 'acceptance', 'snippets', 'example', 'steps', 'pitfalls', 'audience', 'faq'],
-    omit: ['glossary', 'comparison', 'practice', 'takeaways'],
+    order: ['decision', 'job', 'artifact', 'context', 'archetype', 'acceptance', 'practice', 'snippets', 'example', 'steps', 'pitfalls', 'audience', 'faq'],
+    omit: ['glossary', 'comparison', 'takeaways'],
   },
 };
 
 const DEFAULT_OUTLINE: { order: SectionId[]; omit: SectionId[] } = {
-  order: ['decision', 'job', 'artifact', 'takeaways', 'archetype', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
-  omit: ['glossary', 'comparison', 'practice'],
+  order: ['decision', 'job', 'artifact', 'practice', 'takeaways', 'archetype', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
+  omit: ['glossary', 'comparison'],
 };
 
 export function planDocument(k: PageKernel): DocumentPlan {
@@ -1126,6 +1126,31 @@ export function variedAcceptance(k: PageKernel, _tk: ToolKnowledge, _ik: IntentK
   ];
 }
 
+export function practiceHeading(k: PageKernel): string {
+  switch (k.style) {
+    case 'without-installing-cli-tools':
+      return 'Why this job stays off the package manager';
+    case 'directly-in-your-browser':
+      return 'Why the tab is the runtime';
+    case 'with-step-by-step-instructions':
+      return 'Why the clicks are written out';
+    case 'with-safe-local-processing':
+      return 'Why the bytes never leave this device';
+    case 'while-keeping-data-private':
+      return 'Why an extra copy still fails';
+    case 'for-quick-prototyping':
+      return 'Why most of this session gets thrown away';
+    case 'during-code-review':
+      return 'Why the thread has to replay this';
+    case 'as-part-of-ci-cd-pipeline':
+      return 'Why a screenshot is not the gate';
+    case 'with-automated-validation':
+      return 'Why a script has to be able to fail this';
+    default:
+      return `Why this job is done ${k.stylePhrase}`;
+  }
+}
+
 export function contextArtifact(k: PageKernel): KnowledgeSection {
   const rows = artifactRows(k);
   return {
@@ -1133,9 +1158,59 @@ export function contextArtifact(k: PageKernel): KnowledgeSection {
     heading: artifactHeading(k),
     paragraphs: [
       `Keep this list beside the ${k.toolLabel} result. ${sentence(k.contextPhrase)} is what decides which fields matter, and writing them down is what stops the next person from inventing a different pack.`,
+      artifactNarrative(k),
     ],
     list: rows,
   };
+}
+
+function artifactNarrative(k: PageKernel): string {
+  const noun = k.jobNoun;
+  const t = k.toolLabel;
+  switch (k.context) {
+    case 'for-time-sensitive-incidents':
+      return `Write the clock on the pack itself: when the sample was captured, when settings were frozen, and who owns the next fifteen minutes. ${sentence(t)} is only useful here if that timeline still makes sense to someone joining the call late.`;
+    case 'for-team-onboarding':
+      return `A new hire should be able to rebuild this ${noun} pack from the page without a private Slack thread. If a veteran has to narrate a hidden click, the pack is not yet teaching material.`;
+    case 'for-audit-readiness':
+      return `An auditor will ask for input, settings, output, and a timestamp — not a memory of a green tab. Spell the ${t} settings out; “defaults” is not a regenerable field.`;
+    case 'for-cross-region-teams':
+      return `Someone in another timezone has to finish this pack without a live handover. Relative times, slang, and “as discussed” notes are defects in this setting.`;
+    case 'for-legacy-system-migrations':
+      return `Prove the old and new representations mean the same thing. A pretty-print that looks similar while nulls or encodings drifted is not an equivalence proof for ${noun}.`;
+    case 'for-large-enterprise-workflows':
+      return `Two squads should reach the same go/no-go from this pack. Local nicknames for ${t} settings will not survive the next rotation.`;
+    case 'for-api-contract-validation':
+      return `Name the field, the documented type, and the observed type. “Payload looks weird” is not a finding a contract test can fail.`;
+    case 'for-weekly-ops-routines':
+      return `This pack should take the same few minutes next week. If finishing ${noun} required improvisation, the routine is already drifting.`;
+    case 'for-compliance-reporting':
+      return `Cite the policy identifier next to what ${noun} actually checked. A screenshot without that citation is not a report.`;
+    case 'for-incident-postmortems':
+      return `Assume a stranger will replay this next quarter from records alone. Anything that lived only in a forgotten ${t} tab is already gone.`;
+    case 'for-capacity-planning':
+      return `Record sample size and where the browser path stops being representative. A tiny fixture with no volume note cannot inform capacity for ${noun}.`;
+    case 'for-release-management':
+      return `The pack has to be a binary go or no-go, fast enough for the gate and safe to repeat on rollback. “Looks probably fine” is not a release artifact.`;
+    case 'for-vendor-integration':
+      return `Isolate their payload, your parse, and the transport. If you cannot say which side mutated ${noun}, you do not yet have a vendor finding.`;
+    case 'for-data-governance':
+      return `Write where the bytes sat, who could see them, and whether anything was retained. A correct ${t} result that created an unapproved copy still fails governance.`;
+    case 'for-service-mesh-debugging':
+      return `Keep the same ${noun} at hop A and hop B until the mutating hop is named. One capture with no hop label answers a different question.`;
+    case 'for-cost-optimization':
+      return `Prefer the zero-infra path unless you can write why a cluster or egress hop was required. Cost work treats an unused pipeline as waste, not maturity.`;
+    case 'for-performance-benchmarking':
+      return `Freeze fixture and settings before you change code. Moving both in the same session throws the ${noun} series away.`;
+    case 'for-disaster-recovery':
+      return `Rehearse this on a cold laptop with no control plane. If ${k.jobGerund} needs the broken system to finish, the drill is lying.`;
+    case 'for-production-rollouts':
+      return `Run the same fixture on old and new. The rollout artifact is the diff, not either side’s pretty-print.`;
+    case 'for-observability-pipelines':
+      return `Keep one record the parser will accept and one it will drop. If the drop is silent, the dashboard will lie about ${noun}.`;
+    default:
+      return `Label the fixture, write the ${t} settings, and keep an output a stranger could regenerate. That is the minimum pack this setting will accept.`;
+  }
 }
 
 function artifactHeading(k: PageKernel): string {
