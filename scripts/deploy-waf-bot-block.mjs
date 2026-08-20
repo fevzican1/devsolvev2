@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { BING_CRAWLER_ASNS, GOOGLE_CRAWLER_ASNS, wafAsnSet } from './lib/crawler-asns.mjs';
+
 /**
  * Deploy the Cloudflare edge protection for devsolvev2.com.
  *
@@ -21,34 +23,25 @@
  * RULE ORDER (first match wins; Free plan allows 5 custom rules, and rules the
  * operator created by hand are preserved after ours)
  *
- *   1. SKIP  — verified Googlebot/Bingbot ONLY.
- *      `cf.client.bot` is Cloudflare's verified-bot signal (same data as
- *      cf.bot_management.verified_bot, but available on every plan): reverse-DNS
- *      and published-IP validated, so a spoofed "Googlebot" from a VPS can
- *      never match it. Combined with a crawler User-Agent so that verified
- *      scrapers which are also on Cloudflare's list (GPTBot, AhrefsBot,
- *      ClaudeBot…) do not inherit the exemption. Skips every later custom rule
- *      plus Security Level, Browser Integrity Check, UA blocking, rate limiting
- *      and Managed Rules — the crawl path is a straight line to the origin.
+ *   1. SKIP  — Googlebot/Bingbot family User-Agents, verified social unfurl
+ *      crawlers, and public ownership endpoints. Search crawlers are skipped
+ *      on User-Agent alone (not `cf.client.bot`): a lag in Cloudflare's
+ *      verified-bot signal is how a real Google/Bing crawl gets 403ed, and
+ *      Google's renderer also fetches subresources with a Chrome UA from
+ *      Google ASNs. Those ASNs are therefore NOT in the hosting block list.
+ *      Social preview bots still require `cf.client.bot` so a spoofed
+ *      "Twitterbot" from a VPS does not inherit the skip.
  *
- *   2. BLOCK — traffic that cannot be a human or a search crawler:
- *      - AI/SEO/scraper agents and HTTP libraries, by name (blocked even when
- *        Cloudflare lists them as verified — that is the site's policy and it
- *        matches public/robots.txt);
- *      - absent or absurdly short User-Agents.
- *      Spoofed "Googlebot"/"Bingbot" User-Agents are NOT matched here. A custom
- *      rule that keys off those strings can 403 a real crawl if Cloudflare's
- *      verified-bot signal lags; spoofs miss WAF1 (`cf.client.bot` is false)
- *      and are handled by the rate-limit rule instead.
+ *   2. BLOCK — everything that is not a human browser or a skipped crawler:
+ *      named AI/SEO/scraper agents and HTTP libraries (even when Cloudflare
+ *      lists them as verified — that matches public/robots.txt), empty or
+ *      tiny User-Agents, and "Chrome" User-Agents that do not send Client
+ *      Hints + Fetch Metadata + HTTP/2|3 (the farm signature).
  *
- *   3. MANAGED CHALLENGE — a client that claims to be a browser but does not
- *      behave like one: a Chromium User-Agent without the Client Hints and
- *      Fetch Metadata that every Chrome ≥ 89 sends, an HTTP/1.1 "Chrome", or
- *      any non-crawler request from a datacenter/hosting network. A human on a
- *      corporate proxy or VPN solves the challenge in about a second; a scraper
- *      farm cannot solve it at all. Verified bots are excluded, so link-preview
- *      crawlers (Twitter/X, LinkedIn, Slack, Discord, Facebook) still render
- *      cards — those are a real referral-traffic channel.
+ *   3. MANAGED CHALLENGE — browser-extension scrapers (`chrome-extension://`,
+ *      `moz-extension://`, `safari-web-extension`). A person who leaked that
+ *      token from an installed extension can still pass; a farm of extension
+ *      scrapers cannot do that at volume.
  *
  *   4. RATE LIMIT (separate phase, own quota) — /k/* and sitemaps, per IP,
  *      excluding verified bots. This is the only defence against a farm that
@@ -59,38 +52,7 @@
  * Usage: node scripts/deploy-waf-bot-block.mjs [--dry-run]
  */
 
-import { wafAsnSet } from './lib/crawler-asns.mjs';
-
 const MAX_EXPRESSION_LENGTH = 4096;
-
-/**
- * Cloud/hosting networks. Humans do browse from a few of these (corporate
- * proxies, commercial VPNs), which is why the rule that uses this list issues a
- * managed challenge instead of a block. Deliberately excluded: 13335
- * (Cloudflare WARP), 20940 (Akamai) and 54113 (Fastly), because Apple's iCloud
- * Private Relay egresses there and those users are real people.
- */
-const HOSTING_ASNS = wafAsnSet([
-  16509, 14618, // Amazon
-  396982, 15169, 19527, 36040, // Google Cloud / Google
-  8075, 8068, 8069, // Azure / Microsoft
-  14061, // DigitalOcean
-  24940, 213230, // Hetzner
-  16276, // OVH
-  63949, // Linode
-  20473, // Vultr
-  51167, // Contabo
-  31898, // Oracle
-  45102, // Alibaba
-  12876, // Scaleway
-  9009, // M247
-  212238, 60068, // Datacamp / CDN77
-  40676, // Psychz
-  8560, // IONOS
-  132203, // Tencent
-  135377, // UCloud
-  49505, // Selectel
-]);
 
 /** Free-plan WAF: contains/lower(), not regex (Business+). Parenthesize OR-groups. */
 function uaContainsAny(markers) {
@@ -118,6 +80,10 @@ const SEARCH_CRAWLER_UA = uaContainsAny([
   'google-safety',
   'feedfetcher-google',
   'apis-google',
+  'google-extended',
+  'googleproducer',
+  'google-favicon',
+  'chrome-lighthouse',
   'bingbot',
   'bingpreview',
   'adidxbot',
@@ -162,16 +128,14 @@ const PUBLIC_ENDPOINTS = `(http.request.uri.path in {
 })`;
 
 /**
- * WAF1 — the skip. Verified Google/Bing crawlers, plus the handful of public
- * endpoints that ownership checks and feed readers must be able to fetch,
- * bypass every later rule and every plan-level security product a custom rule
- * is allowed to skip (Security Level, Browser Integrity Check, UA blocking,
- * rate limiting, Managed Rules). Note that Security Level is why an exemption
- * inside WAF3 is not enough on its own: without this skip, "High" or "I'm
- * Under Attack" still challenges the request after our rules have passed it.
+ * WAF1 — the skip. Google/Bing family User-Agents (no verified-bot
+ * requirement — verification lag is how a real crawl gets 403ed), verified
+ * social unfurl crawlers, and public ownership/feed endpoints bypass every
+ * later custom rule plus Security Level, Browser Integrity Check, UA
+ * blocking, rate limiting and Managed Rules.
  */
 const WAF1_CRAWLER_SKIP = `(
-  (${VERIFIED} and ${SEARCH_CRAWLER_UA})
+  ${SEARCH_CRAWLER_UA}
   or (${VERIFIED} and ${SOCIAL_CRAWLER_UA})
   or ${PUBLIC_ENDPOINTS}
 )`;
@@ -214,9 +178,6 @@ const KNOWN_SCRAPER_UA = uaContainsAny([
   'serpstatbot',
   'zoominfobot',
   'screaming frog',
-  'chrome-extension',
-  'moz-extension',
-  'safari-web-extension',
   'edge/12.246',
   'chrome/42.0.2311.135',
   'headless',
@@ -241,77 +202,81 @@ const KNOWN_SCRAPER_UA = uaContainsAny([
   'masscan',
 ]);
 
-/**
- * WAF2 — hard block. Named scrapers/AI agents/HTTP libraries, plus empty or
- * tiny User-Agents. Search-crawler User-Agents are intentionally absent:
- * matching "Googlebot" here is how you 403 a real crawl when Cloudflare's
- * verified-bot signal is late. Spoofs never have `cf.client.bot`, so they
- * still miss WAF1 and can be rate-limited; they are not custom-rule 403s.
- */
-const WAF2_HARD_BLOCK = `(
-  ${KNOWN_SCRAPER_UA}
-  or (len(http.user_agent) lt 12 and not ${VERIFIED} and not ${PUBLIC_ENDPOINTS})
-)`;
-
-/**
- * Real Chromium navigation/fetch fingerprint. Every Chrome/Edge/Brave/Opera
- * since v89 sends Client Hints and Fetch Metadata on a secure origin; the
- * scraper farms that rotate current Chrome User-Agents typically send neither,
- * or send a dummy sec-ch-ua without the Chromium brand.
- */
-const REAL_CHROMIUM_FINGERPRINT = `(
-  ${headerIn('sec-fetch-mode', ['navigate', 'cors', 'no-cors', 'same-origin'])}
-  and len(http.request.headers["sec-ch-ua"][0]) > 20
-  and lower(http.request.headers["sec-ch-ua"][0]) contains "chromium"
-  and ${headerIn('sec-fetch-site', ['none', 'same-origin', 'same-site', 'cross-site'])}
-  and len(http.request.headers["accept-language"][0]) > 1
-  and (
-    not http.request.headers["sec-fetch-mode"][0] eq "navigate"
-    or (
-      ${headerIn('sec-fetch-dest', ['document', 'iframe'])}
-      and lower(http.request.headers["accept"][0]) contains "text/html"
-    )
-  )
-)`;
-
 const HTTP2_OR_3 = '(http.request.version eq "HTTP/2" or http.request.version eq "HTTP/3")';
 
 /**
- * WAF3 — managed challenge for anything that claims to be a browser but does
- * not act like one, and for non-crawler traffic from datacenter networks.
- * A human passes in about a second; automation does not pass at all.
+ * Real Chromium fingerprint. Farms that stamp a current Chrome User-Agent
+ * typically omit Client Hints or send a dummy sec-ch-ua without "chromium".
+ * Nested fetch-dest checks were dropped so this expression stays under the
+ * 4096-char cap when combined with the scraper list.
  */
-const WAF3_BROWSER_PROOF = `(
-  not ${VERIFIED}
+const REAL_CHROMIUM_FINGERPRINT = `(
+  len(http.request.headers["sec-ch-ua"][0]) > 20
+  and lower(http.request.headers["sec-ch-ua"][0]) contains "chromium"
+  and ${headerIn('sec-fetch-mode', ['navigate', 'cors', 'no-cors', 'same-origin'])}
+  and len(http.request.headers["accept-language"][0]) > 1
+)`;
+
+const EXTENSION_SCRAPER_UA = uaContainsAny([
+  'chrome-extension',
+  'moz-extension',
+  'safari-web-extension',
+]);
+
+/**
+ * Google/Bing crawl ASNs. Used only as an EXCLUSION on the fake-Chrome block:
+ * Google's renderer fetches CSS/JS with a Chrome User-Agent from these
+ * networks, and putting 15169/8075 on a challenge/block list is how a real
+ * crawl gets 403ed. Do not invert this into "challenge these ASNs".
+ */
+const SEARCH_CRAWLER_ASNS = `ip.src.asnum in ${wafAsnSet([...GOOGLE_CRAWLER_ASNS, ...BING_CRAWLER_ASNS])}`;
+
+/**
+ * WAF2 — hard block. Named scrapers/AI agents/HTTP libraries, empty/tiny
+ * User-Agents, and Chrome User-Agents that do not send a real Chromium
+ * fingerprint. Search crawlers never reach this rule (WAF1 skipped them).
+ * Extension scrapers are excluded so they fall through to WAF3's challenge.
+ * Google/Bing ASNs are excluded so the renderer is not 403ed on subresources.
+ */
+const WAF2_HARD_BLOCK = `(
+  ${KNOWN_SCRAPER_UA}
+  or (len(http.user_agent) lt 12 and not ${VERIFIED})
+  or (
+    lower(http.user_agent) contains "chrome/"
+    and not ${EXTENSION_SCRAPER_UA}
+    and not ${SEARCH_CRAWLER_ASNS}
+    and not (${REAL_CHROMIUM_FINGERPRINT} and ${HTTP2_OR_3})
+  )
+)`;
+
+/**
+ * WAF3 — managed challenge for browser-extension scrapers only. A human who
+ * leaked an extension token in the User-Agent can still pass; a farm cannot.
+ */
+const WAF3_EXTENSION_CHALLENGE = `(
+  ${EXTENSION_SCRAPER_UA}
   and not ${SEARCH_CRAWLER_UA}
   and not ${PUBLIC_ENDPOINTS}
-  and (
-    (
-      lower(http.user_agent) contains "chrome/"
-      and not (${REAL_CHROMIUM_FINGERPRINT} and ${HTTP2_OR_3})
-    )
-    or ip.src.asnum in ${HOSTING_ASNS}
-  )
 )`;
 
 const SKIP_PRODUCTS = ['zoneLockdown', 'uaBlock', 'bic', 'hot', 'securityLevel', 'rateLimit', 'waf'];
 
 const RULE_SPEC = [
   {
-    description: '[DevSolve] WAF1 SKIP verified search + social preview crawlers and public endpoints',
+    description: '[DevSolve] WAF1 SKIP Google Bing + verified social unfurls and public endpoints',
     expression: WAF1_CRAWLER_SKIP,
     action: 'skip',
     action_parameters: { ruleset: 'current', products: SKIP_PRODUCTS },
     logging: { enabled: true },
   },
   {
-    description: '[DevSolve] WAF2 BLOCK scrapers, AI crawlers and short User-Agents',
+    description: '[DevSolve] WAF2 BLOCK scrapers, AI crawlers, fake Chrome and short User-Agents',
     expression: WAF2_HARD_BLOCK,
     action: 'block',
   },
   {
-    description: '[DevSolve] WAF3 CHALLENGE fake browsers and datacenter traffic',
-    expression: WAF3_BROWSER_PROOF,
+    description: '[DevSolve] WAF3 CHALLENGE browser-extension scrapers',
+    expression: WAF3_EXTENSION_CHALLENGE,
     action: 'managed_challenge',
   },
 ];
@@ -365,14 +330,20 @@ function printDryRun() {
 
 /** Descriptions this script has used before; replaced rather than preserved. */
 const LEGACY_DESCRIPTIONS = new Set([
+  '[DevSolve] WAF1 SKIP Google Bing + verified social unfurls and public endpoints',
+  '[DevSolve] WAF1 SKIP verified search + social preview crawlers and public endpoints',
   '[DevSolve] SKIP crawlers + real browsers (never challenge)',
   '[DevSolve] WAF1 SKIP verified Googlebot + Bingbot and public endpoints',
   '[DevSolve] WAF1 SKIP verified Googlebot + Bingbot (first, never challenged)',
   '[DevSolve] SKIP verified Google/Bing only (never challenge)',
   '[DevSolve] SKIP verified Google/Bing crawlers (never challenge/block)',
   '[DevSolve] WAF1 block scrapers — keep Google Bing GSC + humans',
+  '[DevSolve] WAF2 BLOCK scrapers, AI crawlers, fake Chrome and short User-Agents',
+  '[DevSolve] WAF2 BLOCK scrapers, AI crawlers and short User-Agents',
   '[DevSolve] WAF2 BLOCK scrapers, AI crawlers and spoofed Googlebot',
   '[DevSolve] WAF2 corpus allowlist — Google Bing GSC + real browsers',
+  '[DevSolve] WAF3 CHALLENGE browser-extension scrapers',
+  '[DevSolve] WAF3 CHALLENGE fake browsers and datacenter traffic',
   '[DevSolve] single block — fake Chrome + scrapers; Google Bing humans allowed',
   '[DevSolve] sitewide block AI indexers + extension scrapers',
   '[DevSolve] sitewide block Meta AI indexer',

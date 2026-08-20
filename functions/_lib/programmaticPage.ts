@@ -46,6 +46,7 @@ import {
   entityFraming,
   planDocument,
   practiceHeading,
+  practiceInSetting,
   uniqueSnippets,
   variedAcceptance,
   variedComparison,
@@ -57,6 +58,7 @@ import {
   variedTakeaways,
   snippetLead,
   exampleNote,
+  exampleSettingNote,
   type DocumentPlan,
   type SnippetBlock,
 } from './pageVariation';
@@ -77,9 +79,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-20T17:25:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-20T18:40:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'f';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'g';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -1252,7 +1254,7 @@ function buildContent(page: ResolvedPage): PageContent {
     {
       id: 'practice',
       heading: practiceHeading(k),
-      paragraphs: [sv.practice, sv.bodyBlock],
+      paragraphs: [sv.practice, sv.bodyBlock, practiceInSetting(k)],
     },
   ];
 
@@ -1385,7 +1387,7 @@ function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
   }
 
   const k = pageKernel(page);
-  const note = `${exampleNote(k, fixtureId)} The sample is for ${k.taskScenario}: keep ${k.taskEvidence}.`;
+  const note = `${exampleNote(k, fixtureId)} ${exampleSettingNote(k)}`;
   return { inputLabel, input, outputLabel, output, note };
 }
 

@@ -264,6 +264,54 @@ export function exampleNote(k: PageKernel, fixtureId: string): string {
   }
 }
 
+export function exampleSettingNote(k: PageKernel): string {
+  const noun = k.jobNoun;
+  switch (k.context) {
+    case 'for-time-sensitive-incidents':
+      return `Capture it in minutes; freeze ${noun} before the next severity bump.`;
+    case 'for-team-onboarding':
+      return `A joiner should rebuild ${noun} from this fixture without Slack lore.`;
+    case 'for-audit-readiness':
+      return `An auditor should regenerate ${noun} from these bytes.`;
+    case 'for-cross-region-teams':
+      return `Label ${noun} in UTC so every region gets the same bytes.`;
+    case 'for-legacy-system-migrations':
+      return `Pair ${noun} with the same identifier on both systems.`;
+    case 'for-large-enterprise-workflows':
+      return `Use the shared name other squads already have for ${noun}.`;
+    case 'for-api-contract-validation':
+      return `Put ${noun} next to the documented example, field by field.`;
+    case 'for-weekly-ops-routines':
+      return `Keep last week’s twin so ${noun} can be diffed.`;
+    case 'for-compliance-reporting':
+      return `Cite the policy beside ${noun}.`;
+    case 'for-incident-postmortems':
+      return `Export ${noun} before the war room dissolves.`;
+    case 'for-capacity-planning':
+      return `Write the sample size beside ${noun}.`;
+    case 'for-release-management':
+      return `Treat ${noun} as a binary go/no-go, safe on rollback.`;
+    case 'for-vendor-integration':
+      return `Keep their bytes, your parse, and ${noun} as three files.`;
+    case 'for-data-governance':
+      return `Write where ${noun} sat and who could see it.`;
+    case 'for-service-mesh-debugging':
+      return `Label ${noun} at hop A and hop B.`;
+    case 'for-cost-optimization':
+      return `Prefer this tab for ${noun} unless a cluster is justified in writing.`;
+    case 'for-performance-benchmarking':
+      return `Freeze ${noun} before you change code.`;
+    case 'for-disaster-recovery':
+      return `Rehearse ${noun} on a cold laptop.`;
+    case 'for-production-rollouts':
+      return `Run ${noun} on old and new; keep the diff.`;
+    case 'for-observability-pipelines':
+      return `Shape-check ${noun} before ingest.`;
+    default:
+      return `Keep ${noun} small enough to repeat between meetings.`;
+  }
+}
+
 function jsonSnippet(
   k: PageKernel,
   _ik: IntentKernel,
@@ -666,12 +714,9 @@ function stepForContext(k: PageKernel): string {
 }
 
 export function variedFaq(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel, _plan: DocumentPlan): FaqItem[] {
-  const job = taskGuide(k);
-  const taskFaq = job.faqs[0] ? [{
-    question: job.faqs[0].question,
-    answer: `${job.faqs[0].answer} ${styleFaqTail(k)}`,
-  }] : [];
-  return [...taskFaq, ...faqForStyle(k, tk, ik).slice(0, 3), ...faqForContext(k).slice(0, 2)];
+  // Style FAQs and setting FAQs only. A shared task FAQ answer is an
+  // 80-word 5-gram run across every same-task sibling.
+  return [...faqForStyle(k, tk, ik).slice(0, 4), ...faqForContext(k).slice(0, 3)];
 }
 
 function styleFaqTail(k: PageKernel): string {
@@ -846,11 +891,83 @@ function faqForContext(k: PageKernel): FaqItem[] {
         { question: `Green screenshot?`, answer: `Not enough without provenance.` },
         { question: `Retention?`, answer: `Follow the policy you cite; do not invent a parallel store.` },
       ];
+    case 'for-team-onboarding':
+      return [
+        { question: `What does a joiner still need written down?`, answer: `The reason behind each click, and a finished pack they produced without Slack lore.` },
+        { question: `May veterans skip the lesson?`, answer: `They can use a shorter page. This one is written to be taught.` },
+        { question: `Where does the pack live afterwards?`, answer: `Somewhere the next new hire can find without asking you.` },
+      ];
+    case 'for-cross-region-teams':
+      return [
+        { question: `Which times belong in the pack?`, answer: `UTC. Relative “today/tomorrow” notes are defects.` },
+        { question: `Is a voice call an acceptable handover?`, answer: `No. The pack has to finish the job in writing.` },
+        { question: `Locales?`, answer: `The same bytes must come out in every region.` },
+      ];
+    case 'for-legacy-system-migrations':
+      return [
+        { question: `The trees look identical. Are we done?`, answer: `Not until nulls, encodings, and field meaning match for paired identifiers.` },
+        { question: `Pretty-print match?`, answer: `Cosmetics. Equivalence is the proof.` },
+        { question: `What if identifiers drifted?`, answer: `You are comparing the wrong records.` },
+      ];
+    case 'for-large-enterprise-workflows':
+      return [
+        { question: `Whose names do I use for settings?`, answer: `The ones other squads already know. Local nicknames fail this setting.` },
+        { question: `Is a heroic one-off acceptable?`, answer: `No. Two engineers should reach the same conclusion independently.` },
+        { question: `What travels between squads?`, answer: `Shared fixtures and shared failure labels.` },
+      ];
+    case 'for-api-contract-validation':
+      return [
+        { question: `What makes a finding?`, answer: `A field, a type, and an encoding — not “the payload looks weird”.` },
+        { question: `Where does the documented example sit?`, answer: `Next to the live body.` },
+        { question: `Undocumented extra fields?`, answer: `Call them out. Do not swallow them as harmless.` },
+      ];
+    case 'for-weekly-ops-routines':
+      return [
+        { question: `How long should this take next week?`, answer: `The same few minutes. Surprise is a failure mode.` },
+        { question: `What do I keep from last week?`, answer: `The pack, so you can diff drift.` },
+        { question: `Improvisation?`, answer: `Means the routine is already rotting.` },
+      ];
+    case 'for-incident-postmortems':
+      return [
+        { question: `When do I export the capture?`, answer: `Before the war room dissolves. Tab state is not an archive.` },
+        { question: `Who replays it next quarter?`, answer: `A stranger, from records alone.` },
+        { question: `Chat scrollback as evidence?`, answer: `Insufficient.` },
+      ];
+    case 'for-capacity-planning':
+      return [
+        { question: `What sits beside the sample?`, answer: `Size, concurrency, and where the browser path stops representing volume.` },
+        { question: `Is a tiny fixture enough?`, answer: `Not without a scaling note.` },
+        { question: `What will you measure next?`, answer: `The same check at production-like size.` },
+      ];
+    case 'for-release-management':
+      return [
+        { question: `What does the gate want?`, answer: `A binary go/no-go, fast enough to repeat on rollback.` },
+        { question: `Looks probably fine?`, answer: `That is a hold, not a ship.` },
+        { question: `Exploratory browsing at the gate?`, answer: `Wrong page.` },
+      ];
+    case 'for-data-governance':
+      return [
+        { question: `What does lineage ask?`, answer: `Where the bytes sat, who could see them, and whether anything was retained.` },
+        { question: `A correct answer that copied the payload?`, answer: `Still a fail.` },
+        { question: `Silence on retention?`, answer: `Treated as an unapproved copy.` },
+      ];
+    case 'for-cost-optimization':
+      return [
+        { question: `When is a cluster justified?`, answer: `When you can write why the tab cannot produce the pack.` },
+        { question: `Idle jobs as maturity?`, answer: `No. They are waste.` },
+        { question: `What is the cheap path?`, answer: `This tab, unless the write-up says otherwise.` },
+      ];
+    case 'for-performance-benchmarking':
+      return [
+        { question: `When do I freeze the fixture?`, answer: `Before any code change. Moving both invalidates the series.` },
+        { question: `One fast run?`, answer: `An anecdote, not a benchmark.` },
+        { question: `Settings mid-session?`, answer: `Leave them locked.` },
+      ];
     default:
       return [
-        { question: `How does this setting change the evidence I keep?`, answer: `It changes the pack (timestamps, hops, policy refs), not the core job of ${k.jobGerund}.` },
-        { question: `Can I copy a procedure from a different setting?`, answer: `Not and expect the same acceptance bar.` },
-        { question: `What stays in scope?`, answer: `${sentence(k.jobNoun)} with ${k.toolLabel} — the setting is a constraint, not a second topic.` },
+        { question: `What does ${k.contextPhrase} change?`, answer: `The pack you keep after ${k.jobGerund}, not a second topic.` },
+        { question: `Can I reuse a pack from another setting?`, answer: `Not and expect the same acceptance bar for ${k.contextPhrase}.` },
+        { question: `What stays in scope?`, answer: `${sentence(k.jobNoun)} with ${k.toolLabel} under ${k.contextPhrase}.` },
       ];
   }
 }
@@ -915,12 +1032,107 @@ export function variedComparison(k: PageKernel, plan: DocumentPlan): { item: str
 }
 
 export function variedPitfalls(k: PageKernel, tk: ToolKnowledge, _ik: IntentKernel, _plan: DocumentPlan): string[] {
-  const job = taskGuide(k);
   return [
-    job.pitfalls[0] ?? `Treating a green ${k.toolLabel} UI as done.`,
-    tk.pitfalls[0] ?? 'Treating a UI result as a signed production decision.',
-    `Skipping the extra check this setting asks for: ${stepForContext(k)}`,
+    pitfallByStyle(k),
+    pitfallByContext(k),
+    toolPitfallByStyle(k, tk),
   ];
+}
+
+function pitfallByStyle(k: PageKernel): string {
+  const t = k.toolLabel;
+  const noun = k.jobNoun;
+  switch (k.style) {
+    case 'as-part-of-ci-cd-pipeline':
+      return `Calling a green wiki screenshot of ${t} the gated check for ${noun}.`;
+    case 'during-code-review':
+      return `Approving ${noun} from a comment the reviewer cannot regenerate.`;
+    case 'without-installing-cli-tools':
+      return `Shelling out “just this once” and pretending the no-install path still holds.`;
+    case 'with-safe-local-processing':
+      return `Clicking through an upload prompt to “finish faster”.`;
+    case 'while-keeping-data-private':
+      return `Pasting the raw input into a ticket after ${t} succeeded.`;
+    case 'for-quick-prototyping':
+      return `Shipping ${noun} from the spike tab because it looked convincing.`;
+    case 'with-step-by-step-instructions':
+      return `Skipping the “why” so the next joiner has to DM you.`;
+    case 'with-automated-validation':
+      return `Leaving “looks fine” as the only assertion for ${noun}.`;
+    default:
+      return `Closing the ${t} tab with no pack a teammate can replay.`;
+  }
+}
+
+function pitfallByContext(k: PageKernel): string {
+  switch (k.context) {
+    case 'for-time-sensitive-incidents':
+      return 'Pretty-printing while the incident clock is still running.';
+    case 'for-team-onboarding':
+      return 'Relying on Slack lore the new hire cannot search.';
+    case 'for-audit-readiness':
+      return 'Filing a memory of a green screen as evidence.';
+    case 'for-cross-region-teams':
+      return 'Leaving a step that only makes sense on a huddle call.';
+    case 'for-legacy-system-migrations':
+      return 'Treating matching indent as semantic equivalence.';
+    case 'for-large-enterprise-workflows':
+      return 'Inventing local names for settings other squads already standardised.';
+    case 'for-api-contract-validation':
+      return 'Writing “payload weird” instead of a field-level finding.';
+    case 'for-weekly-ops-routines':
+      return 'Improvising a step so next week cannot be compared.';
+    case 'for-compliance-reporting':
+      return 'Citing no policy next to the pack.';
+    case 'for-incident-postmortems':
+      return 'Leaving the only copy of the capture in a forgotten tab.';
+    case 'for-capacity-planning':
+      return 'Reporting a tiny fixture with no volume note.';
+    case 'for-release-management':
+      return 'Shipping on “looks probably fine”.';
+    case 'for-vendor-integration':
+      return 'Blaming the other side with no boundary test.';
+    case 'for-data-governance':
+      return 'Creating an unapproved copy and calling the answer done.';
+    case 'for-service-mesh-debugging':
+      return 'Inspecting one hop and stopping.';
+    case 'for-cost-optimization':
+      return 'Spinning a cluster because the tab felt informal.';
+    case 'for-performance-benchmarking':
+      return 'Changing the fixture and the code in the same session.';
+    case 'for-disaster-recovery':
+      return 'Rehearsing a path that needs the broken control plane.';
+    case 'for-production-rollouts':
+      return 'Checking only the new version and calling it a rollout.';
+    case 'for-observability-pipelines':
+      return 'Ingesting first and discovering the drop on a lying dashboard.';
+    default:
+      return 'Keeping an evidence pack nobody can repeat between meetings.';
+  }
+}
+
+function toolPitfallByStyle(k: PageKernel, _tk: ToolKnowledge): string {
+  const t = k.toolLabel;
+  switch (k.style) {
+    case 'as-part-of-ci-cd-pipeline':
+      return `Letting the pipeline go green while ${t} was only a fidget in a leftover tab.`;
+    case 'during-code-review':
+      return `Letting the PR merge while ${t} lived only in a DM the reviewer never saw.`;
+    case 'without-installing-cli-tools':
+      return `Declaring the no-install path done after a CLI flag did the real work.`;
+    case 'with-safe-local-processing':
+      return `Calling the run local-only after a second origin saw the bytes.`;
+    case 'while-keeping-data-private':
+      return `Calling privacy done because ${t} itself did not upload — after chat already had a copy.`;
+    case 'for-quick-prototyping':
+      return `Spending the time-box polishing ${t} output nobody will keep.`;
+    case 'with-step-by-step-instructions':
+      return `Demoing ${t} clicks without a production-shaped sample the learner will copy.`;
+    case 'with-automated-validation':
+      return `Encoding nothing a script can fail, then pointing at a green ${t} screen.`;
+    default:
+      return `Treating a tidy ${t} indent as the whole decision.`;
+  }
 }
 
 export function variedIntro(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): string[] {
@@ -937,27 +1149,26 @@ export function variedIntro(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel):
 }
 
 function introEvidence(k: PageKernel): string {
-  const keep = k.taskEvidence;
-  const fail = k.taskFailure;
+  const task = k.taskPhrase;
   switch (k.style) {
     case 'as-part-of-ci-cd-pipeline':
-      return `The job log should still show ${keep}. A green build that hid “${fail}” is a false green.`;
+      return `The job log should still show the pack for ${task}. A green build that hid the usual miss is a false green.`;
     case 'during-code-review':
-      return `The review thread should contain ${keep}. If the thread cannot explain “${fail}”, request changes.`;
+      return `The review thread should contain the pack for ${task}. If the thread cannot explain the usual miss, request changes.`;
     case 'without-installing-cli-tools':
-      return `Keep ${keep} as a file that opens without extra tools. Installing a binary to dodge “${fail}” abandons this guide.`;
+      return `Keep the pack for ${task} as a file that opens without extra tools. Installing a binary to dodge the usual miss abandons this guide.`;
     case 'with-safe-local-processing':
-      return `Keep ${keep} on this device. Uploading to “fix” “${fail}” is still egress.`;
+      return `Keep the pack for ${task} on this device. Uploading to “fix” the usual miss is still egress.`;
     case 'while-keeping-data-private':
-      return `Keep ${keep} without creating an extra copy. “${fail}” plus a leak is two failures.`;
+      return `Keep the pack for ${task} without creating an extra copy. The usual miss plus a leak is two failures.`;
     case 'for-quick-prototyping':
-      return `Keep ${keep} only if it moved the hypothesis. Do not spend the time-box on “${fail}”.`;
+      return `Keep the pack for ${task} only if it moved the hypothesis. Do not spend the time-box on the usual miss.`;
     case 'with-step-by-step-instructions':
-      return `The learner should be able to point at ${keep}. Call out “${fail}” when it happens.`;
+      return `The learner should be able to point at the pack for ${task}. Call out the usual miss when it happens.`;
     case 'with-automated-validation':
-      return `Encode ${keep} so a script can fail. “${fail}” should be a red assertion, not a comment.`;
+      return `Encode the pack for ${task} so a script can fail. The usual miss should be a red assertion, not a comment.`;
     default:
-      return `Keep ${keep}. The usual failure here is ${fail}.`;
+      return `Keep the pack for ${task}. Write the usual miss down so it cannot recur unnamed.`;
   }
 }
 
@@ -1035,28 +1246,31 @@ function introWrongUrl(k: PageKernel, t: string, job: string): string {
 
 function introLead(k: PageKernel, _ik: IntentKernel, t: string, job: string): string {
   const who = k.audiencePlural;
-  const scene = k.taskScenario;
   const noun = k.jobNoun;
   const doing = k.jobGerund;
+  const task = k.taskPhrase;
+  // Lead with the working method so same-task siblings do not share a
+  // "When {audience} are {scenario}" 5-gram run. Audience and task still
+  // appear (copy audit requires at least one of them in the opening).
   switch (k.style) {
     case 'as-part-of-ci-cd-pipeline':
-      return `When ${who} are ${scene}, ${noun} cannot live as a screenshot. Rehearse it in ${t}, then freeze the same check as a job that fails closed.`;
+      return `Treat the pipeline as the only honest gate. ${sentence(who)} rehearsing ${task} in ${t} freeze ${noun} as a job that fails closed — a screenshot is not that job.`;
     case 'during-code-review':
-      return `When ${who} are ${scene}, a reviewer should replay the ${noun} from the thread. ${t} is how you produce that small, regenerable artifact.`;
+      return `The pull-request thread has to replay this. ${sentence(who)} doing ${doing} paste a regenerable ${noun} pack from ${t}, not a war story in chat.`;
     case 'without-installing-cli-tools':
-      return `When ${who} are ${scene} on a machine that cannot take a binary, ${t} in the browser tab is the only legal runtime for ${doing}.`;
+      return `The machine cannot take a binary. ${sentence(who)} facing ${task} finish ${doing} in ${t} inside the browser tab — that is the only legal runtime.`;
     case 'with-safe-local-processing':
-      return `When ${who} are ${scene}, the payload must not leave this device. Abort if ${t} would have to upload bytes to finish ${doing}.`;
+      return `Upload is an abort, not a convenience. ${sentence(who)} on ${task} keep ${noun} on this device; if ${t} would have to send bytes, stop.`;
     case 'while-keeping-data-private':
-      return `When ${who} are ${scene}, a correct ${noun} result that created an extra copy still fails. Stay on ${t} in this tab.`;
+      return `An extra copy is a fail even when the answer is right. ${sentence(who)} handling ${task} stay on ${t} in this tab and leave ${noun} without a second store.`;
     case 'for-quick-prototyping':
-      return `When ${who} are ${scene} and only need a direction, time-box ${doing} in ${t} and throw most of the session away.`;
+      return `Time-box the spike before you open the tab. ${sentence(who)} exploring ${task} use ${t} for direction, throw most of ${doing} away, and keep only the fixture that moved the hypothesis.`;
     case 'with-step-by-step-instructions':
-      return `When ${who} are ${scene} and a first-timer has to finish, this is the teachable ${noun} path on ${t}: named input, named action, named signal.`;
+      return `Write every click as if a first-timer is reading. ${sentence(who)} teaching ${task} name the input, the ${t} action, and the signal, then leave the same ${noun} pack a veteran would.`;
     case 'with-automated-validation':
-      return `When ${who} are ${scene}, ${doing} needs a statement a script can fail. ${t} is the rehearsal for that invariant, not the whole check.`;
+      return `If a script cannot fail it, it is not this page. ${sentence(who)} encoding ${task} rehearse ${doing} in ${t}, then freeze ${noun} as equality, schema, or digest.`;
     default:
-      return `When ${who} are ${scene}, finish ${doing} in one ${t} tab you can describe in a ticket.`;
+      return `Stay in one tab you can describe in a ticket. ${sentence(who)} working through ${task} finish ${doing} in ${t} and write the done-when line beside the output.`;
   }
 }
 
@@ -1117,13 +1331,220 @@ function takeawayPair(k: PageKernel, _ik: IntentKernel): [string, string] {
 }
 
 export function variedAcceptance(k: PageKernel, _tk: ToolKnowledge, _ik: IntentKernel, _plan: DocumentPlan): string[] {
-  return [
-    `The sample resembles production data for ${k.jobGerund}, not a one-line toy.`,
-    `You accounted for ${k.audienceConcern}, which is what ${k.audiencePlural} most often miss here.`,
-    `Evidence for this job is complete: ${k.taskEvidence}.`,
-    `The usual failure did not happen: ${k.taskFailure}.`,
-    `A second person can replay the tab from the pack without a direct message.`,
-  ];
+  const noun = k.jobNoun;
+  const t = k.toolLabel;
+  const method = acceptanceByStyle(k, noun, t);
+  const setting = acceptanceByContext(k, noun);
+  return [method[0]!, method[1]!, setting[0]!, setting[1]!];
+}
+
+function acceptanceByStyle(k: PageKernel, noun: string, t: string): [string, string] {
+  switch (k.style) {
+    case 'as-part-of-ci-cd-pipeline':
+      return [
+        `The job that owns ${noun} fails closed on a red assertion, not on a screenshot of ${t}.`,
+        `A green build still names the golden file a stranger can replay.`,
+      ];
+    case 'during-code-review':
+      return [
+        `The pull-request comment regenerates ${noun} without a DM.`,
+        `Settings travelled with the ${t} output; a crop of a desktop did not.`,
+      ];
+    case 'without-installing-cli-tools':
+      return [
+        `No package manager was required to finish ${noun}.`,
+        `The saved file opens without extra tools — ${t} stayed in the tab.`,
+      ];
+    case 'with-safe-local-processing':
+      return [
+        `Every hop of ${noun} stayed on this device.`,
+        `“No egress” is written beside the ${t} output.`,
+      ];
+    case 'while-keeping-data-private':
+      return [
+        `${sentence(noun)} created no extra copy in tickets, chat, or a second tool.`,
+        `Screenshots are redacted even though ${t} succeeded.`,
+      ];
+    case 'for-quick-prototyping':
+      return [
+        `The time-box was written down before ${t} opened.`,
+        `Only the fixture that moved the hypothesis remains; ${noun} was not shipped from the tab.`,
+      ];
+    case 'with-step-by-step-instructions':
+      return [
+        `A first-timer finished ${noun} from this page, with named input, action, and signal.`,
+        `The “why” under each ${t} click is in the pack, not in Slack.`,
+      ];
+    case 'with-automated-validation':
+      return [
+        `A script can fail ${noun} as equality, schema, or digest.`,
+        `A negative fixture exists; ${t} was rehearsal, not the gate.`,
+      ];
+    default:
+      return [
+        `A production-shaped sample went through ${t}, not a one-line toy.`,
+        `The ticket contains enough of ${noun} for a teammate to repeat the tab.`,
+      ];
+  }
+}
+
+function acceptanceByContext(k: PageKernel, noun: string): [string, string] {
+  switch (k.context) {
+    case 'for-time-sensitive-incidents':
+      return [
+        `The first trustworthy sample of ${noun} landed in minutes.`,
+        `The pack still makes sense to someone joining the call late.`,
+      ];
+    case 'for-team-onboarding':
+      return [
+        `A new hire rebuilt ${noun} without private lore.`,
+        `Every click still has a reason written under it.`,
+      ];
+    case 'for-audit-readiness':
+      return [
+        `Input, settings, output, and time exist for ${noun}.`,
+        `Someone who was not in the session can regenerate the pass/fail.`,
+      ];
+    case 'for-cross-region-teams':
+      return [
+        `${sentence(noun)} is labelled in UTC with locale-safe bytes.`,
+        `No step needs a live handover to decode.`,
+      ];
+    case 'for-legacy-system-migrations':
+      return [
+        `Paired identifiers prove ${noun} means the same thing on both sides.`,
+        `Nulls and encodings were checked, not just indent.`,
+      ];
+    case 'for-large-enterprise-workflows':
+      return [
+        `Two squads would reach the same go/no-go from this pack.`,
+        `Labels for ${noun} are the shared ones, not local nicknames.`,
+      ];
+    case 'for-api-contract-validation':
+      return [
+        `The finding names a field, a type, and an encoding.`,
+        `${sentence(noun)} sits next to the documented example.`,
+      ];
+    case 'for-weekly-ops-routines':
+      return [
+        `The same few minutes produced a comparable ${noun} pack.`,
+        `Last week’s run is still there to diff.`,
+      ];
+    case 'for-compliance-reporting':
+      return [
+        `A policy identifier is cited next to ${noun}.`,
+        `The run is attributed; a green crop is not the report.`,
+      ];
+    case 'for-incident-postmortems':
+      return [
+        `${sentence(noun)} was exported before the war room dissolved.`,
+        `A stranger can replay it next quarter from records.`,
+      ];
+    case 'for-capacity-planning':
+      return [
+        `Sample size and concurrency sit beside ${noun}.`,
+        `The note says where the browser path stops representing volume.`,
+      ];
+    case 'for-release-management':
+      return [
+        `The outcome is a binary go or no-go for ${noun}.`,
+        `The same pack is safe to repeat on rollback.`,
+      ];
+    case 'for-vendor-integration':
+      return [
+        `Their bytes, your parse, and the transport are three files.`,
+        `${sentence(noun)} names which side of the boundary broke.`,
+      ];
+    case 'for-data-governance':
+      return [
+        `Where the bytes sat is written next to ${noun}.`,
+        `Retention is none, or a named store — not silence.`,
+      ];
+    case 'for-service-mesh-debugging':
+      return [
+        `Hop A and hop B both carry ${noun}.`,
+        `The mutating hop is named; an unlabelled paste is not.`,
+      ];
+    case 'for-cost-optimization':
+      return [
+        `The zero-infra path produced ${noun}, or the cluster is justified in writing.`,
+        `Unused pipeline minutes were not treated as maturity.`,
+      ];
+    case 'for-performance-benchmarking':
+      return [
+        `Fixture and settings were frozen before code changed.`,
+        `${sentence(noun)} is a series, not a single anecdote.`,
+      ];
+    case 'for-disaster-recovery':
+      return [
+        `${sentence(noun)} still works on a cold laptop.`,
+        `No step needs the broken control plane.`,
+      ];
+    case 'for-production-rollouts':
+      return [
+        `Old and new ran under the same fixture.`,
+        `The rollout artifact is the diff of ${noun}.`,
+      ];
+    case 'for-observability-pipelines':
+      return [
+        `One record the parser accepts and one it drops both exist.`,
+        `${sentence(noun)} was shape-checked before ingest.`,
+      ];
+    default:
+      return [
+        `The pack for ${noun} is small enough to repeat between meetings.`,
+        `A stranger could regenerate the output from writing.`,
+      ];
+  }
+}
+
+export function practiceInSetting(k: PageKernel): string {
+  const t = k.toolLabel;
+  const noun = k.jobNoun;
+  switch (k.context) {
+    case 'for-time-sensitive-incidents':
+      return `On an open incident, that method still has to yield ${noun} in minutes. ${sentence(t)} is how you freeze the first sample, not how you tidy the tree.`;
+    case 'for-team-onboarding':
+      return `For a joiner, the same method is curriculum: every click that produces ${noun} needs a reason, not a private shortcut.`;
+    case 'for-audit-readiness':
+      return `An auditor will ask you to regenerate ${noun} from this method. Memory of a green ${t} screen will not do.`;
+    case 'for-cross-region-teams':
+      return `Across regions, the method has to survive without a huddle. Write ${noun} so Bengaluru and Berlin get the same bytes.`;
+    case 'for-legacy-system-migrations':
+      return `In a migration, the method has to prove meaning, not resemblance. ${sentence(noun)} on both sides, same identifier.`;
+    case 'for-large-enterprise-workflows':
+      return `At enterprise scale, two squads should reach the same go/no-go from this method. Heroics around ${t} fail that bar.`;
+    case 'for-api-contract-validation':
+      return `For a contract check, the method names a field. Vague notes about ${noun} are not a finding.`;
+    case 'for-weekly-ops-routines':
+      return `In a weekly loop, the method should be boring. If ${noun} required improvisation, the routine is already drifting.`;
+    case 'for-compliance-reporting':
+      return `For a report, cite the policy next to the method that produced ${noun}. A crop of ${t} is not the filing.`;
+    case 'for-incident-postmortems':
+      return `For a postmortem, export ${noun} out of ${t} before the call ends. Tab state is not an archive.`;
+    case 'for-capacity-planning':
+      return `For capacity work, write how big the sample was. ${sentence(noun)} at toy size cannot argue for volume.`;
+    case 'for-release-management':
+      return `At the gate, the method is a binary on ${noun}. Maybe-fine outcomes are process failures.`;
+    case 'for-vendor-integration':
+      return `At a vendor boundary, the method isolates their bytes from your parse. ${sentence(t)} will not patch the other side.`;
+    case 'for-data-governance':
+      return `Under governance, the method scores lineage with correctness. ${sentence(noun)} that minted an extra copy still fails.`;
+    case 'for-service-mesh-debugging':
+      return `In a mesh, apply the method at each hop. One ${t} paste cannot locate which proxy mutated ${noun}.`;
+    case 'for-cost-optimization':
+      return `Under cost pressure, this method is the cheap path to ${noun} unless you can write why a cluster is mandatory.`;
+    case 'for-performance-benchmarking':
+      return `For a benchmark, freeze the method’s fixture before you change code. Moving both throws ${noun} away.`;
+    case 'for-disaster-recovery':
+      return `In a drill, the method still has to work on a cold laptop. If ${noun} needs the broken control plane, stop.`;
+    case 'for-production-rollouts':
+      return `During a rollout, run the method on old and new. The artifact is the diff of ${noun}, not either pretty-print.`;
+    case 'for-observability-pipelines':
+      return `Before ingest, the method shape-checks ${noun}. Pipelines drop bad records without a loud error.`;
+    default:
+      return `Keep the method small enough that ${noun} can be repeated between meetings.`;
+  }
 }
 
 export function practiceHeading(k: PageKernel): string {
@@ -1157,11 +1578,60 @@ export function contextArtifact(k: PageKernel): KnowledgeSection {
     id: 'artifact',
     heading: artifactHeading(k),
     paragraphs: [
-      `Keep this list beside the ${k.toolLabel} result. ${sentence(k.contextPhrase)} is what decides which fields matter, and writing them down is what stops the next person from inventing a different pack.`,
+      artifactLead(k),
       artifactNarrative(k),
     ],
     list: rows,
   };
+}
+
+function artifactLead(k: PageKernel): string {
+  const t = k.toolLabel;
+  const noun = k.jobNoun;
+  switch (k.context) {
+    case 'for-time-sensitive-incidents':
+      return `Write the clock on the card next to the ${t} result. ${sentence(noun)} has to survive the next fifteen minutes of the call.`;
+    case 'for-team-onboarding':
+      return `A joiner should rebuild ${noun} from this list without a private thread. ${sentence(t)} clicks without reasons are not curriculum.`;
+    case 'for-audit-readiness':
+      return `Spell every ${t} setting out. “Defaults” is not a regenerable field for ${noun}.`;
+    case 'for-cross-region-teams':
+      return `Someone in another timezone has to finish ${noun} from this list. Relative times are defects.`;
+    case 'for-legacy-system-migrations':
+      return `This list is an equivalence proof for ${noun}, not a pretty-print checklist.`;
+    case 'for-large-enterprise-workflows':
+      return `Two squads should reach the same go/no-go from this list. Local names for ${t} settings will not survive rotation.`;
+    case 'for-api-contract-validation':
+      return `Name the field, the documented type, and the observed type. “Payload weird” is not a finding.`;
+    case 'for-weekly-ops-routines':
+      return `This list should take the same few minutes next week. Improvisation around ${noun} is already drift.`;
+    case 'for-compliance-reporting':
+      return `Cite the policy identifier next to what ${noun} actually checked. A crop of ${t} is not a report.`;
+    case 'for-incident-postmortems':
+      return `Assume a stranger will replay ${noun} next quarter from this list. Tab state in ${t} is already gone.`;
+    case 'for-capacity-planning':
+      return `Record sample size beside ${noun}. A tiny ${t} fixture with no volume note cannot argue for capacity.`;
+    case 'for-release-management':
+      return `The list is a binary go or no-go for ${noun}, fast enough for the gate and safe on rollback.`;
+    case 'for-vendor-integration':
+      return `Isolate their payload, your parse, and the transport. If you cannot say which side mutated ${noun}, you do not have a finding.`;
+    case 'for-data-governance':
+      return `Write where the bytes sat. A correct ${t} result that created an unapproved copy still fails.`;
+    case 'for-service-mesh-debugging':
+      return `Keep ${noun} at hop A and hop B until the mutating hop is named.`;
+    case 'for-cost-optimization':
+      return `Prefer this tab unless you can write why a cluster was required to obtain ${noun}.`;
+    case 'for-performance-benchmarking':
+      return `Freeze fixture and settings before you change code. Moving both throws the ${noun} series away.`;
+    case 'for-disaster-recovery':
+      return `Rehearse ${noun} on a cold laptop. If it needs the broken control plane, the drill is lying.`;
+    case 'for-production-rollouts':
+      return `Run the same fixture on old and new. The rollout artifact is the diff of ${noun}.`;
+    case 'for-observability-pipelines':
+      return `Keep one record the parser will accept and one it will drop. Silent drops make dashboards lie about ${noun}.`;
+    default:
+      return `Label the fixture, write the ${t} settings, and keep an output a stranger could regenerate.`;
+  }
 }
 
 function artifactNarrative(k: PageKernel): string {

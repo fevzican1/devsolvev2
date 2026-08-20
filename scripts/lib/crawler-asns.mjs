@@ -1,8 +1,15 @@
 /**
- * Published Google/Bing crawl networks. Kept as reference for hosting-ASN
- * overlap (WAF3 challenges Chrome-from-VPS, not crawler UAs). Custom WAF
- * rules must not 403 on Googlebot/Bingbot User-Agent + ASN; access is granted
- * only by `cf.client.bot`.
+ * Published Google/Bing crawl networks.
+ *
+ * These ASNs must NEVER appear as a positive match on a challenge or block
+ * rule. Google's renderer fetches CSS/JS with a Chrome User-Agent from
+ * 15169/396982/…; BingPreview does the same from 8075/8068/…. Challenging
+ * "Chrome from hosting ASNs" that include those numbers is how a real crawl
+ * gets 403ed even when the HTML request itself skipped on a googlebot UA.
+ *
+ * The WAF uses this list only as an exclusion on the fake-Chrome block.
+ * Search crawlers skip on User-Agent (WAF1), not on `cf.client.bot` — a lag
+ * in Cloudflare's verified-bot signal is the other way a real crawl 403s.
  */
 
 /**
