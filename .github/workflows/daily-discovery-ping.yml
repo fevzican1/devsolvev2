@@ -23,7 +23,10 @@ jobs:
       - name: IndexNow + free discovery pings
         env:
           SITE_URL: https://devsolvev2.com
-          INDEXNOW_MAX_URLS: '200'
+          # 20M URLs are advertised in the sitemap; IndexNow is the nudge on top of
+          # it. 2,000 a day stays well inside the protocol's 10,000-per-request
+          # limit and inside Bing's "stream, do not batch" guidance.
+          INDEXNOW_MAX_URLS: '2000'
         run: |
           node scripts/indexnow-ping.mjs || true
           node scripts/free-discovery-ping.mjs || true

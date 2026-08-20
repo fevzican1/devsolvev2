@@ -1411,7 +1411,7 @@ const GUIDE_BY_TOOL: Record<string, { slug: string; title: string }> = {
 /*  HTML renderer                                                              */
 /* -------------------------------------------------------------------------- */
 
-const STYLE = 'body{font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#172033;background:#fff;margin:0;padding-bottom:50px}.wrap{max-width:820px;margin:0 auto;padding:28px 20px 64px}nav.crumbs{font-size:14px;color:#5a6a82}a{color:#0a5bd6}h1{font-size:2rem;line-height:1.2;margin:.4em 0}h2{font-size:1.4rem;margin:1.6em 0 .5em;border-top:1px solid #e6eaf0;padding-top:1.1em}h3{font-size:1.05rem;margin:1.2em 0 .3em}code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}code{background:#f3f5f8;padding:2px 5px;border-radius:4px;font-size:.92em}pre{background:#0f1626;color:#e6edf7;padding:14px 16px;border-radius:8px;overflow:auto;font-size:.86rem;line-height:1.5}table{border-collapse:collapse;width:100%;font-size:.95rem}th,td{border:1px solid #dde3ec;padding:8px 10px;text-align:left;vertical-align:top}th{background:#f6f8fb}ul,ol{padding-left:1.3em}li{margin:.35em 0}dl dt{font-weight:600;margin-top:.7em}dl dd{margin:0 0 .2em}.lead{font-size:1.08rem;color:#33405a}.tk{background:#f6f8fb;border:1px solid #e2e8f2;border-radius:10px;padding:14px 18px}.meta{font-size:.85rem;color:#5a6a82}.links a{display:inline-block;margin:0 12px 8px 0}footer{margin-top:3em;border-top:1px solid #e6eaf0;padding-top:1.2em;font-size:.9rem;color:#5a6a82}';
+const STYLE = 'body{font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#172033;background:#fff;margin:0;padding-bottom:50px}.wrap{max-width:820px;margin:0 auto;padding:28px 20px 64px}nav.crumbs{font-size:14px;color:#5a6a82}a{color:#0a5bd6}h1{font-size:2rem;line-height:1.2;margin:.4em 0}h2{font-size:1.4rem;margin:1.6em 0 .5em;border-top:1px solid #e6eaf0;padding-top:1.1em}h3{font-size:1.05rem;margin:1.2em 0 .3em}code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}code{background:#f3f5f8;padding:2px 5px;border-radius:4px;font-size:.92em}pre{background:#0f1626;color:#e6edf7;padding:14px 16px;border-radius:8px;overflow:auto;font-size:.86rem;line-height:1.5}table{border-collapse:collapse;width:100%;font-size:.95rem}th,td{border:1px solid #dde3ec;padding:8px 10px;text-align:left;vertical-align:top}th{background:#f6f8fb}ul,ol{padding-left:1.3em}li{margin:.35em 0}dl dt{font-weight:600;margin-top:.7em}dl dd{margin:0 0 .2em}.lead{font-size:1.08rem;color:#33405a}.tk{background:#f6f8fb;border:1px solid #e2e8f2;border-radius:10px;padding:14px 18px}.meta{font-size:.85rem;color:#5a6a82}.cta{background:#eef4ff;border:1px solid #cfe0ff;border-radius:10px;padding:12px 16px;margin:18px 0}.links a{display:inline-block;margin:0 12px 8px 0}footer{margin-top:3em;border-top:1px solid #e6eaf0;padding-top:1.2em;font-size:.9rem;color:#5a6a82}';
 
 function renderList(items: string[], ordered = false): string {
   const tag = ordered ? 'ol' : 'ul';
@@ -1631,6 +1631,13 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
 
   const takeaways = `<section aria-labelledby="key-takeaways"><h2 id="key-takeaways">Key takeaways</h2><div class="tk" data-snippet>${renderList(c.keyTakeaways)}</div></section>`;
 
+  // A reader who arrives on a scenario page from a long-tail query wants the
+  // tool, not a scroll. The call to action sits directly under the lead so the
+  // path is one click, which is also the internal link that concentrates
+  // authority on /tools/* — the pages with head-term demand behind them.
+  const toolCta = `<p class="cta"><a href="/tools/${escapeHtml(toolSlug)}"><strong>Open the ${escapeHtml(toolName(page.tool))} tool</strong></a>`
+    + ` — runs in your browser, nothing is uploaded. Or read the walkthrough below.</p>`;
+
   const decision = `<section id="decision" data-decision aria-labelledby="decision-heading"><h2 id="decision-heading">${escapeHtml(c.decision.heading)}</h2>`
     + `<p data-snippet>${escapeHtml(c.decision.verdict)}</p>`
     + `<h3>Use this guide when</h3>${renderList(c.decision.when)}`
@@ -1757,6 +1764,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + `<h1>${escapeHtml(c.h1)}</h1>`
     + `<p class="meta">${escapeHtml(titleCase(page.audience))} · ${escapeHtml(clusterLabel)} · ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}</p>`
     + intro
+    + toolCta
     + entity
     + orderedParts.join('')
     + related
