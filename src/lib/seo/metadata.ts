@@ -53,9 +53,10 @@ export function buildMetadata({
       ...(articleSection ? { section: articleSection } : {}),
       images: [
         {
-          url: absoluteUrl('/opengraph-image'),
+          url: absoluteUrl('/opengraph-image.png'),
           width: 1200,
           height: 630,
+          type: 'image/png',
           alt: pageTitle ? `${pageTitle} social preview` : `${siteConfig.name} social preview`,
         },
       ],
@@ -64,7 +65,7 @@ export function buildMetadata({
       card: 'summary_large_image',
       title: pageTitle ?? siteConfig.name,
       description: safeDescription,
-      images: [absoluteUrl('/twitter-image')],
+      images: [absoluteUrl('/opengraph-image.png')],
     },
     other: {
       'content-signal': CONTENT_SIGNAL_VALUE,

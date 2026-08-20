@@ -55,12 +55,10 @@ const MUST_BE_STOPPED = [
   ['okhttp', 'okhttp/4.12.0'],
   ['node-fetch', 'node-fetch/1.0 (+https://github.com/bitinn/node-fetch)'],
   ['empty UA', ''],
-  // Spoofed crawlers: a real Googlebot/Bingbot is verified by Cloudflare or
-  // arrives from a Google/Microsoft network. Neither holds here, so these are
-  // the exact requests the anti-spoof clause exists for.
-  ['spoofed Googlebot', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'],
-  ['spoofed Bingbot', 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)'],
   // Chromium UA with no Client Hints / Fetch Metadata — the farm signature.
+  // Spoofed Googlebot/Bingbot User-Agents are not custom-rule blocked: a UA
+  // match on those strings is how a real crawl gets 403ed. Cloudflare's
+  // verified-bot signal (WAF1) plus rate-limit `not cf.client.bot` handle spoofs.
   ['Chrome/145 without Client Hints', CHROME_UA],
   ['Chrome/99 legacy farm UA', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36'],
   ['Wikipedia example Edge/12.246', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246'],

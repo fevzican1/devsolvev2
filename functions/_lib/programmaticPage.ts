@@ -75,9 +75,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-20T12:00:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-20T13:40:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'a';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'b';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -1554,6 +1554,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     {
       '@context': 'https://schema.org', '@type': 'TechArticle',
       headline: c.h1, description: c.description, url: canonical,
+      image: `${origin}/opengraph-image.png`,
       datePublished: '2024-01-15T00:00:00.000Z', dateModified: CONTENT_UPDATED_AT,
       inLanguage: 'en', isAccessibleForFree: true, keywords: c.keywords.join(', '),
       author: { '@type': 'Organization', name: 'DevSolve Editorial Team', url: `${origin}/about` },
@@ -1610,7 +1611,15 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + `<meta property="og:title" content="${escapeHtml(c.title)}">`
     + `<meta property="og:description" content="${escapeHtml(c.description)}">`
     + `<meta property="og:url" content="${escapeHtml(canonical)}">`
-    + `<meta name="twitter:card" content="summary">`
+    + `<meta property="og:image" content="${escapeHtml(origin)}/opengraph-image.png">`
+    + `<meta property="og:image:width" content="1200">`
+    + `<meta property="og:image:height" content="630">`
+    + `<meta property="og:image:type" content="image/png">`
+    + `<meta property="og:image:alt" content="${escapeHtml(c.title)} social preview">`
+    + `<meta name="twitter:card" content="summary_large_image">`
+    + `<meta name="twitter:title" content="${escapeHtml(c.title)}">`
+    + `<meta name="twitter:description" content="${escapeHtml(c.description)}">`
+    + `<meta name="twitter:image" content="${escapeHtml(origin)}/opengraph-image.png">`
     + jsonLdHtml
     + `<style>${STYLE}</style></head>`;
 

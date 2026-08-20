@@ -1,7 +1,7 @@
 # Kenar koruması, içerik kalitesi, ramp 5, backlink gerçeği — 2026-08-20
 
 **Branch:** `cursor/waf-content-quality-ramp-traffic-aca1`
-**Content version:** `20260820a` (`CONTENT_UPDATED_AT=2026-08-20T12:00:00.000Z`)
+**Content version:** `20260820b` (`CONTENT_UPDATED_AT=2026-08-20T13:40:00.000Z`)
 **Agent contract:** `devsolve-ai-indexing-agent v2026-08-20.1`
 
 Bu rapor beş isteği ayrı ayrı ele alıyor: bot trafiğinin kökten engellenmesi,
@@ -21,23 +21,24 @@ kuralları korundu):
 | # | Aksiyon | Kural |
 |---|---------|-------|
 | 1 | `skip` | **Doğrulanmış Googlebot + Bingbot** ve sahiplik/feed uçları |
-| 2 | `block` | Scraper, AI crawler, HTTP kütüphaneleri, **sahte Googlebot/Bingbot** |
+| 2 | `block` | Scraper, AI crawler, HTTP kütüphaneleri, kısa/boş User-Agent |
 | 3 | `managed_challenge` | Tarayıcı taklidi yapan istemciler + datacenter ağları |
 | 4 | `block` (sizin) | `sasd` — wp-admin vb. |
 | 5 | `block` (Cloudflare) | AI Crawl Control |
-| + | `block` | Rate limit: `/k/*` + sitemap, 30 istek/10 sn, IP başına |
+| + | `block` | Rate limit: `/k/*` + sitemap, 30 istek/10 sn, IP başına; `not cf.client.bot` + WAF1 skip → gerçek Googlebot/Bingbot muaf |
 
-### Sahte Googlebot konusu — nasıl çözüldü
+### Sahte Googlebot konusu — WAF2'de yok, bilinçli
 
 Kural 1 **User-Agent'a bakarak izin vermiyor.** Şart `cf.client.bot` — bu
 Cloudflare'ın doğrulanmış bot sinyali (`cf.bot_management.verified_bot` ile aynı
 veri, farkı: her planda çalışır; ters DNS ve yayınlanmış IP listeleriyle
 doğrulanır). Bir VPS'ten gelen "Googlebot" UA'sı bu alanı asla `true` yapamaz.
 
-Ters yönde de koruma var: kural 2, crawler UA'sı taşıyan ama **ne doğrulanmış
-ne de Google/Microsoft ağından gelen** isteği bloklar. Yani gerçek bir taramanın
-bloklanması için iki bağımsız sinyalin (Cloudflare doğrulaması **ve** ASN
-listesi) aynı anda başarısız olması gerekir.
+WAF2 **sahte Googlebot/Bingbot UA'sına bakmaz.** Crawler string'ini custom
+kuralda bloklamak, Cloudflare'ın doğrulaması geciktiğinde gerçek taramayı
+403'e düşürmenin en kısa yoludur. Spoof'lar WAF1 skip'ine giremez
+(`cf.client.bot=false`); rate limit ifadesi de `not cf.client.bot` olduğu
+için farm'ı hızdan tutar, gerçek Googlebot/Bingbot'u tutmaz.
 
 Bu makinadan (AWS, AS14618) yapılan doğrulama — `node scripts/verify-live-access.mjs`:
 
@@ -45,7 +46,6 @@ Bu makinadan (AWS, AS14618) yapılan doğrulama — `node scripts/verify-live-ac
 OK    GPTBot / ClaudeBot / PerplexityBot / Bytespider / CCBot: 403 (edge)
 OK    AhrefsBot / SemrushBot / DataForSeoBot / Screaming Frog: 403 (edge)
 OK    curl / wget / python-requests / okhttp / node-fetch / boş UA: 403 (edge)
-OK    sahte Googlebot, sahte Bingbot: 403 (edge)
 OK    Chrome/145 (Client Hints yok), Chrome/99 farm UA: 403 (edge)
 OK    robots.txt, IndexNow anahtar dosyası, ads.txt: 200
 ```
@@ -254,10 +254,9 @@ iyileştirir. Bu turda yapılanlar:
 Yapılmayan ve yapılmaması gereken: satın alınmış trafik, bot trafiği, otomatik
 sosyal spam. İkisi de "yüksek trafik" grafiği üretir, ikisi de indeksten düşürür.
 
-**Sizin tarafınızda tek bir eksik var:** `og:image` olarak SVG kullanılıyor;
-sosyal platformların hiçbiri SVG render etmiyor. 1200×630 bir PNG eklerseniz
-(public/opengraph-image.png) paylaşımlar görsel karta dönüşür — bu, kodla
-ölçülebilir en büyük referral kazancı.
+Sosyal kart: `public/opengraph-image.png` 1200×630 PNG. X/LinkedIn SVG
+render etmez; bu dosya `og:image` / `twitter:image` olarak layout, sayfa
+metadata'sı ve `/k/*` Function HTML'inde işaret edilir.
 
 ---
 
@@ -266,7 +265,8 @@ sosyal platformların hiçbiri SVG render etmiyor. 1200×630 bir PNG eklerseniz
 - `scripts/deploy-waf-bot-block.mjs` — skip/block/challenge + rate limit
 - `scripts/verify-live-access.mjs` — erişim matrisi yeniden yazıldı
 - `scripts/verify-backlinks.mjs` — **yeni**, backlink gerçeklik denetimi
-- `scripts/lib/crawler-asns.mjs` — Google/Bing ASN güvenlik ağı
+- `scripts/lib/crawler-asns.mjs` — Google/Bing ASN referansı (WAF2 spoof bloğu yok)
+- `public/opengraph-image.png` — 1200×630 sosyal kart
 - `functions/_lib/language.ts` — **yeni**, dil katmanı
 - `functions/_lib/programmaticPage.ts` — title 66, doğal H1, kopya denetimi
 - `functions/_lib/pageVariation.ts`, `corpusKnowledge.ts` — metin yeniden yazımı

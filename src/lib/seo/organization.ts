@@ -282,7 +282,7 @@ export function buildOrganizationNode(opts: BrandEntityOptions): Record<string, 
       contentUrl: `${siteUrl}/favicon.svg`,
       caption: 'DevSolve',
     },
-    image: `${siteUrl}/opengraph-image.svg`,
+    image: `${siteUrl}/opengraph-image.png`,
     foundingDate: PUBLISHER_IDENTITY.foundingDate,
     founder: {
       '@type': 'Person',

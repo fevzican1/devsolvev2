@@ -35,11 +35,11 @@
  *      - AI/SEO/scraper agents and HTTP libraries, by name (blocked even when
  *        Cloudflare lists them as verified — that is the site's policy and it
  *        matches public/robots.txt);
- *      - a Google/Bing crawler User-Agent that is neither verified NOR coming
- *        from a Google/Microsoft network. Two independent signals have to fail
- *        before a request is treated as a spoof, which is what keeps a real
- *        crawl from being 403ed if Cloudflare's signal ever goes quiet;
  *      - absent or absurdly short User-Agents.
+ *      Spoofed "Googlebot"/"Bingbot" User-Agents are NOT matched here. A custom
+ *      rule that keys off those strings can 403 a real crawl if Cloudflare's
+ *      verified-bot signal lags; spoofs miss WAF1 (`cf.client.bot` is false)
+ *      and are handled by the rate-limit rule instead.
  *
  *   3. MANAGED CHALLENGE — a client that claims to be a browser but does not
  *      behave like one: a Chromium User-Agent without the Client Hints and
@@ -59,7 +59,7 @@
  * Usage: node scripts/deploy-waf-bot-block.mjs [--dry-run]
  */
 
-import { wafAsnSet, GOOGLE_CRAWLER_ASNS, BING_CRAWLER_ASNS } from './lib/crawler-asns.mjs';
+import { wafAsnSet } from './lib/crawler-asns.mjs';
 
 const MAX_EXPRESSION_LENGTH = 4096;
 
@@ -91,9 +91,6 @@ const HOSTING_ASNS = wafAsnSet([
   135377, // UCloud
   49505, // Selectel
 ]);
-
-/** Networks a real Googlebot/Bingbot crawl can originate from (safety net). */
-const CRAWLER_ASNS = wafAsnSet([...GOOGLE_CRAWLER_ASNS, ...BING_CRAWLER_ASNS]);
 
 /** Free-plan WAF: contains/lower(), not regex (Business+). Parenthesize OR-groups. */
 function uaContainsAny(markers) {
@@ -230,20 +227,15 @@ const KNOWN_SCRAPER_UA = uaContainsAny([
   'masscan',
 ]);
 
-/** A crawler User-Agent that is neither verified nor on a crawler network. */
-const SPOOFED_CRAWLER = `(
-  ${SEARCH_CRAWLER_UA}
-  and not ${VERIFIED}
-  and not ip.src.asnum in ${CRAWLER_ASNS}
-)`;
-
 /**
- * WAF2 — hard block. Nothing here can be a human with a browser or a search
- * engine, so a challenge would only waste a round trip.
+ * WAF2 — hard block. Named scrapers/AI agents/HTTP libraries, plus empty or
+ * tiny User-Agents. Search-crawler User-Agents are intentionally absent:
+ * matching "Googlebot" here is how you 403 a real crawl when Cloudflare's
+ * verified-bot signal is late. Spoofs never have `cf.client.bot`, so they
+ * still miss WAF1 and can be rate-limited; they are not custom-rule 403s.
  */
 const WAF2_HARD_BLOCK = `(
   ${KNOWN_SCRAPER_UA}
-  or ${SPOOFED_CRAWLER}
   or (len(http.user_agent) lt 12 and not ${VERIFIED} and not ${PUBLIC_ENDPOINTS})
 )`;
 
@@ -299,7 +291,7 @@ const RULE_SPEC = [
     logging: { enabled: true },
   },
   {
-    description: '[DevSolve] WAF2 BLOCK scrapers, AI crawlers and spoofed Googlebot',
+    description: '[DevSolve] WAF2 BLOCK scrapers, AI crawlers and short User-Agents',
     expression: WAF2_HARD_BLOCK,
     action: 'block',
   },
@@ -314,6 +306,13 @@ const RULE_SPEC = [
  * Rate limiting rule (phase http_ratelimit, separate quota from custom rules).
  * Free plan: 1 rule, IP characteristic, 10s window, 10s mitigation, and the
  * expression may only reference the path and the verified-bot flag.
+ *
+ * Real Googlebot/Bingbot cannot hit this rule:
+ *   1. the expression requires `not cf.client.bot` — verified crawlers never match;
+ *   2. WAF1 skip lists `rateLimit` in `products`, so even the phase is skipped
+ *      for verified Google/Bing User-Agents.
+ * A spoofed crawler UA from a VPS has cf.client.bot=false and can be limited;
+ * that is the farm this rule exists for.
  */
 const RATE_LIMIT_RULE = {
   description: '[DevSolve] corpus rate limit — 30 req/10s per IP, verified bots exempt',
@@ -357,6 +356,7 @@ const LEGACY_DESCRIPTIONS = new Set([
   '[DevSolve] SKIP verified Google/Bing only (never challenge)',
   '[DevSolve] SKIP verified Google/Bing crawlers (never challenge/block)',
   '[DevSolve] WAF1 block scrapers — keep Google Bing GSC + humans',
+  '[DevSolve] WAF2 BLOCK scrapers, AI crawlers and spoofed Googlebot',
   '[DevSolve] WAF2 corpus allowlist — Google Bing GSC + real browsers',
   '[DevSolve] single block — fake Chrome + scrapers; Google Bing humans allowed',
   '[DevSolve] sitewide block AI indexers + extension scrapers',

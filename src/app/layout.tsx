@@ -81,9 +81,10 @@ export const metadata: Metadata = {
     locale: 'en_US',
     images: [
       {
-        url: '/opengraph-image.svg',
+        url: '/opengraph-image.png',
         width: 1200,
         height: 630,
+        type: 'image/png',
         alt: `${siteConfig.name} — Free browser-based developer tools`,
       },
     ],
@@ -92,7 +93,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: defaultPageTitle,
     description: defaultDescription,
-    images: ['/twitter-image.svg'],
+    images: ['/opengraph-image.png'],
   },
   other: {
     'content-signal': CONTENT_SIGNAL_VALUE,
