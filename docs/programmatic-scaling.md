@@ -49,21 +49,19 @@ an origin.
 
 ## Edge protection (WAF)
 
-`npm run edge:waf` deploys the custom WAF ruleset (**no skip rule**):
+`npm run edge:waf` deploys five custom rules (Free-plan cap). Paste-ready copy: `docs/waf-cloudflare-rules.md`.
 
-- **WAF1** (sitewide **block**) detects scrapers: AI indexers, headless/automation,
-  HTTP libraries, the Wikipedia Chrome/42+Edge/12.246 UA, Chrome/Edge without a
-  real Client-Hints + Fetch-Metadata fingerprint. Google/Bing/GSC User-Agents
-  are never matched (no ASN check — spoofed crawlers are Cloudflare’s job).
-- **WAF2** (`/k/*` + `/sitemap*`) is an allowlist: those crawler UAs plus real
-  browsers. Chrome still needs HTTP/2 or HTTP/3 and must not come from a
-  cloud/hosting ASN — that is the Chrome/99–136 farm that already sends Client
-  Hints.
+- **WAF1** (`skip`) — Google, Bing, and social User-Agents, plus public files. No `cf.client.bot` (that flag is how Bing was 403ed while Google was not). Search crawlers are named only here.
+- **WAF2** (`block`) — named scrapers and `chrome-extension://` / `moz-extension://` on Origin, Referer, or User-Agent.
+- **WAF3** (`managed_challenge`) — Chrome-looking clients fetching `/k/` without `sec-fetch-mode: navigate` (the extension `fetch()` signature).
+- **WAF4** — operator `sasd` (wp-admin / `.env`), preserved.
+- **WAF5** — operator AI Crawl Control, preserved.
 
-Turn **Bot Fight Mode off**. Googlebot, Bingbot, and humans are allow-listed in
-WAF1/WAF2; Bot Fight would only add false challenges.
+Rate limit: 30 `/k/` or sitemap requests per 10s per IP. WAF1 already skips the rate-limit product.
 
-`npm run edge:verify` asserts the whole matrix against production.
+Turn **Bot Fight Mode off**. It cannot be skipped by these rules.
+
+`npm run edge:verify` asserts the live matrix. `npm run edge:waf:policy` checks the expressions offline.
 
 ## Legacy sitemap URLs
 

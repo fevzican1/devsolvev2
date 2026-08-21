@@ -1,12 +1,8 @@
 # DevSolve robots.txt
 #
-# Policy (matches the Cloudflare Pages Function bot-guard in
-# functions/k/[[slug]].ts): the site is built for Google Search and real
-# human visitors. Known AI-training, SEO-audit and scraper crawlers are
-# explicitly disallowed here (defense-in-depth). Polite bots obey these
-# rules and save our crawl budget; impolite bots that ignore robots.txt are
-# additionally rejected at the edge with HTTP 403 (and verified-Googlebot
-# checks block spoofed "Googlebot" user-agents from non-Google networks).
+# Policy: Google Search, Bing, and social unfurl crawlers are allowed.
+# Known AI-training and scraper crawlers are disallowed here. Impolite
+# bots that ignore robots.txt are stopped at the Cloudflare WAF.
 
 # ---------------------------------------------------------------------------
 # Google Search crawlers — explicitly allowed (only private sections blocked)
