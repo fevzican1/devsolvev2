@@ -52,8 +52,8 @@ an origin.
 `npm run edge:waf` deploys five custom rules (Free-plan cap). Paste-ready copy: `docs/waf-cloudflare-rules.md`.
 
 - **WAF1** (`skip`) — Google, Bing, and social User-Agents, plus public files. No `cf.client.bot` (that flag is how Bing was 403ed while Google was not). Search crawlers are named only here.
-- **WAF2** (`block`) — named scrapers and `chrome-extension://` / `moz-extension://` on Origin, Referer, or User-Agent.
-- **WAF3** (`managed_challenge`) — Chrome-looking clients fetching `/k/` without `sec-fetch-mode: navigate` (the extension `fetch()` signature).
+- **WAF2** (`block`) — named scrapers, `chrome-extension://` Origin/Referer/UA, stamped `Chrome/144.0.0.0` (`.0.0.0`), Chrome/100.0.4896, and Catalina `10_15_7` + Chrome.
+- **WAF3** (`block`) — Chrome-looking clients hitting `/k/` without `sec-fetch-mode: navigate` **and** `sec-fetch-dest: document`. Missing headers count as fake (the previous `len gt 0` hole).
 - **WAF4** — operator `sasd` (wp-admin / `.env`), preserved.
 - **WAF5** — operator AI Crawl Control, preserved.
 

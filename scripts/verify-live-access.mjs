@@ -14,9 +14,13 @@ const SITE = (process.env.SITE_URL || 'https://devsolvev2.com').replace(/\/$/, '
 const K_PATH = '/k/json-validate-json-backend-engineer-debug-production-issue-json-formatter-0';
 const INDEXNOW_KEY = '/ee5098cac2284d92b6ee1c9fca52a120.txt';
 
-const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
+const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.7559.109 Safari/537.36';
+const FARM_CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36';
+const FARM_EDGE_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0';
+const FARM_MAC_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36';
+const FARM_CHROME100_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36';
 const CHROME_HEADERS = {
-  'sec-ch-ua': '"Chromium";v="145", "Google Chrome";v="145", "Not_A Brand";v="99"',
+  'sec-ch-ua': '"Chromium";v="144", "Google Chrome";v="144", "Not_A Brand";v="99"',
   'sec-ch-ua-mobile': '?0',
   'sec-fetch-mode': 'navigate',
   'sec-fetch-site': 'none',
@@ -45,6 +49,10 @@ const MUST_BE_STOPPED = [
   ['python-requests', 'python-requests/2.31.0'],
   ['empty UA', ''],
   ['chrome-extension scraper UA', EXTENSION_UA],
+  ['farm Chrome/144.0.0.0', FARM_CHROME_UA],
+  ['farm Edge/144.0.0.0', FARM_EDGE_UA],
+  ['farm Mac 10_15_7 Chrome/144.0.0.0', FARM_MAC_UA],
+  ['farm Chrome/100.0.4896.75', FARM_CHROME100_UA],
 ];
 
 const MUST_BE_REACHABLE = [
@@ -154,6 +162,20 @@ for (const [name, ua] of MUST_BE_STOPPED) {
     failed += 1;
   } else {
     console.log(`OK    Chrome fetch() of /k/ (sec-fetch-mode=cors): HTTP ${status} (${kind})`);
+  }
+}
+
+{
+  const { status, kind } = probeHttp2({
+    path: K_PATH,
+    ua: FARM_CHROME_UA,
+    headers: CHROME_HEADERS,
+  });
+  if (status === 200) {
+    console.log('FAIL  farm Chrome/144.0.0.0 with fake navigate headers: HTTP 200');
+    failed += 1;
+  } else {
+    console.log(`OK    farm Chrome/144.0.0.0 with fake navigate headers: HTTP ${status} (${kind})`);
   }
 }
 
