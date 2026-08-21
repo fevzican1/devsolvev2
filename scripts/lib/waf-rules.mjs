@@ -47,9 +47,11 @@ export const WAF1_SKIP = collapse(`(
 )`);
 
 /**
- * WAF2 — BLOCK. Named scrapers and the Chrome-extension leak (Origin / Referer /
- * User-Agent). Real people never send chrome-extension:// on a first-party
- * page load. Attackers who spoof a current Chrome UA still leak this origin.
+ * WAF2 — BLOCK. Named scrapers, the Chrome-extension leak, and the farm's
+ * stamped User-Agent. Real Chrome is `Chrome/144.0.7559.109`. The farm sends
+ * `Chrome/144.0.0.0` / `Edg/144.0.0.0` (build+patch both zero) and Catalina
+ * `10_15_7` with Chrome. Search crawlers never reach this rule (WAF1 skipped
+ * them) and do not use `.0.0.0` anyway (Bingbot is Chrome/116.0.1938.76).
  */
 export const WAF2_BLOCK = collapse(`(
   lower(http.user_agent) contains "gpt"
@@ -75,20 +77,26 @@ export const WAF2_BLOCK = collapse(`(
   or http.request.headers["referer"][0] contains "chrome-extension"
   or http.request.headers["origin"][0] contains "moz-extension"
   or http.request.headers["referer"][0] contains "moz-extension"
+  or lower(http.user_agent) contains ".0.0.0"
+  or lower(http.user_agent) contains "chrome/100.0.4896"
+  or (lower(http.user_agent) contains "mac os x 10_15_7" and lower(http.user_agent) contains "chrome/")
   or (len(http.user_agent) lt 12 and not cf.client.bot)
 )`);
 
 /**
- * WAF3 — CHALLENGE. Chrome-looking clients hitting /k/ that are not navigating.
- * A person opening a page sends sec-fetch-mode: navigate. A Chrome extension
- * using fetch() sends cors / no-cors even after it fakes the User-Agent.
- * Search crawlers never reach this rule (WAF1 already skipped them).
+ * WAF3 — BLOCK. Chrome-looking clients hitting /k/ that are not a real page
+ * open. A person sends sec-fetch-mode: navigate and sec-fetch-dest: document.
+ * Missing headers (the previous hole: `len gt 0` let empty through) or
+ * fetch/XHR from an extension count as not a navigation. Search crawlers
+ * never reach this rule (WAF1 already skipped them).
  */
 export const WAF3_CHALLENGE = collapse(`(
   starts_with(http.request.uri.path, "/k/")
   and lower(http.user_agent) contains "chrome/"
-  and len(http.request.headers["sec-fetch-mode"][0]) gt 0
-  and http.request.headers["sec-fetch-mode"][0] ne "navigate"
+  and not (
+    http.request.headers["sec-fetch-mode"][0] eq "navigate"
+    and http.request.headers["sec-fetch-dest"][0] eq "document"
+  )
 )`);
 
 /** WAF4 — operator rule `sasd` (wp-admin / .env). Preserved, not rewritten. */
@@ -116,9 +124,9 @@ export const RULE_SPEC = [
   },
   {
     slot: 'WAF3',
-    description: '[DevSolve] WAF3 CHALLENGE browser-extension scrapers',
+    description: '[DevSolve] WAF3 BLOCK fake Chrome on /k/',
     expression: WAF3_CHALLENGE,
-    action: 'managed_challenge',
+    action: 'block',
   },
 ];
 
@@ -154,6 +162,7 @@ export const LEGACY_DESCRIPTIONS = new Set([
   '[DevSolve] WAF2 BLOCK scrapers, AI crawlers and short User-Agents',
   '[DevSolve] WAF2 BLOCK scrapers, AI crawlers and spoofed Googlebot',
   '[DevSolve] WAF2 corpus allowlist — Google Bing GSC + real browsers',
+  '[DevSolve] WAF3 BLOCK fake Chrome on /k/',
   '[DevSolve] WAF3 CHALLENGE browser-extension scrapers',
   '[DevSolve] WAF3 CHALLENGE fake browsers and datacenter traffic',
   '[DevSolve] single block — fake Chrome + scrapers; Google Bing humans allowed',
