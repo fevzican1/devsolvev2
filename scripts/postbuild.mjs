@@ -209,6 +209,30 @@ try {
 }
 
 try {
+  console.log('Verifying WAF policy (search crawlers only in WAF1 skip)...');
+  execSync(`node ${join(__dirname, 'verify-waf-policy.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('WAF policy check FAILED');
+  hardFailures.push('verify-waf-policy');
+}
+
+try {
+  console.log('Running free AI indexing agents (Google, Bing, uniqueness, language, backlink)...');
+  execSync(`node --import tsx ${join(__dirname, 'run-ai-agents.mjs')}`, {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      AI_AGENTS_FAST: '1',
+      AI_AGENTS_OFFLINE: process.env.AI_AGENTS_OFFLINE || '1',
+      NODE_OPTIONS: [process.env.NODE_OPTIONS, '--max-old-space-size=3072'].filter(Boolean).join(' '),
+    },
+  });
+} catch (error) {
+  console.log('AI indexing agents FAILED — see out/reports/ai-agents.json');
+  hardFailures.push('run-ai-agents');
+}
+
+try {
   console.log('Verifying SEO meta description lengths...');
   execSync(`node --import tsx ${join(__dirname, 'verify-seo-descriptions.mjs')}`, { stdio: 'inherit' });
 } catch (error) {

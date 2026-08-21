@@ -79,9 +79,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-20T18:40:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-21T20:40:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'g';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'h';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -1789,9 +1789,12 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + `<meta property="og:image:type" content="image/png">`
     + `<meta property="og:image:alt" content="${escapeHtml(c.title)} social preview">`
     + `<meta name="twitter:card" content="summary_large_image">`
+    + `<meta name="twitter:site" content="@devsolveai">`
     + `<meta name="twitter:title" content="${escapeHtml(c.title)}">`
     + `<meta name="twitter:description" content="${escapeHtml(c.description)}">`
     + `<meta name="twitter:image" content="${escapeHtml(origin)}/opengraph-image.png">`
+    + `<meta name="twitter:image:alt" content="${escapeHtml(c.title)} social preview">`
+    + `<link rel="alternate" type="application/rss+xml" title="DevSolve" href="${escapeHtml(origin)}/feed.xml">`
     + jsonLdHtml
     + `<style>${STYLE}</style></head>`;
 

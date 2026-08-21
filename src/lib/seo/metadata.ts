@@ -63,6 +63,7 @@ export function buildMetadata({
     },
     twitter: {
       card: 'summary_large_image',
+      site: '@devsolveai',
       title: pageTitle ?? siteConfig.name,
       description: safeDescription,
       images: [absoluteUrl('/opengraph-image.png')],

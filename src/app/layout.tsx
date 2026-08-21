@@ -91,6 +91,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
+    site: '@devsolveai',
     title: defaultPageTitle,
     description: defaultDescription,
     images: ['/opengraph-image.png'],
