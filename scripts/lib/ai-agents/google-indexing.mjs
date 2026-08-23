@@ -81,6 +81,7 @@ const REASONS = [
       if (!ctx.score?.passesIndexable) {
         return `score ${ctx.score?.score} < ${MIN_INDEXABLE_SCORE} or critical violations`;
       }
+      if (/<h[4-6]\b/i.test(html)) return 'document outline uses H4+ (shared ad/chrome heading)';
       const h2 = extractHeadings(html, 'h2');
       const h3 = extractHeadings(html, 'h3');
       const headings = [...h2, ...h3].map((h) => h.toLowerCase());
@@ -92,6 +93,16 @@ const REASONS = [
       if (!ctx.score.signals?.hasIndependentOpening) {
         return 'opening does not name this page’s audience and job';
       }
+      return null;
+    },
+  },
+  {
+    id: 'discovered-not-indexed',
+    gsc: 'Discovered - currently not indexed',
+    check: (html) => {
+      const links = [...html.matchAll(/<a\s+[^>]*href=["']([^"']+)["']/gi)].length;
+      if (links < 14) return `only ${links} internal links`;
+      if (!html.includes('application/ld+json')) return 'no structured data for discovery';
       return null;
     },
   },

@@ -62,7 +62,7 @@ export function extractHeadings(html, tag = 'h2') {
 
 export function headingSet(html) {
   return new Set(
-    [...extractHeadings(html, 'h2'), ...extractHeadings(html, 'h3')]
+    [...extractHeadings(html, 'h2'), ...extractHeadings(html, 'h3'), ...extractHeadings(html, 'h4')]
       .map((h) => h.toLowerCase())
       .filter(Boolean),
   );

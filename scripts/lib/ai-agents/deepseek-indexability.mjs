@@ -100,6 +100,7 @@ const GOOGLE_PAGE_INDEXING = [
       if (!ctx.score.passesIndexable) {
         return `score ${ctx.score.score} / violations ${ctx.score.violations.join('; ')}`;
       }
+      if (/<h[4-6]\b/i.test(html)) return 'document outline uses H4+ (shared ad/chrome heading)';
       const h2 = extractHeadings(html, 'h2');
       const h3 = extractHeadings(html, 'h3');
       const headings = [...h2, ...h3].map((h) => h.toLowerCase());

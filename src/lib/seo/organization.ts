@@ -89,16 +89,11 @@ export const BRAND_LAUNCHSTAG_URL = 'https://launchstag.com';
 export const BRAND_TOOLS_CAFE_URL = 'https://tools.cafe';
 
 /**
- * Both listings were submitted for a launch on the 30th and neither site
- * mentions DevSolve yet (`node scripts/verify-backlinks.mjs` confirms it).
- * Until they do, a "Featured on …" badge is a claim the linked page does not
- * support, and a `sameAs` entry pointing at a page that never mentions us is an
- * entity signal search engines cannot verify — both cost trust rather than
- * earning it. Flip these to `true` on the day the listings appear; the audit
- * script is how you check rather than assume.
+ * Operator re-enabled both directories ahead of launch. Badges, footer,
+ * rel=me, and Organization sameAs include them again.
  */
-export const BRAND_LAUNCHSTAG_LIVE = false;
-export const BRAND_TOOLS_CAFE_LIVE = false;
+export const BRAND_LAUNCHSTAG_LIVE = true;
+export const BRAND_TOOLS_CAFE_LIVE = true;
 
 /** Directory listings that are live and reciprocal today. */
 export const BRAND_LIVE_DIRECTORY_PROFILES: readonly string[] = [

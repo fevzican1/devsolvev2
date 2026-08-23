@@ -80,9 +80,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-23T22:00:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-23T23:00:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'b';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'c';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -1685,6 +1685,15 @@ export function auditServedCopy(html: string, page: ResolvedPage): string[] {
   for (const heading of headingTexts) {
     if (!heading.includes(ownerClause)) {
       issues.push(`heading missing owner clause ${ownerClause}: "${heading}"`);
+    }
+  }
+  const h1Count = [...withoutCode.matchAll(/<h1\b/gi)].length;
+  if (h1Count !== 1) issues.push(`expected 1 H1, found ${h1Count}`);
+  if (/<h[4-6]\b/i.test(html)) issues.push('heading skips to H4+ (including chrome outside <main>)');
+  const headingLevels = [...withoutCode.matchAll(/<h([1-3])\b/gi)].map((m) => Number(m[1]));
+  for (let i = 1; i < headingLevels.length; i += 1) {
+    if (headingLevels[i] > headingLevels[i - 1] + 1) {
+      issues.push(`heading hierarchy skip h${headingLevels[i - 1]} → h${headingLevels[i]}`);
     }
   }
   if (/<th>parameter<\/th>/i.test(withoutCode) && /<th>this guide<\/th>/i.test(withoutCode)) {

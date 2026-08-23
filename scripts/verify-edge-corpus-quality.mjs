@@ -304,6 +304,9 @@ function checkDocument(index) {
   if (copyIssues.length) {
     fail('C:copy-quality', { slug: page.slug, message: copyIssues.join('; ') });
   }
+  if (/<h[4-6]\b/i.test(html)) {
+    fail('C:outline', { slug: page.slug, message: 'H4+ heading in served HTML (shared chrome/ad outline)' });
+  }
 }
 
 /*
