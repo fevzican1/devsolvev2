@@ -53,6 +53,9 @@ const MUST_BE_STOPPED = [
   ['farm Edge/144.0.0.0', FARM_EDGE_UA],
   ['farm Mac 10_15_7 Chrome/144.0.0.0', FARM_MAC_UA],
   ['farm Chrome/100.0.4896.75', FARM_CHROME100_UA],
+  ['farm Chrome/145.0.0.0 + Edg', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0'],
+  ['farm Chrome/145.0.0.0 + Lighthouse spoof', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Chrome-Lighthouse'],
+  ['Applebot', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15 (Applebot/0.1; +http://www.apple.com/go/applebot)'],
 ];
 
 const MUST_BE_REACHABLE = [

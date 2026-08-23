@@ -5,53 +5,142 @@
  * this file. First match wins.
  *
  * WAF1 is the only rule that names search or social crawlers. It SKIPS them
- * on User-Agent alone. Do not add `cf.client.bot` here: Cloudflare often
- * verifies Google and lags on Bing, and that lag is what 403s a real Bing
- * crawl. Do not try to catch fake Googlebot/Bingbot in later rules.
+ * on User-Agent (and Google/Bing renderer ASNs). Do not add `cf.client.bot`
+ * here: Cloudflare often verifies Google and lags on Bing, and that lag is
+ * what 403s a real Bing crawl. Do not try to catch fake Googlebot/Bingbot
+ * in later rules. Applebot is intentionally NOT skipped here — WAF5 already
+ * blocks it.
  *
- * WAF2–WAF5 never mention Google or Bing. Operator rules (sasd, AI Crawl
- * Control) stay in slots 4 and 5.
+ * WAF2 and WAF3 expressions are frozen. Do not edit them. Operator rules
+ * (sasd, AI Crawl Control) stay in slots 4 and 5.
  */
 
+import { BING_CRAWLER_ASNS, GOOGLE_WAF1_ASNS, wafAsnSet } from './crawler-asns.mjs';
+
 export const MAX_EXPRESSION_LENGTH = 4096;
+
+export const WAF1_UA_SKIP_TOKENS = [
+  'google', 'bing', 'msn', 'adidx', 'microsoftpreview',
+  'twitter', 'facebook', 'facebot', 'linkedin', 'slack',
+  'discord', 'whatsapp', 'telegram', 'reddit', 'pinterest',
+];
+
+export const WAF1_PUBLIC_PATHS = [
+  '/robots.txt',
+  '/sitemap.xml',
+  '/feed.xml',
+  '/opengraph-image.png',
+  '/ee5098cac2284d92b6ee1c9fca52a120.txt',
+  '/ads.txt',
+  '/sellers.json',
+];
 
 export function collapse(expr) {
   return expr.replace(/\s+/g, ' ').trim();
 }
 
 /** Public files any client must be able to fetch (IndexNow, ads, social cards). */
-export const PUBLIC_ENDPOINTS = `(http.request.uri.path in {"/robots.txt" "/sitemap.xml" "/feed.xml" "/opengraph-image.png" "/ee5098cac2284d92b6ee1c9fca52a120.txt" "/ads.txt" "/sellers.json"})`;
+export const PUBLIC_ENDPOINTS = `(http.request.uri.path in {${WAF1_PUBLIC_PATHS.map((p) => `"${p}"`).join(' ')}})`;
+
+const EXTENSION_DENY = collapse(`
+  not lower(http.user_agent) contains "chrome-extension"
+  and not lower(http.user_agent) contains "moz-extension"
+  and not http.request.headers["origin"][0] contains "chrome-extension"
+  and not http.request.headers["referer"][0] contains "chrome-extension"
+  and not http.request.headers["origin"][0] contains "moz-extension"
+  and not http.request.headers["referer"][0] contains "moz-extension"
+`);
+
+const FARM_STAMP_DENY = collapse(`
+  not lower(http.user_agent) contains ".0.0.0"
+  and not lower(http.user_agent) contains "chrome/100.0.4896"
+  and not (lower(http.user_agent) contains "mac os x 10_15_7" and lower(http.user_agent) contains "chrome/")
+`);
 
 /**
- * WAF1 — SKIP. Search + social User-Agents, and the public files above.
- * No verified-bot flag. A spoofed crawler UA is cheaper than a 403 on Bing.
+ * Chrome renderers from Google/Bing ASNs. No google/bing in those UAs, so
+ * they used to hit WAF3. This skip is ASN-only — not a spoofable UA token.
+ *
+ * - Google crawler ASNs (not GCP 396982): skip Chrome, including PageSpeed's
+ *   Chrome/123.0.0.0. Farms do not sit on 15169.
+ * - Bing/Microsoft ASNs (includes Azure 8075): skip only unstamped Chrome, so
+ *   Chrome/145.0.0.0 on Azure still falls through to WAF2.
+ * - chrome-extension / moz-extension never skip here. That is the farm.
  */
-export const WAF1_SKIP = collapse(`(
-  lower(http.user_agent) contains "google"
-  or lower(http.user_agent) contains "bing"
-  or lower(http.user_agent) contains "msn"
-  or lower(http.user_agent) contains "adidx"
-  or lower(http.user_agent) contains "microsoftpreview"
-  or lower(http.user_agent) contains "twitter"
-  or lower(http.user_agent) contains "facebook"
-  or lower(http.user_agent) contains "facebot"
-  or lower(http.user_agent) contains "linkedin"
-  or lower(http.user_agent) contains "slack"
-  or lower(http.user_agent) contains "discord"
-  or lower(http.user_agent) contains "whatsapp"
-  or lower(http.user_agent) contains "telegram"
-  or lower(http.user_agent) contains "reddit"
-  or lower(http.user_agent) contains "pinterest"
-  or lower(http.user_agent) contains "applebot"
-  or ${PUBLIC_ENDPOINTS}
+export const WAF1_SEARCH_RENDERER_ASN = collapse(`(
+  lower(http.user_agent) contains "chrome/"
+  and ${EXTENSION_DENY}
+  and (
+    ip.src.asnum in ${wafAsnSet(GOOGLE_WAF1_ASNS)}
+    or (
+      ip.src.asnum in ${wafAsnSet(BING_CRAWLER_ASNS)}
+      and ${FARM_STAMP_DENY}
+    )
+  )
 )`);
 
 /**
- * WAF2 — BLOCK. Named scrapers, the Chrome-extension leak, and the farm's
- * stamped User-Agent. Real Chrome is `Chrome/144.0.7559.109`. The farm sends
- * `Chrome/144.0.0.0` / `Edg/144.0.0.0` (build+patch both zero) and Catalina
- * `10_15_7` with Chrome. Search crawlers never reach this rule (WAF1 skipped
- * them) and do not use `.0.0.0` anyway (Bingbot is Chrome/116.0.1938.76).
+ * WAF1 — SKIP. Search + social User-Agents, Google/Bing renderer ASNs, and
+ * the public files above. No verified-bot flag. No Applebot. No lighthouse /
+ * pagespeed tokens — the farm can append those in one edit; Google PageSpeed
+ * comes from 15169 and skips via the ASN clause instead.
+ */
+export const WAF1_SKIP = collapse(`(
+  ${WAF1_UA_SKIP_TOKENS.map((token) => `lower(http.user_agent) contains "${token}"`).join('\n  or ')}
+  or ${WAF1_SEARCH_RENDERER_ASN}
+  or ${PUBLIC_ENDPOINTS}
+)`);
+
+export function isFarmStampUa(ua) {
+  const lower = String(ua || '').toLowerCase();
+  return lower.includes('.0.0.0')
+    || lower.includes('chrome/100.0.4896')
+    || (lower.includes('mac os x 10_15_7') && lower.includes('chrome/'));
+}
+
+export function isExtensionRequest({ ua = '', origin = '', referer = '' } = {}) {
+  const blob = `${ua}\n${origin}\n${referer}`.toLowerCase();
+  return blob.includes('chrome-extension') || blob.includes('moz-extension');
+}
+
+/**
+ * Offline model of WAF1. Used to prove the dashboard farm UAs cannot skip.
+ */
+export function matchesWaf1Skip({
+  ua = '',
+  path = '/k/x',
+  asnum = 0,
+  origin = '',
+  referer = '',
+} = {}) {
+  const lower = String(ua || '').toLowerCase();
+  if (WAF1_UA_SKIP_TOKENS.some((token) => lower.includes(token))) {
+    return { skip: true, via: 'ua-token' };
+  }
+  if (WAF1_PUBLIC_PATHS.includes(path)) {
+    return { skip: true, via: 'public-path' };
+  }
+  if (!lower.includes('chrome/')) {
+    return { skip: false, via: null };
+  }
+  if (isExtensionRequest({ ua, origin, referer })) {
+    return { skip: false, via: null };
+  }
+  if (GOOGLE_WAF1_ASNS.includes(asnum)) {
+    return { skip: true, via: 'google-asn' };
+  }
+  if (BING_CRAWLER_ASNS.includes(asnum) && !isFarmStampUa(ua)) {
+    return { skip: true, via: 'bing-asn' };
+  }
+  return { skip: false, via: null };
+}
+
+/**
+ * WAF2 — expression frozen. Named scrapers, the Chrome-extension leak, and
+ * the farm's stamped User-Agent. Live action is managed_challenge (operator
+ * choice). Do not edit this expression. Real Chrome is `Chrome/144.0.7559.109`.
+ * The farm sends `Chrome/144.0.0.0` / `Edg/144.0.0.0` and Catalina `10_15_7`
+ * with Chrome. Search crawlers never reach this rule (WAF1 skipped them).
  */
 export const WAF2_BLOCK = collapse(`(
   lower(http.user_agent) contains "gpt"
@@ -84,11 +173,11 @@ export const WAF2_BLOCK = collapse(`(
 )`);
 
 /**
- * WAF3 — BLOCK. Chrome-looking clients hitting /k/ that are not a real page
- * open. A person sends sec-fetch-mode: navigate and sec-fetch-dest: document.
- * Missing headers (the previous hole: `len gt 0` let empty through) or
- * fetch/XHR from an extension count as not a navigation. Search crawlers
- * never reach this rule (WAF1 already skipped them).
+ * WAF3 — expression frozen. Chrome-looking clients hitting /k/ that are not
+ * a real page open. Live action is managed_challenge (operator choice). Do
+ * not edit this expression. A person sends sec-fetch-mode: navigate and
+ * sec-fetch-dest: document. Search crawlers never reach this rule (WAF1
+ * already skipped them, including Google/Bing Chrome renderers by ASN).
  */
 export const WAF3_CHALLENGE = collapse(`(
   starts_with(http.request.uri.path, "/k/")
@@ -120,13 +209,13 @@ export const RULE_SPEC = [
     slot: 'WAF2',
     description: '[DevSolve] WAF2 BLOCK scrapers, AI crawlers, fake Chrome and short User-Agents',
     expression: WAF2_BLOCK,
-    action: 'block',
+    action: 'managed_challenge',
   },
   {
     slot: 'WAF3',
     description: '[DevSolve] WAF3 BLOCK fake Chrome on /k/',
     expression: WAF3_CHALLENGE,
-    action: 'block',
+    action: 'managed_challenge',
   },
 ];
 

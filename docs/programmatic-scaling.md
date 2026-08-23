@@ -51,11 +51,11 @@ an origin.
 
 `npm run edge:waf` deploys five custom rules (Free-plan cap). Paste-ready copy: `docs/waf-cloudflare-rules.md`.
 
-- **WAF1** (`skip`) — Google, Bing, and social User-Agents, plus public files. No `cf.client.bot` (that flag is how Bing was 403ed while Google was not). Search crawlers are named only here.
-- **WAF2** (`block`) — named scrapers, `chrome-extension://` Origin/Referer/UA, stamped `Chrome/144.0.0.0` (`.0.0.0`), Chrome/100.0.4896, and Catalina `10_15_7` + Chrome.
-- **WAF3** (`block`) — Chrome-looking clients hitting `/k/` without `sec-fetch-mode: navigate` **and** `sec-fetch-dest: document`. Missing headers count as fake (the previous `len gt 0` hole).
+- **WAF1** (`skip`) — Google, Bing, and social User-Agents; Chrome renderers from Google crawler ASNs (not GCP 396982) and unstamped Chrome from Bing/Microsoft ASNs; plus public files. No `lighthouse`/`pagespeed` tokens (spoofable). No `cf.client.bot`. No Applebot. Search crawlers are named only here. Chrome-extension requests never skip.
+- **WAF2** (`managed_challenge`, expression frozen) — named scrapers, `chrome-extension://` Origin/Referer/UA, stamped `Chrome/144.0.0.0` (`.0.0.0`), Chrome/100.0.4896, and Catalina `10_15_7` + Chrome.
+- **WAF3** (`managed_challenge`, expression frozen) — Chrome-looking clients hitting `/k/` without `sec-fetch-mode: navigate` **and** `sec-fetch-dest: document`. Missing headers count as fake.
 - **WAF4** — operator `sasd` (wp-admin / `.env`), preserved.
-- **WAF5** — operator AI Crawl Control, preserved.
+- **WAF5** — operator AI Crawl Control, preserved (already lists Applebot).
 
 Rate limit: 30 `/k/` or sitemap requests per 10s per IP. WAF1 already skips the rate-limit product.
 

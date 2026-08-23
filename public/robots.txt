@@ -1,6 +1,7 @@
 # DevSolve robots.txt
 #
 # Policy: Google Search, Bing, and social unfurl crawlers are allowed.
+# Applebot is disallowed (WAF1 no longer skips it; WAF5 blocks it).
 # Known AI-training and scraper crawlers are disallowed here. Impolite
 # bots that ignore robots.txt are stopped at the Cloudflare WAF.
 
@@ -215,9 +216,7 @@ User-agent: Pinterest
 Allow: /
 
 User-agent: Applebot
-Allow: /
-Disallow: /cmd-center
-Disallow: /api/
+Disallow: /
 
 # ---------------------------------------------------------------------------
 # Other search engines — disallowed per site policy
