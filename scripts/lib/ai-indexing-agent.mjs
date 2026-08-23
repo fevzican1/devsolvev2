@@ -20,7 +20,7 @@
  */
 
 export const AGENT_ID = 'devsolve-ai-indexing-agent';
-export const AGENT_VERSION = '2026-08-23.5';
+export const AGENT_VERSION = '2026-08-24.1';
 
 /** Cost model — must stay true for every change to this system. */
 export const COST_MODEL = Object.freeze({
@@ -69,6 +69,12 @@ export const QUALITY_CONTRACT = Object.freeze({
   // Language quality, not just uniqueness: acronym casing, article agreement,
   // no template splices, no process vocabulary in reader-facing copy.
   requireEditedProse: true, // Bing abuse: artificially engineered language
+  requireExecutablePack: true,
+  requireCompatErrorMatrix: true,
+  requireBranchTree: true,
+  requireSemanticHops: true,
+  minErrorRows: 3,
+  minSemanticHops: 4,
 });
 
 /**
@@ -99,6 +105,7 @@ export function agentBanner() {
     `sibling body ${QUALITY_CONTRACT.siblingShingleSize || 4}-gram Jaccard ≤${QUALITY_CONTRACT.maxSiblingBodyJaccard} across 20M`,
     `sibling H2/H3 Jaccard ≤${QUALITY_CONTRACT.maxSiblingHeadingJaccard} and ${QUALITY_CONTRACT.maxSharedSiblingHeadings} shared exact headings`,
     `unique heading-owner key on all 20M; every H2/H3 carries the six-slug owner clause`,
+    `executable Bash+Dockerfile, unique error matrix, if/then tree, semantic hops`,
   ].join('\n');
 }
 

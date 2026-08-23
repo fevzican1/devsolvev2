@@ -25,6 +25,8 @@ export type SectionId =
   | 'steps'
   | 'example'
   | 'snippets'
+  | 'matrix'
+  | 'branches'
   | 'pitfalls'
   | 'comparison'
   | 'glossary'
@@ -99,45 +101,45 @@ function hex(next: () => number, n: number): string {
  */
 const GENRE_OUTLINE: Record<string, { order: SectionId[]; omit: SectionId[] }> = {
   'without-installing-cli-tools': {
-    order: ['decision', 'job', 'practice', 'artifact', 'archetype', 'context', 'steps', 'example', 'snippets', 'acceptance', 'pitfalls', 'audience', 'faq'],
+    order: ['decision', 'job', 'practice', 'artifact', 'archetype', 'context', 'steps', 'example', 'snippets', 'matrix', 'branches', 'acceptance', 'pitfalls', 'audience', 'faq'],
     omit: ['glossary', 'comparison', 'takeaways'],
   },
   'directly-in-your-browser': {
-    order: ['decision', 'job', 'artifact', 'takeaways', 'practice', 'steps', 'example', 'snippets', 'archetype', 'context', 'pitfalls', 'audience', 'faq'],
+    order: ['decision', 'job', 'artifact', 'takeaways', 'practice', 'steps', 'example', 'snippets', 'matrix', 'branches', 'archetype', 'context', 'pitfalls', 'audience', 'faq'],
     omit: ['glossary', 'comparison'],
   },
   'with-step-by-step-instructions': {
-    order: ['decision', 'job', 'artifact', 'takeaways', 'archetype', 'steps', 'practice', 'example', 'snippets', 'pitfalls', 'glossary', 'audience', 'context', 'faq'],
+    order: ['decision', 'job', 'artifact', 'takeaways', 'archetype', 'steps', 'practice', 'example', 'snippets', 'matrix', 'branches', 'pitfalls', 'glossary', 'audience', 'context', 'faq'],
     omit: ['comparison'],
   },
   'with-safe-local-processing': {
-    order: ['decision', 'job', 'artifact', 'archetype', 'acceptance', 'practice', 'context', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
+    order: ['decision', 'job', 'artifact', 'archetype', 'acceptance', 'practice', 'context', 'steps', 'example', 'snippets', 'matrix', 'branches', 'pitfalls', 'audience', 'faq'],
     omit: ['glossary', 'comparison', 'takeaways'],
   },
   'while-keeping-data-private': {
-    order: ['decision', 'job', 'artifact', 'archetype', 'practice', 'acceptance', 'context', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
+    order: ['decision', 'job', 'artifact', 'archetype', 'practice', 'acceptance', 'context', 'steps', 'example', 'snippets', 'matrix', 'branches', 'pitfalls', 'audience', 'faq'],
     omit: ['glossary', 'comparison', 'takeaways'],
   },
   'for-quick-prototyping': {
-    order: ['decision', 'job', 'artifact', 'context', 'practice', 'archetype', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
+    order: ['decision', 'job', 'artifact', 'context', 'practice', 'archetype', 'steps', 'example', 'snippets', 'matrix', 'branches', 'pitfalls', 'audience', 'faq'],
     omit: ['glossary', 'comparison', 'takeaways', 'acceptance'],
   },
   'during-code-review': {
-    order: ['decision', 'job', 'artifact', 'practice', 'archetype', 'acceptance', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'context', 'faq'],
+    order: ['decision', 'job', 'artifact', 'practice', 'archetype', 'acceptance', 'steps', 'example', 'snippets', 'matrix', 'branches', 'pitfalls', 'audience', 'context', 'faq'],
     omit: ['glossary', 'comparison', 'takeaways'],
   },
   'as-part-of-ci-cd-pipeline': {
-    order: ['decision', 'job', 'artifact', 'context', 'practice', 'archetype', 'acceptance', 'snippets', 'example', 'steps', 'pitfalls', 'comparison', 'audience', 'faq'],
+    order: ['decision', 'job', 'artifact', 'context', 'practice', 'archetype', 'acceptance', 'snippets', 'matrix', 'branches', 'example', 'steps', 'pitfalls', 'comparison', 'audience', 'faq'],
     omit: ['glossary', 'takeaways'],
   },
   'with-automated-validation': {
-    order: ['decision', 'job', 'artifact', 'context', 'archetype', 'acceptance', 'practice', 'snippets', 'example', 'steps', 'pitfalls', 'audience', 'faq'],
+    order: ['decision', 'job', 'artifact', 'context', 'archetype', 'acceptance', 'practice', 'snippets', 'matrix', 'branches', 'example', 'steps', 'pitfalls', 'audience', 'faq'],
     omit: ['glossary', 'comparison', 'takeaways'],
   },
 };
 
 const DEFAULT_OUTLINE: { order: SectionId[]; omit: SectionId[] } = {
-  order: ['decision', 'job', 'artifact', 'practice', 'takeaways', 'archetype', 'steps', 'example', 'snippets', 'pitfalls', 'audience', 'faq'],
+  order: ['decision', 'job', 'artifact', 'practice', 'takeaways', 'archetype', 'steps', 'example', 'snippets', 'matrix', 'branches', 'pitfalls', 'audience', 'faq'],
   omit: ['glossary', 'comparison'],
 };
 
@@ -394,8 +396,8 @@ function cliSnippet(k: PageKernel, tk: ToolKnowledge, fixture: string, mode: str
       ? `# mode=${mode} fixture=${fixture}\n${cmd}\n# Keep the flags beside the output so ${k.toolLabel} stays replayable.`
       : `# Constraint: ${mode}. Do not install a binary to finish ${k.jobGerund}.\n# Reference only — this is what a laptop with a package manager would have run:\n# ${cmd}\n# Stay in the ${k.toolLabel} tab instead.`,
     caption: allowed
-      ? `If you later automate this job, copy these flags. Keep the verification written under Acceptance criteria next to the output.`
-      : `The commented command is there so a reader recognises the equivalent — running it would abandon the constraint this method is written for.`,
+      ? `If you later automate ${k.jobGerund} under ${k.contextPhrase}, copy these flags next to ${fixture}.`
+      : `The commented command is the ${mode} equivalent for ${fixture}. Running it would abandon ${k.stylePhrase}.`,
   };
 }
 
