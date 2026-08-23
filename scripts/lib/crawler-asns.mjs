@@ -13,6 +13,9 @@ export const GOOGLE_CRAWLER_ASNS = [
   15169, 396982, 36040, 43515, 36561, 19527, 139070, 139190,
 ];
 
+/** Google crawler/renderer nets only. 396982 is Google Cloud customer VMs — farms rent those. */
+export const GOOGLE_WAF1_ASNS = GOOGLE_CRAWLER_ASNS.filter((asn) => asn !== 396982);
+
 export const BING_CRAWLER_ASNS = [
   8075, 8068, 8069, 8070, 8071, 8072, 3598, 6182, 23274, 11271, 12076,
 ];
