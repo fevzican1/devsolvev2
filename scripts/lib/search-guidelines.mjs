@@ -163,7 +163,7 @@ export const DOCUMENT_RULES = [
   {
     id: 'heading-hierarchy',
     source: 'BING §13',
-    severity: 'major',
+    severity: 'critical',
     requirement: 'At least four <h2> sections structure the page.',
     evaluate: (s) => (s.h2Count >= 4 ? null : `only ${s.h2Count} <h2> sections`),
   },
@@ -193,14 +193,14 @@ export const DOCUMENT_RULES = [
   {
     id: 'verifiable-facts',
     source: 'BING §15',
-    severity: 'major',
+    severity: 'critical',
     requirement: 'Explicit, independently verifiable facts (a worked example, a definition list or a table).',
     evaluate: (s) => (s.hasCode && s.hasDefinitions ? null : 'no worked example and/or definition block'),
   },
   {
     id: 'snippet-guidance',
     source: 'BING §10',
-    severity: 'major',
+    severity: 'critical',
     requirement: 'A data-snippet block marks the passage Bing may display and cite.',
     evaluate: (s) => (s.hasDataSnippet ? null : 'no data-snippet block to guide citations'),
   },
@@ -227,28 +227,28 @@ export const DOCUMENT_RULES = [
   {
     id: 'entity-definition',
     source: 'BING §16 (define entities clearly and consistently)',
-    severity: 'major',
+    severity: 'critical',
     requirement: 'The primary tool/topic entity is named and defined on the page itself.',
     evaluate: (s) => (s.hasEntityDefinition ? null : 'missing explicit entity definition block'),
   },
   {
     id: 'early-answer',
     source: 'BING §18 (surface key information early)',
-    severity: 'major',
+    severity: 'critical',
     requirement: 'A data-snippet answer appears near the top of <main>, before long secondary sections.',
     evaluate: (s) => (s.hasEarlyAnswer ? null : 'no early data-snippet answer in the opening of <main>'),
   },
   {
     id: 'single-topic',
     source: 'BING §17 (focus each URL on a single topic)',
-    severity: 'major',
+    severity: 'critical',
     requirement: 'Title and H1 share a primary topic token so the URL stays single-intent.',
     evaluate: (s) => (s.topicAligned ? null : 'title and H1 do not share a primary topic token'),
   },
   {
     id: 'decision-guide',
     source: 'BING §11 / §15 (clear, focused, independently verifiable content)',
-    severity: 'major',
+    severity: 'critical',
     requirement: 'A decision guide states when this exact workflow applies and when it does not.',
     evaluate: (s) => (s.hasDecisionGuide ? null : 'missing when-to-use / when-not-to-use decision guide'),
   },
@@ -304,7 +304,14 @@ export const CORPUS_RULES = [
     source: 'GOOGLE "Crawled - currently not indexed" / scaled content / BING abuse: automatically generated content at scale',
     severity: 'critical',
     requirement:
-      'Style×context siblings must not share an H2 list. A shared heading skeleton is the quality signal that keeps a crawled /k/ URL out of the index even when body Jaccard is low. Exact shared H2s must be 0; heading-set Jaccard stays ≤ 0.05.',
+      'No two /k/ URLs may share an exact H2 or H3. Every heading carries the six URL-dimension slugs (style, context, intent, audience, task, tool). Style×context siblings and same-method different-job pages both show 0 shared headings.',
+  },
+  {
+    id: 'unique-heading-owners',
+    source: 'GOOGLE "Crawled - currently not indexed" / scaled content',
+    severity: 'critical',
+    requirement:
+      'The six-slug heading owner key is unique for every one of the 20M URLs (style × context × intent × audience × task × tool). Every rendered H2/H3 contains that key’s visible clause, so no two URLs can share an exact heading.',
   },
   {
     id: 'edited-prose',

@@ -4,12 +4,14 @@
  * Google's quality mark ("Crawled – currently not indexed") fires on a
  * shared H2 list even when body 5-grams differ. This agent therefore:
  *   1. Jaccard of <main> prose WITH headings (no H2/H3 strip)
- *   2. Exact shared H2s between style×context siblings must be 0
+ *   2. Exact shared H2/H3s between style×context siblings must be 0
+ *   3. Same-style×context pages on a different job share 0 H2/H3s
  *
  * Cost: build CPU only.
  */
 import {
   CORPUS_SIZE,
+  PAIRS,
   PER_PAIR,
   TASKS,
   MODIFIER_COUNT,
@@ -23,7 +25,7 @@ import { ORIGIN, headingSet, samplePages, setJaccard, sharedMembers } from './sh
 
 export const AGENT = {
   id: 'uniqueness-agent',
-  task: 'Keep style×context siblings below the Jaccard ceiling and sharing zero H2s so none read as scaled duplicates',
+  task: 'Keep style×context siblings below the Jaccard ceiling and sharing zero H2/H3s, including same-method different-job pages',
 };
 
 const N = QUALITY_CONTRACT.siblingShingleSize || 5;
@@ -126,6 +128,28 @@ export async function run(opts = {}) {
         }
       }
     }
+
+    const pairIndex = Math.floor(page.index / PER_PAIR);
+    const remainder = page.index % PER_PAIR;
+    const otherPair = (pairIndex + 1) % PAIRS.length;
+    const otherIndex = otherPair * PER_PAIR + remainder;
+    if (otherIndex >= 0 && otherIndex < CORPUS_SIZE) {
+      const other = pageForIndex(otherIndex);
+      if (other) {
+        const otherHtml = renderProgrammaticPage(other, ORIGIN);
+        const ownHeads = headingSet(html);
+        const otherHeads = headingSet(otherHtml);
+        const sharedOther = sharedMembers(ownHeads, otherHeads);
+        if (sharedOther.length > MAX_SHARED) {
+          failures.push({
+            slug: page.slug,
+            sibling: other.slug,
+            sharedHeadings: sharedOther.slice(0, 8),
+            kind: 'cross-job',
+          });
+        }
+      }
+    }
   }
 
   return {
@@ -142,7 +166,8 @@ export async function run(opts = {}) {
     maxSharedHeadings: maxShared,
     failures: failures.slice(0, 20),
     notes: [
-      'Headings stay in the Jaccard window. A shared H2 list is Google scaled-content even at body Jaccard 0.02.',
+      'Headings stay in the Jaccard window. A shared H2/H3 list is Google scaled-content even at body Jaccard 0.02.',
+      'Cross-job same-style×context pages are also compared: they previously shared method×setting H2s.',
       'verify-edge-corpus-quality.mjs re-runs body + heading gates on 800 stems during postbuild as the 20M proof.',
     ],
   };

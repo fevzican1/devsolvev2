@@ -40,9 +40,18 @@ export interface PageKernel {
   stylePhrase: string;
   /** Short method label for headings — not the stuffing-prone full phrase. */
   styleMicro: string;
+  /** Single-token method for heading ownership (spaces folded). */
+  styleTiny: string;
   contextPhrase: string;
   /** Short setting label for headings — not the stuffing-prone full phrase. */
   contextMicro: string;
+  /** Single-token setting for heading ownership (spaces folded). */
+  contextTiny: string;
+  /** Single-token job / audience / task / tool for corpus-unique H2s. */
+  jobTiny: string;
+  audienceTiny: string;
+  taskTiny: string;
+  toolTiny: string;
   /** Prepositional form of the context, e.g. "during team onboarding". */
   contextSituation: string;
   audienceFocus: string;

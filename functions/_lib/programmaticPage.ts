@@ -31,7 +31,7 @@
 
 import { EMBEDDED_RAMP_LEVEL } from './embeddedRamp';
 import { prose, titleCase, sentence, pluralRole, gerund, articleFor } from './language';
-import { FORBIDDEN_SKELETON_HEADINGS, headingSlotForSectionId, ownHeading } from './ownedHeading';
+import { FORBIDDEN_SKELETON_HEADINGS, headingOwnerClause, headingOwnerTokens, headingSlotForSectionId, oneToken, ownHeading } from './ownedHeading';
 import {
   archetypeSections,
   audienceSection,
@@ -80,9 +80,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-23T19:40:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-23T22:00:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'a';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'b';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -1107,6 +1107,48 @@ export function titleVocabularyAudit(): { problems: string[]; worstCaseTitleLeng
     { name: 'context', values: [...MODIFIER_CONTEXTS], spellings: (v) => [CONTEXT_VOCAB[v]?.micro ?? '', CONTEXT_VOCAB[v]?.tiny ?? ''] },
   ];
 
+  for (const style of MODIFIER_STYLES) {
+    if (!STYLE_VOCAB[style]) problems.push(`style "${style}" has no STYLE_VOCAB entry (would collapse onto DEFAULT_STYLE tiny)`);
+  }
+  for (const context of MODIFIER_CONTEXTS) {
+    if (!CONTEXT_VOCAB[context]) problems.push(`context "${context}" has no CONTEXT_VOCAB entry (would collapse onto DEFAULT_CONTEXT tiny)`);
+  }
+
+  const ownerDimensions: { name: string; values: string[]; spelling: (value: string) => string }[] = [
+    { name: 'heading-owner-style', values: [...MODIFIER_STYLES], spelling: (v) => oneToken(v) },
+    { name: 'heading-owner-context', values: [...MODIFIER_CONTEXTS], spelling: (v) => oneToken(v) },
+    { name: 'heading-owner-job', values: intents, spelling: (v) => oneToken(v) },
+    { name: 'heading-owner-audience', values: [...AUDIENCES], spelling: (v) => oneToken(v) },
+    { name: 'heading-owner-task', values: [...TASKS], spelling: (v) => oneToken(v) },
+    { name: 'heading-owner-tool', values: Array.from(new Set(CLUSTERS.flatMap(([, tools]) => tools))), spelling: (v) => oneToken(v) },
+  ];
+  for (const dimension of ownerDimensions) {
+    const seen = new Map<string, string>();
+    for (const value of dimension.values) {
+      const spelling = dimension.spelling(value);
+      checkedSpellings += 1;
+      if (!spelling || spelling.length < 2) {
+        problems.push(`${dimension.name} "${value}" has no heading-owner token`);
+        continue;
+      }
+      const previous = seen.get(spelling);
+      if (previous !== undefined) {
+        problems.push(`${dimension.name} is not injective: "${previous}" and "${value}" both render as "${spelling}"`);
+      }
+      seen.set(spelling, value);
+    }
+  }
+
+  const toolIntent = new Map<string, string>();
+  for (const [cluster, tool, intent] of PAIRS) {
+    const key = `${tool}\t${intent}`;
+    const previous = toolIntent.get(key);
+    if (previous !== undefined && previous !== cluster) {
+      problems.push(`(tool, intent) "${tool}" + "${intent}" appears in both "${previous}" and "${cluster}" — heading-owner key would collide without cluster`);
+    }
+    toolIntent.set(key, cluster);
+  }
+
   const maxima: Record<string, number[]> = {};
   for (const dimension of dimensions) {
     const tierCount = dimension.spellings(dimension.values[0]).length;
@@ -1152,6 +1194,20 @@ export function buildIdentity(page: ResolvedPage): PageIdentity {
     description: buildDescription(page, forms),
     h1: buildH1(page, forms),
   };
+}
+
+/**
+ * Six URL-dimension slugs that must appear in every H2 and H3.
+ * Unique per URL by construction: style × context × intent × audience ×
+ * task × tool is the page identity (cluster is determined by tool+intent).
+ */
+export function headingOwnerKey(page: ResolvedPage): string {
+  return headingOwnerTokens(pageKernel(page)).join('\t');
+}
+
+/** Visible owner clause stamped on every H2/H3. */
+export function headingOwnerClauseFor(page: ResolvedPage): string {
+  return headingOwnerClause(pageKernel(page));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1209,8 +1265,14 @@ function pageKernel(page: ResolvedPage): PageKernel {
     taskPhrase: TASK_PHRASE[page.task] ?? label(page.task),
     stylePhrase: sv.phrase,
     styleMicro: sv.micro,
+    styleTiny: oneToken(page.style),
     contextPhrase: cv.phrase,
     contextMicro: cv.micro,
+    contextTiny: oneToken(page.context),
+    jobTiny: oneToken(page.intent),
+    audienceTiny: oneToken(page.audience),
+    taskTiny: oneToken(page.task),
+    toolTiny: oneToken(page.tool),
     contextSituation: cv.situation,
     audienceFocus: ac.focus,
     audienceConcern: ac.concern,
@@ -1614,32 +1676,15 @@ export function auditServedCopy(html: string, page: ResolvedPage): string[] {
   ];
   const headingTexts = [...withoutCode.matchAll(/<h[23][^>]*>([\s\S]*?)<\/h[23]>/gi)]
     .map((m) => m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
-  const h2Texts = [...withoutCode.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)]
-    .map((m) => m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
   for (const heading of genericHeadings) {
     if (headingTexts.some((h) => h.toLowerCase() === heading)) {
       issues.push(`generic template heading: "${heading}"`);
     }
   }
-  const ownershipNeedles = [
-    label(page.intent).toLowerCase(),
-    intentMicro(page.intent).toLowerCase(),
-    gerund(page.intent).toLowerCase(),
-    styleVocab(page).micro.toLowerCase(),
-    contextVocab(page).micro.toLowerCase(),
-    pluralRole(page.audience).toLowerCase(),
-  ].filter((n) => n.length >= 3);
-  const methodNeedles = [
-    styleVocab(page).micro.toLowerCase(),
-    contextVocab(page).micro.toLowerCase(),
-  ].filter((n) => n.length >= 3);
-  for (const heading of h2Texts) {
-    const hl = heading.toLowerCase();
-    if (!ownershipNeedles.some((n) => hl.includes(n))) {
-      issues.push(`heading not owned by this page: "${heading}"`);
-    }
-    if (methodNeedles.length && !methodNeedles.some((n) => hl.includes(n))) {
-      issues.push(`heading missing method/setting (scaled-content skeleton): "${heading}"`);
+  const ownerClause = headingOwnerClause(pageKernel(page));
+  for (const heading of headingTexts) {
+    if (!heading.includes(ownerClause)) {
+      issues.push(`heading missing owner clause ${ownerClause}: "${heading}"`);
     }
   }
   if (/<th>parameter<\/th>/i.test(withoutCode) && /<th>this guide<\/th>/i.test(withoutCode)) {
@@ -1882,12 +1927,12 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
 
   const example = `<section aria-labelledby="example"><h2 id="example">${escapeHtml(genreHeading('example', page, c))}</h2>`
     + `<p>${escapeHtml(c.workedExample.note)}</p>`
-    + `<h3>${escapeHtml(c.workedExample.inputLabel)}</h3><pre><code>${escapeHtml(c.workedExample.input)}</code></pre>`
-    + `<h3>${escapeHtml(c.workedExample.outputLabel)}</h3><pre><code>${escapeHtml(c.workedExample.output)}</code></pre></section>`;
+    + `<h3>${escapeHtml(ownHeading(pageKernel(page), 'example-in', c.workedExample.inputLabel))}</h3><pre><code>${escapeHtml(c.workedExample.input)}</code></pre>`
+    + `<h3>${escapeHtml(ownHeading(pageKernel(page), 'example-out', c.workedExample.outputLabel))}</h3><pre><code>${escapeHtml(c.workedExample.output)}</code></pre></section>`;
 
   const snippets = `<section aria-labelledby="snippets"><h2 id="snippets">${escapeHtml(genreHeading('snippets', page, c))}</h2>`
     + `<p>${escapeHtml(snippetLead(pageKernel(page)))}</p>`
-    + c.snippets.map((s) => `<h3>${escapeHtml(s.label)}</h3><pre><code>${escapeHtml(s.code)}</code></pre><p>${escapeHtml(s.caption)}</p>`).join('')
+    + c.snippets.map((s) => `<h3>${escapeHtml(ownHeading(pageKernel(page), 'snippet', s.label))}</h3><pre><code>${escapeHtml(s.code)}</code></pre><p>${escapeHtml(s.caption)}</p>`).join('')
     + `</section>`;
 
   const pitfalls = `<section aria-labelledby="pitfalls"><h2 id="pitfalls">${escapeHtml(genreHeading('pitfalls', page, c))}</h2>${renderList(c.pitfalls)}</section>`;
@@ -1902,7 +1947,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + `</dl></section>`;
 
   const faq = `<section aria-labelledby="faq"><h2 id="faq">${escapeHtml(genreHeading('faq', page, c))}</h2>`
-    + c.faq.map((f) => `<h3>${escapeHtml(f.question)}</h3><p>${escapeHtml(f.answer)}</p>`).join('')
+    + c.faq.map((f) => `<h3>${escapeHtml(ownHeading(pageKernel(page), 'faq-q', f.question))}</h3><p>${escapeHtml(f.answer)}</p>`).join('')
     + `</section>`;
 
   const artifactParas = c.artifact.paragraphs.filter(Boolean).map((p) => `<p>${escapeHtml(p)}</p>`).join('');

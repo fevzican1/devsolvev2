@@ -20,7 +20,7 @@
  */
 
 export const AGENT_ID = 'devsolve-ai-indexing-agent';
-export const AGENT_VERSION = '2026-08-23.2';
+export const AGENT_VERSION = '2026-08-23.4';
 
 /** Cost model — must stay true for every change to this system. */
 export const COST_MODEL = Object.freeze({
@@ -63,6 +63,7 @@ export const QUALITY_CONTRACT = Object.freeze({
   // Jaccard is low. Style×context siblings must share zero exact H2s.
   maxSiblingHeadingJaccard: 0.05,
   maxSharedSiblingHeadings: 0,
+  requireUniqueHeadingOwners: true,
   requireWorkedExample: true, // Bing §15 verifiability
   singleTopicPerUrl: true, // Bing §17
   // Language quality, not just uniqueness: acronym casing, article agreement,
@@ -96,7 +97,8 @@ export function agentBanner() {
     `≥${QUALITY_CONTRACT.minWordCount} words, ≥${QUALITY_CONTRACT.minInternalLinks} links,`,
     `entity+early-answer+data-snippet, unique title/desc/H1,`,
     `sibling body ${QUALITY_CONTRACT.siblingShingleSize || 4}-gram Jaccard ≤${QUALITY_CONTRACT.maxSiblingBodyJaccard} across 20M`,
-    `sibling H2 Jaccard ≤${QUALITY_CONTRACT.maxSiblingHeadingJaccard} and ${QUALITY_CONTRACT.maxSharedSiblingHeadings} shared exact headings`,
+    `sibling H2/H3 Jaccard ≤${QUALITY_CONTRACT.maxSiblingHeadingJaccard} and ${QUALITY_CONTRACT.maxSharedSiblingHeadings} shared exact headings`,
+    `unique heading-owner key on all 20M; every H2/H3 carries the six-slug owner clause`,
   ].join('\n');
 }
 
