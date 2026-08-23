@@ -165,7 +165,7 @@ const TOOL_FAULTS: Record<string, { stem: string; scene: string }[]> = {
     { stem: 'RGX-E-ESC', scene: 'literal backslash eaten by the host string' },
   ],
   'sql-formatter': [
-    { stem: 'SQL-E-DIAL', scene: 'dialect keyword the formatter rewrites' },
+    { stem: 'SQL-E-DIAL', scene: 'dialect identifier the formatter rewrites' },
     { stem: 'SQL-E-STR', scene: 'string literal closed one quote too early' },
     { stem: 'SQL-E-CMT', scene: 'comment that hid a trailing clause' },
     { stem: 'SQL-E-CASE', scene: 'identifier case folded against a quoted name' },
@@ -330,7 +330,7 @@ function contextFix(k: PageKernel, fixture: string, code: string): string {
 }
 
 export function buildCompatMatrix(k: PageKernel, plan: DocumentPlan): CompatMatrix {
-  const seed = plan.seed ^ fnv(k.slug);
+  const seed = plan.seed ^ 0x85ebca6b;
   const fixture = fixtureId(plan);
   const env = osFor(k);
   const faults = TOOL_FAULTS[k.tool] ?? FALLBACK_FAULTS;
@@ -363,7 +363,7 @@ export function buildCompatMatrix(k: PageKernel, plan: DocumentPlan): CompatMatr
 export function buildBranchTree(k: PageKernel, plan: DocumentPlan): BranchFork[] {
   const fixture = fixtureId(plan);
   const env = osFor(k);
-  const seed = plan.seed ^ 0xc2b2ae35;
+  const seed = (plan.seed + 0xc2b2ae35) >>> 0;
   const faults = TOOL_FAULTS[k.tool] ?? FALLBACK_FAULTS;
   const code = `${pick(faults, seed, 1).stem}-${hex(seed, 4)}`;
   return [
