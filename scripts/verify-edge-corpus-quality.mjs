@@ -26,7 +26,8 @@
  *                   limit holds by arithmetic, not by sampling.
  *   B. IDENTITY     an exhaustive sweep of all 20,000,000 URLs: each title is
  *                   30–70 characters, each meta description 150–160, and every
- *                   title / description / H1 is unique corpus-wide.
+ *                   title / description / H1 / heading-owner key is unique
+ *                   corpus-wide.
  *   C. DOCUMENT     full HTML rendered and scored for every (pair × audience ×
  *                   task) template combination across rotating modifiers, plus
  *                   a random sample — score >= 90 and zero guideline
@@ -68,6 +69,7 @@ import {
   DESCRIPTION_MAX,
   pageForIndex,
   buildIdentity,
+  headingOwnerKey,
   renderProgrammaticPage,
   resolveSlugRequest,
   titleVocabularyAudit,
@@ -153,6 +155,7 @@ console.log(`\n[B] identity sweep over ${IDENTITY_SCAN.toLocaleString()} URLs`);
 const titleFingerprints = new Float64Array(IDENTITY_SCAN);
 const descriptionFingerprints = new Float64Array(IDENTITY_SCAN);
 const h1Fingerprints = new Float64Array(IDENTITY_SCAN);
+const ownerFingerprints = new Float64Array(IDENTITY_SCAN);
 
 const identityStats = {
   scanned: 0,
@@ -190,13 +193,14 @@ for (let index = 0; index < IDENTITY_SCAN; index += 1) {
   titleFingerprints[index] = fingerprint(title);
   descriptionFingerprints[index] = fingerprint(description);
   h1Fingerprints[index] = fingerprint(h1);
+  ownerFingerprints[index] = fingerprint(headingOwnerKey(page));
 
   if (index > 0 && index % 5_000_000 === 0) {
     console.log(`    …${index.toLocaleString()} URLs (${((Date.now() - sweepStart) / 1000).toFixed(0)}s)`);
   }
 }
 
-const duplicateCounts = { title: 0, description: 0, h1: 0 };
+const duplicateCounts = { title: 0, description: 0, h1: 0, owner: 0 };
 const duplicateExamples = [];
 
 function verifyUniqueness(kind, fingerprints, pick) {
@@ -225,10 +229,33 @@ function verifyUniqueness(kind, fingerprints, pick) {
 verifyUniqueness('title', titleFingerprints, (id) => id.title);
 verifyUniqueness('description', descriptionFingerprints, (id) => id.description);
 verifyUniqueness('h1', h1Fingerprints, (id) => id.h1);
+{
+  const repeated = findRepeatedFingerprints(ownerFingerprints);
+  if (repeated.size) {
+    const seen = new Map();
+    for (let index = 0; index < IDENTITY_SCAN; index += 1) {
+      if (!repeated.has(ownerFingerprints[index])) continue;
+      const page = pageForIndex(index);
+      if (!page) continue;
+      const value = headingOwnerKey(page);
+      const previous = seen.get(value);
+      if (previous === undefined) {
+        seen.set(value, page.slug);
+        continue;
+      }
+      duplicateCounts.owner += 1;
+      if (duplicateExamples.length < 10) duplicateExamples.push({ kind: 'owner', value, a: previous, b: page.slug });
+    }
+    if (duplicateCounts.owner > 0) {
+      fail('B:uniqueness', { message: `${duplicateCounts.owner} duplicate heading-owner key(s) across the corpus` });
+    }
+  }
+}
 
 console.log(`    titles       ${identityStats.titleMin}-${identityStats.titleMax} chars, ${identityStats.titleLengthViolations} outside 30-${TITLE_MAX}, ${duplicateCounts.title} duplicates`);
 console.log(`    descriptions ${identityStats.descriptionMin}-${identityStats.descriptionMax} chars, ${identityStats.descriptionLengthViolations} outside ${DESCRIPTION_MIN}-${DESCRIPTION_MAX}, ${duplicateCounts.description} duplicates`);
 console.log(`    h1           ${duplicateCounts.h1} duplicates`);
+console.log(`    heading owner ${duplicateCounts.owner} duplicates`);
 console.log(`    swept in ${((Date.now() - sweepStart) / 1000).toFixed(0)}s`);
 
 /* ------------------------------------------------------------------------- */
@@ -276,6 +303,9 @@ function checkDocument(index) {
   }
   if (copyIssues.length) {
     fail('C:copy-quality', { slug: page.slug, message: copyIssues.join('; ') });
+  }
+  if (/<h[4-6]\b/i.test(html)) {
+    fail('C:outline', { slug: page.slug, message: 'H4+ heading in served HTML (shared chrome/ad outline)' });
   }
 }
 
@@ -411,10 +441,10 @@ function extractMainText(html) {
   return stripped;
 }
 
-function extractH2Set(html) {
+function extractHeadingSet(html) {
   const main = html.match(/<main[\s\S]*?<\/main>/i)?.[0] ?? html;
   const set = new Set();
-  for (const match of main.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)) {
+  for (const match of main.matchAll(/<h[23][^>]*>([\s\S]*?)<\/h[23]>/gi)) {
     const text = match[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
     if (text) set.add(text);
   }
@@ -437,7 +467,7 @@ function jaccard(a, b) {
   return union === 0 ? 0 : inter / union;
 }
 
-console.log(`\n[E] sibling body + heading uniqueness — ${SIBLING_STEMS} stems × ${SIBLING_MODS} modifiers (${SHINGLE_N}-gram Jaccard ≤ ${MAX_SIBLING_JACCARD}; H2 Jaccard ≤ ${MAX_HEADING_JACCARD}; shared H2s ≤ ${MAX_SHARED_HEADINGS})`);
+console.log(`\n[E] sibling body + heading uniqueness — ${SIBLING_STEMS} stems × ${SIBLING_MODS} modifiers (${SHINGLE_N}-gram Jaccard ≤ ${MAX_SIBLING_JACCARD}; H2/H3 Jaccard ≤ ${MAX_HEADING_JACCARD}; shared headings ≤ ${MAX_SHARED_HEADINGS})`);
 const siblingStats = { stems: 0, pairs: 0, maxJaccard: 0, sumJaccard: 0, maxHeadingJaccard: 0, sumHeadingJaccard: 0, maxSharedHeadings: 0 };
 let rng3 = 0xc2b2ae35 >>> 0;
 const nextStem = () => {
@@ -470,7 +500,7 @@ for (let s = 0; s < SIBLING_STEMS && failures.length < MAX_FAIL; s += 1) {
     if (!page) continue;
     const html = renderProgrammaticPage(page, ORIGIN);
     shingles.push(wordShingles(extractMainText(html)));
-    headings.push(extractH2Set(html));
+    headings.push(extractHeadingSet(html));
     slugs.push(page.slug);
   }
   if (shingles.length < 2) continue;
@@ -500,7 +530,7 @@ for (let s = 0; s < SIBLING_STEMS && failures.length < MAX_FAIL; s += 1) {
           slug: slugs[i],
           sibling: slugs[j],
           jaccard: Number(hJac.toFixed(4)),
-          message: `shared heading skeleton (${shared.length} exact H2s, heading Jaccard ${hJac.toFixed(3)}): ${shared.slice(0, 6).join(' | ')}`,
+          message: `shared heading skeleton (${shared.length} exact H2/H3s, heading Jaccard ${hJac.toFixed(3)}): ${shared.slice(0, 6).join(' | ')}`,
         });
       }
     }
@@ -513,7 +543,40 @@ const avgHeadingJaccard = siblingStats.pairs
   ? siblingStats.sumHeadingJaccard / siblingStats.pairs
   : 0;
 console.log(`    stems ${siblingStats.stems}, pairs ${siblingStats.pairs}, max body Jaccard ${siblingStats.maxJaccard.toFixed(3)}, avg ${avgSiblingJaccard.toFixed(3)}`);
-console.log(`    heading Jaccard max ${siblingStats.maxHeadingJaccard.toFixed(3)}, avg ${avgHeadingJaccard.toFixed(3)}, max shared H2s ${siblingStats.maxSharedHeadings}`);
+console.log(`    heading Jaccard max ${siblingStats.maxHeadingJaccard.toFixed(3)}, avg ${avgHeadingJaccard.toFixed(3)}, max shared H2/H3s ${siblingStats.maxSharedHeadings}`);
+
+/* ------------------------------------------------------------------------- */
+/* Phase F — cross-job heading uniqueness (same style×context, different job) */
+/* ------------------------------------------------------------------------- */
+console.log(`\n[F] cross-job heading uniqueness — ${SIBLING_STEMS} stems (same audience/task/modifier, next pair)`);
+const crossJobStats = { stems: 0, pairs: 0, maxSharedHeadings: 0 };
+for (let s = 0; s < SIBLING_STEMS && failures.length < MAX_FAIL; s += 1) {
+  const pairIdx = Math.floor(nextStem() * PAIRS.length);
+  const a = Math.floor(nextStem() * AUDIENCES.length);
+  const t = Math.floor(nextStem() * TASKS.length);
+  const mod = Math.floor(nextStem() * MODIFIER_COUNT);
+  const indexA = comboIndex(pairIdx, a, t, mod);
+  const indexB = comboIndex((pairIdx + 1) % PAIRS.length, a, t, mod);
+  if (indexA >= CORPUS_SIZE || indexB >= CORPUS_SIZE) continue;
+  const pageA = pageForIndex(indexA);
+  const pageB = pageForIndex(indexB);
+  if (!pageA || !pageB) continue;
+  const headsA = extractHeadingSet(renderProgrammaticPage(pageA, ORIGIN));
+  const headsB = extractHeadingSet(renderProgrammaticPage(pageB, ORIGIN));
+  const shared = [];
+  for (const h of headsA) if (headsB.has(h)) shared.push(h);
+  crossJobStats.stems += 1;
+  crossJobStats.pairs += 1;
+  crossJobStats.maxSharedHeadings = Math.max(crossJobStats.maxSharedHeadings, shared.length);
+  if (shared.length > MAX_SHARED_HEADINGS) {
+    fail('F:cross-job-headings', {
+      slug: pageA.slug,
+      sibling: pageB.slug,
+      message: `same-style×context different-job pages share ${shared.length} H2/H3s: ${shared.slice(0, 6).join(' | ')}`,
+    });
+  }
+}
+console.log(`    stems ${crossJobStats.stems}, max shared H2/H3s ${crossJobStats.maxSharedHeadings}`);
 
 /* ------------------------------------------------------------------------- */
 /* Report                                                                     */
@@ -565,6 +628,12 @@ const manifest = {
     maxSharedHeadings: siblingStats.maxSharedHeadings,
     maxSharedHeadingsAllowed: MAX_SHARED_HEADINGS,
   },
+  crossJobHeadings: {
+    stems: crossJobStats.stems,
+    pairs: crossJobStats.pairs,
+    maxSharedHeadings: crossJobStats.maxSharedHeadings,
+    maxSharedHeadingsAllowed: MAX_SHARED_HEADINGS,
+  },
   indexableBar: MIN_INDEXABLE_SCORE,
   agentVersion: AGENT_VERSION,
   contentContract: QUALITY_CONTRACT,
@@ -584,5 +653,6 @@ if (failures.length > 0) {
 
 console.log(`\nPASS — ${IDENTITY_SCAN === CORPUS_SIZE ? 'all' : IDENTITY_SCAN.toLocaleString()} of ${CORPUS_SIZE.toLocaleString()} URLs carry a unique, length-compliant title, description and H1;`);
 console.log(`       every scored document clears ${MIN_INDEXABLE_SCORE}/100 with zero critical guideline violations;`);
-console.log(`       sibling body Jaccard max ${siblingStats.maxJaccard.toFixed(3)} ≤ ${MAX_SIBLING_JACCARD}; heading Jaccard max ${siblingStats.maxHeadingJaccard.toFixed(3)} ≤ ${MAX_HEADING_JACCARD}; shared H2s ${siblingStats.maxSharedHeadings} ≤ ${MAX_SHARED_HEADINGS}.`);
+console.log(`       sibling body Jaccard max ${siblingStats.maxJaccard.toFixed(3)} ≤ ${MAX_SIBLING_JACCARD}; heading Jaccard max ${siblingStats.maxHeadingJaccard.toFixed(3)} ≤ ${MAX_HEADING_JACCARD}; shared H2/H3s ${siblingStats.maxSharedHeadings} ≤ ${MAX_SHARED_HEADINGS};`);
+console.log(`       cross-job shared H2/H3s ${crossJobStats.maxSharedHeadings} ≤ ${MAX_SHARED_HEADINGS}; heading-owner keys unique.`);
 process.exit(0);

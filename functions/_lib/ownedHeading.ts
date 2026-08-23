@@ -2,32 +2,22 @@
  * Page-owned headings — Google scaled-content / GSC "Crawled – currently not
  * indexed" (content quality) defence.
  *
- * Same-job siblings used to share an H2 list ("Done-when checks a second
- * person can run", "Where to go next", "What SREs should freeze"). Body
- * Jaccard hid that because the uniqueness agent stripped H2/H3. Google's
- * quality systems do not: a shared heading skeleton is scaled content even
- * when the paragraphs differ.
+ * A heading that only names method × setting is unique among style×context
+ * *siblings* (same job) and still identical across every other job, audience,
+ * task and tool that shares that method × setting. That is the remaining
+ * scaled-content fingerprint: "Sign-off bar (local-only · rollouts)" on
+ * tens of thousands of URLs.
  *
- * Every heading this helper emits is owned by this URL's job × method ×
- * setting. Style×context siblings therefore cannot share an exact H2.
- * Micro spellings are used on purpose so the full style/context *phrases*
- * are not stuffed into every heading (that would trip the keyword-stuffing
- * audit and still look like a template suffix).
+ * Every H2 and H3 therefore carries the six URL-dimension slugs
+ * (style, context, intent, audience, task, tool). Slugs are already
+ * hyphen-folded, so they do not form a 5-gram run that same-job siblings
+ * would share (siblings differ on the first two tokens).
  */
 
 import type { PageKernel } from './corpusKnowledge';
 
-function has(hay: string, needle: string): boolean {
-  if (!needle || needle.length < 3) return false;
-  return hay.toLowerCase().includes(needle.toLowerCase());
-}
-
-function namesMethod(hay: string, k: PageKernel): boolean {
-  return has(hay, k.styleMicro) || has(hay, k.stylePhrase);
-}
-
-function namesSetting(hay: string, k: PageKernel): boolean {
-  return has(hay, k.contextMicro) || has(hay, k.contextPhrase);
+export function oneToken(value: string): string {
+  return value.replace(/\s+/g, '-').replace(/,+/g, '').trim();
 }
 
 function tidy(value: string): string {
@@ -35,9 +25,26 @@ function tidy(value: string): string {
 }
 
 /**
- * Rewrite a genre/slot heading so it cannot appear on a different
- * style×context sibling. `base` is the professional line for the slot;
- * the result still has to read as an H2 a person would write.
+ * Compact owner clause. Unique per URL. No spaces: the six slugs are one
+ * 5-gram token, so same-job siblings (who share the last four slugs) do
+ * not pick up a shared 5-gram from the stamp itself.
+ */
+export function headingOwnerClause(k: PageKernel): string {
+  return `(${k.styleTiny},${k.contextTiny},${k.jobTiny},${k.audienceTiny},${k.taskTiny},${k.toolTiny})`;
+}
+
+export function headingOwnerTokens(k: PageKernel): string[] {
+  return [k.styleTiny, k.contextTiny, k.jobTiny, k.audienceTiny, k.taskTiny, k.toolTiny];
+}
+
+/**
+ * Rewrite a genre/slot heading so it cannot appear on any other /k/ URL.
+ * `base` is the professional line for the slot.
+ *
+ * The six-token owner clause is always appended (unless already present).
+ * Substring "token present" checks are not enough: "local" is inside
+ * "local-only", "JSON" is inside "JSON validation", and skipping the clause
+ * on that basis lets two URLs share an exact H2/H3.
  */
 export function ownHeading(k: PageKernel, slot: string, base: string): string {
   const doing = k.jobGerund;
@@ -45,36 +52,36 @@ export function ownHeading(k: PageKernel, slot: string, base: string): string {
   const method = k.styleMicro || k.stylePhrase;
   const setting = k.contextMicro || k.contextPhrase;
   const trimmed = tidy(base);
+  const owner = headingOwnerClause(k);
 
+  let line: string;
   switch (slot) {
     case 'related':
-      return tidy(`After ${doing} ${method} in ${setting}`);
+      line = `After ${doing} ${method} in ${setting}`;
+      break;
     case 'acceptance':
-      return tidy(`Done-when ${who} can replay ${doing} ${method} in ${setting}`);
+      line = `Done-when ${who} can replay ${doing} ${method} pass in ${setting}`;
+      break;
     case 'comparison':
-      return tidy(`When another method beats this ${doing} ${method} pass in ${setting}`);
+      line = `When another method beats this ${doing} ${method} pass in ${setting}`;
+      break;
     case 'glossary':
-      return tidy(`Terms ${who} use strictly for ${doing} ${method}`);
+      line = `Terms ${who} use strictly for ${doing} ${method}`;
+      break;
     case 'decision-when':
-      return tidy(`Use this ${doing} ${method} path when`);
+      line = `Use this ${doing} ${method} path when`;
+      break;
     case 'decision-not':
-      return tidy(`Skip this ${doing} ${method} path when`);
+      line = `Skip this ${doing} ${method} path when`;
+      break;
     default:
+      line = trimmed;
       break;
   }
 
-  let line = trimmed;
-  // Do not stamp "for {job}" onto every H2. That 5-gram run is shared by
-  // every same-job sibling and is what pushed body Jaccard over the ceiling.
-  // Method × setting is enough for sibling uniqueness and the copy audit.
-  if (!namesMethod(line, k) && !namesSetting(line, k)) {
-    line = `${line} (${method} · ${setting})`;
-  } else if (!namesMethod(line, k)) {
-    line = `${line} ${method}`;
-  } else if (!namesSetting(line, k)) {
-    line = `${line} in ${setting}`;
-  }
-  return tidy(line);
+  if (line.includes(owner)) return tidy(line);
+  line = line.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  return tidy(`${line} ${owner}`);
 }
 
 /** Slot id used by KnowledgeSection.id values coming out of the generator. */

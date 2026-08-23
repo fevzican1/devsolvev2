@@ -37,7 +37,7 @@ export function renderRevenueAsides(input: {
 
   const b2b = `<aside class="b2b-dataset-card" style="background:#0f172a;color:#fff;border:1px solid #334155;padding:20px;border-radius:8px;margin:30px 0">`
     + `<span style="background:#38bdf8;color:#0f172a;font-size:10px;font-weight:bold;padding:2px 8px;border-radius:4px">B2B ACCESS</span>`
-    + `<h4 style="margin:10px 0 5px 0;color:#fff;font-size:16px">Raw JSON dataset and API access</h4>`
+    + `<p style="margin:10px 0 5px 0;color:#fff;font-size:16px;font-weight:600">Raw JSON dataset and API access</p>`
     + `<p style="color:#94a3b8;font-size:13px;margin-bottom:15px">Download the technical configuration for this ${tool} ${job} workflow (${audience}) as raw JSON. Paid via Payoneer — one click, no account on this site.</p>`
     + `<a href="/buy-dataset" target="_blank" rel="nofollow" style="background:#22c55e;color:#fff;padding:10px 18px;border-radius:6px;font-weight:bold;text-decoration:none;display:inline-block;font-size:13px">Download dataset ($25) →</a>`
     + `<p style="color:#64748b;font-size:11px;margin:12px 0 0">Own product. Internal hop; destination can change without republishing this page.</p>`

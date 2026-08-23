@@ -2,8 +2,9 @@
  * Bing Webmaster Guidelines Agent — §1–§22 + abuse list, as HTML contracts.
  * Cost: build CPU only. No Bing API, no Cloudflare Function.
  */
+import { QUALITY_CONTRACT } from '../ai-indexing-agent.mjs';
 import { scorePage, MIN_INDEXABLE_SCORE } from '../ai-quality-scoring.mjs';
-import { samplePages } from './shared.mjs';
+import { extract, samplePages } from './shared.mjs';
 
 export const AGENT = {
   id: 'bing-guidelines-agent',
@@ -11,10 +12,21 @@ export const AGENT = {
 };
 
 const SECTION_HINTS = [
+  { id: '§1-useful', test: (html, ctx) => ctx.score.wordCount >= QUALITY_CONTRACT.minWordCount, fail: 'not enough useful prose' },
+  { id: '§5-links', test: (html, ctx) => ctx.score.details.internalLinks >= QUALITY_CONTRACT.minInternalLinks, fail: 'weak internal link structure' },
   { id: '§6-canonical', test: (html) => /rel="canonical"/.test(html), fail: 'no canonical' },
   { id: '§8-render', test: (html) => html.includes('<main') && html.includes('<h1'), fail: 'content not in raw HTML' },
   { id: '§10-robots', test: (html) => /content="index,follow/i.test(html) && !/noarchive|nosnippet|nocache/i.test(html), fail: 'robots block grounding' },
   { id: '§10-snippet', test: (html) => html.includes('data-snippet'), fail: 'no data-snippet for citations' },
+  { id: '§11-focus', test: (html) => /id="decision"|data-decision/.test(html), fail: 'no decision guide' },
+  { id: '§13-title', test: (html) => {
+    const n = extract(html, /<title>([^<]*)<\/title>/i).length;
+    return n >= QUALITY_CONTRACT.titleChars.min && n <= QUALITY_CONTRACT.titleChars.max;
+  }, fail: 'title outside Bing window' },
+  { id: '§13-description', test: (html) => {
+    const n = extract(html, /<meta name="description" content="([^"]*)"/i).length;
+    return n >= QUALITY_CONTRACT.descriptionChars.min && n <= QUALITY_CONTRACT.descriptionChars.max;
+  }, fail: 'description outside 150–160' },
   { id: '§13-structure', test: (html) => (html.match(/<h2/gi) || []).length >= 4, fail: 'fewer than 4 H2s' },
   { id: '§14-jsonld', test: (html) => (html.match(/application\/ld\+json/g) || []).length >= 3, fail: 'fewer than 3 JSON-LD blocks' },
   { id: '§15-verify', test: (html) => /<pre|<code/i.test(html), fail: 'no worked example' },
@@ -41,8 +53,9 @@ export async function run(opts = {}) {
         reason: `score ${scored.score} (need ${MIN_INDEXABLE_SCORE}) ${scored.violations.join('; ')}`,
       });
     }
+    const ctx = { score: scored };
     for (const hint of SECTION_HINTS) {
-      if (!hint.test(html)) failures.push({ slug: page.slug, reason: `${hint.id}: ${hint.fail}` });
+      if (!hint.test(html, ctx)) failures.push({ slug: page.slug, reason: `${hint.id}: ${hint.fail}` });
     }
   }
 

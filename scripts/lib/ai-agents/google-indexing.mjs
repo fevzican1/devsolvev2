@@ -9,6 +9,7 @@
 import { TITLE_MAX, TITLE_MIN, DESCRIPTION_TARGET_MIN, DESCRIPTION_TARGET_MAX } from '../search-guidelines.mjs';
 import { scorePage, MIN_INDEXABLE_SCORE } from '../ai-quality-scoring.mjs';
 import { FORBIDDEN_SKELETON_HEADINGS } from '../../../functions/_lib/ownedHeading.ts';
+import { headingOwnerClauseFor } from '../../../functions/_lib/programmaticPage.ts';
 import { extract, extractHeadings, samplePages, wordCount } from './shared.mjs';
 
 export const AGENT = {
@@ -80,12 +81,28 @@ const REASONS = [
       if (!ctx.score?.passesIndexable) {
         return `score ${ctx.score?.score} < ${MIN_INDEXABLE_SCORE} or critical violations`;
       }
-      const headings = extractHeadings(html, 'h2').map((h) => h.toLowerCase());
+      if (/<h[4-6]\b/i.test(html)) return 'document outline uses H4+ (shared ad/chrome heading)';
+      const h2 = extractHeadings(html, 'h2');
+      const h3 = extractHeadings(html, 'h3');
+      const headings = [...h2, ...h3].map((h) => h.toLowerCase());
       const skeleton = headings.filter((h) => FORBIDDEN_SKELETON_HEADINGS.includes(h));
       if (skeleton.length) return `shared heading skeleton still present: ${skeleton.join('; ')}`;
+      const clause = headingOwnerClauseFor(ctx.page).toLowerCase();
+      const missing = [...h2, ...h3].filter((h) => !h.toLowerCase().includes(clause));
+      if (missing.length) return `heading missing unique owner clause: ${missing[0]}`;
       if (!ctx.score.signals?.hasIndependentOpening) {
         return 'opening does not name this page’s audience and job';
       }
+      return null;
+    },
+  },
+  {
+    id: 'discovered-not-indexed',
+    gsc: 'Discovered - currently not indexed',
+    check: (html) => {
+      const links = [...html.matchAll(/<a\s+[^>]*href=["']([^"']+)["']/gi)].length;
+      if (links < 14) return `only ${links} internal links`;
+      if (!html.includes('application/ld+json')) return 'no structured data for discovery';
       return null;
     },
   },
@@ -99,7 +116,7 @@ export async function run(opts = {}) {
 
   for (const { page, html } of pages) {
     const scored = scorePage(html, { expectedCanonical: `https://devsolvev2.com/k/${page.slug}` });
-    const ctx = { url: `https://devsolvev2.com/k/${page.slug}`, score: scored };
+    const ctx = { url: `https://devsolvev2.com/k/${page.slug}`, score: scored, page };
     for (const reason of REASONS) {
       const hit = reason.check(html, ctx);
       if (hit) {
@@ -117,7 +134,7 @@ export async function run(opts = {}) {
     failures: failures.slice(0, 20),
     notes: [
       'Server 5xx / 404 / 401 are routing invariants, not HTML. Phase D of verify-edge-corpus-quality.mjs covers them.',
-      'Crawled - currently not indexed (content quality) is enforced here: score, independent opening, and no shared heading skeleton.',
+      'Crawled - currently not indexed (content quality) is enforced here: score, independent opening, unique owner clause on every H2/H3, and no shared heading skeleton.',
     ],
   };
 }

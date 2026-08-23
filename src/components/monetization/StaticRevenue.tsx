@@ -81,9 +81,9 @@ export function B2BDatasetCard({ toolName, job }: ContextProps) {
       >
         B2B ACCESS
       </span>
-      <h4 style={{ margin: '10px 0 5px 0', color: '#fff', fontSize: 16 }}>
+      <p style={{ margin: '10px 0 5px 0', color: '#fff', fontSize: 16, fontWeight: 600 }}>
         Raw JSON dataset and API access
-      </h4>
+      </p>
       <p style={{ color: '#94a3b8', fontSize: 13, marginBottom: 15 }}>
         {detail} Paid via Payoneer — one click, no account on this site.
       </p>
