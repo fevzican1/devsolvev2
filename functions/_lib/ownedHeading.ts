@@ -74,6 +74,12 @@ export function ownHeading(k: PageKernel, slot: string, base: string): string {
     case 'decision-not':
       line = `Skip this ${doing} ${method} path when`;
       break;
+    case 'matrix':
+      line = `${method} in ${setting}: fault table ${who} keep for ${doing}`;
+      break;
+    case 'branches':
+      line = `${method} forks in ${setting} for ${doing}`;
+      break;
     default:
       line = trimmed;
       break;
@@ -109,4 +115,7 @@ export const FORBIDDEN_SKELETON_HEADINGS = [
   'sign-off bar',
   'use this guide when',
   'choose a different guide when',
+  'compatibility and error matrix',
+  'edge-case logic',
+  'if/else decision tree',
 ];

@@ -208,6 +208,10 @@ export function extractDocumentSignals(html) {
   // "When {audience} are {task}" prefix was itself a scaled-content stamp
   // and hid job-specific openings Google already treats as better.
   const hasIndependentOpening = firstLead.length >= 80 && namedAudience && namedJob;
+  const hasCompatMatrix = /data-compat-matrix/.test(mainHtml) && (html.match(/data-error-code=/g) || []).length >= 3;
+  const hasExecutablePack = /FROM\s+\S+/i.test(html) && /set -euo pipefail/.test(html);
+  const hasBranchTree = /data-branch-tree/.test(mainHtml) && (html.match(/data-branch=/g) || []).length >= 3;
+  const hasSemanticHops = (html.match(/data-rel="(?:next-task|observe|method|intent)"/g) || []).length >= 4;
 
   return {
     title,
@@ -230,6 +234,10 @@ export function extractDocumentSignals(html) {
     topicAligned,
     hasPromptInjection,
     hasIndependentOpening,
+    hasCompatMatrix,
+    hasExecutablePack,
+    hasBranchTree,
+    hasSemanticHops,
   };
 }
 

@@ -65,6 +65,15 @@ import {
 } from './pageVariation';
 import { taskGuide } from './taskGuides';
 import { AD_FOOTER_SLOT, AD_HEADER_SLOT, renderRevenueAsides } from './revenuePlacements';
+import {
+  buildBranchTree,
+  buildCompatMatrix,
+  buildExecutablePack,
+  matrixLead,
+  matrixSplit,
+  type BranchFork,
+  type CompatMatrix,
+} from './semanticValue';
 
 /* -------------------------------------------------------------------------- */
 /*  Corpus geometry (immutable deployment invariant)                          */
@@ -80,9 +89,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-23T23:00:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-24T00:30:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'c';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'a';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -178,7 +187,7 @@ export function pageForIndex(index: number): ResolvedPage | undefined {
 }
 
 /** Index of the canonical page for a (pair, audience, task, modifier) tuple. */
-function indexForCombination(pairIndex: number, audienceIndex: number, taskIndex: number, modifier: number): number {
+export function indexForCombination(pairIndex: number, audienceIndex: number, taskIndex: number, modifier: number): number {
   return pairIndex * PER_PAIR
     + audienceIndex * TASKS.length * MODIFIER_COUNT
     + taskIndex * MODIFIER_COUNT
@@ -1233,12 +1242,14 @@ export interface PageContent {
   faq: { question: string; answer: string }[];
   keywords: string[];
   workedExample: { inputLabel: string; input: string; outputLabel: string; output: string; note: string };
-  related: { slug: string; label: string }[];
+  related: { slug: string; label: string; rel?: string }[];
   /** Style/context/audience sections — different H2 trees per archetype. */
   sections: KnowledgeSection[];
   plan: DocumentPlan;
   snippets: SnippetBlock[];
   artifact: KnowledgeSection;
+  matrix: CompatMatrix;
+  branches: BranchFork[];
 }
 
 function pageKernel(page: ResolvedPage): PageKernel {
@@ -1307,7 +1318,9 @@ function buildContent(page: ResolvedPage): PageContent {
   const faq = variedFaq(k, tk, ik, plan);
   const workedExample = buildWorkedExample(page);
   const related = buildRelated(page);
-  const snippets = uniqueSnippets(k, tk, ik, plan);
+  const snippets = [...uniqueSnippets(k, tk, ik, plan), ...buildExecutablePack(k, plan)];
+  const matrix = buildCompatMatrix(k, plan);
+  const branches = buildBranchTree(k, plan);
   const artifact = contextArtifact(k);
 
   const job = taskGuide(k);
@@ -1355,6 +1368,8 @@ function buildContent(page: ResolvedPage): PageContent {
     plan,
     snippets,
     artifact: { ...artifact, heading: ownHeading(k, 'artifact', artifact.heading) },
+    matrix,
+    branches,
   };
 }
 
@@ -1477,14 +1492,89 @@ function toBase64(input: string): string {
   return output;
 }
 
-function buildRelated(page: ResolvedPage): { slug: string; label: string }[] {
+function pageAt(pairIndex: number, audienceIndex: number, taskIndex: number, modifier: number): ResolvedPage | undefined {
+  pairIndex = ((pairIndex % PAIRS.length) + PAIRS.length) % PAIRS.length;
+  audienceIndex = ((audienceIndex % AUDIENCES.length) + AUDIENCES.length) % AUDIENCES.length;
+  taskIndex = ((taskIndex % TASKS.length) + TASKS.length) % TASKS.length;
+  modifier = ((modifier % MODIFIER_COUNT) + MODIFIER_COUNT) % MODIFIER_COUNT;
+  const raw = indexForCombination(pairIndex, audienceIndex, taskIndex, modifier);
+  if (raw < CORPUS_SIZE) return pageForIndex(raw);
+  const pairStart = pairIndex * PER_PAIR;
+  if (pairStart >= CORPUS_SIZE) return pageForIndex(((raw % CORPUS_SIZE) + CORPUS_SIZE) % CORPUS_SIZE);
+  const available = CORPUS_SIZE - pairStart;
+  return pageForIndex(pairStart + ((raw % available) + available) % available);
+}
+
+function nextPairWhere(start: number, pred: (pair: readonly [string, string, string]) => boolean): number {
+  for (let i = 1; i <= PAIRS.length; i += 1) {
+    const idx = (start + i) % PAIRS.length;
+    const pair = PAIRS[idx];
+    if (pair && pred(pair)) return idx;
+  }
+  return (start + 1) % PAIRS.length;
+}
+
+function buildRelated(page: ResolvedPage): { slug: string; label: string; rel?: string }[] {
   const seed = stableHash(page.slug);
-  const out: { slug: string; label: string }[] = [];
+  const out: { slug: string; label: string; rel?: string }[] = [];
   const seen = new Set<string>([page.slug]);
-  // Coprime-ish stride keeps neighbours spread across the corpus while staying
-  // fully deterministic and resolvable (every target is a real /k/ page).
-  // 16 related /k/ links densifies the crawl graph so Googlebot discovers
-  // siblings from any seed URL without waiting on the (ramped) sitemap.
+  const pairIndex = Math.floor(page.index / PER_PAIR);
+  const audienceIndex = AUDIENCES.indexOf(page.audience);
+  const taskIndex = TASKS.indexOf(page.task);
+  const styleIndex = Math.floor(page.modifier / MODIFIER_CONTEXTS.length);
+  const ctxIndex = page.modifier % MODIFIER_CONTEXTS.length;
+
+  const push = (target: ResolvedPage | undefined, rel: string, prefix: string) => {
+    if (!target || seen.has(target.slug)) return;
+    seen.add(target.slug);
+    out.push({
+      slug: target.slug,
+      rel,
+      label: `${prefix}: ${title(target.intent)} for ${pluralRole(target.audience)} (${styleVocab(target).micro} · ${contextVocab(target).micro}${target.tool !== page.tool ? ` · ${toolName(target.tool)}` : ''})`,
+    });
+  };
+
+  const scanTask = (dir: 1 | -1) => {
+    for (let t = 1; t < TASKS.length; t += 1) {
+      const cand = pageAt(pairIndex, audienceIndex, (taskIndex + dir * t + TASKS.length * 8) % TASKS.length, page.modifier);
+      if (cand && cand.slug !== page.slug && cand.task !== page.task) return cand;
+    }
+    return undefined;
+  };
+  push(scanTask(1), 'next-task', 'Next job');
+  push(scanTask(-1), 'prev-task', 'Prior job');
+
+  const observeCtx = Math.max(0, page.context === 'for-observability-pipelines'
+    ? MODIFIER_CONTEXTS.indexOf('for-time-sensitive-incidents')
+    : MODIFIER_CONTEXTS.indexOf('for-observability-pipelines'));
+  push(pageAt(pairIndex, audienceIndex, taskIndex, styleIndex * MODIFIER_CONTEXTS.length + observeCtx), 'observe', 'Then monitor');
+
+  const rolloutCtx = Math.max(0, page.context === 'for-production-rollouts'
+    ? MODIFIER_CONTEXTS.indexOf('for-release-management')
+    : MODIFIER_CONTEXTS.indexOf('for-production-rollouts'));
+  push(pageAt(pairIndex, audienceIndex, taskIndex, styleIndex * MODIFIER_CONTEXTS.length + rolloutCtx), 'rollout', 'Then ship');
+
+  const methodStyle = Math.max(0, page.style === 'as-part-of-ci-cd-pipeline'
+    ? MODIFIER_STYLES.indexOf('directly-in-your-browser')
+    : MODIFIER_STYLES.indexOf('as-part-of-ci-cd-pipeline'));
+  const methodHop = pageAt(pairIndex, audienceIndex, taskIndex, methodStyle * MODIFIER_CONTEXTS.length + ctxIndex);
+  push(methodHop && methodHop.style !== page.style ? methodHop : pageAt(pairIndex, audienceIndex, taskIndex, ((styleIndex + 1) % MODIFIER_STYLES.length) * MODIFIER_CONTEXTS.length + ctxIndex), 'method', 'Same job, other method');
+
+  const scanAudience = () => {
+    for (let a = 1; a < AUDIENCES.length; a += 1) {
+      const cand = pageAt(pairIndex, (audienceIndex + a) % AUDIENCES.length, taskIndex, page.modifier);
+      if (cand && cand.slug !== page.slug && cand.audience !== page.audience) return cand;
+    }
+    return undefined;
+  };
+  push(scanAudience(), 'audience', 'Same job, other reader');
+
+  const intentPair = nextPairWhere(pairIndex, ([, tool, intent]) => tool === page.tool && intent !== page.intent);
+  push(pageAt(intentPair, audienceIndex, taskIndex, page.modifier), 'intent', 'Same tool, other job');
+
+  const toolPair = nextPairWhere(pairIndex, ([cluster, tool]) => cluster === page.cluster && tool !== page.tool);
+  push(pageAt(toolPair, audienceIndex, taskIndex, page.modifier), 'tool', 'Same cluster, other tool');
+
   const stride = 1 + (seed % 9973) * 2;
   let cursor = page.index;
   for (let k = 0; out.length < 16 && k < 64; k += 1) {
@@ -1492,20 +1582,15 @@ function buildRelated(page: ResolvedPage): { slug: string; label: string }[] {
     const target = pageForIndex(cursor);
     if (!target || seen.has(target.slug)) continue;
     seen.add(target.slug);
-    // Anchor text names the tool only when it differs from this page's tool:
-    // twenty anchors repeating one product name is keyword stuffing, and the
-    // reader learns nothing from the repetition either.
     const sameTool = target.tool === page.tool;
     out.push({
       slug: target.slug,
+      rel: 'discover',
       label: sameTool
         ? `${title(target.intent)} for ${pluralRole(target.audience)} (${styleVocab(target).micro} · ${contextVocab(target).micro})`
         : `${title(target.intent)} with ${toolName(target.tool)} (${styleVocab(target).micro} · ${contextVocab(target).micro})`,
     });
   }
-  // Same-tool neighbours (different intent/audience) reinforce topical clusters
-  // so crawlers traverse high-relevance paths instead of only random strides.
-  const pairIndex = Math.floor(page.index / PER_PAIR);
   for (let k = 0; out.length < 20 && k < 12; k += 1) {
     const offset = 1 + ((seed >>> (k % 16)) % (PER_PAIR - 1));
     const neighbour = pageForIndex((pairIndex * PER_PAIR + (page.index + offset) % PER_PAIR) % CORPUS_SIZE);
@@ -1514,6 +1599,7 @@ function buildRelated(page: ResolvedPage): { slug: string; label: string }[] {
     seen.add(neighbour.slug);
     out.push({
       slug: neighbour.slug,
+      rel: 'cluster',
       label: neighbour.tool === page.tool
         ? `${title(neighbour.intent)} for ${pluralRole(neighbour.audience)} (${styleVocab(neighbour).micro} · ${contextVocab(neighbour).micro})`
         : `${title(neighbour.intent)} with ${toolName(neighbour.tool)} (${styleVocab(neighbour).micro} · ${contextVocab(neighbour).micro})`,
@@ -1706,6 +1792,18 @@ export function auditServedCopy(html: string, page: ResolvedPage): string[] {
   if (!/<section\b[^>]*id=["']practice["']/i.test(html)) {
     issues.push('missing method-specific practice section (style prose was planned but not rendered)');
   }
+  if (!/data-compat-matrix/.test(html) || (html.match(/data-error-code=/g) || []).length < 3) {
+    issues.push('missing unique compat/error matrix (3 fault rows)');
+  }
+  if (!/FROM\s+\S+/i.test(html) || !/set -euo pipefail/.test(html)) {
+    issues.push('missing executable Dockerfile or Bash replay');
+  }
+  if (!/data-branch-tree/.test(html) || (html.match(/data-branch=/g) || []).length < 3) {
+    issues.push('missing if/then edge-case tree');
+  }
+  if ((html.match(/data-rel="(?:next-task|observe|method|intent)"/g) || []).length < 4) {
+    issues.push('missing semantic next-job / monitor / method / intent hops');
+  }
 
   const leadMatch = html.match(/<p class="lead"[^>]*>([\s\S]*?)<\/p>/i);
   if (leadMatch) {
@@ -1800,6 +1898,12 @@ function genreHeading(id: string, page: ResolvedPage, c: PageContent): string {
       break;
     case 'glossary':
       raw = `Terms this page uses strictly`;
+      break;
+    case 'matrix':
+      raw = `Compat and fault table for ${job}`;
+      break;
+    case 'branches':
+      raw = `If-then forks for ${job}`;
       break;
     case 'faq':
       switch (page.style) {
@@ -1944,6 +2048,21 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + c.snippets.map((s) => `<h3>${escapeHtml(ownHeading(pageKernel(page), 'snippet', s.label))}</h3><pre><code>${escapeHtml(s.code)}</code></pre><p>${escapeHtml(s.caption)}</p>`).join('')
     + `</section>`;
 
+  const matrix = `<section id="matrix" data-compat-matrix aria-labelledby="matrix-h"><h2 id="matrix-h">${escapeHtml(genreHeading('matrix', page, c))}</h2>`
+    + `<p>${escapeHtml(matrixLead(pageKernel(page)))}</p>`
+    + `<table><thead><tr><th>Runtime</th><th>Pin</th></tr></thead><tbody>`
+    + c.matrix.pins.map((row) => `<tr><td>${escapeHtml(row.runtime)}</td><td>${escapeHtml(row.pin)}</td></tr>`).join('')
+    + `</tbody></table>`
+    + `<p>${escapeHtml(matrixSplit(pageKernel(page)))}</p>`
+    + `<table><thead><tr><th>Error</th><th>When ${escapeHtml(styleVocab(page).micro)}</th><th>Fix in ${escapeHtml(contextVocab(page).micro)}</th></tr></thead><tbody>`
+    + c.matrix.errors.map((row) => `<tr data-error-code="${escapeHtml(row.code)}"><td><code>${escapeHtml(row.code)}</code></td><td>${escapeHtml(row.fires)}</td><td>${escapeHtml(row.fix)}</td></tr>`).join('')
+    + `</tbody></table></section>`;
+
+  const branches = `<section id="branches" data-branch-tree aria-labelledby="branches-h"><h2 id="branches-h">${escapeHtml(genreHeading('branches', page, c))}</h2>`
+    + `<ol>`
+    + c.branches.map((b) => `<li data-branch="${escapeHtml(b.ifText.slice(0, 48))}"><strong>${escapeHtml(b.ifText)}</strong> ${escapeHtml(b.thenText)}</li>`).join('')
+    + `</ol></section>`;
+
   const pitfalls = `<section aria-labelledby="pitfalls"><h2 id="pitfalls">${escapeHtml(genreHeading('pitfalls', page, c))}</h2>${renderList(c.pitfalls)}</section>`;
 
   const comparison = `<section aria-labelledby="compare"><h2 id="compare">${escapeHtml(genreHeading('comparison', page, c))}</h2>`
@@ -1965,7 +2084,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
 
   const guide = GUIDE_BY_TOOL[toolSlug];
   const related = `<section aria-labelledby="related"><h2 id="related">${escapeHtml(ownHeading(pageKernel(page), 'related', 'Where to go next'))}</h2><div class="links">`
-    + c.related.map((r) => `<a href="/k/${escapeHtml(r.slug)}">${escapeHtml(r.label)}</a>`).join('')
+    + c.related.map((r) => `<a href="/k/${escapeHtml(r.slug)}"${r.rel ? ` data-rel="${escapeHtml(r.rel)}"` : ''}>${escapeHtml(r.label)}</a>`).join('')
     + (guide ? `<a href="/guides/${escapeHtml(guide.slug)}">${escapeHtml(guide.title)}</a>` : '')
     + `<a href="/tools/${escapeHtml(toolSlug)}">Open the ${escapeHtml(toolName(page.tool))} tool</a>`
     + `<a href="/tools">All developer tools</a>`
@@ -1987,6 +2106,8 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     steps: stepsHtml,
     example,
     snippets,
+    matrix,
+    branches,
     pitfalls,
     comparison,
     glossary,

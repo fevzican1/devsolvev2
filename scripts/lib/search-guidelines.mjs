@@ -266,6 +266,46 @@ export const DOCUMENT_RULES = [
     requirement: 'The opening names this page’s audience and job so the URL reads as an independent guide, not a reshuffled template.',
     evaluate: (s) => (s.hasIndependentOpening ? null : 'opening lead does not name this page’s audience and job'),
   },
+  {
+    id: 'compat-error-matrix',
+    source: 'GOOGLE information gain / BING §15 (independently verifiable technical data)',
+    severity: 'critical',
+    requirement: 'The page ships a unique compatibility + error table (runtime pins and ≥3 fault codes with fixes) for this job × tool × setting.',
+    evaluate: (s, profile) => {
+      if (profile === 'static') return null;
+      return s.hasCompatMatrix ? null : 'missing unique compat/error matrix';
+    },
+  },
+  {
+    id: 'executable-pack',
+    source: 'GOOGLE helpful technical content / BING §15',
+    severity: 'critical',
+    requirement: 'The page includes an executable Bash replay and a Dockerfile that replay this URL’s fixture.',
+    evaluate: (s, profile) => {
+      if (profile === 'static') return null;
+      return s.hasExecutablePack ? null : 'missing Dockerfile or Bash replay';
+    },
+  },
+  {
+    id: 'branch-tree',
+    source: 'GOOGLE information gain / BING §11 (clear, focused procedure)',
+    severity: 'critical',
+    requirement: 'The page includes if/then edge-case forks a reader can follow without another URL.',
+    evaluate: (s, profile) => {
+      if (profile === 'static') return null;
+      return s.hasBranchTree ? null : 'missing if/then edge-case tree';
+    },
+  },
+  {
+    id: 'semantic-hops',
+    source: 'BING §5 (descriptive internal links) / GOOGLE crawl graph',
+    severity: 'critical',
+    requirement: 'Related links include next-job, monitor, other-method, and other-intent hops — not only a random stride.',
+    evaluate: (s, profile) => {
+      if (profile === 'static') return null;
+      return s.hasSemanticHops ? null : 'missing semantic next-job / monitor / method / intent hops';
+    },
+  },
 ];
 
 /**

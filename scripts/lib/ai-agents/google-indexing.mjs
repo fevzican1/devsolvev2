@@ -93,6 +93,10 @@ const REASONS = [
       if (!ctx.score.signals?.hasIndependentOpening) {
         return 'opening does not name this page’s audience and job';
       }
+      if (!ctx.score.signals?.hasCompatMatrix) return 'missing unique compat/error matrix';
+      if (!ctx.score.signals?.hasExecutablePack) return 'missing Dockerfile/Bash information-gain pack';
+      if (!ctx.score.signals?.hasBranchTree) return 'missing if/then edge-case tree';
+      if (!ctx.score.signals?.hasSemanticHops) return 'missing semantic next-job / monitor hops';
       return null;
     },
   },

@@ -9,6 +9,8 @@
  *   4. language-agent
  *   5. backlink-agent
  *   6. deepseek-indexability-agent (MIT-licensed local policy; no hosted API)
+ *   7. semantic-value-agent (executable pack + error matrix + hops)
+ *   8. information-gain-agent (siblings do not share fault codes)
  *
  * Usage:
  *   node --import tsx scripts/run-ai-agents.mjs
@@ -26,6 +28,8 @@ import { run as uniquenessRun } from './lib/ai-agents/uniqueness.mjs';
 import { run as languageRun } from './lib/ai-agents/language.mjs';
 import { run as backlinkRun } from './lib/ai-agents/backlink.mjs';
 import { run as deepseekRun } from './lib/ai-agents/deepseek-indexability.mjs';
+import { run as semanticRun } from './lib/ai-agents/semantic-value.mjs';
+import { run as gainRun } from './lib/ai-agents/information-gain.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const reportsDir = join(__dirname, '..', 'out', 'reports');
@@ -44,6 +48,8 @@ results.push(await uniquenessRun({ stems }));
 results.push(await languageRun({ sample }));
 results.push(await backlinkRun({ offline: process.env.AI_AGENTS_OFFLINE === '1' }));
 results.push(await deepseekRun({ sample }));
+results.push(await semanticRun({ sample }));
+results.push(await gainRun({ stems }));
 
 if (!existsSync(reportsDir)) mkdirSync(reportsDir, { recursive: true });
 const report = {
