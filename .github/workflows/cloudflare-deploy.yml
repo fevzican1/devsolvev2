@@ -17,38 +17,73 @@ on:
 
 permissions:
   contents: read
+  checks: read
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Quality gates on Pages now run 20M identity + ~55k full HTML scores.
+    # A concurrent git-connected build holds the deploy hook at 304 for
+    # the whole build, which is longer than the old 20-minute job budget.
+    timeout-minutes: 45
     steps:
       - name: Trigger Cloudflare Pages deploy hook
         env:
           CLOUDFLARE_DEPLOY_HOOK_URL: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK_URL }}
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           if [ -z "$CLOUDFLARE_DEPLOY_HOOK_URL" ]; then
             echo "CLOUDFLARE_DEPLOY_HOOK_URL secret is not set — skipping deploy trigger."
             echo "Add it in: Settings → Secrets and variables → Actions → Repository secrets → CLOUDFLARE_DEPLOY_HOOK_URL"
             exit 0
           fi
+
+          pages_check() {
+            gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs" \
+              --jq '[.check_runs[] | select(.name=="Cloudflare Pages")] | .[0] | "\(.status // "")|\(.conclusion // "")"' \
+              2>/dev/null || true
+          }
+
           echo "Triggering Cloudflare Pages production deploy..."
           # The hook returns 304 while another build is already queued/running.
-          # That earlier build checked out an OLDER commit, so we must retry
-          # until Cloudflare accepts a fresh build of this commit.
-          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+          # Git-connected Pages already starts a production build of THIS sha
+          # on push. That is a success, not a miss — do not fail the job
+          # because the hook cannot start a second identical build.
+          for attempt in $(seq 1 20); do
             HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$CLOUDFLARE_DEPLOY_HOOK_URL")
             if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
               echo "Deploy hook triggered successfully (HTTP $HTTP_STATUS, attempt $attempt)"
               exit 0
             fi
             if [ "$HTTP_STATUS" = "304" ]; then
-              echo "Deploy hook returned 304 (a build is already in progress) — retrying in 90s (attempt $attempt/10)..."
+              STATE=$(pages_check)
+              STATUS="${STATE%%|*}"
+              CONCLUSION="${STATE#*|}"
+              echo "Deploy hook returned 304 (attempt $attempt/20). Cloudflare Pages check: status=${STATUS:-none} conclusion=${CONCLUSION:-none}"
+              if [ "$STATUS" = "in_progress" ] || [ "$STATUS" = "queued" ] || [ "$CONCLUSION" = "success" ]; then
+                echo "This SHA is already building or live on Pages — hook does not need a second build."
+                exit 0
+              fi
+              if [ "$CONCLUSION" = "failure" ] || [ "$CONCLUSION" = "cancelled" ]; then
+                echo "Pages check for this SHA already failed ($CONCLUSION)."
+                exit 1
+              fi
+              echo "No Pages check for this SHA yet — retrying in 90s..."
               sleep 90
               continue
             fi
             echo "Deploy hook returned HTTP $HTTP_STATUS — check CLOUDFLARE_DEPLOY_HOOK_URL"
             exit 1
           done
-          echo "Deploy hook still returning 304 after 10 attempts — trigger manually via workflow_dispatch."
+          STATE=$(pages_check)
+          STATUS="${STATE%%|*}"
+          CONCLUSION="${STATE#*|}"
+          echo "Hook still 304 after 20 attempts. Pages check: status=${STATUS:-none} conclusion=${CONCLUSION:-none}"
+          if [ "$STATUS" = "in_progress" ] || [ "$STATUS" = "queued" ] || [ "$CONCLUSION" = "success" ]; then
+            echo "This SHA is already on Pages — treating as success."
+            exit 0
+          fi
+          echo "Could not confirm a Pages build of this SHA — trigger manually via workflow_dispatch."
           exit 1
