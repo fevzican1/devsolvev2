@@ -7,7 +7,9 @@
  * is present.
  */
 import { TITLE_MAX, TITLE_MIN, DESCRIPTION_TARGET_MIN, DESCRIPTION_TARGET_MAX } from '../search-guidelines.mjs';
-import { extract, samplePages, wordCount } from './shared.mjs';
+import { scorePage, MIN_INDEXABLE_SCORE } from '../ai-quality-scoring.mjs';
+import { FORBIDDEN_SKELETON_HEADINGS } from '../../../functions/_lib/ownedHeading.ts';
+import { extract, extractHeadings, samplePages, wordCount } from './shared.mjs';
 
 export const AGENT = {
   id: 'google-indexing-agent',
@@ -71,6 +73,22 @@ const REASONS = [
       return null;
     },
   },
+  {
+    id: 'crawled-not-indexed-quality',
+    gsc: 'Crawled - currently not indexed (content quality / scaled content)',
+    check: (html, ctx) => {
+      if (!ctx.score?.passesIndexable) {
+        return `score ${ctx.score?.score} < ${MIN_INDEXABLE_SCORE} or critical violations`;
+      }
+      const headings = extractHeadings(html, 'h2').map((h) => h.toLowerCase());
+      const skeleton = headings.filter((h) => FORBIDDEN_SKELETON_HEADINGS.includes(h));
+      if (skeleton.length) return `shared heading skeleton still present: ${skeleton.join('; ')}`;
+      if (!ctx.score.signals?.hasIndependentOpening) {
+        return 'opening does not name this page’s audience and job';
+      }
+      return null;
+    },
+  },
 ];
 
 export async function run(opts = {}) {
@@ -80,7 +98,8 @@ export async function run(opts = {}) {
   const reasonHits = Object.fromEntries(REASONS.map((r) => [r.id, 0]));
 
   for (const { page, html } of pages) {
-    const ctx = { url: `https://devsolvev2.com/k/${page.slug}` };
+    const scored = scorePage(html, { expectedCanonical: `https://devsolvev2.com/k/${page.slug}` });
+    const ctx = { url: `https://devsolvev2.com/k/${page.slug}`, score: scored };
     for (const reason of REASONS) {
       const hit = reason.check(html, ctx);
       if (hit) {
@@ -98,7 +117,7 @@ export async function run(opts = {}) {
     failures: failures.slice(0, 20),
     notes: [
       'Server 5xx / 404 / 401 are routing invariants, not HTML. Phase D of verify-edge-corpus-quality.mjs covers them.',
-      'Crawled - currently not indexed is an engine quality judgement; this agent clears every Website-sourced reason Google lists as fixable.',
+      'Crawled - currently not indexed (content quality) is enforced here: score, independent opening, and no shared heading skeleton.',
     ],
   };
 }

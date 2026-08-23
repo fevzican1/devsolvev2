@@ -261,10 +261,10 @@ export const DOCUMENT_RULES = [
   },
   {
     id: 'independent-guide-opening',
-    source: 'BING §11 / abuse: automatically generated content at scale / GOOGLE scaled content',
-    severity: 'major',
-    requirement: 'The opening names a specific audience or task so the URL reads as an independent guide, not a reshuffled template.',
-    evaluate: (s) => (s.hasIndependentOpening ? null : 'opening lead does not start as an independent guide (When {audience} are {task}…)'),
+    source: 'BING §11 / abuse: automatically generated content at scale / GOOGLE "Crawled - currently not indexed" (content quality)',
+    severity: 'critical',
+    requirement: 'The opening names this page’s audience and job so the URL reads as an independent guide, not a reshuffled template.',
+    evaluate: (s) => (s.hasIndependentOpening ? null : 'opening lead does not name this page’s audience and job'),
   },
 ];
 
@@ -297,7 +297,14 @@ export const CORPUS_RULES = [
     source: 'BING abuse: automatically generated content at scale / duplicate content across multiple URLs',
     severity: 'critical',
     requirement:
-      'Style×context siblings must be different documents (distinct genres + job thesis + tool/intent facts), not the same essay with modifiers stuffed into every sentence. 5-gram Jaccard of <main> prose stays ≤ 0.04 (measured ~0.034; true near-duplicates cluster ≥ 0.80).',
+      'Style×context siblings must be different documents (distinct genres + job thesis + tool/intent facts), not the same essay with modifiers stuffed into every sentence. 5-gram Jaccard of <main> prose — including H2/H3 — stays ≤ 0.04 (true near-duplicates cluster ≥ 0.80).',
+  },
+  {
+    id: 'unique-heading-skeleton',
+    source: 'GOOGLE "Crawled - currently not indexed" / scaled content / BING abuse: automatically generated content at scale',
+    severity: 'critical',
+    requirement:
+      'Style×context siblings must not share an H2 list. A shared heading skeleton is the quality signal that keeps a crawled /k/ URL out of the index even when body Jaccard is low. Exact shared H2s must be 0; heading-set Jaccard stays ≤ 0.05.',
   },
   {
     id: 'edited-prose',

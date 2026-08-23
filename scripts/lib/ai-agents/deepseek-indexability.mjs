@@ -21,7 +21,8 @@ import { COST_MODEL, QUALITY_CONTRACT } from '../ai-indexing-agent.mjs';
 import { MIN_INDEXABLE_SCORE, scorePage } from '../ai-quality-scoring.mjs';
 import { DOCUMENT_RULES, CORPUS_RULES, guidelineDigest } from '../search-guidelines.mjs';
 import { WAF1_SKIP, WAF2_BLOCK, WAF3_CHALLENGE } from '../waf-rules.mjs';
-import { extract, samplePages } from './shared.mjs';
+import { FORBIDDEN_SKELETON_HEADINGS } from '../../../functions/_lib/ownedHeading.ts';
+import { extract, extractHeadings, samplePages } from './shared.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '../../..');
@@ -93,10 +94,19 @@ const GOOGLE_PAGE_INDEXING = [
   },
   {
     id: 'gsc-crawled-not-indexed',
-    gsc: 'Crawled - currently not indexed',
-    check: (html, ctx) => (ctx.score.passesIndexable
-      ? null
-      : `score ${ctx.score.score} / violations ${ctx.score.violations.join('; ')}`),
+    gsc: 'Crawled - currently not indexed (content quality / scaled content)',
+    check: (html, ctx) => {
+      if (!ctx.score.passesIndexable) {
+        return `score ${ctx.score.score} / violations ${ctx.score.violations.join('; ')}`;
+      }
+      const headings = extractHeadings(html, 'h2').map((h) => h.toLowerCase());
+      const skeleton = headings.filter((h) => FORBIDDEN_SKELETON_HEADINGS.includes(h));
+      if (skeleton.length) return `shared heading skeleton: ${skeleton.join('; ')}`;
+      if (!ctx.score.signals?.hasIndependentOpening) {
+        return 'opening does not name this page’s audience and job';
+      }
+      return null;
+    },
   },
   {
     id: 'gsc-discovered-not-indexed',

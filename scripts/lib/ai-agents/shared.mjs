@@ -50,3 +50,29 @@ export function mainText(html) {
 export function wordCount(html) {
   return mainText(html).split(/\s+/).filter(Boolean).length;
 }
+
+export function extractHeadings(html, tag = 'h2') {
+  const re = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'gi');
+  const out = [];
+  for (const match of html.matchAll(re)) {
+    out.push(match[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+  }
+  return out;
+}
+
+export function headingSet(html) {
+  return new Set(extractHeadings(html, 'h2').map((h) => h.toLowerCase()).filter(Boolean));
+}
+
+export function setJaccard(a, b) {
+  let inter = 0;
+  for (const x of a) if (b.has(x)) inter += 1;
+  const union = a.size + b.size - inter;
+  return union === 0 ? 0 : inter / union;
+}
+
+export function sharedMembers(a, b) {
+  const out = [];
+  for (const x of a) if (b.has(x)) out.push(x);
+  return out;
+}

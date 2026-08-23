@@ -38,7 +38,11 @@ export interface PageKernel {
   audiencePlural: string;
   taskPhrase: string;
   stylePhrase: string;
+  /** Short method label for headings — not the stuffing-prone full phrase. */
+  styleMicro: string;
   contextPhrase: string;
+  /** Short setting label for headings — not the stuffing-prone full phrase. */
+  contextMicro: string;
   /** Prepositional form of the context, e.g. "during team onboarding". */
   contextSituation: string;
   audienceFocus: string;

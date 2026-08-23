@@ -1,6 +1,12 @@
 /**
- * Uniqueness Agent — near-duplicate defence for the 20M /k/ corpus.
- * 5-gram Jaccard of sibling <main> prose. Cost: build CPU only.
+ * Uniqueness Agent — near-duplicate + heading-skeleton defence for 20M /k/.
+ *
+ * Google's quality mark ("Crawled – currently not indexed") fires on a
+ * shared H2 list even when body 5-grams differ. This agent therefore:
+ *   1. Jaccard of <main> prose WITH headings (no H2/H3 strip)
+ *   2. Exact shared H2s between style×context siblings must be 0
+ *
+ * Cost: build CPU only.
  */
 import {
   CORPUS_SIZE,
@@ -13,15 +19,17 @@ import {
   renderProgrammaticPage,
 } from '../../../functions/_lib/programmaticPage.ts';
 import { QUALITY_CONTRACT } from '../ai-indexing-agent.mjs';
-import { ORIGIN, samplePages } from './shared.mjs';
+import { ORIGIN, headingSet, samplePages, setJaccard, sharedMembers } from './shared.mjs';
 
 export const AGENT = {
   id: 'uniqueness-agent',
-  task: 'Keep style×context siblings below the Jaccard ceiling so none read as scaled duplicates',
+  task: 'Keep style×context siblings below the Jaccard ceiling and sharing zero H2s so none read as scaled duplicates',
 };
 
 const N = QUALITY_CONTRACT.siblingShingleSize || 5;
 const CEILING = QUALITY_CONTRACT.maxSiblingBodyJaccard;
+const HEADING_CEILING = QUALITY_CONTRACT.maxSiblingHeadingJaccard ?? 0.05;
+const MAX_SHARED = QUALITY_CONTRACT.maxSharedSiblingHeadings ?? 0;
 
 function guideProse(html) {
   const main = html.match(/<main[\s\S]*?<\/main>/i)?.[0] ?? html;
@@ -33,8 +41,6 @@ function guideProse(html) {
     .replace(/<p class="meta"[\s\S]*?<\/p>/gi, ' ')
     .replace(/<section[^>]*aria-labelledby="related"[\s\S]*?<\/section>/gi, ' ')
     .replace(/<pre[\s\S]*?<\/pre>/gi, ' ')
-    .replace(/<h2[^>]*>[\s\S]*?<\/h2>/gi, ' ')
-    .replace(/<h3[^>]*>[\s\S]*?<\/h3>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&[a-z]+;/gi, ' ')
     .replace(/\s+/g, ' ')
@@ -49,10 +55,7 @@ function shingles(text, n) {
 }
 
 function jaccard(a, b) {
-  let inter = 0;
-  for (const x of a) if (b.has(x)) inter += 1;
-  const union = a.size + b.size - inter;
-  return union === 0 ? 0 : inter / union;
+  return setJaccard(a, b);
 }
 
 function siblingIndex(page, otherModifier) {
@@ -74,6 +77,9 @@ export async function run(opts = {}) {
   let pairs = 0;
   let maxJ = 0;
   let sumJ = 0;
+  let maxH = 0;
+  let sumH = 0;
+  let maxShared = 0;
 
   for (const { page, html } of pages) {
     const style0 = Math.floor(page.modifier / MODIFIER_CONTEXTS.length);
@@ -84,6 +90,7 @@ export async function run(opts = {}) {
       ((style0 + 6) % MODIFIER_STYLES.length) * MODIFIER_CONTEXTS.length + ((ctx0 + 13) % MODIFIER_CONTEXTS.length),
     ];
     const sets = [];
+    const heads = [];
     const slugs = [];
     for (const mod of mods) {
       const index = siblingIndex(page, mod);
@@ -92,16 +99,30 @@ export async function run(opts = {}) {
       if (!sibling) continue;
       const siblingHtml = mod === page.modifier ? html : renderProgrammaticPage(sibling, ORIGIN);
       sets.push(shingles(guideProse(siblingHtml), N));
+      heads.push(headingSet(siblingHtml));
       slugs.push(sibling.slug);
     }
     for (let i = 0; i < sets.length; i += 1) {
       for (let j = i + 1; j < sets.length; j += 1) {
         const jac = jaccard(sets[i], sets[j]);
+        const hJac = setJaccard(heads[i], heads[j]);
+        const shared = sharedMembers(heads[i], heads[j]);
         pairs += 1;
         sumJ += jac;
         maxJ = Math.max(maxJ, jac);
+        sumH += hJac;
+        maxH = Math.max(maxH, hJac);
+        maxShared = Math.max(maxShared, shared.length);
         if (jac > CEILING) {
           failures.push({ slug: slugs[i], sibling: slugs[j], jaccard: Number(jac.toFixed(4)) });
+        }
+        if (hJac > HEADING_CEILING || shared.length > MAX_SHARED) {
+          failures.push({
+            slug: slugs[i],
+            sibling: slugs[j],
+            headingJaccard: Number(hJac.toFixed(4)),
+            sharedHeadings: shared.slice(0, 8),
+          });
         }
       }
     }
@@ -115,10 +136,14 @@ export async function run(opts = {}) {
     maxJaccard: Number(maxJ.toFixed(4)),
     avgJaccard: pairs ? Number((sumJ / pairs).toFixed(4)) : 0,
     ceiling: CEILING,
+    maxHeadingJaccard: Number(maxH.toFixed(4)),
+    avgHeadingJaccard: pairs ? Number((sumH / pairs).toFixed(4)) : 0,
+    headingCeiling: HEADING_CEILING,
+    maxSharedHeadings: maxShared,
     failures: failures.slice(0, 20),
     notes: [
-      'True near-duplicates cluster ≥ 0.80. Measured sibling Jaccard on this corpus sits near 0.034.',
-      'verify-edge-corpus-quality.mjs re-runs this gate on 800 stems during postbuild as the 20M proof.',
+      'Headings stay in the Jaccard window. A shared H2 list is Google scaled-content even at body Jaccard 0.02.',
+      'verify-edge-corpus-quality.mjs re-runs body + heading gates on 800 stems during postbuild as the 20M proof.',
     ],
   };
 }

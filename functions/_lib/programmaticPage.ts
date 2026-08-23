@@ -31,6 +31,7 @@
 
 import { EMBEDDED_RAMP_LEVEL } from './embeddedRamp';
 import { prose, titleCase, sentence, pluralRole, gerund, articleFor } from './language';
+import { FORBIDDEN_SKELETON_HEADINGS, headingSlotForSectionId, ownHeading } from './ownedHeading';
 import {
   archetypeSections,
   audienceSection,
@@ -79,9 +80,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-21T20:40:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-23T19:40:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'h';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'a';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -1207,7 +1208,9 @@ function pageKernel(page: ResolvedPage): PageKernel {
     audiencePlural: pluralRole(page.audience),
     taskPhrase: TASK_PHRASE[page.task] ?? label(page.task),
     stylePhrase: sv.phrase,
+    styleMicro: sv.micro,
     contextPhrase: cv.phrase,
+    contextMicro: cv.micro,
     contextSituation: cv.situation,
     audienceFocus: ac.focus,
     audienceConcern: ac.concern,
@@ -1272,7 +1275,7 @@ function buildContent(page: ResolvedPage): PageContent {
     h1: identity.h1,
     intro,
     entity,
-    decision,
+    decision: { ...decision, heading: ownHeading(k, 'decision', decision.heading) },
     acceptance,
     keyTakeaways,
     steps,
@@ -1283,10 +1286,13 @@ function buildContent(page: ResolvedPage): PageContent {
     keywords,
     workedExample,
     related,
-    sections,
+    sections: sections.map((section) => ({
+      ...section,
+      heading: ownHeading(k, headingSlotForSectionId(section.id), section.heading),
+    })),
     plan,
     snippets,
-    artifact,
+    artifact: { ...artifact, heading: ownHeading(k, 'artifact', artifact.heading) },
   };
 }
 
@@ -1604,9 +1610,37 @@ export function auditServedCopy(html: string, page: ResolvedPage): string[] {
     'common pitfalls to avoid',
     'related guides and tools',
     'worked example',
+    ...FORBIDDEN_SKELETON_HEADINGS,
   ];
+  const headingTexts = [...withoutCode.matchAll(/<h[23][^>]*>([\s\S]*?)<\/h[23]>/gi)]
+    .map((m) => m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+  const h2Texts = [...withoutCode.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)]
+    .map((m) => m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
   for (const heading of genericHeadings) {
-    if (lower.includes(heading)) issues.push(`generic template heading: "${heading}"`);
+    if (headingTexts.some((h) => h.toLowerCase() === heading)) {
+      issues.push(`generic template heading: "${heading}"`);
+    }
+  }
+  const ownershipNeedles = [
+    label(page.intent).toLowerCase(),
+    intentMicro(page.intent).toLowerCase(),
+    gerund(page.intent).toLowerCase(),
+    styleVocab(page).micro.toLowerCase(),
+    contextVocab(page).micro.toLowerCase(),
+    pluralRole(page.audience).toLowerCase(),
+  ].filter((n) => n.length >= 3);
+  const methodNeedles = [
+    styleVocab(page).micro.toLowerCase(),
+    contextVocab(page).micro.toLowerCase(),
+  ].filter((n) => n.length >= 3);
+  for (const heading of h2Texts) {
+    const hl = heading.toLowerCase();
+    if (!ownershipNeedles.some((n) => hl.includes(n))) {
+      issues.push(`heading not owned by this page: "${heading}"`);
+    }
+    if (methodNeedles.length && !methodNeedles.some((n) => hl.includes(n))) {
+      issues.push(`heading missing method/setting (scaled-content skeleton): "${heading}"`);
+    }
   }
   if (/<th>parameter<\/th>/i.test(withoutCode) && /<th>this guide<\/th>/i.test(withoutCode)) {
     issues.push('CMS-style parameter table (job/tool/method/setting) — auto-generated signal');
@@ -1647,73 +1681,87 @@ export function auditServedCopy(html: string, page: ResolvedPage): string[] {
 }
 
 function genreHeading(id: string, page: ResolvedPage, c: PageContent): string {
+  const k = pageKernel(page);
   const job = label(page.intent);
   const tool = toolName(page.tool);
+  let raw: string;
   switch (id) {
     case 'entity':
       switch (page.style) {
-        case 'as-part-of-ci-cd-pipeline': return `The invariant ${tool} is rehearsing`;
-        case 'during-code-review': return `What a reviewer must be able to regenerate`;
-        case 'without-installing-cli-tools': return `The only runtime this job is allowed`;
-        case 'with-safe-local-processing': return `What “on-device” means for ${job}`;
-        case 'while-keeping-data-private': return `What counts as an extra copy`;
-        case 'for-quick-prototyping': return `What this spike is allowed to decide`;
-        case 'with-step-by-step-instructions': return `The skill this lesson is teaching`;
-        case 'with-automated-validation': return `The statement a script has to fail`;
-        default: return `${tool} in this procedure`;
+        case 'as-part-of-ci-cd-pipeline': raw = `The invariant ${tool} is rehearsing`; break;
+        case 'during-code-review': raw = `What a reviewer must be able to regenerate`; break;
+        case 'without-installing-cli-tools': raw = `The only runtime this job is allowed`; break;
+        case 'with-safe-local-processing': raw = `What “on-device” means for ${job}`; break;
+        case 'while-keeping-data-private': raw = `What counts as an extra copy`; break;
+        case 'for-quick-prototyping': raw = `What this spike is allowed to decide`; break;
+        case 'with-step-by-step-instructions': raw = `The skill this lesson is teaching`; break;
+        case 'with-automated-validation': raw = `The statement a script has to fail`; break;
+        default: raw = `${tool} in this procedure`; break;
       }
+      break;
     case 'takeaways':
       switch (page.style) {
-        case 'with-step-by-step-instructions': return `What a first-timer should be able to repeat`;
-        case 'as-part-of-ci-cd-pipeline': return `What a red or green job is actually saying`;
-        case 'during-code-review': return `Sign-off in one glance`;
-        default: return `What has to be true when you stop`;
+        case 'with-step-by-step-instructions': raw = `What a first-timer should be able to repeat`; break;
+        case 'as-part-of-ci-cd-pipeline': raw = `What a red or green job is actually saying`; break;
+        case 'during-code-review': raw = `Sign-off in one glance`; break;
+        default: raw = `What has to be true when you stop`; break;
       }
+      break;
     case 'acceptance':
-      return `Done-when checks a second person can run`;
+      raw = `Done-when checks a second person can run`;
+      break;
     case 'steps':
       switch (page.style) {
-        case 'as-part-of-ci-cd-pipeline': return `Porting ${job} into CI`;
-        case 'during-code-review': return `Review loop for ${job}`;
-        case 'without-installing-cli-tools': return `${sentence(job)} with no package manager`;
-        case 'with-step-by-step-instructions': return `Teachable sequence for ${job}`;
-        case 'for-quick-prototyping': return `Time-boxed path for ${job}`;
-        default: return `Procedure for ${job}`;
+        case 'as-part-of-ci-cd-pipeline': raw = `Porting ${job} into CI`; break;
+        case 'during-code-review': raw = `Review loop for ${job}`; break;
+        case 'without-installing-cli-tools': raw = `${sentence(job)} with no package manager`; break;
+        case 'with-step-by-step-instructions': raw = `Teachable sequence for ${job}`; break;
+        case 'for-quick-prototyping': raw = `Time-boxed path for ${job}`; break;
+        default: raw = `Procedure for ${job}`; break;
       }
+      break;
     case 'example':
-      return `A fixture from ${contextVocab(page).phrase}`;
+      raw = `A fixture from ${contextVocab(page).phrase}`;
+      break;
     case 'snippets':
       switch (page.style) {
-        case 'as-part-of-ci-cd-pipeline': return `Golden files the job must replay`;
-        case 'during-code-review': return `What belongs in the pull-request comment`;
-        case 'without-installing-cli-tools': return `Samples that stay in the tab`;
-        case 'with-automated-validation': return `Positive and negative bytes for the invariant`;
-        case 'with-safe-local-processing': return `On-device samples with no egress`;
-        default: return `Samples for this procedure`;
+        case 'as-part-of-ci-cd-pipeline': raw = `Golden files the job must replay`; break;
+        case 'during-code-review': raw = `What belongs in the pull-request comment`; break;
+        case 'without-installing-cli-tools': raw = `Samples that stay in the tab`; break;
+        case 'with-automated-validation': raw = `Positive and negative bytes for the invariant`; break;
+        case 'with-safe-local-processing': raw = `On-device samples with no egress`; break;
+        default: raw = `Samples for this procedure`; break;
       }
+      break;
     case 'pitfalls':
       switch (page.style) {
-        case 'as-part-of-ci-cd-pipeline': return `False reds and false greens`;
-        case 'during-code-review': return `Review comments that cannot be replayed`;
-        case 'while-keeping-data-private': return `Correct results that still leak`;
-        default: return `Mistakes this procedure still sees`;
+        case 'as-part-of-ci-cd-pipeline': raw = `False reds and false greens`; break;
+        case 'during-code-review': raw = `Review comments that cannot be replayed`; break;
+        case 'while-keeping-data-private': raw = `Correct results that still leak`; break;
+        default: raw = `Mistakes this procedure still sees`; break;
       }
+      break;
     case 'comparison':
-      return `When a different method is the better guide`;
+      raw = `When a different method is the better guide`;
+      break;
     case 'glossary':
-      return `Terms this page uses strictly`;
+      raw = `Terms this page uses strictly`;
+      break;
     case 'faq':
       switch (page.style) {
-        case 'as-part-of-ci-cd-pipeline': return `Pipeline questions this job still gets`;
-        case 'during-code-review': return `Review questions that keep coming back`;
-        case 'without-installing-cli-tools': return `No-install questions this still gets`;
-        case 'with-step-by-step-instructions': return `Questions learners still ask`;
-        case 'for-quick-prototyping': return `Spike questions that waste the time-box`;
-        default: return `Questions this procedure still gets`;
+        case 'as-part-of-ci-cd-pipeline': raw = `Pipeline questions this job still gets`; break;
+        case 'during-code-review': raw = `Review questions that keep coming back`; break;
+        case 'without-installing-cli-tools': raw = `No-install questions this still gets`; break;
+        case 'with-step-by-step-instructions': raw = `Questions learners still ask`; break;
+        case 'for-quick-prototyping': raw = `Spike questions that waste the time-box`; break;
+        default: raw = `Questions this procedure still gets`; break;
       }
+      break;
     default:
-      return c.decision.heading;
+      raw = c.decision.heading;
+      break;
   }
+  return ownHeading(k, id === 'decision' ? 'decision' : id, raw);
 }
 
 export function renderProgrammaticPage(page: ResolvedPage, origin: string): string {
@@ -1824,8 +1872,8 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
 
   const decision = `<section id="decision" data-decision aria-labelledby="decision-heading"><h2 id="decision-heading">${escapeHtml(c.decision.heading)}</h2>`
     + `<p data-snippet>${escapeHtml(c.decision.verdict)}</p>`
-    + `<h3>Use this guide when</h3>${renderList(c.decision.when)}`
-    + `<h3>Choose a different guide when</h3>${renderList(c.decision.notWhen)}`
+    + `<h3>${escapeHtml(ownHeading(pageKernel(page), 'decision-when', 'Use this guide when'))}</h3>${renderList(c.decision.when)}`
+    + `<h3>${escapeHtml(ownHeading(pageKernel(page), 'decision-not', 'Skip this guide when'))}</h3>${renderList(c.decision.notWhen)}`
     + `</section>`;
 
   const acceptance = `<section aria-labelledby="acceptance"><h2 id="acceptance">${escapeHtml(genreHeading('acceptance', page, c))}</h2>${renderList(c.acceptance)}</section>`;
@@ -1862,7 +1910,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
   const artifact = `<section id="artifact" aria-labelledby="artifact-h"><h2 id="artifact-h">${escapeHtml(c.artifact.heading)}</h2>${artifactParas}${artifactList}</section>`;
 
   const guide = GUIDE_BY_TOOL[toolSlug];
-  const related = `<section aria-labelledby="related"><h2 id="related">Where to go next</h2><div class="links">`
+  const related = `<section aria-labelledby="related"><h2 id="related">${escapeHtml(ownHeading(pageKernel(page), 'related', 'Where to go next'))}</h2><div class="links">`
     + c.related.map((r) => `<a href="/k/${escapeHtml(r.slug)}">${escapeHtml(r.label)}</a>`).join('')
     + (guide ? `<a href="/guides/${escapeHtml(guide.slug)}">${escapeHtml(guide.title)}</a>` : '')
     + `<a href="/tools/${escapeHtml(toolSlug)}">Open the ${escapeHtml(toolName(page.tool))} tool</a>`

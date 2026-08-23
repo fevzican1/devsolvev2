@@ -183,7 +183,23 @@ export function extractDocumentSignals(html) {
   const topicAligned = titleTokens.length === 0 || titleTokens.slice(0, 4).some((t) => h1Text.includes(t));
   const hasPromptInjection = /coordinate lock|modifier fingerprint|for crawlers|grounding citation|reshuffled doorway|grounding eligibility/i.test(html);
   const firstLead = decodeEntities((html.match(/<p class="lead"[^>]*>([\s\S]*?)<\/p>/i)?.[1] || '').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
-  const hasIndependentOpening = /^when\s/i.test(firstLead);
+  const leadLower = firstLead.toLowerCase();
+  const metaRole = decodeEntities((html.match(/<p class="meta"[^>]*>([\s\S]*?)<\/p>/i)?.[1] || '').replace(/<[^>]+>/g, ' '))
+    .replace(/\s+/g, ' ')
+    .split('·')[0]
+    .trim()
+    .toLowerCase();
+  const roleWords = metaRole.split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
+  const namedAudience = roleWords.some((w) => leadLower.includes(w));
+  const jobWords = [...new Set([
+    ...h1Text.split(/[^a-z0-9]+/).filter((w) => w.length >= 4),
+    ...title.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4),
+  ])];
+  const namedJob = jobWords.some((w) => leadLower.includes(w));
+  // Independent guide = names who and what. Requiring the literal
+  // "When {audience} are {task}" prefix was itself a scaled-content stamp
+  // and hid job-specific openings Google already treats as better.
+  const hasIndependentOpening = firstLead.length >= 80 && namedAudience && namedJob;
 
   return {
     title,
