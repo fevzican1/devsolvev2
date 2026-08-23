@@ -20,7 +20,7 @@
  */
 
 export const AGENT_ID = 'devsolve-ai-indexing-agent';
-export const AGENT_VERSION = '2026-08-23.1';
+export const AGENT_VERSION = '2026-08-23.2';
 
 /** Cost model — must stay true for every change to this system. */
 export const COST_MODEL = Object.freeze({
@@ -59,6 +59,10 @@ export const QUALITY_CONTRACT = Object.freeze({
   // shuffling one universal H2 skeleton (that is itself an auto-generated signal).
   maxSiblingBodyJaccard: 0.04,
   siblingShingleSize: 5,
+  // Shared H2 lists are Google's scaled-content fingerprint even when body
+  // Jaccard is low. Style×context siblings must share zero exact H2s.
+  maxSiblingHeadingJaccard: 0.05,
+  maxSharedSiblingHeadings: 0,
   requireWorkedExample: true, // Bing §15 verifiability
   singleTopicPerUrl: true, // Bing §17
   // Language quality, not just uniqueness: acronym casing, article agreement,
@@ -92,6 +96,7 @@ export function agentBanner() {
     `≥${QUALITY_CONTRACT.minWordCount} words, ≥${QUALITY_CONTRACT.minInternalLinks} links,`,
     `entity+early-answer+data-snippet, unique title/desc/H1,`,
     `sibling body ${QUALITY_CONTRACT.siblingShingleSize || 4}-gram Jaccard ≤${QUALITY_CONTRACT.maxSiblingBodyJaccard} across 20M`,
+    `sibling H2 Jaccard ≤${QUALITY_CONTRACT.maxSiblingHeadingJaccard} and ${QUALITY_CONTRACT.maxSharedSiblingHeadings} shared exact headings`,
   ].join('\n');
 }
 

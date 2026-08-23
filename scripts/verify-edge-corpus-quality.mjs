@@ -387,12 +387,14 @@ console.log(`    canonical ${routingChecks.canonical}, redirect ${routingChecks.
 const SIBLING_STEMS = Number(process.env.EDGE_VERIFY_SIBLING_STEMS ?? 800);
 const SIBLING_MODS = Number(process.env.EDGE_VERIFY_SIBLING_MODS ?? 3);
 const MAX_SIBLING_JACCARD = QUALITY_CONTRACT.maxSiblingBodyJaccard;
+const MAX_HEADING_JACCARD = QUALITY_CONTRACT.maxSiblingHeadingJaccard ?? 0.05;
+const MAX_SHARED_HEADINGS = QUALITY_CONTRACT.maxSharedSiblingHeadings ?? 0;
 const SHINGLE_N = QUALITY_CONTRACT.siblingShingleSize ?? 4;
 
 function extractMainText(html) {
   const main = html.match(/<main[\s\S]*?<\/main>/i)?.[0] ?? html;
-  // Drop shared chrome/labels so Jaccard measures guide prose, not H2 shells,
-  // breadcrumbs, CTAs, related-link chrome, or fixture bytes.
+  // Headings stay in the window. Stripping H2/H3 hid the shared skeleton
+  // Google uses for "Crawled – currently not indexed" (content quality).
   const stripped = main
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
@@ -401,15 +403,22 @@ function extractMainText(html) {
     .replace(/<p class="meta"[\s\S]*?<\/p>/gi, ' ')
     .replace(/<section[^>]*aria-labelledby="related"[\s\S]*?<\/section>/gi, ' ')
     .replace(/<pre[\s\S]*?<\/pre>/gi, ' ')
-    .replace(/<h2[^>]*>[\s\S]*?<\/h2>/gi, ' ')
-    .replace(/<h3[^>]*>[\s\S]*?<\/h3>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&[a-z]+;/gi, ' ')
-    .replace(/\b(key takeaways|step-by-step|common pitfalls|pro tips|technical deep dive|real-world use cases|glossary|frequently asked questions|related guides|acceptance criteria|worked example|why this exact url|open the|developer tools|developer guides hub|browse all scenario guides|devsolve home)\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
   return stripped;
+}
+
+function extractH2Set(html) {
+  const main = html.match(/<main[\s\S]*?<\/main>/i)?.[0] ?? html;
+  const set = new Set();
+  for (const match of main.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)) {
+    const text = match[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+    if (text) set.add(text);
+  }
+  return set;
 }
 
 function wordShingles(text, n = SHINGLE_N) {
@@ -428,8 +437,8 @@ function jaccard(a, b) {
   return union === 0 ? 0 : inter / union;
 }
 
-console.log(`\n[E] sibling body uniqueness — ${SIBLING_STEMS} stems × ${SIBLING_MODS} modifiers (${SHINGLE_N}-gram Jaccard ≤ ${MAX_SIBLING_JACCARD})`);
-const siblingStats = { stems: 0, pairs: 0, maxJaccard: 0, sumJaccard: 0 };
+console.log(`\n[E] sibling body + heading uniqueness — ${SIBLING_STEMS} stems × ${SIBLING_MODS} modifiers (${SHINGLE_N}-gram Jaccard ≤ ${MAX_SIBLING_JACCARD}; H2 Jaccard ≤ ${MAX_HEADING_JACCARD}; shared H2s ≤ ${MAX_SHARED_HEADINGS})`);
+const siblingStats = { stems: 0, pairs: 0, maxJaccard: 0, sumJaccard: 0, maxHeadingJaccard: 0, sumHeadingJaccard: 0, maxSharedHeadings: 0 };
 let rng3 = 0xc2b2ae35 >>> 0;
 const nextStem = () => {
   rng3 ^= rng3 << 13; rng3 >>>= 0;
@@ -452,6 +461,7 @@ for (let s = 0; s < SIBLING_STEMS && failures.length < MAX_FAIL; s += 1) {
     ((style0 + 6) % MODIFIER_STYLES.length) * MODIFIER_CONTEXTS.length + ((ctx0 + 13) % MODIFIER_CONTEXTS.length),
   ];
   const shingles = [];
+  const headings = [];
   const slugs = [];
   for (const mod of mods) {
     const index = comboIndex(pairIdx, a, t, mod);
@@ -460,6 +470,7 @@ for (let s = 0; s < SIBLING_STEMS && failures.length < MAX_FAIL; s += 1) {
     if (!page) continue;
     const html = renderProgrammaticPage(page, ORIGIN);
     shingles.push(wordShingles(extractMainText(html)));
+    headings.push(extractH2Set(html));
     slugs.push(page.slug);
   }
   if (shingles.length < 2) continue;
@@ -467,9 +478,15 @@ for (let s = 0; s < SIBLING_STEMS && failures.length < MAX_FAIL; s += 1) {
   for (let i = 0; i < shingles.length; i += 1) {
     for (let j = i + 1; j < shingles.length; j += 1) {
       const jac = jaccard(shingles[i], shingles[j]);
+      const hJac = jaccard(headings[i], headings[j]);
+      const shared = [];
+      for (const h of headings[i]) if (headings[j].has(h)) shared.push(h);
       siblingStats.pairs += 1;
       siblingStats.sumJaccard += jac;
       siblingStats.maxJaccard = Math.max(siblingStats.maxJaccard, jac);
+      siblingStats.sumHeadingJaccard += hJac;
+      siblingStats.maxHeadingJaccard = Math.max(siblingStats.maxHeadingJaccard, hJac);
+      siblingStats.maxSharedHeadings = Math.max(siblingStats.maxSharedHeadings, shared.length);
       if (jac > MAX_SIBLING_JACCARD) {
         fail('E:sibling-body', {
           slug: slugs[i],
@@ -478,13 +495,25 @@ for (let s = 0; s < SIBLING_STEMS && failures.length < MAX_FAIL; s += 1) {
           message: `near-duplicate sibling bodies (Jaccard ${jac.toFixed(3)} > ${MAX_SIBLING_JACCARD})`,
         });
       }
+      if (hJac > MAX_HEADING_JACCARD || shared.length > MAX_SHARED_HEADINGS) {
+        fail('E:sibling-headings', {
+          slug: slugs[i],
+          sibling: slugs[j],
+          jaccard: Number(hJac.toFixed(4)),
+          message: `shared heading skeleton (${shared.length} exact H2s, heading Jaccard ${hJac.toFixed(3)}): ${shared.slice(0, 6).join(' | ')}`,
+        });
+      }
     }
   }
 }
 const avgSiblingJaccard = siblingStats.pairs
   ? siblingStats.sumJaccard / siblingStats.pairs
   : 0;
-console.log(`    stems ${siblingStats.stems}, pairs ${siblingStats.pairs}, max Jaccard ${siblingStats.maxJaccard.toFixed(3)}, avg ${avgSiblingJaccard.toFixed(3)}`);
+const avgHeadingJaccard = siblingStats.pairs
+  ? siblingStats.sumHeadingJaccard / siblingStats.pairs
+  : 0;
+console.log(`    stems ${siblingStats.stems}, pairs ${siblingStats.pairs}, max body Jaccard ${siblingStats.maxJaccard.toFixed(3)}, avg ${avgSiblingJaccard.toFixed(3)}`);
+console.log(`    heading Jaccard max ${siblingStats.maxHeadingJaccard.toFixed(3)}, avg ${avgHeadingJaccard.toFixed(3)}, max shared H2s ${siblingStats.maxSharedHeadings}`);
 
 /* ------------------------------------------------------------------------- */
 /* Report                                                                     */
@@ -530,6 +559,11 @@ const manifest = {
     maxJaccard: Number(siblingStats.maxJaccard.toFixed(4)),
     avgJaccard: Number(avgSiblingJaccard.toFixed(4)),
     ceiling: MAX_SIBLING_JACCARD,
+    maxHeadingJaccard: Number(siblingStats.maxHeadingJaccard.toFixed(4)),
+    avgHeadingJaccard: Number(avgHeadingJaccard.toFixed(4)),
+    headingCeiling: MAX_HEADING_JACCARD,
+    maxSharedHeadings: siblingStats.maxSharedHeadings,
+    maxSharedHeadingsAllowed: MAX_SHARED_HEADINGS,
   },
   indexableBar: MIN_INDEXABLE_SCORE,
   agentVersion: AGENT_VERSION,
@@ -550,5 +584,5 @@ if (failures.length > 0) {
 
 console.log(`\nPASS — ${IDENTITY_SCAN === CORPUS_SIZE ? 'all' : IDENTITY_SCAN.toLocaleString()} of ${CORPUS_SIZE.toLocaleString()} URLs carry a unique, length-compliant title, description and H1;`);
 console.log(`       every scored document clears ${MIN_INDEXABLE_SCORE}/100 with zero critical guideline violations;`);
-console.log(`       sibling body Jaccard max ${siblingStats.maxJaccard.toFixed(3)} ≤ ${MAX_SIBLING_JACCARD} (near-duplicate defence).`);
+console.log(`       sibling body Jaccard max ${siblingStats.maxJaccard.toFixed(3)} ≤ ${MAX_SIBLING_JACCARD}; heading Jaccard max ${siblingStats.maxHeadingJaccard.toFixed(3)} ≤ ${MAX_HEADING_JACCARD}; shared H2s ${siblingStats.maxSharedHeadings} ≤ ${MAX_SHARED_HEADINGS}.`);
 process.exit(0);
