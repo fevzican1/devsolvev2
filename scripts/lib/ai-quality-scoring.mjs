@@ -189,9 +189,12 @@ export function extractDocumentSignals(html) {
     .split('·')[0]
     .trim()
     .toLowerCase();
-  const roleWords = metaRole.split(/[^a-z0-9]+/).filter((w) => w.length > 4);
+  const roleWords = metaRole.split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
   const namedAudience = roleWords.some((w) => leadLower.includes(w));
-  const jobWords = h1Text.split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
+  const jobWords = [...new Set([
+    ...h1Text.split(/[^a-z0-9]+/).filter((w) => w.length >= 4),
+    ...title.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4),
+  ])];
   const namedJob = jobWords.some((w) => leadLower.includes(w));
   // Independent guide = names who and what. Requiring the literal
   // "When {audience} are {task}" prefix was itself a scaled-content stamp

@@ -22,10 +22,6 @@ function has(hay: string, needle: string): boolean {
   return hay.toLowerCase().includes(needle.toLowerCase());
 }
 
-function namesJob(hay: string, k: PageKernel): boolean {
-  return has(hay, k.jobGerund) || has(hay, k.jobNoun) || has(hay, k.intentLabel);
-}
-
 function namesMethod(hay: string, k: PageKernel): boolean {
   return has(hay, k.styleMicro) || has(hay, k.stylePhrase);
 }
@@ -68,7 +64,9 @@ export function ownHeading(k: PageKernel, slot: string, base: string): string {
   }
 
   let line = trimmed;
-  if (!namesJob(line, k)) line = `${line} for ${doing}`;
+  // Do not stamp "for {job}" onto every H2. That 5-gram run is shared by
+  // every same-job sibling and is what pushed body Jaccard over the ceiling.
+  // Method × setting is enough for sibling uniqueness and the copy audit.
   if (!namesMethod(line, k) && !namesSetting(line, k)) {
     line = `${line} (${method} · ${setting})`;
   } else if (!namesMethod(line, k)) {
