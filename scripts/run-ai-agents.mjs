@@ -2,12 +2,13 @@
 /**
  * Free multi-agent indexing + backlink orchestrator.
  *
- * Five local agents, zero LLM spend, zero Cloudflare Function spend:
+ * Six local agents, zero LLM spend, zero Cloudflare Function spend:
  *   1. google-indexing-agent
  *   2. bing-guidelines-agent
  *   3. uniqueness-agent
  *   4. language-agent
  *   5. backlink-agent
+ *   6. deepseek-indexability-agent (MIT-licensed local policy; no hosted API)
  *
  * Usage:
  *   node --import tsx scripts/run-ai-agents.mjs
@@ -24,6 +25,7 @@ import { run as bingRun } from './lib/ai-agents/bing-guidelines.mjs';
 import { run as uniquenessRun } from './lib/ai-agents/uniqueness.mjs';
 import { run as languageRun } from './lib/ai-agents/language.mjs';
 import { run as backlinkRun } from './lib/ai-agents/backlink.mjs';
+import { run as deepseekRun } from './lib/ai-agents/deepseek-indexability.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const reportsDir = join(__dirname, '..', 'out', 'reports');
@@ -41,6 +43,7 @@ results.push(await bingRun({ sample }));
 results.push(await uniquenessRun({ stems }));
 results.push(await languageRun({ sample }));
 results.push(await backlinkRun({ offline: process.env.AI_AGENTS_OFFLINE === '1' }));
+results.push(await deepseekRun({ sample }));
 
 if (!existsSync(reportsDir)) mkdirSync(reportsDir, { recursive: true });
 const report = {

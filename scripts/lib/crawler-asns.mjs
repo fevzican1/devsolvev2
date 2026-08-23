@@ -1,10 +1,12 @@
 /**
- * Published search-crawler networks — reference only.
+ * Published search-crawler networks.
  *
- * Custom WAF rules WAF2–WAF5 must never mention these ASNs or the words
- * Google / Bing. Search crawlers skip on User-Agent in WAF1. Putting 15169
- * or 8075 on a challenge list is how a renderer fetching CSS/JS with a
- * Chrome User-Agent gets 403ed after the HTML request already skipped.
+ * WAF1 may skip Chrome renderers from these ASNs. Google and Bing often
+ * fetch /k/ and assets with a plain Chrome User-Agent (no "google"/"bing"
+ * token). Those requests used to fall through to WAF3.
+ *
+ * WAF2–WAF5 must never mention these ASNs or the words Google / Bing.
+ * Putting 15169 or 8075 on a challenge list is how a renderer gets 403ed.
  */
 
 export const GOOGLE_CRAWLER_ASNS = [

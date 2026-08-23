@@ -145,9 +145,12 @@ function assembleRules(ruleset, spec) {
   return [
     ...spec.map((rule) => {
       const existing = ruleset?.rules?.find((r) => r.description === rule.description);
+      // WAF2/WAF3 expressions are rewritten from this repo; their live action
+      // (block vs managed_challenge) is the operator's and must not flip.
+      const keepLiveAction = (rule.slot === 'WAF2' || rule.slot === 'WAF3') && existing?.action;
       return {
         ...(existing?.id ? { id: existing.id } : {}),
-        action: rule.action,
+        action: keepLiveAction || rule.action,
         ...(rule.action_parameters ? { action_parameters: rule.action_parameters } : {}),
         ...(rule.logging ? { logging: { enabled: true } } : {}),
         expression: collapse(rule.expression),

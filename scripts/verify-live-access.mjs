@@ -53,6 +53,7 @@ const MUST_BE_STOPPED = [
   ['farm Edge/144.0.0.0', FARM_EDGE_UA],
   ['farm Mac 10_15_7 Chrome/144.0.0.0', FARM_MAC_UA],
   ['farm Chrome/100.0.4896.75', FARM_CHROME100_UA],
+  ['Applebot', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15 (Applebot/0.1; +http://www.apple.com/go/applebot)'],
 ];
 
 const MUST_BE_REACHABLE = [
@@ -71,6 +72,8 @@ const MUST_BE_CRAWLABLE = [
   { name: 'corpus as MicrosoftPreview', path: K_PATH, ua: MICROSOFT_PREVIEW_UA },
   { name: 'homepage as Googlebot', path: '/', ua: GOOGLEBOT_UA },
   { name: 'robots.txt as Bingbot', path: '/robots.txt', ua: BINGBOT_UA },
+  { name: 'corpus as Chrome-Lighthouse', path: K_PATH, ua: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Chrome-Lighthouse' },
+  { name: 'corpus as PageSpeed', path: K_PATH, ua: 'Mozilla/5.0 (Linux; Android 7.0; Moto G (4)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.0.0 Mobile Safari/537.36 Chrome-Lighthouse Pagespeed' },
 ];
 
 const MUST_UNFURL = [
