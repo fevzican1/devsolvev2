@@ -71,8 +71,13 @@ if (!WAF1_SKIP.includes('ip.src.asnum')) fail('WAF1 must skip Google/Bing render
 if (!WAF1_SKIP.includes('15169')) fail('WAF1 must include Google ASN 15169');
 if (!WAF1_SKIP.includes('8075')) fail('WAF1 must include Bing/Microsoft ASN 8075');
 if (WAF1_SKIP.includes('396982')) fail('WAF1 must not skip GCP customer ASN 396982 — farms rent those VMs');
-if (!WAF1_SKIP.includes('chrome-extension')) fail('WAF1 ASN skip must exclude chrome-extension Origin/Referer/UA');
-ok('WAF1 skips Chrome renderers from Google/Bing ASNs; GCP and extensions stay out');
+if (/chrome-extension|moz-extension/i.test(WAF1_SKIP)) {
+  fail('WAF1 must not mention chrome-extension — that belongs only in WAF2');
+} else {
+  ok('WAF1 does not mention chrome-extension (WAF2 owns the farm)');
+}
+if (!WAF1_SKIP.includes('"semrush"')) fail('WAF1 public-file skip must exclude SemrushBot');
+ok('WAF1 skips Chrome renderers from Google/Bing ASNs; scrapers cannot skip on robots.txt');
 
 if (!WAF1_SKIP.includes('/opengraph-image.png')) fail('WAF1 must skip the PNG social card');
 else ok('WAF1 skips /opengraph-image.png');
@@ -149,36 +154,37 @@ const dashboardFarmUas = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
   '',
 ];
-const extensionOrigin = 'chrome-extension://abcdefghijklmnopqrstuvwxyz123456';
 for (const ua of dashboardFarmUas) {
   if (ua && !isFarmStampUa(ua) && ua.length >= 12) fail(`dashboard farm UA is not a WAF2 stamp: ${ua}`);
-  for (const asnum of [0, 8075, 396982, 15169]) {
-    const plain = matchesWaf1Skip({ ua, asnum });
-    const ext = matchesWaf1Skip({ ua, asnum, origin: extensionOrigin });
-    const lighthouse = matchesWaf1Skip({ ua: ua ? `${ua} Chrome-Lighthouse` : 'Chrome-Lighthouse', asnum });
-    if (asnum === 15169 && ua && !ext.skip && plain.skip) {
-      // Google's own net (not GCP). PageSpeed lives here. Farms do not.
-      continue;
-    }
-    if (plain.skip) fail(`WAF1 skips dashboard farm UA via ${plain.via} asnum=${asnum}: ${ua || '(empty)'}`);
-    if (ext.skip) fail(`WAF1 skips chrome-extension farm via ${ext.via} asnum=${asnum}: ${ua || '(empty)'}`);
-    if (lighthouse.skip && asnum !== 15169) {
-      fail(`WAF1 skips lighthouse-stamped farm via ${lighthouse.via} asnum=${asnum}`);
-    }
+  for (const asnum of [0, 8075, 396982, 9121]) {
+    const corpus = matchesWaf1Skip({ ua, asnum, path: '/k/x' });
+    const robots = matchesWaf1Skip({ ua, asnum, path: '/robots.txt' });
+    const lighthouse = matchesWaf1Skip({ ua: ua ? `${ua} Chrome-Lighthouse` : 'Chrome-Lighthouse', asnum, path: '/k/x' });
+    if (corpus.skip) fail(`WAF1 skips dashboard farm UA on /k/ via ${corpus.via} asnum=${asnum}: ${ua || '(empty)'}`);
+    if (ua && robots.skip) fail(`WAF1 skips dashboard farm UA on /robots.txt via ${robots.via} asnum=${asnum}: ${ua}`);
+    if (lighthouse.skip) fail(`WAF1 skips lighthouse-stamped farm via ${lighthouse.via} asnum=${asnum}`);
   }
 }
-ok('dashboard farm UAs cannot skip WAF1 (including Azure 8075, GCP 396982, extension Origin, lighthouse spoof)');
+ok('dashboard farm UAs cannot skip WAF1 on /k/ or robots.txt (Azure 8075, Turk Telekom 9121, GCP 396982)');
+
+const semrush = 'Mozilla/5.0 (compatible; SemrushBot/7~bl; +http://www.semrush.com/bot.html)';
+if (matchesWaf1Skip({ ua: semrush, path: '/k/x' }).skip) fail('WAF1 must not skip SemrushBot on /k/');
+if (matchesWaf1Skip({ ua: semrush, path: '/robots.txt' }).skip) fail('WAF1 must not skip SemrushBot on /robots.txt — that was the Skip leak');
+ok('SemrushBot does not skip WAF1 (robots.txt included)');
 
 const bingModern = 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm) Chrome/116.0.1938.76 Safari/537.36';
-if (matchesWaf1Skip({ ua: bingModern }).via !== 'ua-token') fail('modern Bingbot must skip WAF1 on the bing token');
+if (matchesWaf1Skip({ ua: bingModern, path: '/k/x' }).via !== 'ua-token') fail('modern Bingbot must skip WAF1 on the bing token');
+if (matchesWaf1Skip({ ua: bingModern, path: '/robots.txt' }).via !== 'ua-token') fail('modern Bingbot must skip WAF1 on robots.txt');
 if (bingModern.toLowerCase().includes('.0.0.0')) fail('modern Bingbot UA must not match the .0.0.0 farm stamp');
-ok('modern Bingbot skips WAF1 on User-Agent and does not use the .0.0.0 farm stamp');
+ok('modern Bingbot skips WAF1 on User-Agent (corpus and robots.txt)');
 
 const googlebot = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
-if (matchesWaf1Skip({ ua: googlebot }).via !== 'ua-token') fail('Googlebot must skip WAF1 on the google token');
-ok('Googlebot skips WAF1 on User-Agent');
+if (matchesWaf1Skip({ ua: googlebot, path: '/k/x' }).via !== 'ua-token') fail('Googlebot must skip WAF1 on the google token');
+if (matchesWaf1Skip({ ua: googlebot, path: '/robots.txt' }).via !== 'ua-token') fail('Googlebot must skip WAF1 on robots.txt');
+ok('Googlebot skips WAF1 on User-Agent (corpus and robots.txt)');
 
 if (failures.length) {
   console.error(`\nFAIL — ${failures.length} WAF policy issue(s)`);
