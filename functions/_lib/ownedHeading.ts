@@ -24,9 +24,13 @@ function tidy(value: string): string {
   return value.replace(/\s+/g, ' ').replace(/\s+,/g, ',').trim();
 }
 
-/** Compact owner clause. Unique per URL; siblings differ on the first two tokens. */
+/**
+ * Compact owner clause. Unique per URL. No spaces: the six slugs are one
+ * 5-gram token, so same-job siblings (who share the last four slugs) do
+ * not pick up a shared 5-gram from the stamp itself.
+ */
 export function headingOwnerClause(k: PageKernel): string {
-  return `(${k.styleTiny}, ${k.contextTiny}, ${k.jobTiny}, ${k.audienceTiny}, ${k.taskTiny}, ${k.toolTiny})`;
+  return `(${k.styleTiny},${k.contextTiny},${k.jobTiny},${k.audienceTiny},${k.taskTiny},${k.toolTiny})`;
 }
 
 export function headingOwnerTokens(k: PageKernel): string[] {

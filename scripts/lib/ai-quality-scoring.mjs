@@ -180,7 +180,15 @@ export function extractDocumentSignals(html) {
   const h1Match = mainHtml.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
   const h1Text = h1Match ? decodeEntities(h1Match[1].replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim().toLowerCase() : '';
   const titleTokens = title.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 4);
-  const topicAligned = titleTokens.length === 0 || titleTokens.slice(0, 4).some((t) => h1Text.includes(t));
+  const h1Tokens = h1Text.split(/[^a-z0-9]+/).filter((t) => t.length >= 4);
+  // Compact titles lead with audience/task tinies ("docs", "teams") that the
+  // H1 spells out in full ("technical writer"). Bing §17 cares that title and
+  // H1 name the same job/tool, not that the first four title tokens repeat.
+  // Accept an exact token or a stem pair (indentation/indent, generation/generate).
+  const topicAligned = titleTokens.length === 0 || titleTokens.some((t) => (
+    h1Text.includes(t)
+    || h1Tokens.some((h) => t.startsWith(h) || h.startsWith(t))
+  ));
   const hasPromptInjection = /coordinate lock|modifier fingerprint|for crawlers|grounding citation|reshuffled doorway|grounding eligibility/i.test(html);
   const firstLead = decodeEntities((html.match(/<p class="lead"[^>]*>([\s\S]*?)<\/p>/i)?.[1] || '').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
   const leadLower = firstLead.toLowerCase();
