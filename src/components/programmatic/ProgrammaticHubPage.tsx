@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { staticProgrammaticSlugs } from '@/lib/programmatic/staticPaths';
+import { CORPUS_CLUSTER_KEYS, clusterHubHref } from '@/lib/programmatic/corpusClusters';
 import {
   formatProgrammaticHubLabel,
   getProgrammaticHubSampleStep,
@@ -94,6 +95,33 @@ export function ProgrammaticHubPage({ requestedSlug }: ProgrammaticHubPageProps)
                 >
                   <p className="text-sm font-medium">{item.label}</p>
                   <p className="mt-1 break-all text-xs text-muted-foreground">/k/{item.slug}</p>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Compass className="h-5 w-5" />
+              Full-corpus cluster indexes
+            </CardTitle>
+            <CardDescription>
+              Directories into all 20 million /k/ guides. Each hub samples its cluster across the whole factory, not a 2M band.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 md:grid-cols-2">
+              {CORPUS_CLUSTER_KEYS.map((cluster) => (
+                <Link
+                  key={cluster}
+                  href={clusterHubHref(cluster)}
+                  prefetch={false}
+                  className="rounded-lg border p-4 transition-colors hover:border-primary hover:bg-muted/40"
+                >
+                  <p className="text-sm font-medium capitalize">{cluster} workflows</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{clusterHubHref(cluster)}</p>
                 </Link>
               ))}
             </div>

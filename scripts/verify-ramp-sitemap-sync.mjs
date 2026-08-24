@@ -40,13 +40,23 @@ async function main() {
     problems.push(`SITEMAP_PUBLIC_CHUNKS arithmetic broken (${chunks})`);
   }
 
+  if (limit !== m.CORPUS_SIZE) {
+    problems.push(`SITEMAP_PUBLIC_LIMIT=${limit} must equal CORPUS_SIZE=${m.CORPUS_SIZE} (full 20M, no staged band)`);
+  }
+  if (fileLevel !== 5) {
+    problems.push(`.ramp-level=${fileLevel} must be 5 (full corpus)`);
+  }
+  if (embedded !== 5) {
+    problems.push(`EMBEDDED_RAMP_LEVEL=${embedded} must be 5 (full corpus)`);
+  }
+
   console.log(`[ramp-sync] file=${fileLevel} embedded=${embedded} sitemapLimit=${limit} chunks=${chunks}`);
   if (problems.length) {
     console.error('[ramp-sync] FAILED:');
     for (const p of problems) console.error(' -', p);
     process.exit(1);
   }
-  console.log('[ramp-sync] OK — edge sitemap will advertise only the ramp-limited set');
+  console.log('[ramp-sync] OK — edge sitemap advertises the full 20M corpus');
 }
 
 main().catch((err) => {
