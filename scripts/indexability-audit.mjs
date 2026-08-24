@@ -199,20 +199,39 @@ function auditEdgeCorpusFunction() {
   // Corpus geometry + the rich HTML generator live in the shared, dependency-free
   // module imported by both the edge route and the build-time quality verifier,
   // so the served bytes and the quality gate can never drift apart.
+  // Corpus geometry lives in src/lib/programmatic/corpusGeometry.ts so Next.js
+  // hubs can resolve 5-atom titles without importing the HTML renderer.
+  // renderProgrammaticPage stays in the edge module so served bytes and the
+  // quality gate cannot drift.
   const libFile = join(projectRoot, 'functions', '_lib', 'programmaticPage.ts');
+  const geometryFile = join(projectRoot, 'src', 'lib', 'programmatic', 'corpusGeometry.ts');
   if (!existsSync(libFile)) {
     record('CRITICAL', 'functions', libFile, 'Shared programmatic corpus module is missing.');
     return;
   }
-  const libTxt = readFileSync(libFile, 'utf8');
-  stats.filesScanned += 1;
-  for (const marker of ['TARGET_CORPUS_SIZE = 20_000_000', 'URLS_PER_SITEMAP = 50_000', 'renderProgrammaticPage']) {
-    if (!libTxt.includes(marker)) {
-      record('CRITICAL', 'functions', libFile, `Shared corpus module is missing required invariant: ${marker}`);
-    }
+  if (!existsSync(geometryFile)) {
+    record('CRITICAL', 'functions', geometryFile, 'Shared corpus geometry module is missing.');
+    return;
   }
-  if (/\b(?:fetch|KVNamespace|R2Bucket|D1Database)\b/.test(libTxt)) {
-    record('CRITICAL', 'functions', libFile, 'Shared corpus module must not use external storage or network fetches.');
+  const libTxt = readFileSync(libFile, 'utf8');
+  const geometryTxt = readFileSync(geometryFile, 'utf8');
+  stats.filesScanned += 2;
+  if (!geometryTxt.includes('TARGET_CORPUS_SIZE = 20_000_000')) {
+    record('CRITICAL', 'functions', geometryFile, 'Shared corpus geometry is missing required invariant: TARGET_CORPUS_SIZE = 20_000_000');
+  }
+  if (!geometryTxt.includes('URLS_PER_SITEMAP = 50_000')) {
+    record('CRITICAL', 'functions', geometryFile, 'Shared corpus geometry is missing required invariant: URLS_PER_SITEMAP = 50_000');
+  }
+  if (!libTxt.includes('renderProgrammaticPage')) {
+    record('CRITICAL', 'functions', libFile, 'Shared corpus module is missing required invariant: renderProgrammaticPage');
+  }
+  if (!libTxt.includes('from \'../../src/lib/programmatic/corpusGeometry\'')) {
+    record('CRITICAL', 'functions', libFile, 'Edge renderer must import corpus geometry from src/lib/programmatic/corpusGeometry.');
+  }
+  for (const [file, txt] of [[libFile, libTxt], [geometryFile, geometryTxt]]) {
+    if (/\b(?:fetch|KVNamespace|R2Bucket|D1Database)\b/.test(txt)) {
+      record('CRITICAL', 'functions', file, 'Shared corpus module must not use external storage or network fetches.');
+    }
   }
 }
 
