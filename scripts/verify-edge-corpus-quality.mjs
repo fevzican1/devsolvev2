@@ -70,14 +70,17 @@ import {
   pageForIndex,
   buildIdentity,
   headingOwnerKey,
+  relatedCorpusLinks,
   renderProgrammaticPage,
   resolveSlugRequest,
   titleVocabularyAudit,
   auditServedCopy,
+  SITEMAP_PUBLIC_LIMIT,
 } from '../functions/_lib/programmaticPage.ts';
 import { scorePage, MIN_INDEXABLE_SCORE } from './lib/ai-quality-scoring.mjs';
 import { guidelineDigest } from './lib/search-guidelines.mjs';
 import { agentBanner, AGENT_VERSION, COST_MODEL, QUALITY_CONTRACT } from './lib/ai-indexing-agent.mjs';
+import { crawlSurfaceLeaksFromHtml, crawlSurfaceLeaksFromRelated } from './lib/ai-agents/shared.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
@@ -103,7 +106,7 @@ console.log('[verify-edge-corpus-quality] auditing the exact bytes the edge serv
 console.log(agentBanner());
 console.log(`  Agent version:      ${AGENT_VERSION}`);
 console.log(`  Cost model:         Function-on-miss=${COST_MODEL.functionOnlyOnCacheMiss} LLM=${COST_MODEL.llmApiCalls} Workers=${COST_MODEL.cloudflareWorkers} cloaking=${!COST_MODEL.identicalHtmlForAllUserAgents}`);
-console.log(`  Corpus size:        ${CORPUS_SIZE.toLocaleString()}`);
+console.log(`  Sitemap ramp:       ${SITEMAP_PUBLIC_LIMIT.toLocaleString()} advertised / ${CORPUS_SIZE.toLocaleString()} live canonicals`);
 console.log(`  Rulebook:           scripts/lib/search-guidelines.mjs (${guidelineDigest().length} cited rules)`);
 console.log(`  Indexable bar:      score >= ${MIN_INDEXABLE_SCORE} AND zero critical guideline violations`);
 
@@ -307,6 +310,13 @@ function checkDocument(index) {
   if (/<h[4-6]\b/i.test(html)) {
     fail('C:outline', { slug: page.slug, message: 'H4+ heading in served HTML (shared chrome/ad outline)' });
   }
+  const leaks = crawlSurfaceLeaksFromHtml(html);
+  if (leaks.length) {
+    fail('C:crawl-surface', {
+      slug: page.slug,
+      message: `internal /k/ leak past sitemap ramp ${SITEMAP_PUBLIC_LIMIT}: /k/${leaks[0].slug}${leaks[0].index != null ? ` index=${leaks[0].index}` : ` (${leaks[0].reason})`}`,
+    });
+  }
 }
 
 /*
@@ -349,6 +359,54 @@ const avgBreakdown = Object.fromEntries(
 );
 console.log(`    scored ${scored.toLocaleString()} documents in ${((Date.now() - renderStart) / 1000).toFixed(0)}s — score min/avg/max ${minScore}/${avgScore.toFixed(2)}/${maxScore}, min words ${minWords}`);
 console.log(`    guideline violations: ${violationCounts.size === 0 ? 'none' : [...violationCounts].map(([id, n]) => `${id}×${n}`).join(', ')}`);
+
+/* ------------------------------------------------------------------------- */
+/* Phase C2 — crawl surface (Bing §21 / GSC Discovered-not-indexed)          */
+/* ------------------------------------------------------------------------- */
+const SURFACE_SWEEP = Number(process.env.EDGE_VERIFY_SURFACE_SWEEP ?? 12_000);
+console.log(`\n[C2] crawl surface — related /k/ hrefs must stay inside sitemap ramp ${SITEMAP_PUBLIC_LIMIT.toLocaleString()}`);
+const surfaceStats = { checked: 0, minRelated: Infinity, leaks: 0 };
+const surfaceBoundaries = [
+  0,
+  PER_PAIR - 1,
+  SITEMAP_PUBLIC_LIMIT - 1,
+  SITEMAP_PUBLIC_LIMIT,
+  CORPUS_SIZE - 1,
+].filter((i) => i >= 0 && i < CORPUS_SIZE);
+let surfaceRng = 0xc2b2ae35 >>> 0;
+const nextSurface = () => {
+  surfaceRng = Math.imul(surfaceRng ^ (surfaceRng >>> 16), 0x7feb352d) >>> 0;
+  surfaceRng = Math.imul(surfaceRng ^ (surfaceRng >>> 15), 0x846ca68b) >>> 0;
+  return ((surfaceRng ^ (surfaceRng >>> 16)) >>> 0) / 4294967296;
+};
+for (const index of surfaceBoundaries) {
+  const page = pageForIndex(index);
+  if (!page) continue;
+  surfaceStats.checked += 1;
+  const related = relatedCorpusLinks(page);
+  surfaceStats.minRelated = Math.min(surfaceStats.minRelated, related.length);
+  const leaks = crawlSurfaceLeaksFromRelated(page);
+  if (leaks.length) {
+    surfaceStats.leaks += 1;
+    fail('C2:crawl-surface', { slug: page.slug, message: `boundary leak /k/${leaks[0].slug} from index ${index}` });
+  }
+  if (related.length < 8) {
+    fail('C2:related-count', { slug: page.slug, message: `only ${related.length} related /k/ links` });
+  }
+}
+for (let i = 0; i < SURFACE_SWEEP && failures.length < MAX_FAIL; i += 1) {
+  const page = pageForIndex(Math.floor(nextSurface() * CORPUS_SIZE));
+  if (!page) continue;
+  surfaceStats.checked += 1;
+  const related = relatedCorpusLinks(page);
+  surfaceStats.minRelated = Math.min(surfaceStats.minRelated, related.length);
+  const leaks = crawlSurfaceLeaksFromRelated(page);
+  if (leaks.length) {
+    surfaceStats.leaks += 1;
+    fail('C2:crawl-surface', { slug: page.slug, message: `sweep leak /k/${leaks[0].slug}` });
+  }
+}
+console.log(`    checked ${surfaceStats.checked.toLocaleString()} related graphs, min related ${surfaceStats.minRelated}, leaks ${surfaceStats.leaks}`);
 
 /* ------------------------------------------------------------------------- */
 /* Phase D — routing / canonical consistency                                  */
@@ -614,6 +672,12 @@ const manifest = {
     minWordCount: Number.isFinite(minWords) ? minWords : null,
     avgBreakdown,
     violationCounts: Object.fromEntries(violationCounts),
+    crawlSurface: {
+      sitemapPublicLimit: SITEMAP_PUBLIC_LIMIT,
+      checked: surfaceStats.checked,
+      minRelated: Number.isFinite(surfaceStats.minRelated) ? surfaceStats.minRelated : null,
+      leaks: surfaceStats.leaks,
+    },
   },
   routing: routingChecks,
   siblingBodies: {
@@ -654,5 +718,5 @@ if (failures.length > 0) {
 console.log(`\nPASS — ${IDENTITY_SCAN === CORPUS_SIZE ? 'all' : IDENTITY_SCAN.toLocaleString()} of ${CORPUS_SIZE.toLocaleString()} URLs carry a unique, length-compliant title, description and H1;`);
 console.log(`       every scored document clears ${MIN_INDEXABLE_SCORE}/100 with zero critical guideline violations;`);
 console.log(`       sibling body Jaccard max ${siblingStats.maxJaccard.toFixed(3)} ≤ ${MAX_SIBLING_JACCARD}; heading Jaccard max ${siblingStats.maxHeadingJaccard.toFixed(3)} ≤ ${MAX_HEADING_JACCARD}; shared H2/H3s ${siblingStats.maxSharedHeadings} ≤ ${MAX_SHARED_HEADINGS};`);
-console.log(`       cross-job shared H2/H3s ${crossJobStats.maxSharedHeadings} ≤ ${MAX_SHARED_HEADINGS}; heading-owner keys unique.`);
+console.log(`       crawl surface ${surfaceStats.checked.toLocaleString()} related graphs inside sitemap ramp ${SITEMAP_PUBLIC_LIMIT.toLocaleString()} (leaks ${surfaceStats.leaks}).`);
 process.exit(0);

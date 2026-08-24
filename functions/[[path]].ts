@@ -112,6 +112,7 @@ function pageResponse(page: ResolvedPage, origin: string): Response {
 function sitemapIndexResponse(origin: string): Response {
   // Only advertise the ramp-limited public set — never the full 20M corpus —
   // so crawl budget concentrates on pages that can realistically index first.
+  // Internal /k/ links in rendered HTML are clamped to the same band.
   const lastmod = sitemapIndexLastmod();
   const entries = Array.from({ length: SITEMAP_PUBLIC_CHUNKS }, (_, i) => `<sitemap><loc>${origin}/sitemaps/sitemap-${i + 1}.xml</loc><lastmod>${lastmod}</lastmod></sitemap>`).join('');
   const headers = contentHeaders('application/xml; charset=utf-8', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');

@@ -89,24 +89,37 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-24T00:30:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-24T10:00:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'a';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'b';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
  * functions/_lib/embeddedRamp.ts — auto-advance updates both).
- * Advertising all 20M URLs in /sitemap.xml dilutes Googlebot/Bingbot budget
- * and is the #1 cause of "Discovered – currently not indexed" at this scale.
- * Every /k/ URL remains crawlable and indexable (200 + canonical); only the
- * *advertised* set is gated. Advance EMBEDDED_RAMP_LEVEL only when GSC/Bing
- * indexed-ratio gates in src/config/rampController.ts are met. Active band
- * is level 1 (2M) until those gates pass; the full 20M stay 200 + indexable.
+ * Advertising all 20M URLs in /sitemap.xml — or leaking them from every
+ * page's related-link graph — dilutes Googlebot/Bingbot budget and is the
+ * #1 cause of "Discovered – currently not indexed" at this scale (Bing §21,
+ * Google Page indexing). Every /k/ URL remains crawlable and indexable
+ * (200 + self-canonical + index,follow) when requested directly; only the
+ * *advertised crawl surface* is gated. Internal /k/ hrefs (semantic hops,
+ * stride, same-pair neighbours) stay inside SITEMAP_PUBLIC_LIMIT so crawlers
+ * cannot walk the unadvertised 18M. Advance EMBEDDED_RAMP_LEVEL only when
+ * GSC/Bing indexed-ratio gates in src/config/rampController.ts are met.
+ * Active band is level 1 (2M) until those gates pass.
  */
 export { EMBEDDED_RAMP_LEVEL };
 export const RAMP_SITEMAP_LIMITS = [500_000, 2_000_000, 5_000_000, 9_000_000, 14_000_000, 20_000_000] as const;
 export const SITEMAP_PUBLIC_LIMIT = RAMP_SITEMAP_LIMITS[EMBEDDED_RAMP_LEVEL];
 export const SITEMAP_PUBLIC_CHUNKS = SITEMAP_PUBLIC_LIMIT / URLS_PER_SITEMAP;
+
+/** Advertised crawl surface — sitemap + internal /k/ graph, never the full 20M. */
+export function crawlSurfaceSize(): number {
+  return Math.min(SITEMAP_PUBLIC_LIMIT, CORPUS_SIZE);
+}
+
+export function isOnCrawlSurface(index: number): boolean {
+  return Number.isInteger(index) && index >= 0 && index < crawlSurfaceSize();
+}
 
 export const CLUSTERS = [
   ['json', ['json-formatter', 'json-to-typescript'], ['validate-json', 'format-json', 'inspect-json-structure', 'convert-json-to-types', 'compare-json-objects', 'transform-json-keys', 'extract-json-values', 'merge-json-data', 'flatten-nested-json', 'detect-json-syntax-errors', 'generate-json-schema', 'minify-json-payload']],
@@ -1505,17 +1518,46 @@ function pageAt(pairIndex: number, audienceIndex: number, taskIndex: number, mod
   return pageForIndex(pairStart + ((raw % available) + available) % available);
 }
 
-function nextPairWhere(start: number, pred: (pair: readonly [string, string, string]) => boolean): number {
-  for (let i = 1; i <= PAIRS.length; i += 1) {
-    const idx = (start + i) % PAIRS.length;
+/**
+ * Keep every emitted /k/ href inside the advertised sitemap band (Bing §21 /
+ * Google "Discovered – currently not indexed"). Direct requests past the
+ * ramp still 200; they must not grow the crawl graph.
+ */
+function clampToCrawlSurface(page: ResolvedPage | undefined): ResolvedPage | undefined {
+  if (!page) return undefined;
+  const surface = crawlSurfaceSize();
+  if (page.index < surface) return page;
+  const pairStart = Math.floor(page.index / PER_PAIR) * PER_PAIR;
+  if (pairStart < surface) {
+    const slice = surface - pairStart;
+    const offset = ((page.index % PER_PAIR) % slice + slice) % slice;
+    return pageForIndex(pairStart + offset);
+  }
+  return pageForIndex(((page.index % surface) + surface) % surface);
+}
+
+function pageAtOnSurface(pairIndex: number, audienceIndex: number, taskIndex: number, modifier: number): ResolvedPage | undefined {
+  return clampToCrawlSurface(pageAt(pairIndex, audienceIndex, taskIndex, modifier));
+}
+
+function surfacePairCount(): number {
+  return Math.floor((crawlSurfaceSize() - 1) / PER_PAIR) + 1;
+}
+
+function nextSurfacePairWhere(start: number, pred: (pair: readonly [string, string, string]) => boolean): number {
+  const span = surfacePairCount();
+  const origin = ((start % span) + span) % span;
+  for (let i = 1; i <= span; i += 1) {
+    const idx = (origin + i) % span;
     const pair = PAIRS[idx];
     if (pair && pred(pair)) return idx;
   }
-  return (start + 1) % PAIRS.length;
+  return (origin + 1) % span;
 }
 
 function buildRelated(page: ResolvedPage): { slug: string; label: string; rel?: string }[] {
   const seed = stableHash(page.slug);
+  const surface = crawlSurfaceSize();
   const out: { slug: string; label: string; rel?: string }[] = [];
   const seen = new Set<string>([page.slug]);
   const pairIndex = Math.floor(page.index / PER_PAIR);
@@ -1525,18 +1567,19 @@ function buildRelated(page: ResolvedPage): { slug: string; label: string; rel?: 
   const ctxIndex = page.modifier % MODIFIER_CONTEXTS.length;
 
   const push = (target: ResolvedPage | undefined, rel: string, prefix: string) => {
-    if (!target || seen.has(target.slug)) return;
-    seen.add(target.slug);
+    const clamped = clampToCrawlSurface(target);
+    if (!clamped || seen.has(clamped.slug) || clamped.index >= surface) return;
+    seen.add(clamped.slug);
     out.push({
-      slug: target.slug,
+      slug: clamped.slug,
       rel,
-      label: `${prefix}: ${title(target.intent)} for ${pluralRole(target.audience)} (${styleVocab(target).micro} · ${contextVocab(target).micro}${target.tool !== page.tool ? ` · ${toolName(target.tool)}` : ''})`,
+      label: `${prefix}: ${title(clamped.intent)} for ${pluralRole(clamped.audience)} (${styleVocab(clamped).micro} · ${contextVocab(clamped).micro}${clamped.tool !== page.tool ? ` · ${toolName(clamped.tool)}` : ''})`,
     });
   };
 
   const scanTask = (dir: 1 | -1) => {
     for (let t = 1; t < TASKS.length; t += 1) {
-      const cand = pageAt(pairIndex, audienceIndex, (taskIndex + dir * t + TASKS.length * 8) % TASKS.length, page.modifier);
+      const cand = pageAtOnSurface(pairIndex, audienceIndex, (taskIndex + dir * t + TASKS.length * 8) % TASKS.length, page.modifier);
       if (cand && cand.slug !== page.slug && cand.task !== page.task) return cand;
     }
     return undefined;
@@ -1547,40 +1590,40 @@ function buildRelated(page: ResolvedPage): { slug: string; label: string; rel?: 
   const observeCtx = Math.max(0, page.context === 'for-observability-pipelines'
     ? MODIFIER_CONTEXTS.indexOf('for-time-sensitive-incidents')
     : MODIFIER_CONTEXTS.indexOf('for-observability-pipelines'));
-  push(pageAt(pairIndex, audienceIndex, taskIndex, styleIndex * MODIFIER_CONTEXTS.length + observeCtx), 'observe', 'Then monitor');
+  push(pageAtOnSurface(pairIndex, audienceIndex, taskIndex, styleIndex * MODIFIER_CONTEXTS.length + observeCtx), 'observe', 'Then monitor');
 
   const rolloutCtx = Math.max(0, page.context === 'for-production-rollouts'
     ? MODIFIER_CONTEXTS.indexOf('for-release-management')
     : MODIFIER_CONTEXTS.indexOf('for-production-rollouts'));
-  push(pageAt(pairIndex, audienceIndex, taskIndex, styleIndex * MODIFIER_CONTEXTS.length + rolloutCtx), 'rollout', 'Then ship');
+  push(pageAtOnSurface(pairIndex, audienceIndex, taskIndex, styleIndex * MODIFIER_CONTEXTS.length + rolloutCtx), 'rollout', 'Then ship');
 
   const methodStyle = Math.max(0, page.style === 'as-part-of-ci-cd-pipeline'
     ? MODIFIER_STYLES.indexOf('directly-in-your-browser')
     : MODIFIER_STYLES.indexOf('as-part-of-ci-cd-pipeline'));
-  const methodHop = pageAt(pairIndex, audienceIndex, taskIndex, methodStyle * MODIFIER_CONTEXTS.length + ctxIndex);
-  push(methodHop && methodHop.style !== page.style ? methodHop : pageAt(pairIndex, audienceIndex, taskIndex, ((styleIndex + 1) % MODIFIER_STYLES.length) * MODIFIER_CONTEXTS.length + ctxIndex), 'method', 'Same job, other method');
+  const methodHop = pageAtOnSurface(pairIndex, audienceIndex, taskIndex, methodStyle * MODIFIER_CONTEXTS.length + ctxIndex);
+  push(methodHop && methodHop.style !== page.style ? methodHop : pageAtOnSurface(pairIndex, audienceIndex, taskIndex, ((styleIndex + 1) % MODIFIER_STYLES.length) * MODIFIER_CONTEXTS.length + ctxIndex), 'method', 'Same job, other method');
 
   const scanAudience = () => {
     for (let a = 1; a < AUDIENCES.length; a += 1) {
-      const cand = pageAt(pairIndex, (audienceIndex + a) % AUDIENCES.length, taskIndex, page.modifier);
+      const cand = pageAtOnSurface(pairIndex, (audienceIndex + a) % AUDIENCES.length, taskIndex, page.modifier);
       if (cand && cand.slug !== page.slug && cand.audience !== page.audience) return cand;
     }
     return undefined;
   };
   push(scanAudience(), 'audience', 'Same job, other reader');
 
-  const intentPair = nextPairWhere(pairIndex, ([, tool, intent]) => tool === page.tool && intent !== page.intent);
-  push(pageAt(intentPair, audienceIndex, taskIndex, page.modifier), 'intent', 'Same tool, other job');
+  const intentPair = nextSurfacePairWhere(pairIndex, ([, tool, intent]) => tool === page.tool && intent !== page.intent);
+  push(pageAtOnSurface(intentPair, audienceIndex, taskIndex, page.modifier), 'intent', 'Same tool, other job');
 
-  const toolPair = nextPairWhere(pairIndex, ([cluster, tool]) => cluster === page.cluster && tool !== page.tool);
-  push(pageAt(toolPair, audienceIndex, taskIndex, page.modifier), 'tool', 'Same cluster, other tool');
+  const toolPair = nextSurfacePairWhere(pairIndex, ([cluster, tool]) => cluster === page.cluster && tool !== page.tool);
+  push(pageAtOnSurface(toolPair, audienceIndex, taskIndex, page.modifier), 'tool', 'Same cluster, other tool');
 
   const stride = 1 + (seed % 9973) * 2;
-  let cursor = page.index;
+  let cursor = ((page.index % surface) + surface) % surface;
   for (let k = 0; out.length < 16 && k < 64; k += 1) {
-    cursor = (cursor + stride) % CORPUS_SIZE;
+    cursor = (cursor + stride) % surface;
     const target = pageForIndex(cursor);
-    if (!target || seen.has(target.slug)) continue;
+    if (!target || seen.has(target.slug) || target.index >= surface) continue;
     seen.add(target.slug);
     const sameTool = target.tool === page.tool;
     out.push({
@@ -1591,21 +1634,31 @@ function buildRelated(page: ResolvedPage): { slug: string; label: string; rel?: 
         : `${title(target.intent)} with ${toolName(target.tool)} (${styleVocab(target).micro} · ${contextVocab(target).micro})`,
     });
   }
-  for (let k = 0; out.length < 20 && k < 12; k += 1) {
-    const offset = 1 + ((seed >>> (k % 16)) % (PER_PAIR - 1));
-    const neighbour = pageForIndex((pairIndex * PER_PAIR + (page.index + offset) % PER_PAIR) % CORPUS_SIZE);
-    if (!neighbour || seen.has(neighbour.slug)) continue;
-    if (neighbour.tool !== page.tool && neighbour.cluster !== page.cluster) continue;
-    seen.add(neighbour.slug);
-    out.push({
-      slug: neighbour.slug,
-      rel: 'cluster',
-      label: neighbour.tool === page.tool
-        ? `${title(neighbour.intent)} for ${pluralRole(neighbour.audience)} (${styleVocab(neighbour).micro} · ${contextVocab(neighbour).micro})`
-        : `${title(neighbour.intent)} with ${toolName(neighbour.tool)} (${styleVocab(neighbour).micro} · ${contextVocab(neighbour).micro})`,
-    });
+  const pairStart = pairIndex * PER_PAIR;
+  const pairSlice = pairStart < surface ? Math.min(PER_PAIR, surface - pairStart) : 0;
+  if (pairSlice > 1) {
+    const local = ((page.index - pairStart) % pairSlice + pairSlice) % pairSlice;
+    for (let k = 0; out.length < 20 && k < 12; k += 1) {
+      const offset = 1 + ((seed >>> (k % 16)) % (pairSlice - 1));
+      const neighbour = pageForIndex(pairStart + (local + offset) % pairSlice);
+      if (!neighbour || seen.has(neighbour.slug) || neighbour.index >= surface) continue;
+      if (neighbour.tool !== page.tool && neighbour.cluster !== page.cluster) continue;
+      seen.add(neighbour.slug);
+      out.push({
+        slug: neighbour.slug,
+        rel: 'cluster',
+        label: neighbour.tool === page.tool
+          ? `${title(neighbour.intent)} for ${pluralRole(neighbour.audience)} (${styleVocab(neighbour).micro} · ${contextVocab(neighbour).micro})`
+          : `${title(neighbour.intent)} with ${toolName(neighbour.tool)} (${styleVocab(neighbour).micro} · ${contextVocab(neighbour).micro})`,
+      });
+    }
   }
   return out;
+}
+
+/** Related /k/ targets used by quality gates to prove the crawl surface stays inside the sitemap ramp. */
+export function relatedCorpusLinks(page: ResolvedPage): { slug: string; label: string; rel?: string }[] {
+  return buildRelated(page);
 }
 
 /** Editorial guide that owns this tool — authority backlink for Bing §5. */

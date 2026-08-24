@@ -27,9 +27,9 @@
  *   3. Submits only a TINY ROLLING SLICE per run (default 100 URLs), rotated
  *      deterministically by date — a gentle trickle, never the whole corpus.
  *   4. Prefers the PRIORITY sitemap as its source (see listSitemapFiles): it
- *      streams only the highest-value URLs. Bulk DISCOVERY of all 18M pages is
- *      the SITEMAP's job (the index now advertises the full corpus); IndexNow
- *      is only a freshness/priority notifier, so Bing never sees a bulk dump.
+ *      streams only the highest-value URLs. Bulk DISCOVERY of the advertised
+ *      ramp is the SITEMAP's job (never the full 20M until ramp level 5);
+ *      IndexNow is only a freshness/priority notifier, so Bing never sees a bulk dump.
  *
  * Why Bing still flagged "bulk submission mode" before: re-submitting tens of
  * thousands of deterministic, UNCHANGED URLs on every deploy looks like bulk to

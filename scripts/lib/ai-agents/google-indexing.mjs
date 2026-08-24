@@ -10,7 +10,7 @@ import { TITLE_MAX, TITLE_MIN, DESCRIPTION_TARGET_MIN, DESCRIPTION_TARGET_MAX } 
 import { scorePage, MIN_INDEXABLE_SCORE } from '../ai-quality-scoring.mjs';
 import { FORBIDDEN_SKELETON_HEADINGS } from '../../../functions/_lib/ownedHeading.ts';
 import { headingOwnerClauseFor } from '../../../functions/_lib/programmaticPage.ts';
-import { extract, extractHeadings, samplePages, wordCount } from './shared.mjs';
+import { extract, extractHeadings, samplePages, wordCount, crawlSurfaceLeaksFromHtml } from './shared.mjs';
 
 export const AGENT = {
   id: 'google-indexing-agent',
@@ -107,6 +107,8 @@ const REASONS = [
       const links = [...html.matchAll(/<a\s+[^>]*href=["']([^"']+)["']/gi)].length;
       if (links < 14) return `only ${links} internal links`;
       if (!html.includes('application/ld+json')) return 'no structured data for discovery';
+      const leaks = crawlSurfaceLeaksFromHtml(html);
+      if (leaks.length) return `crawl leak past sitemap ramp: /k/${leaks[0].slug}`;
       return null;
     },
   },
@@ -139,6 +141,7 @@ export async function run(opts = {}) {
     notes: [
       'Server 5xx / 404 / 401 are routing invariants, not HTML. Phase D of verify-edge-corpus-quality.mjs covers them.',
       'Crawled - currently not indexed (content quality) is enforced here: score, independent opening, unique owner clause on every H2/H3, and no shared heading skeleton.',
+      'Discovered - currently not indexed is crawl-budget: internal /k/ hrefs stay inside the advertised sitemap ramp. Do not 404 the live 20M factory.',
     ],
   };
 }

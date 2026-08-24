@@ -10,7 +10,7 @@
  *   5. backlink-agent
  *   6. deepseek-indexability-agent (MIT-licensed local policy; no hosted API)
  *   7. semantic-value-agent (executable pack + error matrix + hops)
- *   8. information-gain-agent (siblings do not share fault codes)
+ *   9. crawl-budget-agent (internal /k/ graph stays inside sitemap ramp)
  *
  * Usage:
  *   node --import tsx scripts/run-ai-agents.mjs
@@ -30,6 +30,7 @@ import { run as backlinkRun } from './lib/ai-agents/backlink.mjs';
 import { run as deepseekRun } from './lib/ai-agents/deepseek-indexability.mjs';
 import { run as semanticRun } from './lib/ai-agents/semantic-value.mjs';
 import { run as gainRun } from './lib/ai-agents/information-gain.mjs';
+import { run as crawlRun } from './lib/ai-agents/crawl-budget.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const reportsDir = join(__dirname, '..', 'out', 'reports');
@@ -50,6 +51,7 @@ results.push(await backlinkRun({ offline: process.env.AI_AGENTS_OFFLINE === '1' 
 results.push(await deepseekRun({ sample }));
 results.push(await semanticRun({ sample }));
 results.push(await gainRun({ stems }));
+results.push(await crawlRun({ sample, relatedSweep: fast ? 2_000 : 8_000 }));
 
 if (!existsSync(reportsDir)) mkdirSync(reportsDir, { recursive: true });
 const report = {

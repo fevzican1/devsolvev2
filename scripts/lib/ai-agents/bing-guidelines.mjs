@@ -4,7 +4,7 @@
  */
 import { QUALITY_CONTRACT } from '../ai-indexing-agent.mjs';
 import { scorePage, MIN_INDEXABLE_SCORE } from '../ai-quality-scoring.mjs';
-import { extract, samplePages } from './shared.mjs';
+import { extract, samplePages, crawlSurfaceLeaksFromHtml } from './shared.mjs';
 
 export const AGENT = {
   id: 'bing-guidelines-agent',
@@ -34,6 +34,7 @@ const SECTION_HINTS = [
   { id: '§15-exec', test: (html) => /FROM\s+\S+/i.test(html) && /set -euo pipefail/.test(html), fail: 'no executable Dockerfile/Bash' },
   { id: '§11-branches', test: (html) => /data-branch-tree/.test(html), fail: 'no if/then forks' },
   { id: '§5-semantic-hops', test: (html) => (html.match(/data-rel="(?:next-task|observe|method|intent)"/g) || []).length >= 4, fail: 'related links are not a semantic graph' },
+  { id: '§21-crawl-surface', test: (html) => crawlSurfaceLeaksFromHtml(html).length === 0, fail: 'internal /k/ links leak past the advertised sitemap ramp' },
   { id: '§16-entity', test: (html) => html.includes('data-entity') || html.includes('id="entity"'), fail: 'entity block missing' },
   { id: '§17-topic', test: (html) => (html.match(/<h1/gi) || []).length === 1, fail: 'not a single H1' },
   { id: '§18-early', test: (html) => /\sdata-snippet(?=[\s>=])/i.test(html), fail: 'no early citable answer' },
@@ -72,6 +73,7 @@ export async function run(opts = {}) {
     failures: failures.slice(0, 20),
     notes: [
       '§2/§4 discovery (sitemaps + IndexNow) is enforced by sitemap + indexnow-ping scripts.',
+      '§21 crawl surface: related /k/ hrefs stay inside SITEMAP_PUBLIC_LIMIT; the unadvertised factory is not 404ed.',
       'Cloaking is forbidden: functions/[[path]].ts serves the same HTML to every User-Agent.',
     ],
   };

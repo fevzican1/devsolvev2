@@ -20,7 +20,7 @@
  */
 
 export const AGENT_ID = 'devsolve-ai-indexing-agent';
-export const AGENT_VERSION = '2026-08-24.1';
+export const AGENT_VERSION = '2026-08-24.2';
 
 /** Cost model — must stay true for every change to this system. */
 export const COST_MODEL = Object.freeze({
@@ -30,6 +30,7 @@ export const COST_MODEL = Object.freeze({
   identicalHtmlForAllUserAgents: true, // anti-cloaking
   buildTimeOnlyScoring: true,
   sitemapAdvertisesRampNotFullCorpus: true,
+  internalLinksStayOnSitemapRamp: true,
 });
 
 /**
@@ -75,6 +76,7 @@ export const QUALITY_CONTRACT = Object.freeze({
   requireSemanticHops: true,
   minErrorRows: 3,
   minSemanticHops: 4,
+  requireCrawlSurfaceLinks: true,
 });
 
 /**
@@ -106,6 +108,7 @@ export function agentBanner() {
     `sibling H2/H3 Jaccard ≤${QUALITY_CONTRACT.maxSiblingHeadingJaccard} and ${QUALITY_CONTRACT.maxSharedSiblingHeadings} shared exact headings`,
     `unique heading-owner key on all 20M; every H2/H3 carries the six-slug owner clause`,
     `executable Bash+Dockerfile, unique error matrix, if/then tree, semantic hops`,
+    `internal /k/ links stay inside the advertised sitemap ramp (not the full 20M)`,
   ].join('\n');
 }
 

@@ -4,8 +4,11 @@
  */
 import {
   CORPUS_SIZE,
+  SITEMAP_PUBLIC_LIMIT,
   pageForIndex,
+  relatedCorpusLinks,
   renderProgrammaticPage,
+  resolvePageForSlug,
 } from '../../../functions/_lib/programmaticPage.ts';
 
 export const ORIGIN = 'https://devsolvev2.com';
@@ -79,4 +82,28 @@ export function sharedMembers(a, b) {
   const out = [];
   for (const x of a) if (b.has(x)) out.push(x);
   return out;
+}
+
+export function programmaticSlugsFromHtml(html) {
+  return [...html.matchAll(/<a\s+[^>]*href=["']\/k\/([^"'?#]+)["']/gi)].map((m) => m[1]);
+}
+
+export function crawlSurfaceLeaksFromHtml(html) {
+  const leaks = [];
+  for (const slug of programmaticSlugsFromHtml(html)) {
+    const page = resolvePageForSlug(slug);
+    if (!page) leaks.push({ slug, reason: 'unresolved' });
+    else if (page.index >= SITEMAP_PUBLIC_LIMIT) leaks.push({ slug, index: page.index, reason: 'beyond-sitemap-ramp' });
+  }
+  return leaks;
+}
+
+export function crawlSurfaceLeaksFromRelated(page) {
+  const leaks = [];
+  for (const rel of relatedCorpusLinks(page)) {
+    const target = resolvePageForSlug(rel.slug);
+    if (!target) leaks.push({ slug: rel.slug, reason: 'unresolved' });
+    else if (target.index >= SITEMAP_PUBLIC_LIMIT) leaks.push({ slug: rel.slug, index: target.index, reason: 'beyond-sitemap-ramp' });
+  }
+  return leaks;
 }

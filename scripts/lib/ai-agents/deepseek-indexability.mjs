@@ -23,7 +23,7 @@ import { DOCUMENT_RULES, CORPUS_RULES, guidelineDigest } from '../search-guideli
 import { WAF1_SKIP, WAF2_BLOCK, WAF3_CHALLENGE } from '../waf-rules.mjs';
 import { FORBIDDEN_SKELETON_HEADINGS } from '../../../functions/_lib/ownedHeading.ts';
 import { headingOwnerClauseFor } from '../../../functions/_lib/programmaticPage.ts';
-import { extract, extractHeadings, samplePages } from './shared.mjs';
+import { extract, extractHeadings, samplePages, crawlSurfaceLeaksFromHtml } from './shared.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '../../..');
@@ -122,6 +122,8 @@ const GOOGLE_PAGE_INDEXING = [
       const links = [...html.matchAll(/<a\s+[^>]*href=["']([^"']+)["']/gi)].length;
       if (links < QUALITY_CONTRACT.minInternalLinks) return `only ${links} internal links`;
       if (!html.includes('application/ld+json')) return 'no structured data for discovery';
+      const leaks = crawlSurfaceLeaksFromHtml(html);
+      if (leaks.length) return `crawl leak past sitemap ramp: /k/${leaks[0].slug}`;
       return null;
     },
   },
@@ -158,6 +160,7 @@ const BING_SECTIONS = [
   { id: '§17-topic', test: (html) => (html.match(/<h1/gi) || []).length === 1, fail: 'not a single H1' },
   { id: '§18-early', test: (html) => /\sdata-snippet(?=[\s>=])/i.test(html), fail: 'no early citable answer' },
   { id: '§21-no-cloak', test: (_html, ctx) => ctx.noCloaking, fail: 'User-Agent branched HTML' },
+  { id: '§21-crawl-surface', test: (html) => crawlSurfaceLeaksFromHtml(html).length === 0, fail: 'internal /k/ links leak past the advertised sitemap ramp' },
 ];
 
 function readRobots() {
@@ -279,7 +282,7 @@ export async function run(opts = {}) {
     notes: [
       '§2/§4 discovery (sitemaps + IndexNow) is enforced by sitemap + indexnow-ping scripts.',
       '§7/§9 routing (301 stale slugs, 404 unknown) is functions/[[path]].ts — same HTML for every UA.',
-      '§21 crawl waste is the ramp sitemap, not the full 20M advertised at once.',
+      '§21 crawl waste is the ramp sitemap PLUS internal /k/ hrefs inside that band — not 404ing the 20M factory, and not advertising all 20M at once.',
       'Applebot is Disallow in robots.txt and is not skipped by WAF1; WAF5 blocks it.',
     ],
   };

@@ -366,6 +366,13 @@ export const CORPUS_RULES = [
     severity: 'critical',
     requirement: 'A canonical URL serves 200 with a self-referencing canonical; a stale URL 301s to it exactly once; an unknown URL returns 404.',
   },
+  {
+    id: 'crawl-surface-ramp',
+    source: 'BING §21 (crawl efficiency) / GOOGLE "Discovered - currently not indexed"',
+    severity: 'critical',
+    requirement:
+      'Sitemap and every internal /k/ href stay inside the advertised ramp (SITEMAP_PUBLIC_LIMIT). The unadvertised remainder of the 20M factory still answers 200 + self-canonical + index,follow when requested; it is not 404ed, noindexed, or linked from the crawl graph. Do not delete live canonicals to “raise crawl rate”.',
+  },
 ];
 
 /** Human-readable digest, embedded in the agent's build report. */
