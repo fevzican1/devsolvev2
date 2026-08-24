@@ -83,7 +83,6 @@ import {
   ngramJaccard,
 } from '../src/lib/seo/uniqueTokens.ts';
 import { formatProgrammaticHubLabel } from '../src/lib/programmatic/hub.ts';
-import { edgeQualityGate } from '../functions/_lib/qualityGate.ts';
 import { scorePage, MIN_INDEXABLE_SCORE } from './lib/ai-quality-scoring.mjs';
 import { guidelineDigest } from './lib/search-guidelines.mjs';
 import { agentBanner, AGENT_VERSION, COST_MODEL, QUALITY_CONTRACT } from './lib/ai-indexing-agent.mjs';

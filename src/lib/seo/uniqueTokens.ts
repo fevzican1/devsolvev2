@@ -144,6 +144,14 @@ const STEM_ALIASES: Record<string, string> = {
   transform: 'transform',
   transformation: 'transform',
   transforming: 'transform',
+  rotate: 'rotat',
+  rotation: 'rotat',
+  rotating: 'rotat',
+  rotated: 'rotat',
+  aggregate: 'aggreg',
+  aggregation: 'aggreg',
+  aggregating: 'aggreg',
+  aggregated: 'aggreg',
 };
 
 export const POLICY_STOPWORDS = new Set([

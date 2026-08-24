@@ -146,6 +146,9 @@ export function edgeQualityGate(html: string, page: ResolvedPage): QualityGateRe
   const related = html.match(/<section[^>]*aria-labelledby="related"[\s\S]*?<\/section>/i)?.[0] ?? '';
   const relatedNames = [...related.matchAll(/<a href="\/k\/[^"]+"[^>]*>([\s\S]*?)<\/a>/gi)]
     .map((match) => decodeAttr(match[1]!.replace(/<[^>]+>/g, ' ')));
+  for (const name of relatedNames) {
+    if (hasDuplicateContentTokens(name)) issues.push(`internal /k/ anchor repeats a token: "${name}"`);
+  }
   for (let i = 0; i < listItems.length; i += 1) {
     const name = listItems[i]?.name;
     if (typeof name !== 'string') continue;

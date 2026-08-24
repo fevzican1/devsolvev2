@@ -145,6 +145,40 @@ export function decodeEntities(value) {
     .replace(/&amp;/gi, '&');
 }
 
+/**
+ * Job-name overlap for independent-guide openings. Compact titles use noun
+ * atoms ("ID-rotation", "aggregation") while the lead may use the verb slug
+ * ("rotate", "aggregate"). Prefix match alone misses rotate/rotation.
+ */
+function morphologyStem(word) {
+  let w = String(word).toLowerCase();
+  if (w.length < 4) return w;
+  const suffixes = [
+    'ational', 'tional', 'ations', 'ation', 'ators', 'ator', 'ating', 'ated', 'ates', 'ate',
+    'tions', 'tion', 'sions', 'sion',
+    'ments', 'ment', 'ness', 'ities', 'ity',
+    'ings', 'ing', 'edly', 'iers', 'ier', 'ers', 'er', 'ors', 'or',
+    'als', 'al', 'ous', 'ives', 'ive', 'ized', 'ises', 'ise', 'ize',
+    'ied', 'ies', 'ed', 'ly', 'es', 's', 'e',
+  ];
+  for (const suf of suffixes) {
+    if (w.endsWith(suf) && w.length - suf.length >= 3) {
+      return w.slice(0, -suf.length);
+    }
+  }
+  return w;
+}
+
+function namesSameJob(a, b) {
+  if (!a || !b || a.length < 4 || b.length < 4) return false;
+  if (a === b || a.includes(b) || b.includes(a)) return true;
+  if (a.startsWith(b) || b.startsWith(a)) return true;
+  const sa = morphologyStem(a);
+  const sb = morphologyStem(b);
+  if (sa.length < 3 || sb.length < 3) return sa === sb;
+  return sa === sb || sa.startsWith(sb) || sb.startsWith(sa);
+}
+
 export function extractDocumentSignals(html) {
   const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   // Measured exactly as served, brand suffix included. Stripping " | DevSolve"
@@ -205,7 +239,11 @@ export function extractDocumentSignals(html) {
     ...h1Text.split(/[^a-z0-9]+/).filter((w) => w.length >= 4),
     ...title.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4),
   ])];
-  const namedJob = jobWords.some((w) => leadLower.includes(w));
+  const leadJobTokens = leadLower.split(/[^a-z0-9]+/).filter((h) => h.length >= 4);
+  const namedJob = jobWords.some((w) => (
+    leadLower.includes(w)
+    || leadJobTokens.some((h) => namesSameJob(w, h))
+  ));
   // Independent guide = names who and what. Requiring the literal
   // "When {audience} are {task}" prefix was itself a scaled-content stamp
   // and hid job-specific openings Google already treats as better.

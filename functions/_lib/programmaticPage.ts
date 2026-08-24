@@ -93,9 +93,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-24T21:00:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-24T22:00:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'f';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'g';
 
 /*
  * Full-corpus sitemap. /sitemap.xml advertises every one of the 20M /k/ URLs.
@@ -1344,6 +1344,7 @@ function pageKernel(page: ResolvedPage): PageKernel {
     contextMicro: cv.micro,
     contextTiny: oneToken(page.context),
     jobTiny: oneToken(page.intent),
+    jobAtom: tokenAtom(label(page.intent)),
     audienceTiny: oneToken(page.audience),
     taskTiny: oneToken(page.task),
     toolTiny: oneToken(page.tool),

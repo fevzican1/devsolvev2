@@ -7,6 +7,7 @@ import {
   pageForIndex,
   buildIdentity,
   renderProgrammaticPage,
+  resolvePageForSlug,
   CORPUS_SIZE,
   MODIFIER_CONTEXTS,
   MODIFIER_STYLES,
@@ -17,6 +18,7 @@ import {
   AUDIENCES,
 } from '../functions/_lib/programmaticPage.ts';
 import { edgeQualityGate } from '../functions/_lib/qualityGate.ts';
+import { scorePage } from './lib/ai-quality-scoring.mjs';
 import {
   uniqueTokens,
   hasDuplicateContentTokens,
@@ -54,11 +56,38 @@ for (const [dirty, _expect] of cases) {
 
 let identityFails = 0;
 let gateFails = 0;
+let openingFails = 0;
 let titleJ = 0;
 let h1J = 0;
 let minWords = Infinity;
 let hubFails = 0;
 const examples = [];
+
+const OPENING_REGRESSION = [
+  'security-rotate-unique-identifiers-release-engineer-resolve-merge-conflict-jwt-decoder-5413911',
+  'data-aggregate-data-records-devops-engineer-generate-test-fixtures-hash-generator-13674188',
+];
+for (const slug of OPENING_REGRESSION) {
+  const page = resolvePageForSlug(slug);
+  if (!page) {
+    openingFails += 1;
+    examples.push({ slug, issues: ['slug did not resolve'] });
+    continue;
+  }
+  const html = renderProgrammaticPage(page, ORIGIN);
+  const scored = scorePage(html, { expectedCanonical: `${ORIGIN}/k/${page.slug}` });
+  if (!scored.signals?.hasIndependentOpening) {
+    openingFails += 1;
+    if (examples.length < 8) {
+      examples.push({
+        slug,
+        title: buildIdentity(page).title,
+        lead: html.match(/<p class="lead"[^>]*>([\s\S]*?)<\/p>/i)?.[1],
+        opening: scored.signals?.hasIndependentOpening,
+      });
+    }
+  }
+}
 
 for (let i = 0; i < SAMPLE; i += 1) {
   const index = Math.floor((i * 1_000_003) % CORPUS_SIZE);
@@ -75,6 +104,11 @@ for (let i = 0; i < SAMPLE; i += 1) {
   if (!gate.ok) {
     gateFails += 1;
     if (examples.length < 8) examples.push({ slug: page.slug, issues: gate.issues, title: id.title, h1: id.h1 });
+  }
+  const scored = scorePage(html, { expectedCanonical: `${ORIGIN}/k/${page.slug}` });
+  if (!scored.signals?.hasIndependentOpening) {
+    openingFails += 1;
+    if (examples.length < 8) examples.push({ slug: page.slug, title: id.title, opening: false });
   }
 
   const pairIdx = Math.floor(page.index / PER_PAIR);
@@ -123,6 +157,7 @@ const report = {
   sample: SAMPLE,
   identityFails,
   gateFails,
+  openingFails,
   hubFails,
   maxTitleJaccard: Number(titleJ.toFixed(4)),
   maxH1Jaccard: Number(h1J.toFixed(4)),
@@ -138,6 +173,7 @@ console.log(JSON.stringify(report, null, 2));
 if (
   identityFails
   || gateFails
+  || openingFails
   || hubFails
   || titleJ > MAX_TITLE_H1_JACCARD
   || h1J > MAX_TITLE_H1_JACCARD
@@ -147,4 +183,4 @@ if (
   process.exit(1);
 }
 
-console.log('PASS — uniqueTokens, JSON-LD match, 1700+ words, title/H1 Jaccard, hub labels');
+console.log('PASS — uniqueTokens, JSON-LD match, independent opening, 1700+ words, title/H1 Jaccard, hub labels');

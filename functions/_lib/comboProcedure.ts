@@ -165,7 +165,7 @@ export function comboLines(k: PageKernel, start: number, count: number): string[
   return out;
 }
 
-/** Opening must name the audience (copy audit). One long token — not a 5-gram with the job. */
+/** Opening must name the audience and the same job atom as <title>/<h1>. */
 export function comboIntro(k: PageKernel): string[] {
   const leadToken = k.audiencePlural
     .split(/\s+/)
@@ -174,10 +174,12 @@ export function comboIntro(k: PageKernel): string[] {
     .sort((a, b) => b.length - a.length)[0]
     ?? k.audiencePlural.split(/\s+/).pop()
     ?? k.audienceTiny;
-  const stamped = comboLine(k, 0).replace(/, /, ` for ${leadToken} ${k.jobTiny}, `);
+  const jobStamp = k.jobAtom || k.jobTiny;
+  const stamped = comboLine(k, 0).replace(/, /, ` for ${leadToken} ${jobStamp}, `);
   const first = stamped.toLowerCase().includes(leadToken.toLowerCase())
+    && stamped.toLowerCase().includes(jobStamp.toLowerCase())
     ? stamped
-    : `${comboLine(k, 0)} ${leadToken} ${k.jobTiny}.`;
+    : `${comboLine(k, 0)} ${leadToken} ${jobStamp}.`;
   return [first, comboLine(k, 1)];
 }
 
