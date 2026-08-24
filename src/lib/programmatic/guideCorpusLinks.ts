@@ -6,8 +6,8 @@
  * and would 404 if the request ever missed the Pages Function. Edge-rendered
  * /k/ pages may still deep-link across the full 20M corpus.
  */
-import { uniqueTokens } from '@/lib/seo/uniqueTokens';
 import { getMappingForGuide } from '@/config/clusterMapping';
+import { formatProgrammaticHubLabel } from '@/lib/programmatic/hub';
 import { staticProgrammaticSlugs } from '@/lib/programmatic/staticPaths';
 
 export interface GuideCorpusLink {
@@ -52,7 +52,7 @@ export function buildRealGuideOutboundLinks(
     const link: GuideCorpusLink = {
       slug,
       href: `/k/${slug}`,
-      label: humaniseSlug(slug),
+      label: formatProgrammaticHubLabel(slug),
     };
 
     if (matchesMappingSlug(slug, tools, intents, clusters)) preferred.push(link);
@@ -82,11 +82,3 @@ function matchesMappingSlug(
   return false;
 }
 
-function humaniseSlug(slug: string): string {
-  const withoutOrdinal = slug.replace(/-\d+$/, '');
-  const parts = withoutOrdinal.split('-').slice(0, 8);
-  const text = parts
-    .map((part) => (part.length <= 3 ? part.toUpperCase() : part.charAt(0).toUpperCase() + part.slice(1)))
-    .join(' ');
-  return uniqueTokens(text);
-}

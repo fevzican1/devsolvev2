@@ -27,8 +27,10 @@ import {
   MAX_TITLE_H1_JACCARD,
   MIN_INDEXABLE_WORDS,
 } from '../src/lib/seo/uniqueTokens.ts';
-import { formatProgrammaticHubLabel } from '../src/lib/programmatic/hub.ts';
+import { formatProgrammaticHubLabel, looksLikeSlugDumpLabel } from '../src/lib/programmatic/hub.ts';
 import { QUALITY_CONTRACT } from './lib/ai-indexing-agent.mjs';
+import { getOrRefreshHubLinks } from '../src/lib/indexing/hubDiscovery.ts';
+import { staticProgrammaticSlugs } from '../src/lib/programmatic/staticPaths.ts';
 
 const ORIGIN = 'https://devsolvev2.com';
 const SAMPLE = Number(process.env.POLICY_SAMPLE ?? 48);
@@ -42,6 +44,40 @@ const cases = [
   ['validate JSON validation', 'validate JSON'],
   ['JSON validation JSON formatter', 'JSON validation formatter'],
 ];
+
+if (looksLikeSlugDumpLabel('JSON Validate Backend Engineer Prepare') !== true) {
+  console.error('FAIL looksLikeSlugDumpLabel must catch the homepage dump');
+  process.exit(1);
+}
+if (looksLikeSlugDumpLabel('Safely Decoding Tokens in the Browser (No Verification)') !== false) {
+  console.error('FAIL looksLikeSlugDumpLabel false-positive on a real guide title');
+  process.exit(1);
+}
+
+const dumpSlug = staticProgrammaticSlugs.find((slug) => /validate-json-backend-engineer-prepare/.test(slug))
+  || staticProgrammaticSlugs[0];
+if (dumpSlug) {
+  const cleaned = formatProgrammaticHubLabel(dumpSlug);
+  if (looksLikeSlugDumpLabel(cleaned) || /JSON Validate Backend Engineer Prepare/i.test(cleaned)) {
+    console.error(`FAIL homepage hub label still dumped: "${cleaned}" for ${dumpSlug}`);
+    process.exit(1);
+  }
+}
+
+const homeHub = await getOrRefreshHubLinks({ hubPath: '/', siteUrl: ORIGIN, count: 10 });
+for (const link of homeHub.links) {
+  if (looksLikeSlugDumpLabel(link.title) || /JSON Validate Backend Engineer Prepare/i.test(link.title)) {
+    console.error(`FAIL homepage Guides & Tools still dumped: "${link.title}" (${link.href})`);
+    process.exit(1);
+  }
+}
+for (const slug of staticProgrammaticSlugs.slice(0, 120)) {
+  const label = formatProgrammaticHubLabel(slug);
+  if (looksLikeSlugDumpLabel(label) || /JSON Validate Backend Engineer Prepare/i.test(label)) {
+    console.error(`FAIL static hub label dumped: "${label}" for ${slug}`);
+    process.exit(1);
+  }
+}
 
 const unit = [];
 for (const [dirty, _expect] of cases) {
@@ -97,7 +133,8 @@ for (let i = 0; i < SAMPLE; i += 1) {
   if (hasDuplicateContentTokens(id.h1) || uniqueTokens(id.h1) !== id.h1) identityFails += 1;
   if (hasDuplicateContentTokens(id.description)) identityFails += 1;
   const hub = formatProgrammaticHubLabel(page.slug);
-  if (hasDuplicateContentTokens(hub) || /\bjson\b.*\bjson\b/i.test(hub)) hubFails += 1;
+  if (looksLikeSlugDumpLabel(hub) || /JSON Validate Backend Engineer Prepare/i.test(hub)) hubFails += 1;
+  if (looksLikeSlugDumpLabel(id.title) || looksLikeSlugDumpLabel(id.h1)) identityFails += 1;
 
   const html = renderProgrammaticPage(page, ORIGIN);
   const gate = edgeQualityGate(html, page);

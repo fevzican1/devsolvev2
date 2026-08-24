@@ -14,28 +14,13 @@
  *
  * Determinism: the hub salt is hashed with the slot index to pick from the
  * static programmatic path set.
+ *
+ * Labels are the page <title>, never a Title-Cased slug dump.
  */
 
 import Link from 'next/link';
-import { uniqueTokens } from '@/lib/seo/uniqueTokens';
+import { formatProgrammaticHubLabel } from '@/lib/programmatic/hub';
 import { staticProgrammaticSlugs } from '@/lib/programmatic/staticPaths';
-
-// Tokens that should render as upper-case acronyms rather than Title Case so
-// the labels read like real engineering guide titles ("JSON", not "Json").
-const ACRONYMS: Record<string, string> = {
-  json: 'JSON', jwt: 'JWT', api: 'API', url: 'URL', html: 'HTML',
-  uuid: 'UUID', css: 'CSS', sql: 'SQL', qa: 'QA', sre: 'SRE',
-};
-
-function prettifyToken(token: string): string {
-  const lower = token.toLowerCase();
-  if (ACRONYMS[lower]) return ACRONYMS[lower];
-  return token.charAt(0).toUpperCase() + token.slice(1);
-}
-
-function prettifyPhrase(phrase: string): string {
-  return uniqueTokens(phrase.split('-').filter(Boolean).map(prettifyToken).join(' '));
-}
 
 function pickFreshSlugs(seedSalt: string, count: number): Array<{ slug: string; label: string }> {
   const out: Array<{ slug: string; label: string }> = [];
@@ -50,7 +35,7 @@ function pickFreshSlugs(seedSalt: string, count: number): Array<{ slug: string; 
     for (let i = 0; i < key.length; i += 1) h = ((h << 5) + h + key.charCodeAt(i)) | 0;
     const slug = staticProgrammaticSlugs[Math.abs(h) % staticProgrammaticSlugs.length];
     if (!slug) continue;
-    const label = prettifyPhrase(slug.replace(/-\d+$/, ''));
+    const label = formatProgrammaticHubLabel(slug);
     // De-duplicate on the rendered label (not the raw slug). Two slugs that
     // differ only by their numeric modifier suffix used to render identical
     // text — that repetition is exactly what read as spam on the homepage.

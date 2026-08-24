@@ -85,7 +85,7 @@ import {
   hasDuplicateContentTokens,
   ngramJaccard,
 } from '../src/lib/seo/uniqueTokens.ts';
-import { formatProgrammaticHubLabel } from '../src/lib/programmatic/hub.ts';
+import { formatProgrammaticHubLabel, looksLikeSlugDumpLabel } from '../src/lib/programmatic/hub.ts';
 import { scorePage, MIN_INDEXABLE_SCORE } from './lib/ai-quality-scoring.mjs';
 import { guidelineDigest } from './lib/search-guidelines.mjs';
 import { agentBanner, AGENT_VERSION, COST_MODEL, QUALITY_CONTRACT } from './lib/ai-indexing-agent.mjs';
@@ -648,9 +648,9 @@ for (let s = 0; s < SIBLING_STEMS && failures.length < MAX_FAIL; s += 1) {
     identities.push(buildIdentity(page));
     slugs.push(page.slug);
     const hub = formatProgrammaticHubLabel(page.slug);
-    if (hasDuplicateContentTokens(hub) || /json\b.*\bjson\b/i.test(hub)) {
+    if (looksLikeSlugDumpLabel(hub) || /JSON Validate Backend Engineer Prepare/i.test(hub)) {
       hubJunk.push({ slug: page.slug, hub });
-      fail('G:hub-label', { slug: page.slug, message: `hub label still stuffed: "${hub}"` });
+      fail('G:hub-label', { slug: page.slug, message: `hub label still dumped: "${hub}"` });
     }
   }
   if (identities.length < 2) continue;
