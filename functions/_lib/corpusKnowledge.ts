@@ -49,6 +49,12 @@ export interface PageKernel {
   contextTiny: string;
   /** Single-token job / audience / task / tool for corpus-unique H2s. */
   jobTiny: string;
+  /**
+   * The same job atom Google/Bing read first in <title>/<h1>
+   * (`tokenAtom(label(intent))`). The opening lead must stamp this so the
+   * URL names one job instead of a synonym the title never used.
+   */
+  jobAtom: string;
   audienceTiny: string;
   taskTiny: string;
   toolTiny: string;

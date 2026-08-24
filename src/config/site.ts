@@ -19,7 +19,7 @@ export const siteConfig = {
     minIndexScore: 90,
     minSitemapScore: 90,
     minMetaDescriptionLength: 150,
-    minWordCount: 1200,
+    minWordCount: 1700,
     targetEligiblePages: 20_000_000,
     maxSitemapUrls: 20_000_000,
   },

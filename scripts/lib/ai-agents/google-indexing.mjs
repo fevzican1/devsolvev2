@@ -97,6 +97,8 @@ const REASONS = [
       if (!ctx.score.signals?.hasExecutablePack) return 'missing Dockerfile/Bash information-gain pack';
       if (!ctx.score.signals?.hasBranchTree) return 'missing if/then edge-case tree';
       if (!ctx.score.signals?.hasSemanticHops) return 'missing semantic next-job / monitor hops';
+      if (ctx.score.signals?.hasDuplicateIdentityTokens) return 'title/H1/JSON-LD repeats a token (scaled content)';
+      if (ctx.score.signals?.jsonLdMatchesHtml === false) return 'JSON-LD does not match visible HTML';
       return null;
     },
   },
@@ -138,7 +140,7 @@ export async function run(opts = {}) {
     failures: failures.slice(0, 20),
     notes: [
       'Server 5xx / 404 / 401 are routing invariants, not HTML. Phase D of verify-edge-corpus-quality.mjs covers them.',
-      'Crawled - currently not indexed (content quality) is enforced here: score, independent opening, unique owner clause on every H2/H3, and no shared heading skeleton.',
+      'Crawled - currently not indexed (content quality) is enforced here: score, independent opening, unique owner clause on every H2/H3, uniqueTokens on title/H1/JSON-LD, JSON-LD matches HTML, and no shared heading skeleton.',
     ],
   };
 }

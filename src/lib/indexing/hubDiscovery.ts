@@ -1,3 +1,4 @@
+import { uniqueTokens } from '@/lib/seo/uniqueTokens';
 import { guideRegistry } from '../../content/guides';
 import { toolRegistry } from '../../tools/registry';
 import { staticProgrammaticSlugs } from '../programmatic/staticPaths';
@@ -69,10 +70,14 @@ function buildCorpusCandidates(hubPath: string, count: number): DiscoveryLink[] 
     const slug = pool[index];
     if (!slug || seen.has(slug)) continue;
     seen.add(slug);
-    const label = slug.replace(/-\d+$/, '').split('-').slice(0, 6).join(' ');
+    const label = uniqueTokens(
+      slug.replace(/-\d+$/, '').split('-').slice(0, 6).map((part) => (
+        part.length <= 3 ? part.toUpperCase() : part.charAt(0).toUpperCase() + part.slice(1)
+      )).join(' '),
+    );
     links.push({
       href: `/k/${slug}`,
-      title: label.charAt(0).toUpperCase() + label.slice(1),
+      title: label,
       source: 'corpus',
     });
   }

@@ -14,7 +14,9 @@ import {
   pageForIndex,
   escapeHtml,
   title,
+  buildIdentity,
 } from './programmaticPage';
+import { uniqueTokens } from '../../src/lib/seo/uniqueTokens';
 
 export const CLUSTER_HUB_PREFIX = '/g';
 const SAMPLE = 48;
@@ -63,30 +65,31 @@ export function renderClusterHub(cluster: string, origin: string): string | unde
     .filter((key) => key !== cluster)
     .map((key) => `<a href="${CLUSTER_HUB_PREFIX}/${escapeHtml(key)}">${escapeHtml(title(key))}</a>`)
     .join(' · ');
-  const items = pages.map((page, i) => (
-    `<li><a href="/k/${escapeHtml(page.slug)}">${i + 1}. ${escapeHtml(title(page.intent))} for ${escapeHtml(page.audience.replace(/-/g, ' '))} (${escapeHtml(page.tool)})</a></li>`
-  )).join('');
+  const items = pages.map((page, i) => {
+    const identity = buildIdentity(page);
+    return `<li><a href="/k/${escapeHtml(page.slug)}">${i + 1}. ${escapeHtml(identity.title)}</a></li>`;
+  }).join('');
   const jsonLd = JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    name: `${label} workflow index`,
+    name: uniqueTokens(`${label} workflow index`),
     numberOfItems: pages.length,
     itemListElement: pages.map((page, i) => ({
       '@type': 'ListItem',
       position: i + 1,
       url: `${origin}/k/${page.slug}`,
-      name: `${title(page.intent)} (${page.tool})`,
+      name: buildIdentity(page).title,
     })),
   }).replace(/</g, '\\u003c');
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">`
-    + `<title>${escapeHtml(label)} workflow index</title>`
+    + `<title>${escapeHtml(uniqueTokens(`${label} workflow index`))}</title>`
     + `<meta name="robots" content="noindex,follow">`
     + `<link rel="canonical" href="${escapeHtml(canonical)}">`
     + `<script type="application/ld+json">${jsonLd}</script>`
     + `</head><body>`
     + `<nav><a href="/">Home</a> / <a href="/k">Guides</a> / ${escapeHtml(label)}</nav>`
-    + `<h1>${escapeHtml(label)} workflows</h1>`
+    + `<h1>${escapeHtml(uniqueTokens(`${label} workflows`))}</h1>`
     + `<p>Entry points into the ${escapeHtml(label)} slice of the ${CORPUS_SIZE.toLocaleString('en-US')}-URL corpus (ordinals ${start.toLocaleString('en-US')}–${Math.max(0, end - 1).toLocaleString('en-US')}). This page is a directory. The linked guides are the indexable documents.</p>`
     + `<p>Other clusters: ${siblings}</p>`
     + `<ol>${items}</ol>`

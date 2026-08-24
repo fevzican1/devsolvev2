@@ -6,6 +6,7 @@
  * and would 404 if the request ever missed the Pages Function. Edge-rendered
  * /k/ pages may still deep-link across the full 20M corpus.
  */
+import { uniqueTokens } from '@/lib/seo/uniqueTokens';
 import { getMappingForGuide } from '@/config/clusterMapping';
 import { staticProgrammaticSlugs } from '@/lib/programmatic/staticPaths';
 
@@ -84,6 +85,8 @@ function matchesMappingSlug(
 function humaniseSlug(slug: string): string {
   const withoutOrdinal = slug.replace(/-\d+$/, '');
   const parts = withoutOrdinal.split('-').slice(0, 8);
-  const text = parts.join(' ');
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  const text = parts
+    .map((part) => (part.length <= 3 ? part.toUpperCase() : part.charAt(0).toUpperCase() + part.slice(1)))
+    .join(' ');
+  return uniqueTokens(text);
 }

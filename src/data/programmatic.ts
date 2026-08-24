@@ -1,3 +1,4 @@
+import { uniqueTokens } from '@/lib/seo/uniqueTokens';
 import { toolRegistry } from '@/tools/registry';
 import { hashString } from '@/lib/utils';
 import { ensureSeoDescription, ensureSeoTitle } from '@/lib/seo/seoText';
@@ -545,9 +546,9 @@ const h1Templates: Record<ClusterKey, string[]> = {
 function buildH1(intent: string, audience: string, clusterKey: ClusterKey, seed: number): string {
   const templates = h1Templates[clusterKey];
   const template = templates[seed % templates.length];
-  return template
+  return uniqueTokens(template
     .replace('{intent}', label(intent))
-    .replace(/\{audience\}/g, label(audience));
+    .replace(/\{audience\}/g, label(audience)));
 }
 
 /* ------------------------------------------------------------------ */

@@ -15,6 +15,7 @@
  */
 
 import type { PageKernel } from './corpusKnowledge';
+import { uniqueTokens } from '../../src/lib/seo/uniqueTokens';
 
 export function oneToken(value: string): string {
   return value.replace(/\s+/g, '-').replace(/,+/g, '').trim();
@@ -52,9 +53,9 @@ export function ownHeading(k: PageKernel, slot: string, base: string): string {
   const slotToken = oneToken(slot);
   let line = `${k.contextTiny} ${k.styleTiny} ${slotToken}: ${trimmed}`;
 
-  if (line.includes(owner)) return tidy(line);
+  if (line.includes(owner)) return uniqueTokens(tidy(line));
   line = line.replace(/\s*\([^)]*\)\s*$/, '').trim();
-  return tidy(`${line} ${owner}`);
+  return uniqueTokens(tidy(`${line} ${owner}`));
 }
 
 /** Slot id used by KnowledgeSection.id values coming out of the generator. */

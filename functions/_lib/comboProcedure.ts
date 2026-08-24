@@ -21,12 +21,12 @@ export interface ComboFaqItem {
 
 const VERBS = [
   'Record', 'Freeze', 'Export', 'Label', 'Reject', 'Replay', 'Pin', 'Name',
-  'Keep', 'Drop', 'Stamp', 'Split', 'Capture', 'Archive', 'Cite', 'Pair',
+  'Keep', 'Stamp', 'Split', 'Capture', 'Archive', 'Cite', 'Pair',
   'Diff', 'Gate', 'Hold', 'Teach', 'Rehearse', 'Isolate', 'Shape-check',
   'Time-box', 'Redact', 'Promote', 'Demote', 'Overlay', 'Attribute', 'Sign',
-  'Skip', 'Abort', 'Lift', 'Rebuild', 'Hand', 'File', 'Quote', 'Mark',
+  'Clip', 'Trim', 'Bind', 'Map', 'Sort', 'Count', 'Rank',
   'Trace', 'Compare', 'Lock', 'Open', 'Close', 'Write', 'Read', 'Store',
-  'Fetch', 'Clip', 'Trim', 'Bind', 'Map', 'Sort', 'Count', 'Rank',
+  'Fetch', 'Lift', 'Rebuild', 'Hand', 'File', 'Quote', 'Mark', 'Abort',
   'Prove', 'Show', 'Hide', 'Flag', 'Tag', 'Note', 'Log', 'Dump',
   'Pack', 'Unpack', 'Seal', 'Unseal', 'Align', 'Offset', 'Scale', 'Bound',
 ] as const;
@@ -61,14 +61,14 @@ const PREPS = [
 ] as const;
 
 const TAILS = [
-  'skip screenshots', 'skip huddles', 'ignore indent', 'ban folklore',
-  'reject maybes', 'block leaks', 'skip clusters', 'drop toys',
-  'refuse DMs', 'refuse Homebrew', 'ignore green-UI', 'ignore vibes',
-  'drop leftovers', 'ban nicknames', 'skip crops', 'skip war-stories',
-  'abort uploads', 'abort copies', 'drop pastes', 'drop anecdotes',
-  'catch dashboard-lies', 'ban one-offs', 'refuse binaries', 'refuse origins',
-  'skip wiki-images', 'skip hallway-talk', 'end time-boxes', 'catch silent-drops',
-  'ignore pretty-print', 'reject maybe-fine', 'drop crutches', 'drop blame',
+  'ban screenshots', 'mute huddles', 'ignore indent', 'quash folklore',
+  'reject maybes', 'block leaks', 'bar clusters', 'bin toys',
+  'refuse DMs', 'nix Homebrew', 'dismiss green-UI', 'discard vibes',
+  'purge leftovers', 'outlaw nicknames', 'forbid crops', 'kill war-stories',
+  'abort uploads', 'halt copies', 'trash pastes', 'junk anecdotes',
+  'catch dashboard-lies', 'stop one-offs', 'deny binaries', 'veto origins',
+  'silence wiki-images', 'cut hallway-talk', 'end time-boxes', 'spot silent-drops',
+  'omit pretty-print', 'dump maybe-fine', 'shed crutches', 'void blame',
 ] as const;
 
 function fnv(value: string): number {
@@ -79,11 +79,12 @@ function fnv(value: string): number {
 
 /**
  * Slot map on one URL — ranges must not overlap (repeated sentences = stuffing).
- * 0–1 intro, 2 entity, 10–17 steps, 20–26 decision, 30–33 takeaways,
- * 34–37 acceptance, 38–41 pitfalls, 42–49 practice, 50–55 job paras,
+ * 0–1 intro, 2 entity, 10–19 steps, 20–26 decision, 30–33 takeaways,
+ * 34–37 acceptance, 38–41 pitfalls, 42–49 practice, 50–57 job paras,
  * 59 snippet lead, 60–61 example, 62 matrix lead, 70–77 faq,
  * 80–85 artifact, 90–93 glossary, 94–99 comparison,
- * 110–112 job list, 120–125 audience, 140–143 context,
+ * 100–103 extra practice, 104–109 extra job paras, 110–112 job list, 120–125 audience,
+ * 140–145 context,
  * 200+ semanticValue / snippet captions (pageVariation 220+).
  */
 function lane(seed: number, which: number, mod: number): number {
@@ -164,7 +165,7 @@ export function comboLines(k: PageKernel, start: number, count: number): string[
   return out;
 }
 
-/** Opening must name the audience (copy audit). One long token — not a 5-gram with the job. */
+/** Opening must name the audience and the same job atom as <title>/<h1>. */
 export function comboIntro(k: PageKernel): string[] {
   const leadToken = k.audiencePlural
     .split(/\s+/)
@@ -173,10 +174,12 @@ export function comboIntro(k: PageKernel): string[] {
     .sort((a, b) => b.length - a.length)[0]
     ?? k.audiencePlural.split(/\s+/).pop()
     ?? k.audienceTiny;
-  const stamped = comboLine(k, 0).replace(/, /, ` for ${leadToken} ${k.jobTiny}, `);
+  const jobStamp = k.jobAtom || k.jobTiny;
+  const stamped = comboLine(k, 0).replace(/, /, ` for ${leadToken} ${jobStamp}, `);
   const first = stamped.toLowerCase().includes(leadToken.toLowerCase())
+    && stamped.toLowerCase().includes(jobStamp.toLowerCase())
     ? stamped
-    : `${comboLine(k, 0)} ${leadToken} ${k.jobTiny}.`;
+    : `${comboLine(k, 0)} ${leadToken} ${jobStamp}.`;
   return [first, comboLine(k, 1)];
 }
 
@@ -185,7 +188,7 @@ export function comboEntityDefinition(k: PageKernel): string {
 }
 
 export function comboSteps(k: PageKernel): string[] {
-  return comboLines(k, 10, 8);
+  return comboLines(k, 10, 10);
 }
 
 export function comboDecision(k: PageKernel): {
@@ -215,16 +218,18 @@ export function comboPitfalls(k: PageKernel): string[] {
 }
 
 export function comboPracticeParagraphs(k: PageKernel): string[] {
-  return comboLines(k, 42, 8);
+  return [...comboLines(k, 42, 8), ...comboLines(k, 100, 4)];
 }
 
 export function comboContextParagraphs(k: PageKernel): string[] {
   // Must not overlap practice (42–49): same-page repeated sentences trip stuffing.
-  return comboLines(k, 140, 4);
+  return comboLines(k, 140, 6);
 }
 
 export function comboJobParagraphs(k: PageKernel): string[] {
-  return comboLines(k, 50, 6);
+  // Always-rendered (never omitted). Extra lanes keep every genre/setting
+  // combo ≥ 1700 words after <pre> is stripped by the edge word counter.
+  return [...comboLines(k, 50, 8), ...comboLines(k, 104, 6)];
 }
 
 export function comboJobList(k: PageKernel): string[] {

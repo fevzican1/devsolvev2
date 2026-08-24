@@ -5,6 +5,7 @@
 import { QUALITY_CONTRACT } from '../ai-indexing-agent.mjs';
 import { scorePage, MIN_INDEXABLE_SCORE } from '../ai-quality-scoring.mjs';
 import { extract, samplePages } from './shared.mjs';
+import { hasDuplicateContentTokens } from '../../../src/lib/seo/uniqueTokens.ts';
 
 export const AGENT = {
   id: 'bing-guidelines-agent',
@@ -37,6 +38,14 @@ const SECTION_HINTS = [
   { id: '§16-entity', test: (html) => html.includes('data-entity') || html.includes('id="entity"'), fail: 'entity block missing' },
   { id: '§17-topic', test: (html) => (html.match(/<h1/gi) || []).length === 1, fail: 'not a single H1' },
   { id: '§18-early', test: (html) => /\sdata-snippet(?=[\s>=])/i.test(html), fail: 'no early citable answer' },
+  { id: 'abuse-unique-tokens', test: (html) => {
+    const title = extract(html, /<title>([^<]*)<\/title>/i);
+    const h1 = extract(html, /<h1[^>]*>([\s\S]*?)<\/h1>/i).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return !hasDuplicateContentTokens(title) && !hasDuplicateContentTokens(h1);
+  }, fail: 'title/H1 repeats a token (scaled-content stamp)' },
+  { id: 'abuse-jsonld-match', test: (html, ctx) => ctx.score.signals?.jsonLdMatchesHtml !== false, fail: 'JSON-LD does not match HTML' },
+  { id: 'abuse-keyword-density', test: (html, ctx) => (ctx.score.details?.topWordRatio ?? 0) <= QUALITY_CONTRACT.maxKeywordDensity, fail: 'keyword density above 2.5%' },
+  { id: 'abuse-cloaking', test: () => QUALITY_CONTRACT.googleBingPolicy.identicalHtmlForAllUserAgents, fail: 'cloaking is forbidden' },
 ];
 
 export async function run(opts = {}) {
@@ -72,7 +81,8 @@ export async function run(opts = {}) {
     failures: failures.slice(0, 20),
     notes: [
       '§2/§4 discovery (sitemaps + IndexNow) is enforced by sitemap + indexnow-ping scripts.',
-      'Cloaking is forbidden: functions/[[path]].ts serves the same HTML to every User-Agent.',
+      'Cloaking is forbidden: functions/[[path]].ts serves the same HTML to every User-Agent. Gate fail → 404 for everyone.',
+      'Google Search Essentials + Bing Quality & Authority are hard constraints on title, meta, H1/H2, JSON-LD and internal links — not body-only advice.',
     ],
   };
 }

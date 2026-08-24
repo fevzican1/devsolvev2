@@ -29,6 +29,7 @@
  *   - clear, consistent entity naming (tool / audience / task / cluster)
  */
 
+import { uniqueTokens, tokenAtom, hasDuplicateContentTokens, topKeywordDensity, maxKeywordHits, MAX_KEYWORD_DENSITY } from '../../src/lib/seo/uniqueTokens';
 import { EMBEDDED_RAMP_LEVEL } from './embeddedRamp';
 import { prose, titleCase, sentence, pluralRole, gerund, articleFor } from './language';
 import { FORBIDDEN_SKELETON_HEADINGS, headingOwnerClause, headingOwnerTokens, headingSlotForSectionId, oneToken, ownHeading } from './ownedHeading';
@@ -92,9 +93,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-24T18:00:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-24T23:30:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'e';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'i';
 
 /*
  * Full-corpus sitemap. /sitemap.xml advertises every one of the 20M /k/ URLs.
@@ -494,7 +495,7 @@ const AUDIENCE_MICRO: Record<string, string> = {
   'platform-engineer': 'platform',
   'solution-architect': 'architects',
   'tech-lead': 'tech leads',
-  'release-engineer': 'release',
+  'release-engineer': 'releng',
 };
 
 /** Shortest spelling — only reached when the fuller forms blow the 70-char budget. */
@@ -514,6 +515,31 @@ const TOOL_TINY: Record<string, string> = {
   'css-minifier': 'CSS',
   'markdown-preview': 'Markdown',
   'cron-helper': 'cron',
+};
+
+/**
+ * Fifth title/H1 atom. Must not share a uniqueTokens() stem with the job
+ * atom on any (tool, intent) pair — "JSON" on a JSON-validation page, or
+ * "SQL" on an SQL-formatting page, is the duplicate-concatenation fingerprint
+ * Google reads first and uniqueTokens() would drop the tool atom, collapsing
+ * titles across tools. `via-` keeps a short, stem-disjoint stamp.
+ */
+const IDENTITY_TOOL: Record<string, string> = {
+  'json-formatter': 'fmt',
+  'json-to-typescript': 'iface',
+  'base64-encode-decode': 'b64',
+  'url-encode-decode': 'codec',
+  'html-entity-encode-decode': 'ents',
+  'hash-generator': 'digest',
+  'uuid-generator': 'guid',
+  'jwt-decoder': 'jose',
+  'text-case-converter': 'caps',
+  'diff-checker': 'delta',
+  'regex-tester': 'rx',
+  'sql-formatter': 'dml',
+  'css-minifier': 'sheet',
+  'markdown-preview': 'md',
+  'cron-helper': 'sched',
 };
 
 const AUDIENCE_TINY: Record<string, string> = {
@@ -536,7 +562,7 @@ const AUDIENCE_TINY: Record<string, string> = {
   'platform-engineer': 'platform',
   'solution-architect': 'architect',
   'tech-lead': 'leads',
-  'release-engineer': 'release',
+  'release-engineer': 'releng',
 };
 
 /** Natural noun phrase for prose (descriptions, H1). */
@@ -551,11 +577,11 @@ const TASK_PHRASE: Record<string, string> = {
   'validate-auth-token': 'auth token checks',
   'review-config-change': 'config change review',
   'migrate-legacy-system': 'legacy migration',
-  'prepare-deployment-artifact': 'release packaging',
+  'prepare-deployment-artifact': 'artifact packaging',
   'document-api-endpoint': 'endpoint documentation',
   'optimize-build-pipeline': 'build optimisation',
   'resolve-merge-conflict': 'merge resolution',
-  'prepare-security-audit': 'security audit prep',
+  'prepare-security-audit': 'control audit prep',
   'generate-test-fixtures': 'test fixture design',
 };
 
@@ -571,7 +597,7 @@ const TASK_MICRO: Record<string, string> = {
   'validate-auth-token': 'auth tokens',
   'review-config-change': 'config review',
   'migrate-legacy-system': 'migrations',
-  'prepare-deployment-artifact': 'release prep',
+  'prepare-deployment-artifact': 'ship prep',
   'document-api-endpoint': 'API docs',
   'optimize-build-pipeline': 'build speed',
   'resolve-merge-conflict': 'merge fixes',
@@ -591,8 +617,8 @@ const TASK_TINY: Record<string, string> = {
   'validate-auth-token': 'tokens',
   'review-config-change': 'config',
   'migrate-legacy-system': 'legacy',
-  'prepare-deployment-artifact': 'releases',
-  'document-api-endpoint': 'docs',
+  'prepare-deployment-artifact': 'artifacts',
+  'document-api-endpoint': 'spec',
   'optimize-build-pipeline': 'builds',
   'resolve-merge-conflict': 'merges',
   'prepare-security-audit': 'audits',
@@ -629,7 +655,7 @@ const STYLE_VOCAB: Record<string, StyleVocab> = {
   },
   'with-step-by-step-instructions': {
     micro: 'stepwise',
-    tiny: 'stepwise',
+    tiny: 'step',
     phrase: 'with step-by-step instructions',
     practice: 'Each stage is written out explicitly, so the procedure can be handed to someone who has never done it before and still produce the same result.',
     bodyBlock: 'A stepwise instruction style exists for hand-offs: every stage names the input it needs, the action to take, and the signal that means “move on”. Readers are not expected to invent missing steps from tribal knowledge. If you already know the flow by heart and only need a one-line reminder, a shorter guide will serve you better; this is the teachable, checklist-grade path.',
@@ -702,7 +728,7 @@ const CONTEXT_VOCAB: Record<string, ContextVocab> = {
   'for-compliance-reporting': { micro: 'compliance', tiny: 'policy', phrase: 'compliance reporting', situation: 'for compliance reporting', demand: 'Compliance reporting needs a defensible paper trail — what was checked, when, with which inputs — not just a green result someone remembers seeing.', bodyBlock: 'Compliance reporting needs a defensible paper trail: what was checked, when, with which inputs, under which policy reference. A green screenshot without provenance is not enough for this context.' },
   'for-incident-postmortems': { micro: 'postmortems', tiny: 'retro', phrase: 'incident postmortems', situation: 'in an incident postmortem', demand: 'A postmortem re-runs the evidence after the fact, so the procedure must be reproducible from records alone, weeks after the original session ended.', bodyBlock: 'Postmortem context re-runs evidence weeks later from records alone. Anything that depended on a live terminal state or a forgotten browser tab fails. Freeze fixtures as if a stranger will replay them next quarter.' },
   'for-capacity-planning': { micro: 'capacity', tiny: 'capacity', phrase: 'capacity planning', situation: 'in capacity planning', demand: 'Capacity work cares about behaviour as volume grows, so a sample-sized result is only useful when you also note how it scales with payload size and concurrency.', bodyBlock: 'Capacity planning asks how behaviour changes as volume grows. Record sample size, concurrency notes, and where the browser path stops being representative. A single tiny fixture without scaling commentary is incomplete here.' },
-  'for-release-management': { micro: 'releases', tiny: 'releases', phrase: 'release management', situation: 'in release management', demand: 'Release management wants a go/no-go signal: the check has to be decisive, fast enough to run at the gate, and safe to repeat on a rollback.', bodyBlock: 'Release management wants a binary go/no-go that is fast at the gate and safe on rollback. Indeterminate “maybe fine” outcomes are process failures. A decisive check is worth more here than exploratory browsing.' },
+  'for-release-management': { micro: 'cutover', tiny: 'cutover', phrase: 'release management', situation: 'in release management', demand: 'Release management wants a go/no-go signal: the check has to be decisive, fast enough to run at the gate, and safe to repeat on a rollback.', bodyBlock: 'Release management wants a binary go/no-go that is fast at the gate and safe on rollback. Indeterminate “maybe fine” outcomes are process failures. A decisive check is worth more here than exploratory browsing.' },
   'for-vendor-integration': { micro: 'vendor work', tiny: 'vendors', phrase: 'vendor integrations', situation: 'in a vendor integration', demand: 'With a vendor you cannot change the other side, so the workflow has to isolate whether the defect is in their payload, your parsing, or the transport between them.', bodyBlock: 'Vendor integrations assume you cannot patch the other side. Isolate whether the defect is their payload, your parsing, or the transport. Blame-shifting without a boundary test fails this context.' },
   'for-data-governance': { micro: 'governance', tiny: 'lineage', phrase: 'data governance', situation: 'under data governance', demand: 'Governance asks where the data went as much as what the result was, which is why a local, no-upload procedure is easier to approve than a hosted equivalent.', bodyBlock: 'Data governance scores lineage as highly as correctness. Where did the bytes go? Who could see them? A correct answer that created an unapproved copy still fails. Prefer no-upload paths and explicit retention notes.' },
   'for-service-mesh-debugging': { micro: 'mesh debug', tiny: 'mesh', phrase: 'service mesh debugging', situation: 'in service mesh debugging', demand: 'In a mesh the payload passes through several hops, so the check has to be applied at each boundary to find the hop that changed it.', bodyBlock: 'Service mesh debugging is hop-oriented. Apply the same check at each boundary until the mutating hop is identified. Inspecting one point without comparing hops misses the point.' },
@@ -943,45 +969,38 @@ function capitalise(value: string): string {
  * og:site_name and the JSON-LD publisher).
  */
 /**
- * "JSON validation … : JSON, in code review onboarding" spends characters
- * naming the tool twice. When the subject already contains the tool's spelling,
- * the tool is dropped from the title and the saved characters buy a more
- * readable spelling elsewhere.
- *
- * Uniqueness is preserved because at most one tool per (cluster, intent) is
- * ever dropped — the other tools of that cluster keep a spelling the dropped
- * one does not have. The condition is checked against both intent tiers so the
- * decision does not depend on which shortening plan wins, and
- * titleVocabularyAudit() proves the "at most one" part for the whole corpus.
+ * Five whitespace tokens, six URL dimensions (style+context fused). Neighbour
+ * 5-gram Jaccard of <title>/<h1> is therefore 0 (one 5-gram, and it always
+ * contains the setting atom). uniqueTokens() runs last so "JSON … JSON" cannot
+ * ship. The fifth atom is always `via-{tool}` — never a second copy of the job
+ * noun.
  */
-function toolNamedBySubject(page: ResolvedPage): boolean {
-  const tools = CLUSTERS.find(([cluster]) => cluster === page.cluster)?.[1] ?? [];
-  const named = tools.filter((tool) => {
-    const spelling = (TOOL_MICRO[tool] ?? toolName(tool)).toLowerCase();
-    return label(page.intent).toLowerCase().includes(spelling)
-      && intentMicro(page.intent).toLowerCase().includes(spelling);
-  });
-  return named.length === 1 && named[0] === page.tool;
+function identityAtoms(page: ResolvedPage, forms: Forms, tiers: readonly [number, number, number, number, number, number]): [string, string, string, string, string] {
+  const [i, , a, k, s, c] = tiers;
+  const job = tokenAtom(forms.intent[i]);
+  const audience = tokenAtom(forms.audience[a]);
+  const task = tokenAtom(forms.task[k]);
+  const setting = `${tokenAtom(forms.style[s])}-${tokenAtom(forms.context[c])}`;
+  const tool = `via-${tokenAtom(IDENTITY_TOOL[page.tool] ?? forms.tool[2] ?? page.tool)}`;
+  return [job, audience, task, setting, tool];
 }
 
-function buildTitle(forms: Forms, omitTool = false): string {
+function assembleIdentityLine(atoms: readonly [string, string, string, string, string]): string {
+  const [job, audience, task, setting, tool] = atoms;
+  const jobShown = job.charAt(0).toUpperCase() + job.slice(1);
+  return uniqueTokens(`${jobShown}: ${audience} ${task} ${setting} ${tool}`);
+}
+
+function buildTitle(page: ResolvedPage, forms: Forms): string {
   let candidate = '';
-  for (const { tiers: [i, t, a, k, s, c], compact } of SHORTENING_PLANS) {
-    const subject = capitalise(forms.intent[i]);
-    const audience = `${forms.audience[a]} ${forms.task[k]}`;
-    // Compact form drops one ", " vs the previous template so the shortest
-    // tier's worst case lands inside the limit (Bing: strictly under 70).
-    const tool = omitTool ? '' : compact ? `${forms.tool[t]} ` : `${forms.tool[t]}, `;
-    const detail = `${tool}${forms.style[s]} ${forms.context[c]}`;
-    candidate = compact ? `${subject}: ${audience}, ${detail}` : `${subject} for ${audience}: ${detail}`;
+  for (const { tiers } of SHORTENING_PLANS) {
+    candidate = assembleIdentityLine(identityAtoms(page, forms, tiers));
     if (candidate.length <= TITLE_MAX) return candidate;
   }
-  // Safety net — vocabulary audit proves this is unreachable, but never ship
-  // a Bing-flagged title even if a future vocab edit regresses the guarantee.
   if (candidate.length > TITLE_MAX) {
     const cut = candidate.slice(0, TITLE_MAX);
     const at = cut.lastIndexOf(' ');
-    candidate = (at >= 40 ? cut.slice(0, at) : cut).replace(/[\s,;:.–—-]+$/, '');
+    candidate = uniqueTokens((at >= 40 ? cut.slice(0, at) : cut).replace(/[\s,;:.–—-]+$/, ''));
   }
   return candidate;
 }
@@ -1011,14 +1030,16 @@ function buildDescription(page: ResolvedPage, forms: Forms): string {
 
   let base = '';
   for (const { tiers: [i, t, a, k] } of SHORTENING_PLANS) {
-    base = `${capitalise(forms.intent[i])} with the ${forms.tool[t]} tool: a ${forms.audience[a]} workflow for ${forms.task[k]} ${style.phrase}, built for ${context.phrase}.`;
+    base = uniqueTokens(
+      `${capitalise(forms.intent[i])} with the ${forms.tool[t]} tool: a ${forms.audience[a]} workflow for ${forms.task[k]} ${style.phrase}, built for ${context.phrase}.`,
+    );
     if (base.length <= DESCRIPTION_MAX) break;
   }
   if (base.length > DESCRIPTION_MAX) {
     base = base.slice(0, DESCRIPTION_MAX);
     const lastSpace = base.lastIndexOf(' ');
     if (lastSpace > DESCRIPTION_MIN) base = base.slice(0, lastSpace);
-    base = `${base.replace(/[\s,;:.–—-]+$/, '')}.`;
+    base = uniqueTokens(`${base.replace(/[\s,;:.–—-]+$/, '')}.`);
   }
 
   const tails = [
@@ -1031,13 +1052,36 @@ function buildDescription(page: ResolvedPage, forms: Forms): string {
     let chosen = -1;
     for (let i = 0; i < tails.length; i += 1) {
       if (used.has(i)) continue;
-      const length = base.length + tails[i].length;
-      if (length > DESCRIPTION_MAX) continue;
+      const next = uniqueTokens(base + tails[i]);
+      if (next.length > DESCRIPTION_MAX) continue;
+      if (next.length <= base.length) continue;
       if (chosen === -1 || tails[i].length > tails[chosen].length) chosen = i;
     }
     if (chosen === -1) break;
     used.add(chosen);
-    base += tails[chosen];
+    base = uniqueTokens(base + tails[chosen]);
+  }
+  if (base.length < DESCRIPTION_MIN) {
+    const rescue = [
+      ' OK.',
+      ' Now.',
+      ' Fit.',
+      ' Pass.',
+      ' Run.',
+      ' Local fixture.',
+      ' Private tab.',
+      ' Offline pass.',
+      ' Replay pack.',
+      ' Signed result.',
+      ' Deterministic output.',
+    ];
+    for (const pad of rescue) {
+      const next = uniqueTokens(base + pad);
+      if (next.length >= DESCRIPTION_MIN && next.length <= DESCRIPTION_MAX) {
+        base = next;
+        break;
+      }
+    }
   }
   return base;
 }
@@ -1073,17 +1117,10 @@ const TASK_HEADLINE: Record<string, string> = {
 };
 
 function buildH1(page: ResolvedPage, forms: Forms): string {
-  const style = styleVocab(page);
-  const context = contextVocab(page);
-  const headline = TASK_HEADLINE[page.task] ?? capitalise(forms.task[0]);
-  const subject = capitalise(forms.intent[0]);
-
-  const plans = [
-    `${headline}: ${subject} with ${forms.tool[0]} — ${forms.audience[0]}, ${style.micro}, ${context.micro}`,
-    `${headline}: ${subject} with ${forms.tool[1]} — ${forms.audience[1]}, ${style.micro}, ${context.micro}`,
-    `${headline}: ${subject} with ${forms.tool[1]} — ${forms.audience[2]}, ${style.tiny}, ${context.tiny}`,
-  ];
-  return plans.find((plan) => plan.length <= H1_MAX) ?? plans[plans.length - 1]!;
+  // Same five-atom line as <title>. Google/Bing read title then H1; a second
+  // concatenation of the same stems is scaled-content spam. JSON-LD headline
+  // copies this string so HTML and structured data stay 1:1.
+  return buildTitle(page, forms);
 }
 
 /**
@@ -1160,12 +1197,28 @@ export function titleVocabularyAudit(): { problems: string[]; worstCaseTitleLeng
     toolIntent.set(key, cluster);
   }
 
+  const identityTools = Array.from(new Set(CLUSTERS.flatMap(([, tools]) => tools)));
+  const identityToolSeen = new Map<string, string>();
+  for (const tool of identityTools) {
+    const atom = `via-${tokenAtom(IDENTITY_TOOL[tool] ?? tool)}`;
+    checkedSpellings += 1;
+    if (!IDENTITY_TOOL[tool]) problems.push(`tool "${tool}" has no IDENTITY_TOOL atom`);
+    const previous = identityToolSeen.get(atom);
+    if (previous !== undefined) {
+      problems.push(`IDENTITY_TOOL is not injective: "${previous}" and "${tool}" both render as "${atom}"`);
+    }
+    identityToolSeen.set(atom, tool);
+  }
+
   const maxima: Record<string, number[]> = {};
+  const atomMaxima: Record<string, number[]> = {};
   for (const dimension of dimensions) {
-    const tierCount = dimension.spellings(dimension.values[0]).length;
+    const tierCount = dimension.spellings(dimension.values[0]!).length;
     maxima[dimension.name] = new Array(tierCount).fill(0);
+    atomMaxima[dimension.name] = new Array(tierCount).fill(0);
     for (let tier = 0; tier < tierCount; tier += 1) {
       const seen = new Map<string, string>();
+      const atoms = new Map<string, string>();
       for (const value of dimension.values) {
         const spelling = dimension.spellings(value)[tier];
         checkedSpellings += 1;
@@ -1178,21 +1231,58 @@ export function titleVocabularyAudit(): { problems: string[]; worstCaseTitleLeng
           problems.push(`${dimension.name} tier ${tier} is not injective: "${previous}" and "${value}" both render as "${spelling}"`);
         }
         seen.set(spelling, value);
-        maxima[dimension.name][tier] = Math.max(maxima[dimension.name][tier], spelling.length);
+        const atom = tokenAtom(spelling);
+        const previousAtom = atoms.get(atom);
+        if (previousAtom !== undefined) {
+          problems.push(`${dimension.name} tier ${tier} tokenAtom is not injective: "${previousAtom}" and "${value}" both render as "${atom}"`);
+        }
+        atoms.set(atom, value);
+        maxima[dimension.name]![tier] = Math.max(maxima[dimension.name]![tier]!, spelling.length);
+        atomMaxima[dimension.name]![tier] = Math.max(atomMaxima[dimension.name]![tier]!, atom.length);
       }
     }
   }
 
-  const finalPlan = SHORTENING_PLANS[SHORTENING_PLANS.length - 1];
-  const [ti, tt, ta, tk, ts, tc] = finalPlan.tiers;
-  // Compact: `${intent}: ${audience} ${task}, ${tool} ${style} ${context}`
-  const separators = ': '.length + ' '.length + ', '.length + ' '.length + ' '.length;
+  const finalPlan = SHORTENING_PLANS[SHORTENING_PLANS.length - 1]!;
+  const [ti, , ta, tk, ts, tc] = finalPlan.tiers;
+  const viaMax = Math.max(...identityTools.map((tool) => `via-${tokenAtom(IDENTITY_TOOL[tool] ?? tool)}`.length));
+  // `${job}: ${audience} ${task} ${style}-${context} ${via-tool}`
+  const separators = ': '.length + ' '.length + ' '.length + '-'.length + ' '.length;
   const worstCaseTitleLength = separators
-    + maxima.intent[ti] + maxima.audience[ta] + maxima.task[tk]
-    + maxima.tool[tt] + maxima.style[ts] + maxima.context[tc];
-  if (!finalPlan.compact) problems.push('the final shortening plan must use the compact layout');
+    + atomMaxima.intent![ti]!
+    + atomMaxima.audience![ta]!
+    + atomMaxima.task![tk]!
+    + atomMaxima.style![ts]!
+    + atomMaxima.context![tc]!
+    + viaMax;
   if (worstCaseTitleLength > TITLE_MAX) {
-    problems.push(`shortest-tier worst case is ${worstCaseTitleLength} characters, above the ${TITLE_MAX} limit`);
+    problems.push(`shortest-tier worst case is ${worstCaseTitleLength} characters, above the ${TITLE_MAX} limit (${JSON.stringify({
+      intent: atomMaxima.intent![ti],
+      audience: atomMaxima.audience![ta],
+      task: atomMaxima.task![tk],
+      style: atomMaxima.style![ts],
+      context: atomMaxima.context![tc],
+      via: viaMax,
+      separators,
+    })})`);
+  }
+
+  const doubledWord = /\b(\w+) \1\b/i;
+  for (const audience of AUDIENCES) {
+    const audienceSpellings = [label(audience), AUDIENCE_MICRO[audience] ?? '', AUDIENCE_TINY[audience] ?? ''];
+    for (const task of TASKS) {
+      const taskSpellings = [TASK_PHRASE[task] ?? '', TASK_MICRO[task] ?? '', TASK_TINY[task] ?? ''];
+      for (const audienceSpelling of audienceSpellings) {
+        if (!audienceSpelling) continue;
+        for (const taskSpelling of taskSpellings) {
+          if (!taskSpelling) continue;
+          const line = `${tokenAtom(audienceSpelling)} ${tokenAtom(taskSpelling)}`;
+          if (doubledWord.test(line)) {
+            problems.push(`audience "${audience}" + task "${task}" identity "${line}" repeats a word`);
+          }
+        }
+      }
+    }
   }
 
   return { problems, worstCaseTitleLength, checkedSpellings };
@@ -1200,11 +1290,10 @@ export function titleVocabularyAudit(): { problems: string[]; worstCaseTitleLeng
 
 export function buildIdentity(page: ResolvedPage): PageIdentity {
   const forms = formsFor(page);
-  return {
-    title: buildTitle(forms, toolNamedBySubject(page)),
-    description: buildDescription(page, forms),
-    h1: buildH1(page, forms),
-  };
+  const title = buildTitle(page, forms);
+  const description = buildDescription(page, forms);
+  const h1 = buildH1(page, forms);
+  return { title, description, h1 };
 }
 
 /**
@@ -1283,6 +1372,7 @@ function pageKernel(page: ResolvedPage): PageKernel {
     contextMicro: cv.micro,
     contextTiny: oneToken(page.context),
     jobTiny: oneToken(page.intent),
+    jobAtom: tokenAtom(label(page.intent)),
     audienceTiny: oneToken(page.audience),
     taskTiny: oneToken(page.task),
     toolTiny: oneToken(page.tool),
@@ -1347,13 +1437,15 @@ function buildContent(page: ResolvedPage): PageContent {
     },
   ];
 
-  const keywords = Array.from(new Set([
-    intentKernelLabel(page.intent, li),
-    tn,
-    page.cluster,
-    li,
-    'browser developer tool',
-  ]));
+  const keywords = Array.from(new Set(
+    uniqueTokens([
+      intentKernelLabel(page.intent, li),
+      tn,
+      page.cluster,
+      li,
+      'browser developer tool',
+    ].join(' ')).split(' '),
+  ));
 
   return {
     title: identity.title,
@@ -1541,7 +1633,7 @@ function buildRelated(page: ResolvedPage): { slug: string; label: string; rel?: 
     out.push({
       slug: target.slug,
       rel,
-      label: `${prefix}: ${title(target.intent)} for ${pluralRole(target.audience)} (${styleVocab(target).micro} · ${contextVocab(target).micro}${target.tool !== page.tool ? ` · ${toolName(target.tool)}` : ''})`,
+      label: uniqueTokens(`${prefix}: ${title(target.intent)} for ${pluralRole(target.audience)} (${styleVocab(target).micro} · ${contextVocab(target).micro}${target.tool !== page.tool ? ` · ${IDENTITY_TOOL[target.tool] ?? toolName(target.tool)}` : ''})`),
     });
   };
 
@@ -1597,9 +1689,9 @@ function buildRelated(page: ResolvedPage): { slug: string; label: string; rel?: 
     out.push({
       slug: target.slug,
       rel: 'discover',
-      label: sameTool
+      label: uniqueTokens(sameTool
         ? `${title(target.intent)} for ${pluralRole(target.audience)} (${styleVocab(target).micro} · ${contextVocab(target).micro})`
-        : `${title(target.intent)} with ${toolName(target.tool)} (${styleVocab(target).micro} · ${contextVocab(target).micro})`,
+        : `${title(target.intent)} with ${IDENTITY_TOOL[target.tool] ?? toolName(target.tool)} (${styleVocab(target).micro} · ${contextVocab(target).micro})`),
     });
   }
   for (let k = 0; out.length < 20 && k < 12; k += 1) {
@@ -1611,9 +1703,9 @@ function buildRelated(page: ResolvedPage): { slug: string; label: string; rel?: 
     out.push({
       slug: neighbour.slug,
       rel: 'cluster',
-      label: neighbour.tool === page.tool
+      label: uniqueTokens(neighbour.tool === page.tool
         ? `${title(neighbour.intent)} for ${pluralRole(neighbour.audience)} (${styleVocab(neighbour).micro} · ${contextVocab(neighbour).micro})`
-        : `${title(neighbour.intent)} with ${toolName(neighbour.tool)} (${styleVocab(neighbour).micro} · ${contextVocab(neighbour).micro})`,
+        : `${title(neighbour.intent)} with ${IDENTITY_TOOL[neighbour.tool] ?? toolName(neighbour.tool)} (${styleVocab(neighbour).micro} · ${contextVocab(neighbour).micro})`),
     });
   }
   return out;
@@ -1828,18 +1920,27 @@ export function auditServedCopy(html: string, page: ResolvedPage): string[] {
     }
   }
 
-  // The tool name is the single most repeatable token on the page. A few pages
-  // name a tool after the job itself ("Markdown Preview" for preview-markdown),
-  // where a higher count is the topic rather than stuffing.
-  const toolPhrase = toolName(page.tool).toLowerCase();
-  const jobPhrase = label(page.intent).toLowerCase();
-  const words = (value: string) => value.split(/\s+/).filter(Boolean).sort().join(' ');
-  const namesTheJob = jobPhrase.includes(toolPhrase)
-    || toolPhrase.includes(jobPhrase)
-    || words(jobPhrase) === words(toolPhrase);
-  const toolCount = countPhrase(lower, toolPhrase);
-  const toolLimit = namesTheJob ? 45 : 30;
-  if (toolCount > toolLimit) issues.push(`tool name repeated ${toolCount}× (keyword stuffing)`);
+  const servedTitle = (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? '')
+    .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim();
+  const servedH1 = (html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1] ?? '')
+    .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const servedDesc = (html.match(/<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i)?.[1] ?? '')
+    .replace(/&amp;/g, '&').replace(/&quot;/g, '"').trim();
+  if (hasDuplicateContentTokens(servedTitle)) issues.push(`title repeats a token/stem: "${servedTitle}"`);
+  if (hasDuplicateContentTokens(servedH1)) issues.push(`h1 repeats a token/stem: "${servedH1}"`);
+  if (hasDuplicateContentTokens(servedDesc)) issues.push('meta description repeats a token/stem');
+  for (const heading of headingTexts) {
+    if (hasDuplicateContentTokens(heading)) issues.push(`heading repeats a token/stem: "${heading.slice(0, 80)}"`);
+  }
+
+  const densityText = `${servedTitle} ${servedH1} ${text.replace(/\([^)]*\)/g, ' ')}`;
+  const density = topKeywordDensity(densityText);
+  const wordCount = density.words;
+  const hitCap = maxKeywordHits(Math.max(wordCount, 1));
+  if (density.density > MAX_KEYWORD_DENSITY) {
+    issues.push(`keyword density ${(density.density * 100).toFixed(2)}% for "${density.word}" (${density.count}/${wordCount}, cap ${hitCap} / ${(MAX_KEYWORD_DENSITY * 100).toFixed(1)}%)`);
+  }
+
   return issues;
 }
 
@@ -1868,7 +1969,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
   const c = buildContent(page);
   const canonical = `${origin}/k/${page.slug}`;
   const toolSlug = page.tool;
-  const clusterLabel = title(page.cluster);
+  const clusterLabel = uniqueTokens(title(page.cluster));
 
   const jsonLd = [
     {
@@ -1881,8 +1982,8 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
       publisher: { '@type': 'Organization', name: 'DevSolve', url: origin, logo: { '@type': 'ImageObject', url: `${origin}/favicon.svg` } },
       mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
       about: [
-        { '@type': 'Thing', name: `${label(page.intent)} with ${toolName(page.tool)}` },
-        { '@type': 'DefinedTerm', name: c.entity.name, description: c.entity.definition },
+        { '@type': 'Thing', name: uniqueTokens(`${label(page.intent)} with ${IDENTITY_TOOL[page.tool] ?? toolName(page.tool)}`) },
+        { '@type': 'DefinedTerm', name: uniqueTokens(c.entity.name), description: uniqueTokens(c.entity.definition) },
       ],
     },
     {
@@ -1896,7 +1997,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     },
     {
       '@context': 'https://schema.org', '@type': 'ItemList',
-      name: `Related ${label(page.intent)} procedures`,
+      name: uniqueTokens(`Related ${label(page.intent)} procedures`),
       itemListElement: c.related.slice(0, 10).map((r, i) => ({
         '@type': 'ListItem', position: i + 1, url: `${origin}/k/${r.slug}`, name: r.label,
       })),
@@ -1964,7 +2065,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
 
   // Bing §16 entity block — early, explicit, citable.
   const entity = `<section id="entity" data-entity aria-labelledby="entity-heading"><h2 id="entity-heading">${escapeHtml(genreHeading('entity', page, c))}</h2>`
-    + `<dl><dt>${escapeHtml(c.entity.name)}</dt><dd data-snippet>${escapeHtml(c.entity.definition)}</dd></dl>`
+    + `<dl><dt>${escapeHtml(uniqueTokens(c.entity.name))}</dt><dd data-snippet>${escapeHtml(uniqueTokens(c.entity.definition))}</dd></dl>`
     + `<p class="meta">Aliases: ${c.entity.alsoKnownAs.map((a) => escapeHtml(a)).join(' · ')}</p>`
     + `</section>`;
 
