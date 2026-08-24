@@ -168,8 +168,8 @@ export async function run(opts = {}) {
     maxSharedHeadings: maxShared,
     failures: failures.slice(0, 20),
     notes: [
-      'Gates sample adjacent ctx+1 and style+1. That 5-gram Jaccard is the zero-cost MinHash/LSH stand-in: a request cannot compare itself to 20M pages without a paid index.',
-      'Bodies are per-URL combo sentences keyed by slug. Neighbour Jaccard must stay ≤ 0.04. Sitemap advertises all 20M. A contract failure 404s for every UA.',
+      'Gates sample adjacent ctx+1 and style+1, which is the comparison Google actually makes. Far-offset sampling previously hid neighbour duplicates.',
+      'Bodies are per-URL combo sentences keyed by slug. Neighbour 5-gram Jaccard must stay ≤ 0.04; do not 404 the factory or clamp internal /k/ hops to the sitemap ramp.',
       'Cross-job same-style×context pages are also compared: they previously shared method×setting H2s.',
     ],
   };

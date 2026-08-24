@@ -12,7 +12,7 @@ It uses no bindings, R2, KV, database, npm package, or network request.
    mismatched slug with 404.
 3. `/sitemap.xml` returns a 400-entry sitemap index and
    `/sitemaps/sitemap-1.xml` through `/sitemaps/sitemap-400.xml` stream 50,000
-   canonical URLs each from ordinal arithmetic — the full 20M corpus.
+   canonical URLs each from ordinal arithmetic.
 4. Requests to `/k/*` and sitemap endpoints with query strings receive a 301
    to the query-free canonical URL.
 

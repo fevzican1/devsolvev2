@@ -20,7 +20,7 @@
  */
 
 export const AGENT_ID = 'devsolve-ai-indexing-agent';
-export const AGENT_VERSION = '2026-08-24.5';
+export const AGENT_VERSION = '2026-08-24.4';
 
 /** Cost model — must stay true for every change to this system. */
 export const COST_MODEL = Object.freeze({
@@ -29,8 +29,7 @@ export const COST_MODEL = Object.freeze({
   functionOnlyOnCacheMiss: true,
   identicalHtmlForAllUserAgents: true, // anti-cloaking
   buildTimeOnlyScoring: true,
-  sitemapAdvertisesFullCorpus: true,
-  sitemapAdvertisesRampNotFullCorpus: false,
+  sitemapAdvertisesRampNotFullCorpus: true,
 });
 
 /**

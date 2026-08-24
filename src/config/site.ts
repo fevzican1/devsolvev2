@@ -9,9 +9,10 @@ export const siteConfig = {
     safeDefaultTotal: 1000,
     rampSchedule: [500000, 2000000, 5000000, 9000000, 14000000, 20000000] as const,
     rampMode: 'manual' as const,
-    /** Fallback advertised level. Live value is `.ramp-level` +
-     *  `EMBEDDED_RAMP_LEVEL` (must stay in lockstep). Level 5 = full 20M. */
-    defaultRampLevel: 5,
+    /** Fallback advertised ramp level. Live value is `.ramp-level` +
+     *  `EMBEDDED_RAMP_LEVEL` (must stay in lockstep). Level 1 = 2M URLs.
+     *  All 20M pages remain 200 + indexable; only sitemap advertisement is gated. */
+    defaultRampLevel: 1,
   },
 
   programmaticQuality: {

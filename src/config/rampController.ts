@@ -20,7 +20,7 @@
  * Ramp level priority order:
  * 1. PROGRAMMATIC_RAMP_LEVEL env var (manual override — highest priority)
  * 2. .ramp-level file (CI auto-updated — read at build time only, not edge)
- * 3. fallback = 5 (full 20M advertised). Staged 2M/5M bands are retired.
+ * 3. fallback = 1 (2M advertised — crawl-budget band until GSC gates prove more)
  */
 
 import { siteConfig } from './site';
@@ -180,8 +180,10 @@ export function resolveRampLevelFromFile(): RampLevel | undefined {
  * Priority order:
  * 1. PROGRAMMATIC_RAMP_LEVEL env var (manual override — highest priority)
  * 2. .ramp-level file (CI auto-updated — build-time only, not edge runtime)
- * 3. fallback = 5 (full 20M advertised). Never fall back to a partial band.
- *    Quality is neighbour uniqueness + the edge contract, not a smaller sitemap.
+ * 3. fallback = 1 (2M advertised). Never fall back to 5 — advertising the
+ *    full 20M corpus without GSC proof dilutes crawl budget and inflates
+ *    "Discovered – currently not indexed". All 20M URLs stay 200 + indexable;
+ *    only the *advertised* sitemap set is gated.
  */
 export function resolveRampLevel(): RampLevel {
   // 1. Explicit env override (manual / Cloudflare Dashboard / CI inject)
@@ -195,7 +197,7 @@ export function resolveRampLevel(): RampLevel {
   const fileLevel = resolveRampLevelFromFile();
   if (fileLevel !== undefined) return fileLevel;
 
-  return 5;
+  return 1;
 }
 
 /**

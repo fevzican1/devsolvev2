@@ -92,15 +92,19 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-24T18:00:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-24T16:00:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'e';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'd';
 
 /*
- * Full-corpus sitemap. /sitemap.xml advertises every one of the 20M /k/ URLs.
- * Staged 2M/5M ramps are retired: quality is the neighbour-Jaccard + edge
- * contract, not a smaller advertised band. EMBEDDED_RAMP_LEVEL stays at 5
- * so scripts that still read .ramp-level stay in lockstep.
+ * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
+ * functions/_lib/embeddedRamp.ts — auto-advance updates both).
+ * Advertising all 20M URLs in /sitemap.xml dilutes Googlebot/Bingbot budget
+ * and is the #1 cause of "Discovered – currently not indexed" at this scale.
+ * Every /k/ URL remains crawlable and indexable (200 + canonical); only the
+ * *advertised* set is gated. Advance EMBEDDED_RAMP_LEVEL only when GSC/Bing
+ * indexed-ratio gates in src/config/rampController.ts are met. Active band
+ * is level 1 (2M) until those gates pass; the full 20M stay 200 + indexable.
  */
 export { EMBEDDED_RAMP_LEVEL };
 export const RAMP_SITEMAP_LIMITS = [500_000, 2_000_000, 5_000_000, 9_000_000, 14_000_000, 20_000_000] as const;
@@ -151,9 +155,6 @@ export const CORPUS_SIZE = Math.min(TARGET_CORPUS_SIZE, RAW_CORPUS_SIZE);
 // represent, so fail loudly rather than serve inconsistent SEO routes.
 if (CORPUS_SIZE !== TARGET_CORPUS_SIZE || CORPUS_SIZE % URLS_PER_SITEMAP !== 0) {
   throw new Error(`The embedded corpus must contain exactly ${TARGET_CORPUS_SIZE.toLocaleString('en-US')} URLs in complete sitemap chunks. Received ${CORPUS_SIZE.toLocaleString('en-US')} URLs with ${URLS_PER_SITEMAP} URLs per sitemap chunk.`);
-}
-if (SITEMAP_PUBLIC_LIMIT !== CORPUS_SIZE) {
-  throw new Error(`Sitemap must advertise the full corpus (${CORPUS_SIZE.toLocaleString('en-US')} URLs). Received SITEMAP_PUBLIC_LIMIT=${SITEMAP_PUBLIC_LIMIT.toLocaleString('en-US')}.`);
 }
 
 export interface ResolvedPage {
@@ -1890,16 +1891,9 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
       itemListElement: [
         { '@type': 'ListItem', position: 1, name: 'Home', item: `${origin}/` },
         { '@type': 'ListItem', position: 2, name: 'Guides', item: `${origin}/k` },
-        { '@type': 'ListItem', position: 3, name: clusterLabel, item: `${origin}/g/${page.cluster}` },
+        { '@type': 'ListItem', position: 3, name: clusterLabel, item: `${origin}/k` },
         { '@type': 'ListItem', position: 4, name: c.title, item: canonical },
       ],
-    },
-    {
-      '@context': 'https://schema.org', '@type': 'ItemList',
-      name: `Related ${label(page.intent)} procedures`,
-      itemListElement: c.related.slice(0, 10).map((r, i) => ({
-        '@type': 'ListItem', position: i + 1, url: `${origin}/k/${r.slug}`, name: r.label,
-      })),
     },
     {
       '@context': 'https://schema.org', '@type': 'HowTo', name: c.h1, description: c.description,
@@ -1925,7 +1919,6 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
   // 70-character limit while the build-time gate measured the un-suffixed
   // string and reported a pass.
   const head = `<!doctype html><html lang="en"><head><meta charset="utf-8">`
-    + jsonLdHtml
     + `<meta name="viewport" content="width=device-width,initial-scale=1">`
     + `<title>${escapeHtml(c.title)}</title>`
     + `<meta name="description" content="${escapeHtml(c.description)}">`
@@ -1951,9 +1944,10 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + `<meta name="twitter:image" content="${escapeHtml(origin)}/opengraph-image.png">`
     + `<meta name="twitter:image:alt" content="${escapeHtml(c.title)} social preview">`
     + `<link rel="alternate" type="application/rss+xml" title="DevSolve" href="${escapeHtml(origin)}/feed.xml">`
+    + jsonLdHtml
     + `<style>${STYLE}</style></head>`;
 
-  const crumbs = `<nav class="crumbs" aria-label="Breadcrumb"><a href="/">DevSolve</a> / <a href="/k">Guides</a> / <a href="/g/${escapeHtml(page.cluster)}">${escapeHtml(clusterLabel)}</a> / <span>${escapeHtml(c.title)}</span></nav>`;
+  const crumbs = `<nav class="crumbs" aria-label="Breadcrumb"><a href="/">DevSolve</a> / <a href="/k">Guides</a> / <a href="/k">${escapeHtml(clusterLabel)}</a> / <span>${escapeHtml(c.title)}</span></nav>`;
 
   // data-snippet marks the passage Bing may display and cite (guideline #10):
   // a self-contained, verifiable answer rather than whatever text the crawler

@@ -39,7 +39,6 @@ const PHASE = 'http_request_cache_settings';
  */
 const CACHE_EXPRESSION = [
   'starts_with(http.request.uri.path, "/k/")',
-  'starts_with(http.request.uri.path, "/g/")',
   '(http.request.uri.path eq "/sitemap.xml")',
   'starts_with(http.request.uri.path, "/sitemaps/")',
   'starts_with(http.request.uri.path, "/sitemap-")',

@@ -51,7 +51,7 @@ function resolveMaxSitemapUrls() {
     const lvl = Number.parseInt(raw, 10);
     if (lvl >= 0 && lvl <= 5) return RAMP_SCHEDULE[lvl];
   } catch { /* file missing — fall through */ }
-  return 20_000_000;
+  return 500000;
 }
 const maxSitemapUrls = resolveMaxSitemapUrls();
 
