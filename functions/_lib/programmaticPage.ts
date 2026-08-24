@@ -93,9 +93,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-24T22:00:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-24T23:00:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'g';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'h';
 
 /*
  * Full-corpus sitemap. /sitemap.xml advertises every one of the 20M /k/ URLs.
@@ -518,26 +518,28 @@ const TOOL_TINY: Record<string, string> = {
 };
 
 /**
- * Fifth title/H1 atom. "JSON" cannot be the tool atom on a JSON-validation
- * page — that is the duplicate-concatenation fingerprint Google reads first.
- * `via-` keeps the atom even when the tool stem overlaps the job stem.
+ * Fifth title/H1 atom. Must not share a uniqueTokens() stem with the job
+ * atom on any (tool, intent) pair — "JSON" on a JSON-validation page, or
+ * "SQL" on an SQL-formatting page, is the duplicate-concatenation fingerprint
+ * Google reads first and uniqueTokens() would drop the tool atom, collapsing
+ * titles across tools. `via-` keeps a short, stem-disjoint stamp.
  */
 const IDENTITY_TOOL: Record<string, string> = {
-  'json-formatter': 'formatter',
-  'json-to-typescript': 'TS-types',
-  'base64-encode-decode': 'Base64',
-  'url-encode-decode': 'URL-codec',
-  'html-entity-encode-decode': 'HTML-escape',
-  'hash-generator': 'hashing',
-  'uuid-generator': 'UUID',
-  'jwt-decoder': 'JWT',
-  'text-case-converter': 'casing',
-  'diff-checker': 'diffing',
-  'regex-tester': 'regex',
-  'sql-formatter': 'SQL',
-  'css-minifier': 'CSS',
-  'markdown-preview': 'Markdown',
-  'cron-helper': 'cron',
+  'json-formatter': 'fmt',
+  'json-to-typescript': 'iface',
+  'base64-encode-decode': 'b64',
+  'url-encode-decode': 'codec',
+  'html-entity-encode-decode': 'ents',
+  'hash-generator': 'digest',
+  'uuid-generator': 'guid',
+  'jwt-decoder': 'jose',
+  'text-case-converter': 'caps',
+  'diff-checker': 'delta',
+  'regex-tester': 'rx',
+  'sql-formatter': 'dml',
+  'css-minifier': 'sheet',
+  'markdown-preview': 'md',
+  'cron-helper': 'sched',
 };
 
 const AUDIENCE_TINY: Record<string, string> = {
@@ -653,7 +655,7 @@ const STYLE_VOCAB: Record<string, StyleVocab> = {
   },
   'with-step-by-step-instructions': {
     micro: 'stepwise',
-    tiny: 'stepwise',
+    tiny: 'step',
     phrase: 'with step-by-step instructions',
     practice: 'Each stage is written out explicitly, so the procedure can be handed to someone who has never done it before and still produce the same result.',
     bodyBlock: 'A stepwise instruction style exists for hand-offs: every stage names the input it needs, the action to take, and the signal that means “move on”. Readers are not expected to invent missing steps from tribal knowledge. If you already know the flow by heart and only need a one-line reminder, a shorter guide will serve you better; this is the teachable, checklist-grade path.',
@@ -1254,7 +1256,15 @@ export function titleVocabularyAudit(): { problems: string[]; worstCaseTitleLeng
     + atomMaxima.context![tc]!
     + viaMax;
   if (worstCaseTitleLength > TITLE_MAX) {
-    problems.push(`shortest-tier worst case is ${worstCaseTitleLength} characters, above the ${TITLE_MAX} limit`);
+    problems.push(`shortest-tier worst case is ${worstCaseTitleLength} characters, above the ${TITLE_MAX} limit (${JSON.stringify({
+      intent: atomMaxima.intent![ti],
+      audience: atomMaxima.audience![ta],
+      task: atomMaxima.task![tk],
+      style: atomMaxima.style![ts],
+      context: atomMaxima.context![tc],
+      via: viaMax,
+      separators,
+    })})`);
   }
 
   return { problems, worstCaseTitleLength, checkedSpellings };

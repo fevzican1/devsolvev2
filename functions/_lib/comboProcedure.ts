@@ -83,7 +83,7 @@ function fnv(value: string): number {
  * 34–37 acceptance, 38–41 pitfalls, 42–49 practice, 50–57 job paras,
  * 59 snippet lead, 60–61 example, 62 matrix lead, 70–77 faq,
  * 80–85 artifact, 90–93 glossary, 94–99 comparison,
- * 100–103 extra practice, 110–112 job list, 120–125 audience,
+ * 100–103 extra practice, 104–107 extra job paras, 110–112 job list, 120–125 audience,
  * 140–145 context,
  * 200+ semanticValue / snippet captions (pageVariation 220+).
  */
@@ -227,7 +227,9 @@ export function comboContextParagraphs(k: PageKernel): string[] {
 }
 
 export function comboJobParagraphs(k: PageKernel): string[] {
-  return comboLines(k, 50, 8);
+  // Always-rendered (never omitted). Extra lanes keep every genre/setting
+  // combo ≥ 1700 words after <pre> is stripped by the edge word counter.
+  return [...comboLines(k, 50, 8), ...comboLines(k, 104, 4)];
 }
 
 export function comboJobList(k: PageKernel): string[] {
