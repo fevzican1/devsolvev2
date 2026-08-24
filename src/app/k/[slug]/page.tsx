@@ -17,6 +17,7 @@ import { RecommendedSolutions } from '@/components/monetization/RecommendedSolut
 import { StaticRevenueModules } from '@/components/monetization/StaticRevenue';
 import { ComputedExample } from '@/components/programmatic/ComputedExample';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { formatProgrammaticHubLabel } from '@/lib/programmatic/hub';
 import { PROGRAMMATIC_HUB_METADATA } from '@/lib/programmatic/metadata';
 import { absoluteUrl } from '@/lib/seo/url';
 import { linkifyCommercialTerms } from '@/lib/content/commercialLinks';
@@ -40,11 +41,6 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-function humanizeProgrammaticSlug(slug: string): string {
-  const withoutIndex = slug.replace(/-\d+$/, '');
-  const text = withoutIndex.replace(/-/g, ' ').trim();
-  return text ? text.charAt(0).toUpperCase() + text.slice(1) : slug;
-}
 
 interface SlugWorkedExample {
   fixtureId: string;
@@ -162,7 +158,7 @@ function getProgrammaticDiscoveryLinks(currentSlug: string, count = 12) {
     if (!slug || slug === currentSlug || seen.has(slug)) continue;
 
     seen.add(slug);
-    links.push({ slug, title: humanizeProgrammaticSlug(slug) });
+    links.push({ slug, title: formatProgrammaticHubLabel(slug) });
   }
 
   return links;

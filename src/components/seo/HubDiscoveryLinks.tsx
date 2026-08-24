@@ -24,7 +24,7 @@ export async function HubDiscoveryLinks({
     <section className="mt-12 rounded-2xl border bg-muted/20 p-6">
       <h2 className="text-2xl font-semibold tracking-tight">{heading}</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Rotating guides, tools, and scenario pages — crawlable internal links that help search engines discover the corpus.
+        Related walkthroughs, tools, and task pages in the same library.
       </p>
       <ul className="mt-6 grid gap-3 md:grid-cols-2">
         {snapshot.links.map((link) => (

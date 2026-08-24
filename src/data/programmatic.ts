@@ -1,7 +1,7 @@
 import { uniqueTokens } from '@/lib/seo/uniqueTokens';
 import { toolRegistry } from '@/tools/registry';
 import { hashString } from '@/lib/utils';
-import { ensureSeoDescription, ensureSeoTitle } from '@/lib/seo/seoText';
+import { ensureSeoDescription } from '@/lib/seo/seoText';
 import { siteConfig } from '@/config/site';
 import { monetizationConfig } from '@/config/monetization';
 import { calculateQualityScore, MIN_QUALITY_SCORE } from '@/lib/quality/scoring';
@@ -452,12 +452,25 @@ const titleTemplates: Record<ClusterKey, string[]> = {
 function buildTitle(tool: string, intent: string, audience: string, clusterKey: ClusterKey, seed: number): string {
   const templates = titleTemplates[clusterKey];
   const template = templates[seed % templates.length];
-  return ensureSeoTitle(
-    template
-      .replace('{intent}', label(intent))
-      .replace('{audience}', label(audience))
-      .replace('{tool}', getToolName(tool)),
-  );
+  const toolName = getToolName(tool);
+  // uniqueTokens() the editorial head only. Running it on the full string
+  // eats the tool brand: "validate JSON" + "JSON Formatter & Validator"
+  // became "Formatter &" (validator shares the validate stem). That is the
+  // same scaled-content tell as "JSON Validate Backend Engineer Prepare".
+  const rawHead = template
+    .replace('{intent}', label(intent))
+    .replace('{audience}', label(audience))
+    .replace(/\{tool\}/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\b(with|using)\s*[—–:,-]+\s*/gi, ' — ')
+    .replace(/\b(with|using)\s*$/i, '')
+    .replace(/[:—–,-]+\s*$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const headRaw = uniqueTokens(rawHead);
+  const head = headRaw ? headRaw.charAt(0).toUpperCase() + headRaw.slice(1) : headRaw;
+  const title = `${head} with ${toolName}`;
+  return title.length >= 30 ? title : `${title} — DevSolve Technical Guide`;
 }
 
 const h1Templates: Record<ClusterKey, string[]> = {

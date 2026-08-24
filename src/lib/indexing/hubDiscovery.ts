@@ -1,6 +1,6 @@
-import { uniqueTokens } from '@/lib/seo/uniqueTokens';
 import { guideRegistry } from '../../content/guides';
 import { toolRegistry } from '../../tools/registry';
+import { formatProgrammaticHubLabel } from '../programmatic/hub';
 import { staticProgrammaticSlugs } from '../programmatic/staticPaths';
 
 const ROTATION_STEP = 7919;
@@ -70,11 +70,7 @@ function buildCorpusCandidates(hubPath: string, count: number): DiscoveryLink[] 
     const slug = pool[index];
     if (!slug || seen.has(slug)) continue;
     seen.add(slug);
-    const label = uniqueTokens(
-      slug.replace(/-\d+$/, '').split('-').slice(0, 6).map((part) => (
-        part.length <= 3 ? part.toUpperCase() : part.charAt(0).toUpperCase() + part.slice(1)
-      )).join(' '),
-    );
+    const label = formatProgrammaticHubLabel(slug);
     links.push({
       href: `/k/${slug}`,
       title: label,
@@ -96,12 +92,14 @@ function buildHubLinkSnapshot(hubPath: string, count: number): HubLinkSnapshot {
 
   const links: DiscoveryLink[] = [];
   const selectedPaths = new Set<string>();
+  const selectedTitles = new Set<string>();
   const seed = fallbackSeedForHub(normalizedHubPath);
 
   for (const candidate of corpus) {
     if (links.length >= count) break;
-    if (selectedPaths.has(candidate.href)) continue;
+    if (selectedPaths.has(candidate.href) || selectedTitles.has(candidate.title)) continue;
     selectedPaths.add(candidate.href);
+    selectedTitles.add(candidate.title);
     links.push(candidate);
   }
 
@@ -110,8 +108,9 @@ function buildHubLinkSnapshot(hubPath: string, count: number): HubLinkSnapshot {
     const index = (seed + attempts * ROTATION_STEP) % editorial.length;
     attempts += 1;
     const candidate = editorial[index];
-    if (!candidate || candidate.href === normalizedHubPath || selectedPaths.has(candidate.href)) continue;
+    if (!candidate || candidate.href === normalizedHubPath || selectedPaths.has(candidate.href) || selectedTitles.has(candidate.title)) continue;
     selectedPaths.add(candidate.href);
+    selectedTitles.add(candidate.title);
     links.push({
       ...candidate,
       source: attempts % 5 === 0 ? 'weekly-discovery' : 'priority',
