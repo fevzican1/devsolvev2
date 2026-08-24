@@ -47,43 +47,10 @@ export function headingOwnerTokens(k: PageKernel): string[] {
  * on that basis lets two URLs share an exact H2/H3.
  */
 export function ownHeading(k: PageKernel, slot: string, base: string): string {
-  const doing = k.jobGerund;
-  const who = k.audiencePlural;
-  const method = k.styleMicro || k.stylePhrase;
-  const setting = k.contextMicro || k.contextPhrase;
   const trimmed = tidy(base);
   const owner = headingOwnerClause(k);
-
-  let line: string;
-  switch (slot) {
-    case 'related':
-      line = `After ${doing} ${method} in ${setting}`;
-      break;
-    case 'acceptance':
-      line = `Done-when ${who} can replay ${doing} ${method} pass in ${setting}`;
-      break;
-    case 'comparison':
-      line = `When another method beats this ${doing} ${method} pass in ${setting}`;
-      break;
-    case 'glossary':
-      line = `Terms ${who} use strictly for ${doing} ${method}`;
-      break;
-    case 'decision-when':
-      line = `Use this ${doing} ${method} path when`;
-      break;
-    case 'decision-not':
-      line = `Skip this ${doing} ${method} path when`;
-      break;
-    case 'matrix':
-      line = `${method} in ${setting}: fault table ${who} keep for ${doing}`;
-      break;
-    case 'branches':
-      line = `${method} forks in ${setting} for ${doing}`;
-      break;
-    default:
-      line = trimmed;
-      break;
-  }
+  const slotToken = oneToken(slot);
+  let line = `${k.contextTiny} ${k.styleTiny} ${slotToken}: ${trimmed}`;
 
   if (line.includes(owner)) return tidy(line);
   line = line.replace(/\s*\([^)]*\)\s*$/, '').trim();

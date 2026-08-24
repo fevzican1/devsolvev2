@@ -14,6 +14,7 @@
 
 import type { PageKernel } from './corpusKnowledge';
 import type { DocumentPlan, SnippetBlock } from './pageVariation';
+import { comboLine } from './comboProcedure';
 
 export interface CompatPin {
   runtime: string;
@@ -339,21 +340,21 @@ export function buildCompatMatrix(k: PageKernel, plan: DocumentPlan): CompatMatr
     const code = `${fault.stem}-${hex(seed + i * 0x9e37, 4)}`;
     return {
       code,
-      fires: styleFire(k.style, fault.scene, code),
-      fix: contextFix(k, fixture, code),
+      fires: `${comboLine(k, 200 + i)} Code ${code}.`,
+      fix: `${comboLine(k, 210 + i)} Replay ${fixture}.`,
     };
   });
   const pins: CompatPin[] = [
     {
-      runtime: `${k.toolLabel} · ${k.styleTiny} tab`,
+      runtime: `${k.styleTiny} ${k.contextTiny}`,
       pin: `${env.os} · ${k.contextTiny} · ${k.styleTiny} · build ${hex(seed, 4)} · ${fixture}`,
     },
     {
-      runtime: `Node ${k.taskTiny} (${k.styleTiny})`,
+      runtime: `Node ${env.node}`,
       pin: `v${env.node}+ · ${env.os} · ${k.styleTiny} · ${k.contextTiny} · ${fixture}`,
     },
     {
-      runtime: `Python ${k.contextTiny}`,
+      runtime: `Python ${env.py}`,
       pin: `${env.py} · ${env.image} · ${k.styleTiny} · ${k.contextTiny} · ${fixture}`,
     },
   ];
@@ -368,26 +369,26 @@ export function buildBranchTree(k: PageKernel, plan: DocumentPlan): BranchFork[]
   const code = `${pick(faults, seed, 1).stem}-${hex(seed, 4)}`;
   return [
     {
-      ifText: `If ${k.styleTiny} replay of ${fixture} drifts under ${k.contextTiny}`,
-      thenText: `apply the first ${k.toolTiny} fault and keep the ${k.contextTiny} freeze for ${k.audienceTiny}.`,
+      ifText: comboLine(k, 230).replace(/\.$/, ''),
+      thenText: comboLine(k, 231),
     },
     {
-      ifText: `If ${k.styleTiny} cannot see ${k.taskTiny} evidence on ${k.toolTiny}`,
-      thenText: `rerun ${fixture} with the ${k.styleTiny} flag; ${k.contextTiny} forbids inventing a second sample.`,
+      ifText: comboLine(k, 232).replace(/\.$/, ''),
+      thenText: comboLine(k, 233),
     },
     {
-      ifText: `If ${k.styleTiny} work must leave ${k.audienceTiny} desk`,
-      thenText: `write the ${env.os} pin beside ${fixture} and skip ${env.image} unless ${k.contextTiny} requires isolation.`,
+      ifText: comboLine(k, 234).replace(/\.$/, ''),
+      thenText: comboLine(k, 235),
     },
     {
-      ifText: `If ${code} shows on one ${k.contextTiny} hop only`,
-      thenText: `blame the ${k.contextTiny} boundary, not ${k.jobTiny}; keep ${k.styleTiny} inside the tab.`,
+      ifText: comboLine(k, 236).replace(/\.$/, ''),
+      thenText: `${comboLine(k, 237)} ${code} on ${env.os}.`,
     },
   ];
 }
 
 export function matrixSplit(k: PageKernel): string {
-  return `Faults below are ${k.styleTiny} × ${k.contextTiny} only — ${k.jobTiny} on ${k.toolTiny} stays inside ${k.styleTiny}.`;
+  return comboLine(k, 240);
 }
 
 export function matrixLead(k: PageKernel): string {
@@ -421,7 +422,7 @@ export function buildExecutablePack(k: PageKernel, plan: DocumentPlan): SnippetB
   const noBinary = k.style === 'without-installing-cli-tools' || k.style === 'with-safe-local-processing';
 
   const bash: SnippetBlock = {
-    label: `Bash replay for ${fixture}`,
+    label: `Bash ${fixture}`,
     language: 'bash',
     code: [
       '#!/usr/bin/env bash',
@@ -435,13 +436,11 @@ export function buildExecutablePack(k: PageKernel, plan: DocumentPlan): SnippetB
       noBinary ? `# ${cmd}` : cmd,
       `echo "replay ${fixture} for ${k.jobTiny} done"`,
     ].join('\n'),
-    caption: noBinary
-      ? `Shebang for ${fixture} is promotion-only. ${k.styleTiny} forbids running it during ${k.contextTiny}.`
-      : `Run ${fixture} under ${k.styleTiny} in ${k.contextTiny}. A green echo is not proof for ${k.jobTiny}.`,
+    caption: comboLine(k, 250),
   };
 
   const dockerfile: SnippetBlock = {
-    label: `Dockerfile for ${fixture}`,
+    label: `Docker ${fixture}`,
     language: 'dockerfile',
     code: [
       `FROM ${env.image}`,
@@ -452,13 +451,11 @@ export function buildExecutablePack(k: PageKernel, plan: DocumentPlan): SnippetB
       `COPY ${fixture}.json /replay/in.json`,
       `CMD ["sh", "-c", ${JSON.stringify(cmd)}]`,
     ].join('\n'),
-    caption: noBinary
-      ? `Do not build ${env.image} for ${fixture} when ${k.styleTiny} is the method. ${k.contextTiny} still owns the bytes.`
-      : `Build ${env.image} for ${fixture} only when ${k.contextTiny} needs isolation beyond ${k.styleTiny}.`,
+    caption: comboLine(k, 251),
   };
 
   const compose: SnippetBlock = {
-    label: `Compose file for ${fixture}`,
+    label: `Compose ${fixture}`,
     language: 'yaml',
     code: [
       `# owner=${owner}`,
@@ -474,7 +471,7 @@ export function buildExecutablePack(k: PageKernel, plan: DocumentPlan): SnippetB
       `      - ./${fixture}.json:/replay/in.json:ro`,
       `    command: ["sh", "-c", ${JSON.stringify(cmd)}]`,
     ].join('\n'),
-    caption: `Compose ${fixture} only if ${k.contextTiny} outgrows the ${k.styleTiny} tab. Renaming ${fixture} starts a different ${k.jobTiny} experiment.`,
+    caption: comboLine(k, 252),
   };
 
   return [bash, dockerfile, compose];

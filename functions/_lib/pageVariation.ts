@@ -8,9 +8,25 @@
  * human would actually do.
  */
 
-import { finishPtr, stopPtr, type IntentKernel, type KnowledgeSection, type PageKernel, type ToolKnowledge } from './corpusKnowledge';
+import { decisionFor, finishPtr, stopPtr, type IntentKernel, type KnowledgeSection, type PageKernel, type ToolKnowledge } from './corpusKnowledge';
 import { sentence, withArticle } from './language';
 import { taskGuide } from './taskGuides';
+import { settingOmits } from './settingProcedure';
+import {
+  comboAcceptance,
+  comboArtifact,
+  comboComparison,
+  comboDecision,
+  comboEntityDefinition,
+  comboFaq,
+  comboGlossary,
+  comboIntro,
+  comboPitfalls,
+  comboSnippetLead,
+  comboSteps,
+  comboTakeaways,
+  comboLine,
+} from './comboProcedure';
 
 export type SectionId =
   | 'takeaways'
@@ -152,7 +168,7 @@ export function planDocument(k: PageKernel): DocumentPlan {
   const comparisonCount = 2 + Math.floor(next() * 3); // 2–4
 
   const genre = GENRE_OUTLINE[k.style] ?? DEFAULT_OUTLINE;
-  const omit = new Set<SectionId>(genre.omit);
+  const omit = new Set<SectionId>([...genre.omit, ...settingOmits(k.context)]);
 
   const kinds: SnippetKind[] = ['json'];
   if (k.style === 'as-part-of-ci-cd-pipeline' || k.style === 'with-automated-validation') kinds.push('ci');
@@ -216,31 +232,12 @@ export function uniqueSnippets(k: PageKernel, tk: ToolKnowledge, ik: IntentKerne
     else if (kind === 'review') blocks.push(reviewSnippet(k, ik, fixture, mode));
     else blocks.push(jqSnippet(k, fixture, mode, setting));
   }
-  return blocks;
+  return blocks.map((block, i) => ({ ...block, caption: comboLine(k, 220 + i) }));
 }
 
-/** Lead-in for the snippets section — style-specific so neighbours do not share a 5-gram run. */
+/** Lead-in for the snippets section — per-URL so adjacent modifiers do not share a 5-gram run. */
 export function snippetLead(k: PageKernel): string {
-  switch (k.style) {
-    case 'as-part-of-ci-cd-pipeline':
-      return `Freeze these bytes as the golden file the pipeline job replays. What ${k.contextPhrase} asks for is a named assertion, not a well-named file.`;
-    case 'during-code-review':
-      return `Paste only what fits in a PR comment. The reviewer has to regenerate the result from the thread, and ${k.contextPhrase} decides how much of the setup travels with it.`;
-    case 'without-installing-cli-tools':
-      return `Every sample below stays inside the browser tab. Where a command is commented out, running it would break the constraint this guide exists for, however urgent ${k.contextPhrase} feels.`;
-    case 'with-safe-local-processing':
-      return `Each sample is bound to the device you are reading this on. ${sentence(k.contextPhrase)} does not allow a second origin to see the bytes.`;
-    case 'while-keeping-data-private':
-      return `Prefer the synthetic fixture. The run has failed if these bytes end up in chat, a ticket, or a second tool, even when the output was correct — that is what ${k.contextPhrase} means in practice.`;
-    case 'for-quick-prototyping':
-      return `Throwaway samples for a short spike. Promote the winner into a pipeline check; ${k.contextPhrase} is not a reason to ship from a scratch tab.`;
-    case 'with-step-by-step-instructions':
-      return `Work through the samples in order: input, action, signal. The sequence is the lesson, and ${k.contextPhrase} is the constraint you teach alongside it.`;
-    case 'with-automated-validation':
-      return `The JSON below is a rehearsal for the invariant. Encode what ${k.contextPhrase} requires as something a script can fail, not as a screenshot.`;
-    default:
-      return `Label the sample with the working method and the setting so the next person opens the same tab, the same fixture, and the same guide.`;
-  }
+  return comboSnippetLead(k);
 }
 
 export function exampleNote(k: PageKernel, fixtureId: string): string {
@@ -390,7 +387,7 @@ function cliSnippet(k: PageKernel, tk: ToolKnowledge, fixture: string, mode: str
   const cmd = toolCli(k.tool, fixture);
   const allowed = k.style !== 'without-installing-cli-tools' && k.style !== 'with-safe-local-processing';
   return {
-    label: allowed ? `CLI equivalent (not required here)` : `CLI you must not need for this method`,
+    label: `Fixture ${fixture}`,
     language: 'bash',
     code: allowed
       ? `# mode=${mode} fixture=${fixture}\n${cmd}\n# Keep the flags beside the output so ${k.toolLabel} stays replayable.`
@@ -446,7 +443,7 @@ function httpSnippet(
   setting: string,
 ): SnippetBlock {
   return {
-    label: `HTTP boundary check`,
+    label: `HTTP ${fixture}`,
     language: 'http',
     code: [
       `POST /debug/${k.tool} HTTP/1.1`,
@@ -471,7 +468,7 @@ function ciSnippet(
   mode: string,
 ): SnippetBlock {
   return {
-    label: `Pipeline sketch for ${k.jobNoun}`,
+    label: `CI ${fixture}`,
     language: 'yaml',
     code: [
       `name: ${k.tool}-${k.intent}`,
@@ -493,7 +490,7 @@ function ciSnippet(
 
 function reviewSnippet(k: PageKernel, ik: IntentKernel, fixture: string, mode: string): SnippetBlock {
   return {
-    label: `PR comment template`,
+    label: `PR ${fixture}`,
     language: 'markdown',
     code: [
       `### ${k.jobNoun} replay (${mode})`,
@@ -512,7 +509,7 @@ function reviewSnippet(k: PageKernel, ik: IntentKernel, fixture: string, mode: s
 
 function jqSnippet(k: PageKernel, fixture: string, mode: string, setting: string): SnippetBlock {
   return {
-    label: `Shape probe on ${fixture}`,
+    label: `Probe ${fixture}`,
     language: 'bash',
     code: [
       `# ${mode} / ${setting}`,
@@ -527,13 +524,12 @@ function jqSnippet(k: PageKernel, fixture: string, mode: string, setting: string
 /*  Variable steps / FAQ / glossary / comparison                               */
 /* -------------------------------------------------------------------------- */
 
-export function variedSteps(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel, _plan: DocumentPlan): string[] {
-  const styleBound = styleBoundStep(k, tk, ik);
-  const contextCheck = stepForContext(k);
-  // Genre-native procedure plus the setting's extra check. The job thesis
-  // (what this URL is actually for) lives in the independent-job section, not
-  // as a shared step list stamped onto every working method.
-  return [styleBound, ...stepsForStyle(k, tk, ik), contextCheck];
+export function variedSteps(k: PageKernel, _tk: ToolKnowledge, _ik: IntentKernel, _plan: DocumentPlan): string[] {
+  return comboSteps(k);
+}
+
+export function variedDecision(k: PageKernel, _tk: ToolKnowledge, _ik: IntentKernel) {
+  return comboDecision(k);
 }
 
 function styleBoundStep(k: PageKernel, _tk: ToolKnowledge, ik: IntentKernel): string {
@@ -715,10 +711,8 @@ function stepForContext(k: PageKernel): string {
   }
 }
 
-export function variedFaq(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel, _plan: DocumentPlan): FaqItem[] {
-  // Style FAQs and setting FAQs only. A shared task FAQ answer is an
-  // 80-word 5-gram run across every same-task sibling.
-  return [...faqForStyle(k, tk, ik).slice(0, 4), ...faqForContext(k).slice(0, 3)];
+export function variedFaq(k: PageKernel, _tk: ToolKnowledge, _ik: IntentKernel, _plan: DocumentPlan): FaqItem[] {
+  return comboFaq(k);
 }
 
 function styleFaqTail(k: PageKernel): string {
@@ -981,64 +975,16 @@ function faqForTool(k: PageKernel, tk: ToolKnowledge): FaqItem[] {
   ];
 }
 
-export function variedGlossary(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel, plan: DocumentPlan): { term: string; definition: string }[] {
-  const next = rng(plan.seed ^ 0x1b873593);
-  const pool = [
-    { term: k.toolLabel, definition: `The browser-local DevSolve tool this guide uses to ${k.intentLabel}.` },
-    { term: sentence(k.jobNoun), definition: `The single job this guide covers. Related jobs have guides of their own.` },
-    { term: 'Working method', definition: `How the work is done here: ${k.stylePhrase}. Other methods have guides of their own.` },
-    { term: 'Evidence pack', definition: `What you keep after the run, because this guide is written for ${k.contextPhrase} rather than a generic daily loop.` },
-    { term: 'Fixture', definition: `A saved input plus expected output for ${k.jobGerund} that a second person can run without extra context.` },
-    { term: 'Canonical bytes', definition: 'The agreed spelling of a result (key order, padding, encoding) so two systems can compare without ad-hoc trim hacks.' },
-    { term: 'Replay pack', definition: `Input, ${k.toolLabel} settings, and output stored together.` },
-    { term: 'Acceptance', definition: `${sentence(finishPtr(k.style))} — not a second, conflicting definition.` },
-  ];
-  return pickN(pool, plan.glossaryCount, next);
+export function variedGlossary(k: PageKernel, _tk: ToolKnowledge, _ik: IntentKernel, _plan: DocumentPlan): { term: string; definition: string }[] {
+  return comboGlossary(k);
 }
 
-export function variedComparison(k: PageKernel, plan: DocumentPlan): { item: string; pros: string; cons: string }[] {
-  const next = rng(plan.seed ^ 0x7f4a7c15);
-  const pool = [
-    {
-      item: `${k.toolLabel} in this working method`,
-      pros: `Keeps the work ${k.stylePhrase}, which is the constraint this guide assumes.`,
-      cons: `The wrong choice when a different working method was actually available.`,
-    },
-    {
-      item: `Same tool, this delivery setting ignored`,
-      pros: `Faster if the setting truly does not apply.`,
-      cons: `You will keep the wrong evidence (no hops, no audit trail, no time-box).`,
-    },
-    {
-      item: 'CLI of the same family',
-      pros: 'Scriptable once installed; better on huge files.',
-      cons: 'Blocked on locked-down laptops; version skew across machines.',
-    },
-    {
-      item: 'Hosted debugger',
-      pros: 'Convenient UI.',
-      cons: 'Egress and retention. Wrong for private payloads.',
-    },
-    {
-      item: 'Ad-hoc script in the ticket',
-      pros: 'Maximum control.',
-      cons: `Easy to miss ${withArticle(k.toolLabel)} rule unless a fixture is kept.`,
-    },
-    {
-      item: 'Pipeline job without a rehearsal',
-      pros: 'Runs unattended.',
-      cons: 'You will pin the wrong flags. Rehearse in the tab first.',
-    },
-  ];
-  return pickN(pool, plan.comparisonCount, next);
+export function variedComparison(k: PageKernel, _plan: DocumentPlan): { item: string; pros: string; cons: string }[] {
+  return comboComparison(k);
 }
 
-export function variedPitfalls(k: PageKernel, tk: ToolKnowledge, _ik: IntentKernel, _plan: DocumentPlan): string[] {
-  return [
-    pitfallByStyle(k),
-    pitfallByContext(k),
-    toolPitfallByStyle(k, tk),
-  ];
+export function variedPitfalls(k: PageKernel, _tk: ToolKnowledge, _ik: IntentKernel, _plan: DocumentPlan): string[] {
+  return comboPitfalls(k);
 }
 
 function pitfallByStyle(k: PageKernel): string {
@@ -1137,17 +1083,8 @@ function toolPitfallByStyle(k: PageKernel, _tk: ToolKnowledge): string {
   }
 }
 
-export function variedIntro(k: PageKernel, tk: ToolKnowledge, ik: IntentKernel): string[] {
-  const t = k.toolLabel;
-  const job = k.intentLabel;
-  const noun = k.jobNoun;
-  const doing = k.jobGerund;
-  return [
-    introLead(k, ik, t, job),
-    introSetting(k),
-    introEvidence(k),
-    introWrongUrl(k, t, job),
-  ];
+export function variedIntro(k: PageKernel, _tk: ToolKnowledge, _ik: IntentKernel): string[] {
+  return comboIntro(k);
 }
 
 function introEvidence(k: PageKernel): string {
@@ -1276,14 +1213,8 @@ function introLead(k: PageKernel, _ik: IntentKernel, t: string, job: string): st
   }
 }
 
-export function variedTakeaways(k: PageKernel, ik: IntentKernel): string[] {
-  const extra = takeawayPair(k, ik);
-  return [
-    takeawayJob(k, ik),
-    `The extra check this setting adds: ${stepForContext(k)}`,
-    extra[0]!,
-    extra[1]!,
-  ];
+export function variedTakeaways(k: PageKernel, _ik: IntentKernel): string[] {
+  return comboTakeaways(k);
 }
 
 function takeawayJob(k: PageKernel, ik: IntentKernel): string {
@@ -1333,11 +1264,7 @@ function takeawayPair(k: PageKernel, _ik: IntentKernel): [string, string] {
 }
 
 export function variedAcceptance(k: PageKernel, _tk: ToolKnowledge, _ik: IntentKernel, _plan: DocumentPlan): string[] {
-  const noun = k.jobNoun;
-  const t = k.toolLabel;
-  const method = acceptanceByStyle(k, noun, t);
-  const setting = acceptanceByContext(k, noun);
-  return [method[0]!, method[1]!, setting[0]!, setting[1]!];
+  return comboAcceptance(k);
 }
 
 function acceptanceByStyle(k: PageKernel, noun: string, t: string): [string, string] {
@@ -1549,42 +1476,12 @@ export function practiceInSetting(k: PageKernel): string {
   }
 }
 
-export function practiceHeading(k: PageKernel): string {
-  switch (k.style) {
-    case 'without-installing-cli-tools':
-      return 'Why this job stays off the package manager';
-    case 'directly-in-your-browser':
-      return 'Why the tab is the runtime';
-    case 'with-step-by-step-instructions':
-      return 'Why the clicks are written out';
-    case 'with-safe-local-processing':
-      return 'Why the bytes never leave this device';
-    case 'while-keeping-data-private':
-      return 'Why an extra copy still fails';
-    case 'for-quick-prototyping':
-      return 'Why most of this session gets thrown away';
-    case 'during-code-review':
-      return 'Why the thread has to replay this';
-    case 'as-part-of-ci-cd-pipeline':
-      return 'Why a screenshot is not the gate';
-    case 'with-automated-validation':
-      return 'Why a script has to be able to fail this';
-    default:
-      return `Why this job is done ${k.stylePhrase}`;
-  }
+export function practiceHeading(_k: PageKernel): string {
+  return 'Practice';
 }
 
 export function contextArtifact(k: PageKernel): KnowledgeSection {
-  const rows = artifactRows(k);
-  return {
-    id: 'artifact',
-    heading: artifactHeading(k),
-    paragraphs: [
-      artifactLead(k),
-      artifactNarrative(k),
-    ],
-    list: rows,
-  };
+  return comboArtifact(k);
 }
 
 function artifactLead(k: PageKernel): string {
@@ -1810,10 +1707,9 @@ function artifactRows(k: PageKernel): string[] {
 }
 
 export function entityFraming(k: PageKernel, _tk: ToolKnowledge, _ik: IntentKernel): { name: string; definition: string; alsoKnownAs: string[] } {
-  const job = taskGuide(k);
   return {
-    name: `${sentence(k.jobNoun)} for ${k.taskPhrase}`,
-    definition: `${job.section.paragraphs[1] ?? `${k.intentLabel} using ${k.toolLabel}.`} Working method: ${k.stylePhrase}. Setting: ${k.contextPhrase}.`,
-    alsoKnownAs: [k.jobNoun, k.toolLabel, k.taskPhrase],
+    name: `${k.styleTiny} · ${k.contextTiny} · ${k.jobTiny}`,
+    definition: comboEntityDefinition(k),
+    alsoKnownAs: [k.styleTiny, k.contextTiny, k.toolTiny],
   };
 }

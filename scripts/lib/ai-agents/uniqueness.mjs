@@ -6,6 +6,8 @@
  *   1. Jaccard of <main> prose WITH headings (no H2/H3 strip)
  *   2. Exact shared H2/H3s between style×context siblings must be 0
  *   3. Same-style×context pages on a different job share 0 H2/H3s
+ *   4. Neighbours (ctx+1 and style+1), not far siblings — Google compares
+ *      adjacent programmatic URLs, which is what used to hide scaled content
  *
  * Cost: build CPU only.
  */
@@ -88,8 +90,8 @@ export async function run(opts = {}) {
     const ctx0 = page.modifier % MODIFIER_CONTEXTS.length;
     const mods = [
       page.modifier,
-      ((style0 + 3) % MODIFIER_STYLES.length) * MODIFIER_CONTEXTS.length + ((ctx0 + 7) % MODIFIER_CONTEXTS.length),
-      ((style0 + 6) % MODIFIER_STYLES.length) * MODIFIER_CONTEXTS.length + ((ctx0 + 13) % MODIFIER_CONTEXTS.length),
+      style0 * MODIFIER_CONTEXTS.length + ((ctx0 + 1) % MODIFIER_CONTEXTS.length),
+      ((style0 + 1) % MODIFIER_STYLES.length) * MODIFIER_CONTEXTS.length + ctx0,
     ];
     const sets = [];
     const heads = [];
@@ -166,9 +168,9 @@ export async function run(opts = {}) {
     maxSharedHeadings: maxShared,
     failures: failures.slice(0, 20),
     notes: [
-      'Headings stay in the Jaccard window. A shared H2/H3 list is Google scaled-content even at body Jaccard 0.02.',
+      'Gates sample adjacent ctx+1 and style+1. That 5-gram Jaccard is the zero-cost MinHash/LSH stand-in: a request cannot compare itself to 20M pages without a paid index.',
+      'Bodies are per-URL combo sentences keyed by slug. Neighbour Jaccard must stay ≤ 0.04. Sitemap advertises all 20M. A contract failure 404s for every UA.',
       'Cross-job same-style×context pages are also compared: they previously shared method×setting H2s.',
-      'verify-edge-corpus-quality.mjs re-runs body + heading gates on 800 stems during postbuild as the 20M proof.',
     ],
   };
 }

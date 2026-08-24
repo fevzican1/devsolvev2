@@ -12,6 +12,7 @@ import { HubDiscoveryLinks } from '@/components/seo/HubDiscoveryLinks';
 import { TrustSignals } from '@/components/layout/TrustSignals';
 import { StaticRevenueModules } from '@/components/monetization/StaticRevenue';
 import { isSovrnJourneyEnabled, platformExternalUrls } from '@/config/monetization';
+import { CORPUS_CLUSTER_KEYS, clusterHubHref } from '@/lib/programmatic/corpusClusters';
 
 export const metadata: Metadata = buildMetadata({
   // Explicit title + description — buildMetadata always emits an absolute
@@ -230,6 +231,24 @@ export default function HomePage() {
       ) : null}
 
       <div className="container mx-auto px-4 pb-14">
+        <section className="mt-4 mb-12 rounded-2xl border bg-muted/20 p-6">
+          <h2 className="text-2xl font-semibold tracking-tight">Workflow clusters</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Directories into the full 20 million /k/ guides. Home → cluster index → a guide is two clicks.
+          </p>
+          <ul className="mt-6 grid gap-3 md:grid-cols-2">
+            {CORPUS_CLUSTER_KEYS.map((cluster) => (
+              <li key={cluster}>
+                <Link
+                  href={clusterHubHref(cluster)}
+                  className="block rounded-lg border bg-background px-4 py-3 text-sm font-medium capitalize hover:border-primary/40 hover:text-primary"
+                >
+                  {cluster} workflows
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
         <Suspense fallback={null}>
           <HubDiscoveryLinks hubPath="/" heading="Guides & Tools" />
         </Suspense>

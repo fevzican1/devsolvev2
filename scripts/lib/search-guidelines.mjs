@@ -337,7 +337,7 @@ export const CORPUS_RULES = [
     source: 'BING abuse: automatically generated content at scale / duplicate content across multiple URLs',
     severity: 'critical',
     requirement:
-      'Style×context siblings must be different documents (distinct genres + job thesis + tool/intent facts), not the same essay with modifiers stuffed into every sentence. 5-gram Jaccard of <main> prose — including H2/H3 — stays ≤ 0.04 (true near-duplicates cluster ≥ 0.80).',
+      'Style×context siblings must be different documents (distinct genres + job thesis + tool/intent facts), not the same essay with modifiers stuffed into every sentence. 5-gram Jaccard of <main> prose — including H2/H3 — stays ≤ 0.04 (true near-duplicates cluster ≥ 0.80). Gates sample adjacent neighbours (ctx+1 and style+1). Do not 404 the factory as a band; the sitemap advertises all 20M. A page that fails the edge quality contract 404s for every user-agent (no cloaking). Internal /k/ hops walk CORPUS_SIZE.',
   },
   {
     id: 'unique-heading-skeleton',

@@ -18,6 +18,8 @@
  * crawl" means: first request (often a crawler) is a cache MISS → Function
  * renders once → CDN serves every later hit with zero Function invocations.
  * Zone Cache Rules (scripts/deploy-cache-rules.mjs) are what make HIT free.
+ * A page that fails the edge quality gate is 404 for everyone — never a
+ * bot-only block (that would be cloaking).
  */
 import {
   URLS_PER_SITEMAP,
@@ -31,6 +33,8 @@ import {
   stableHash,
   type ResolvedPage,
 } from './_lib/programmaticPage';
+import { edgeQualityGate } from './_lib/qualityGate';
+import { renderClusterHub } from './_lib/clusterHub';
 
 interface PagesContext {
   request: Request;
@@ -93,6 +97,13 @@ function resolveOrigin(requestUrl: string): string {
 
 function pageResponse(page: ResolvedPage, origin: string): Response {
   const html = renderProgrammaticPage(page, origin);
+  const gate = edgeQualityGate(html, page);
+  if (!gate.ok) {
+    // Same 404 for every UA. A failing contract is not indexable, so it must
+    // not occupy crawl budget as a 200. Build-time verify-edge-corpus-quality
+    // must never let this fire on a generated /k/ URL.
+    return notFound();
+  }
   // 30 days at the edge with a week of stale-while-revalidate. A one-year TTL
   // made the corpus cheap to serve but meant a content fix could take a year to
   // reach a crawler that had already cached the page; the Function is still
@@ -110,8 +121,8 @@ function pageResponse(page: ResolvedPage, origin: string): Response {
 }
 
 function sitemapIndexResponse(origin: string): Response {
-  // Only advertise the ramp-limited public set — never the full 20M corpus —
-  // so crawl budget concentrates on pages that can realistically index first.
+  // Advertise the entire 20M corpus. Quality is the neighbour-Jaccard + edge
+  // contract, not a smaller advertised band.
   const lastmod = sitemapIndexLastmod();
   const entries = Array.from({ length: SITEMAP_PUBLIC_CHUNKS }, (_, i) => `<sitemap><loc>${origin}/sitemaps/sitemap-${i + 1}.xml</loc><lastmod>${lastmod}</lastmod></sitemap>`).join('');
   const headers = contentHeaders('application/xml; charset=utf-8', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
@@ -160,6 +171,16 @@ function buildResponse(pathname: string, origin: string): Response | undefined {
     const part = Number(sitemapMatch[1]);
     return part >= 1 && part <= SITEMAP_PUBLIC_CHUNKS ? sitemapResponse(part, origin) : notFound();
   }
+  const clusterMatch = pathname.match(/^\/g\/([a-z]+)$/);
+  if (clusterMatch) {
+    const html = renderClusterHub(clusterMatch[1], origin);
+    if (!html) return notFound();
+    const headers = contentHeaders(
+      'text/html; charset=utf-8',
+      'public, max-age=300, s-maxage=2592000, stale-while-revalidate=604800',
+    );
+    return new Response(html, { headers });
+  }
   const match = pathname.match(/^\/k\/([a-z0-9-]+)$/);
   if (match) {
     // A slug either owns its content (200), names a real page under a stale
@@ -179,7 +200,10 @@ export const onRequest = async (context: PagesContext): Promise<Response> => {
   const { request } = context;
   const url = new URL(request.url);
   const { pathname } = url;
-  const managed = pathname === '/sitemap.xml' || pathname.startsWith('/sitemaps/') || pathname.startsWith('/k/');
+  const managed = pathname === '/sitemap.xml'
+    || pathname.startsWith('/sitemaps/')
+    || pathname.startsWith('/k/')
+    || pathname.startsWith('/g/');
   if (!managed) return context.next();
 
   const cache = request.method === 'GET' ? edgeCache() : undefined;
