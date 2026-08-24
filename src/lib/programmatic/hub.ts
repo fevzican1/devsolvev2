@@ -1,5 +1,8 @@
 import { uniqueTokens, tokenAtom, POLICY_STOPWORDS } from '@/lib/seo/uniqueTokens';
-import { resolveProgrammaticPageBySlug } from '@/data/programmatic';
+import {
+  fiveAtomTitleForSlug,
+  isFiveAtomIdentityTitle,
+} from '@/lib/seo/factoryIdentity';
 
 export const PROGRAMMATIC_HUB_LABEL_SEGMENTS = 8;
 export const PROGRAMMATIC_HUB_ACRONYM_LENGTH = 3;
@@ -16,6 +19,7 @@ export const PROGRAMMATIC_HUB_DESCRIPTION =
 export function looksLikeSlugDumpLabel(label: string): boolean {
   const text = label.trim();
   if (!text) return true;
+  if (isFiveAtomIdentityTitle(text)) return false;
   if (/:/.test(text)) return false;
   if (/\bvia-/.test(text)) return false;
   const words = text.split(/\s+/).filter(Boolean);
@@ -31,21 +35,21 @@ export function looksLikeSlugDumpLabel(label: string): boolean {
 }
 
 /**
- * Visible hub/homepage anchor text. Always the page <title>, never a
- * Title-Cased slug stem. Missing pages get a generic editorial phrase so a
- * failed resolve cannot resurrect the dump.
+ * Visible hub/homepage /k/ anchor text. Always the factory 5-atom identity
+ * title (`Job: audience task style-context via-tool`), never a Title-Cased
+ * slug dump and never the static-export editorial line. Missing pages get a
+ * generic editorial phrase so a failed resolve cannot resurrect the dump.
  */
 export function formatProgrammaticHubLabel(slug: string): string {
   if (!slug.trim()) {
     return PROGRAMMATIC_HUB_FALLBACK_LABEL;
   }
 
-  const resolved = resolveProgrammaticPageBySlug(slug);
-  const title = resolved?.page.title || PROGRAMMATIC_HUB_FALLBACK_LABEL;
-  if (looksLikeSlugDumpLabel(title)) {
-    return PROGRAMMATIC_HUB_FALLBACK_LABEL;
+  const title = fiveAtomTitleForSlug(slug);
+  if (title && isFiveAtomIdentityTitle(title) && !looksLikeSlugDumpLabel(title)) {
+    return title;
   }
-  return title;
+  return PROGRAMMATIC_HUB_FALLBACK_LABEL;
 }
 
 export function formatProgrammaticHubAtom(slug: string): string {

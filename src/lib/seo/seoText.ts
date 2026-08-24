@@ -90,15 +90,28 @@ const RESCUE_DESCRIPTION_FILLERS: readonly string[] = [
   ' Cite a known-good fixture, never a production secret.',
 ];
 
+const TRAILING_INCOMPLETE = new Set([
+  'in', 'of', 'with', 'via', 'for', 'to', 'on', 'at', 'by', 'from', 'and', 'or',
+  'the', 'a', 'an', 'your', 'as',
+]);
+
+function lastContentWord(text: string): string {
+  const words = text.replace(/[.!?…]+$/g, '').trim().split(/\s+/).filter(Boolean);
+  return (words[words.length - 1] || '').replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+}
+
+export function descriptionHasTruncatedTail(text: string): boolean {
+  const core = lastContentWord(text);
+  if (!core) return true;
+  return POLICY_STOPWORDS.has(core) || TRAILING_INCOMPLETE.has(core);
+}
+
 function looksCompleteDescription(text: string): boolean {
   if (!/[.!?…]$/.test(text)) return false;
-  const words = text.replace(/[.!?…]+$/g, '').trim().split(/\s+/).filter(Boolean);
-  const last = words[words.length - 1] || '';
-  const core = last.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
-  if (!core) return false;
   // uniqueTokens() dropping "browser" from "Runs entirely in your browser."
-  // left "Runs entirely in your." — that must not ship.
-  return !POLICY_STOPWORDS.has(core);
+  // left "Runs entirely in your." — that must not ship. Truncated
+  // prepositions ("in", "of", "with", "via") are an immediate reject.
+  return !descriptionHasTruncatedTail(text);
 }
 
 /** uniqueTokens() can drop the last content word and leave "… real limits of". */
@@ -232,6 +245,16 @@ function padDescription(text: string, minLength: number, maxLength: number, targ
   return uniqueBase;
 }
 
+/**
+ * Pipeline (never reorder):
+ *   1. normalize raw copy
+ *   2. uniqueTokens() stem/dedup
+ *   3. complete-sentence / incomplete-tail repair
+ *   4. pad to Bing's 150–160 window with clauses that survive uniqueTokens()
+ *
+ * Padding before uniqueTokens() shipped fragments such as "Runs entirely in
+ * your" and failed Cloudflare Pages postbuild (exit 1).
+ */
 export function ensureSeoDescription(
   raw: string,
   minLength = 150,

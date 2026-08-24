@@ -21,7 +21,9 @@
     "src/lib/quality/scoring.ts",
     "src/lib/quality/scoringPage.ts",
     "src/lib/seo/seoText.ts",
-    "src/lib/seo/uniqueTokens.ts"
+    "src/lib/seo/uniqueTokens.ts",
+    "src/lib/seo/factoryIdentity.ts",
+    "src/lib/programmatic/corpusGeometry.ts"
   ],
   "exclude": [
     "node_modules",

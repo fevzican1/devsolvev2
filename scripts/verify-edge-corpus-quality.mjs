@@ -86,6 +86,7 @@ import {
   ngramJaccard,
 } from '../src/lib/seo/uniqueTokens.ts';
 import { formatProgrammaticHubLabel, looksLikeSlugDumpLabel } from '../src/lib/programmatic/hub.ts';
+import { isFiveAtomIdentityTitle } from '../src/lib/seo/factoryIdentity.ts';
 import { scorePage, MIN_INDEXABLE_SCORE } from './lib/ai-quality-scoring.mjs';
 import { guidelineDigest } from './lib/search-guidelines.mjs';
 import { agentBanner, AGENT_VERSION, COST_MODEL, QUALITY_CONTRACT } from './lib/ai-indexing-agent.mjs';
@@ -648,9 +649,15 @@ for (let s = 0; s < SIBLING_STEMS && failures.length < MAX_FAIL; s += 1) {
     identities.push(buildIdentity(page));
     slugs.push(page.slug);
     const hub = formatProgrammaticHubLabel(page.slug);
-    if (looksLikeSlugDumpLabel(hub) || /JSON Validate Backend Engineer Prepare/i.test(hub)) {
+    const identityTitle = identities[identities.length - 1].title;
+    if (
+      looksLikeSlugDumpLabel(hub)
+      || /JSON Validate Backend Engineer Prepare/i.test(hub)
+      || !isFiveAtomIdentityTitle(hub)
+      || hub !== identityTitle
+    ) {
       hubJunk.push({ slug: page.slug, hub });
-      fail('G:hub-label', { slug: page.slug, message: `hub label still dumped: "${hub}"` });
+      fail('G:hub-label', { slug: page.slug, message: `hub label still dumped or not 5-atom: "${hub}"` });
     }
   }
   if (identities.length < 2) continue;
