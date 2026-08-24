@@ -1,4 +1,6 @@
 import { ensureSeoDescription } from '../src/lib/seo/seoText.ts';
+import { hasDuplicateContentTokens, uniqueTokens } from '../src/lib/seo/uniqueTokens.ts';
+import { siteConfig } from '../src/config/site.ts';
 
 const samples = [
   ['url-encode-decode', 'Encode and decode URL components with encodeURIComponent in your browser. Handle query parameters, path segments, and special characters with local-only processing.'],
@@ -15,16 +17,34 @@ const samples = [
   ['homepage', 'Free browser-based developer tools for JSON formatting, JWT decoding, regex testing, Base64 encoding, and more. All processing happens locally — your data never leaves your browser.'],
   ['cmd-center', 'Internal DevSolve operations dashboard for monitoring site health, indexing status, and deployment metrics. Not intended for public search indexing.'],
   ['cookies', 'DevSolve cookie and local storage policy. Minimal cookies for essential functionality, transparent analytics, and full browser control.'],
-  ['site-config', 'Free browser-based developer tools for JSON formatting, JWT decoding, regex testing, Base64 encoding and more. All processing happens locally — your data never leaves your machine.'],
+  ['site-config', siteConfig.description],
 ];
 
 let failed = false;
 for (const [slug, raw] of samples) {
   const out = ensureSeoDescription(raw);
-  const isGenericFallback = out.startsWith('DevSolve offers free, privacy-first developer tools and in-depth technical guides');
+  const isGenericFallback = out.startsWith('DevSolve offers free, privacy-first developer tools');
   const allowFallback = slug === 'cmd-center';
-  const ok = out.length >= 150 && out.length <= 160 && /[.!?…]$/.test(out) && (allowFallback || !isGenericFallback);
-  console.log(`${ok ? 'OK' : 'FAIL'} ${slug}: len=${out.length}${isGenericFallback ? ' (GENERIC FALLBACK)' : ''} ${out}`);
+  const unique = uniqueTokens(out);
+  const ok = out.length >= 150 && out.length <= 160 && /[.!?…]$/.test(out)
+    && unique === out
+    && !hasDuplicateContentTokens(out)
+    && (allowFallback || !isGenericFallback);
+  const reasons = [];
+  if (out.length < 150 || out.length > 160) reasons.push('length');
+  if (!/[.!?…]$/.test(out)) reasons.push('punctuation');
+  if (unique !== out) reasons.push('uniqueTokens-unstable');
+  if (hasDuplicateContentTokens(out)) reasons.push('duplicate-stems');
+  if (!allowFallback && isGenericFallback) reasons.push('generic-fallback');
+  console.log(`${ok ? 'OK' : 'FAIL'} ${slug}: len=${out.length}${reasons.length ? ` [${reasons.join(',')}]` : ''}${isGenericFallback ? ' (GENERIC FALLBACK)' : ''} ${out}`);
   if (!ok) failed = true;
 }
+
+const fallback = ensureSeoDescription('');
+const fallbackOk = fallback.length >= 150 && fallback.length <= 160
+  && uniqueTokens(fallback) === fallback
+  && !hasDuplicateContentTokens(fallback)
+  && /[.!?…]$/.test(fallback);
+console.log(`${fallbackOk ? 'OK' : 'FAIL'} empty-fallback: len=${fallback.length} ${fallback}`);
+if (!fallbackOk) failed = true;
 process.exit(failed ? 1 : 0);
