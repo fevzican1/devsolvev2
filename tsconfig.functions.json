@@ -20,7 +20,8 @@
     "src/lib/quality/eligibility.ts",
     "src/lib/quality/scoring.ts",
     "src/lib/quality/scoringPage.ts",
-    "src/lib/seo/seoText.ts"
+    "src/lib/seo/seoText.ts",
+    "src/lib/seo/uniqueTokens.ts"
   ],
   "exclude": [
     "node_modules",

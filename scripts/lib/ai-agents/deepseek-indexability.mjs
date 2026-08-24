@@ -112,6 +112,8 @@ const GOOGLE_PAGE_INDEXING = [
       if (!ctx.score.signals?.hasIndependentOpening) {
         return 'opening does not name this page’s audience and job';
       }
+      if (ctx.score.signals?.hasDuplicateIdentityTokens) return 'title/H1/JSON-LD repeats a token';
+      if (ctx.score.signals?.jsonLdMatchesHtml === false) return 'JSON-LD does not match HTML';
       return null;
     },
   },
@@ -158,6 +160,9 @@ const BING_SECTIONS = [
   { id: '§17-topic', test: (html) => (html.match(/<h1/gi) || []).length === 1, fail: 'not a single H1' },
   { id: '§18-early', test: (html) => /\sdata-snippet(?=[\s>=])/i.test(html), fail: 'no early citable answer' },
   { id: '§21-no-cloak', test: (_html, ctx) => ctx.noCloaking, fail: 'User-Agent branched HTML' },
+  { id: 'abuse-unique-tokens', test: (_html, ctx) => !ctx.score.signals?.hasDuplicateIdentityTokens, fail: 'title/H1/JSON-LD repeats a token' },
+  { id: 'abuse-jsonld-match', test: (_html, ctx) => ctx.score.signals?.jsonLdMatchesHtml !== false, fail: 'JSON-LD does not match HTML' },
+  { id: 'abuse-keyword-density', test: (_html, ctx) => (ctx.score.details?.topWordRatio ?? 0) <= QUALITY_CONTRACT.maxKeywordDensity, fail: 'keyword density above 2.5%' },
 ];
 
 function readRobots() {
@@ -190,6 +195,9 @@ function systemInvariants() {
   }
   if (!COST_MODEL.identicalHtmlForAllUserAgents) {
     failures.push({ scope: 'system', reason: 'cloaking would be enabled' });
+  }
+  if (!/edgeQualityGate/.test(edge) || !/status: 404/.test(edge)) {
+    failures.push({ scope: 'system', reason: 'edge quality gate must 404 failing /k/ pages for every UA' });
   }
   if (/applebot/i.test(WAF1_SKIP)) {
     failures.push({ scope: 'system', reason: 'WAF1 still skips Applebot — that is the hole' });

@@ -49,6 +49,8 @@ const STOPWORDS = new Set([
   'then', 'so', 'such', 'each', 'more', 'most', 'some', 'any', 'all', 'when',
   'how', 'what', 'why', 'which', 'who', 'do', 'does', 'did', 'have', 'has',
   'had', 'i', 'us', 'about', 'also', 'use', 'using', 'used',
+  'after', 'before', 'during', 'under', 'across', 'versus', 'beside', 'inside',
+  'without', 'ahead', 'next', 'upon', 'among', 'against', 'within', 'between', 'via',
 ]);
 
 /*
@@ -213,6 +215,36 @@ export function extractDocumentSignals(html) {
   const hasBranchTree = /data-branch-tree/.test(mainHtml) && (html.match(/data-branch=/g) || []).length >= 3;
   const hasSemanticHops = (html.match(/data-rel="(?:next-task|observe|method|intent)"/g) || []).length >= 4;
 
+  const h1Exact = h1Match ? decodeEntities(h1Match[1].replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim() : '';
+  let jsonLdMatchesHtml = true;
+  let hasDuplicateIdentityTokens = hasRepeatedIdentityToken(title) || hasRepeatedIdentityToken(h1Exact) || hasRepeatedIdentityToken(description);
+  const jsonLdBlocks = [];
+  for (const match of html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      jsonLdBlocks.push(JSON.parse(match[1].replace(/\\u003c/g, '<')));
+    } catch {
+      jsonLdMatchesHtml = false;
+    }
+  }
+  const article = jsonLdBlocks.find((block) => block?.['@type'] === 'TechArticle');
+  const howTo = jsonLdBlocks.find((block) => block?.['@type'] === 'HowTo');
+  const crumbs = jsonLdBlocks.find((block) => block?.['@type'] === 'BreadcrumbList');
+  const itemList = jsonLdBlocks.find((block) => block?.['@type'] === 'ItemList');
+  if (article && (article.headline !== h1Exact || article.description !== description)) jsonLdMatchesHtml = false;
+  if (howTo && (howTo.name !== h1Exact || howTo.description !== description)) jsonLdMatchesHtml = false;
+  const crumbTail = Array.isArray(crumbs?.itemListElement) ? crumbs.itemListElement[crumbs.itemListElement.length - 1] : null;
+  if (crumbTail && crumbTail.name !== title) jsonLdMatchesHtml = false;
+  const related = html.match(/<section[^>]*aria-labelledby="related"[\s\S]*?<\/section>/i)?.[0] || '';
+  const relatedNames = [...related.matchAll(/<a href="\/k\/[^"]+"[^>]*>([\s\S]*?)<\/a>/gi)]
+    .map((m) => decodeEntities(m[1].replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim());
+  const listItems = Array.isArray(itemList?.itemListElement) ? itemList.itemListElement : [];
+  for (let i = 0; i < listItems.length; i += 1) {
+    if (typeof listItems[i]?.name === 'string' && hasRepeatedIdentityToken(listItems[i].name)) {
+      hasDuplicateIdentityTokens = true;
+    }
+    if (relatedNames[i] && listItems[i]?.name !== relatedNames[i]) jsonLdMatchesHtml = false;
+  }
+
   return {
     title,
     titleLength: title.length,
@@ -238,13 +270,30 @@ export function extractDocumentSignals(html) {
     hasExecutablePack,
     hasBranchTree,
     hasSemanticHops,
+    hasDuplicateIdentityTokens,
+    jsonLdMatchesHtml,
   };
+}
+
+function hasRepeatedIdentityToken(text) {
+  if (!text) return false;
+  const seen = new Set();
+  for (const raw of String(text).split(/\s+/)) {
+    if (/^\([^)]+\)$/.test(raw)) continue;
+    const word = raw.toLowerCase().replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '');
+    if (!word || word.length < 2 || STOPWORDS.has(word)) continue;
+    const parts = word.split(/[^a-z0-9]+/).filter((part) => part.length > 1);
+    const stems = parts.length ? parts : [word];
+    if (stems.every((stem) => seen.has(stem))) return true;
+    for (const stem of stems) seen.add(stem);
+  }
+  return false;
 }
 
 /** 0–30 points — linear ramp between THIN and FULL word counts. */
 export function scoreThinContent(wordCount) {
   const THIN = 250;
-  const FULL = 1200;
+  const FULL = 1700;
   const MAX = 30;
   if (wordCount <= THIN) return 0;
   if (wordCount >= FULL) return MAX;
@@ -307,11 +356,12 @@ export function scoreKeywordHealth(words) {
   for (const raw of words) {
     const w = raw.toLowerCase();
     if (STOPWORDS.has(w) || w.length < 3) continue;
+    if ((w.match(/-/g) || []).length >= 2) continue;
     freq.set(w, (freq.get(w) || 0) + 1);
   }
   const significantTotal = [...freq.values()].reduce((a, b) => a + b, 0) || 1;
   const topWordCount = Math.max(0, ...freq.values());
-  const topWordRatio = topWordCount / significantTotal;
+  const topWordRatio = topWordCount / words.length;
 
   const trigramFreq = new Map();
   for (let i = 0; i + 2 < words.length; i += 1) {

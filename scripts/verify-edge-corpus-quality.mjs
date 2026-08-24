@@ -77,6 +77,13 @@ import {
   auditServedCopy,
 } from '../functions/_lib/programmaticPage.ts';
 import { edgeQualityGate } from '../functions/_lib/qualityGate.ts';
+import {
+  uniqueTokens,
+  hasDuplicateContentTokens,
+  ngramJaccard,
+} from '../src/lib/seo/uniqueTokens.ts';
+import { formatProgrammaticHubLabel } from '../src/lib/programmatic/hub.ts';
+import { edgeQualityGate } from '../functions/_lib/qualityGate.ts';
 import { scorePage, MIN_INDEXABLE_SCORE } from './lib/ai-quality-scoring.mjs';
 import { guidelineDigest } from './lib/search-guidelines.mjs';
 import { agentBanner, AGENT_VERSION, COST_MODEL, QUALITY_CONTRACT } from './lib/ai-indexing-agent.mjs';
@@ -196,6 +203,15 @@ for (let index = 0; index < IDENTITY_SCAN; index += 1) {
   if (description.length < DESCRIPTION_MIN || description.length > DESCRIPTION_MAX) {
     identityStats.descriptionLengthViolations += 1;
     fail('B:description-length', { slug: page.slug, length: description.length, description });
+  }
+  if (hasDuplicateContentTokens(title) || uniqueTokens(title) !== title) {
+    fail('B:title-uniqueTokens', { slug: page.slug, title });
+  }
+  if (hasDuplicateContentTokens(h1) || uniqueTokens(h1) !== h1) {
+    fail('B:h1-uniqueTokens', { slug: page.slug, h1 });
+  }
+  if (hasDuplicateContentTokens(description)) {
+    fail('B:description-uniqueTokens', { slug: page.slug });
   }
 
   titleFingerprints[index] = fingerprint(title);
@@ -430,6 +446,7 @@ const SIBLING_STEMS = Number(process.env.EDGE_VERIFY_SIBLING_STEMS ?? 800);
 const SIBLING_MODS = Number(process.env.EDGE_VERIFY_SIBLING_MODS ?? 3);
 const MAX_SIBLING_JACCARD = QUALITY_CONTRACT.maxSiblingBodyJaccard;
 const MAX_HEADING_JACCARD = QUALITY_CONTRACT.maxSiblingHeadingJaccard ?? 0.05;
+const MAX_TITLE_H1_JACCARD = QUALITY_CONTRACT.maxTitleH1Jaccard ?? 0.10;
 const MAX_SHARED_HEADINGS = QUALITY_CONTRACT.maxSharedSiblingHeadings ?? 0;
 const SHINGLE_N = QUALITY_CONTRACT.siblingShingleSize ?? 4;
 
@@ -592,6 +609,69 @@ for (let s = 0; s < SIBLING_STEMS && failures.length < MAX_FAIL; s += 1) {
 console.log(`    stems ${crossJobStats.stems}, max shared H2/H3s ${crossJobStats.maxSharedHeadings}`);
 
 /* ------------------------------------------------------------------------- */
+/* Phase G — title/H1 Jaccard + hub-label uniqueTokens (all identity layers)  */
+/* ------------------------------------------------------------------------- */
+console.log(`\n[G] title/H1 neighbour Jaccard ≤ ${MAX_TITLE_H1_JACCARD} + hub uniqueTokens`);
+const titleH1Stats = { stems: 0, pairs: 0, maxTitle: 0, maxH1: 0 };
+const hubJunk = [];
+for (let s = 0; s < SIBLING_STEMS && failures.length < MAX_FAIL; s += 1) {
+  const pairIdx = Math.floor(nextStem() * PAIRS.length);
+  const a = Math.floor(nextStem() * AUDIENCES.length);
+  const t = Math.floor(nextStem() * TASKS.length);
+  const baseMod = Math.floor(nextStem() * MODIFIER_COUNT);
+  const style0 = Math.floor(baseMod / MODIFIER_CONTEXTS.length);
+  const ctx0 = baseMod % MODIFIER_CONTEXTS.length;
+  const mods = [
+    baseMod,
+    style0 * MODIFIER_CONTEXTS.length + ((ctx0 + 1) % MODIFIER_CONTEXTS.length),
+    ((style0 + 1) % MODIFIER_STYLES.length) * MODIFIER_CONTEXTS.length + ctx0,
+  ];
+  const identities = [];
+  const slugs = [];
+  for (const mod of mods) {
+    const index = comboIndex(pairIdx, a, t, mod);
+    if (index >= CORPUS_SIZE) continue;
+    const page = pageForIndex(index);
+    if (!page) continue;
+    identities.push(buildIdentity(page));
+    slugs.push(page.slug);
+    const hub = formatProgrammaticHubLabel(page.slug);
+    if (hasDuplicateContentTokens(hub) || /json\b.*\bjson\b/i.test(hub)) {
+      hubJunk.push({ slug: page.slug, hub });
+      fail('G:hub-label', { slug: page.slug, message: `hub label still stuffed: "${hub}"` });
+    }
+  }
+  if (identities.length < 2) continue;
+  titleH1Stats.stems += 1;
+  for (let i = 0; i < identities.length; i += 1) {
+    for (let j = i + 1; j < identities.length; j += 1) {
+      const tJ = ngramJaccard(identities[i].title, identities[j].title, SHINGLE_N);
+      const hJ = ngramJaccard(identities[i].h1, identities[j].h1, SHINGLE_N);
+      titleH1Stats.pairs += 1;
+      titleH1Stats.maxTitle = Math.max(titleH1Stats.maxTitle, tJ);
+      titleH1Stats.maxH1 = Math.max(titleH1Stats.maxH1, hJ);
+      if (tJ > MAX_TITLE_H1_JACCARD) {
+        fail('G:title-jaccard', {
+          slug: slugs[i],
+          sibling: slugs[j],
+          jaccard: Number(tJ.toFixed(4)),
+          message: `neighbour titles Jaccard ${tJ.toFixed(3)} > ${MAX_TITLE_H1_JACCARD}`,
+        });
+      }
+      if (hJ > MAX_TITLE_H1_JACCARD) {
+        fail('G:h1-jaccard', {
+          slug: slugs[i],
+          sibling: slugs[j],
+          jaccard: Number(hJ.toFixed(4)),
+          message: `neighbour H1 Jaccard ${hJ.toFixed(3)} > ${MAX_TITLE_H1_JACCARD}`,
+        });
+      }
+    }
+  }
+}
+console.log(`    title Jaccard max ${titleH1Stats.maxTitle.toFixed(3)}, H1 max ${titleH1Stats.maxH1.toFixed(3)}, hub junk ${hubJunk.length}`);
+
+/* ------------------------------------------------------------------------- */
 /* Report                                                                     */
 /* ------------------------------------------------------------------------- */
 if (!existsSync(reportsDir)) mkdirSync(reportsDir, { recursive: true });
@@ -647,6 +727,14 @@ const manifest = {
     maxSharedHeadings: crossJobStats.maxSharedHeadings,
     maxSharedHeadingsAllowed: MAX_SHARED_HEADINGS,
   },
+  titleH1: {
+    stems: titleH1Stats.stems,
+    pairs: titleH1Stats.pairs,
+    maxTitleJaccard: Number(titleH1Stats.maxTitle.toFixed(4)),
+    maxH1Jaccard: Number(titleH1Stats.maxH1.toFixed(4)),
+    ceiling: MAX_TITLE_H1_JACCARD,
+    hubJunk: hubJunk.length,
+  },
   indexableBar: MIN_INDEXABLE_SCORE,
   agentVersion: AGENT_VERSION,
   contentContract: QUALITY_CONTRACT,
@@ -667,5 +755,6 @@ if (failures.length > 0) {
 console.log(`\nPASS — ${IDENTITY_SCAN === CORPUS_SIZE ? 'all' : IDENTITY_SCAN.toLocaleString()} of ${CORPUS_SIZE.toLocaleString()} URLs carry a unique, length-compliant title, description and H1;`);
 console.log(`       every scored document clears ${MIN_INDEXABLE_SCORE}/100 with zero critical guideline violations;`);
 console.log(`       sibling body Jaccard max ${siblingStats.maxJaccard.toFixed(3)} ≤ ${MAX_SIBLING_JACCARD}; heading Jaccard max ${siblingStats.maxHeadingJaccard.toFixed(3)} ≤ ${MAX_HEADING_JACCARD}; shared H2/H3s ${siblingStats.maxSharedHeadings} ≤ ${MAX_SHARED_HEADINGS};`);
+console.log(`       title Jaccard max ${titleH1Stats.maxTitle.toFixed(3)} ≤ ${MAX_TITLE_H1_JACCARD}; H1 Jaccard max ${titleH1Stats.maxH1.toFixed(3)} ≤ ${MAX_TITLE_H1_JACCARD}; uniqueTokens on title/H1/hubs;`);
 console.log(`       cross-job shared H2/H3s ${crossJobStats.maxSharedHeadings} ≤ ${MAX_SHARED_HEADINGS}; heading-owner keys unique.`);
 process.exit(0);

@@ -20,7 +20,7 @@
  */
 
 export const AGENT_ID = 'devsolve-ai-indexing-agent';
-export const AGENT_VERSION = '2026-08-24.5';
+export const AGENT_VERSION = '2026-08-24.6';
 
 /** Cost model — must stay true for every change to this system. */
 export const COST_MODEL = Object.freeze({
@@ -41,7 +41,7 @@ export const COST_MODEL = Object.freeze({
 export const QUALITY_CONTRACT = Object.freeze({
   titleChars: { min: 30, max: 66 }, // Bing: strictly under 70, with slack
   descriptionChars: { min: 150, max: 160 },
-  minWordCount: 1000,
+  minWordCount: 1700,
   minInternalLinks: 14,
   minJsonLdBlocks: 3,
   minH2: 4,
@@ -55,6 +55,26 @@ export const QUALITY_CONTRACT = Object.freeze({
   requireEarlyAnswer: true, // Bing §18
   requireUniqueTitleDescH1: true, // Bing §6 / Google duplicate reasons
   requireUniqueSiblingBodies: true, // Bing abuse: near-duplicate / auto-gen at scale
+  requireUniqueTokens: true, // no "Json validate json" / synonym-matrix stamps
+  requireJsonLdHtmlMatch: true, // Google Structured Data Policy: HTML == JSON-LD
+  // Official Google Search Essentials + Bing Webmaster Quality & Authority.
+  // These are hard constraints on Title, Meta, H1/H2, JSON-LD, and internal
+  // links — not body-only advice. A violation 404s for every user-agent.
+  googleBingPolicy: Object.freeze({
+    sources: Object.freeze([
+      'Google Search Essentials — spam policies: scaled content abuse, keyword stuffing, cloaking',
+      'Google Structured Data Policy — JSON-LD must match visible HTML',
+      'Bing Webmaster Guidelines — quality & authority, unique titles, no artificially engineered language',
+    ]),
+    layers: Object.freeze(['title', 'meta', 'h1', 'h2', 'json-ld', 'internal-links', 'body']),
+    maxKeywordDensity: 0.025,
+    maxSiblingBodyJaccard: 0.04,
+    maxTitleH1Jaccard: 0.10,
+    identicalHtmlForAllUserAgents: true,
+    edgeQualityGate404: true,
+  }),
+  maxKeywordDensity: 0.025,
+  maxTitleH1Jaccard: 0.10,
   // Uniqueness comes from a job-native thesis (task) plus a genre-native
   // outline (style) plus setting-specific evidence (context) — not from
   // shuffling one universal H2 skeleton (that is itself an auto-generated signal).
@@ -67,8 +87,8 @@ export const QUALITY_CONTRACT = Object.freeze({
   requireUniqueHeadingOwners: true,
   requireWorkedExample: true, // Bing §15 verifiability
   singleTopicPerUrl: true, // Bing §17
-  // Language quality, not just uniqueness: acronym casing, article agreement,
-  // no template splices, no process vocabulary in reader-facing copy.
+  // Language quality, not just uniqueness: acronyms, articles, no template
+  // splices, uniqueTokens() on every identity string.
   requireEditedProse: true, // Bing abuse: artificially engineered language
   requireExecutablePack: true,
   requireCompatErrorMatrix: true,
@@ -106,6 +126,8 @@ export function agentBanner() {
     `sibling body ${QUALITY_CONTRACT.siblingShingleSize || 4}-gram Jaccard ≤${QUALITY_CONTRACT.maxSiblingBodyJaccard} across 20M`,
     `sibling H2/H3 Jaccard ≤${QUALITY_CONTRACT.maxSiblingHeadingJaccard} and ${QUALITY_CONTRACT.maxSharedSiblingHeadings} shared exact headings`,
     `unique heading-owner key on all 20M; every H2/H3 carries the six-slug owner clause`,
+    `uniqueTokens() on title/H1/H2/meta/JSON-LD/anchors; keyword density ≤${(QUALITY_CONTRACT.maxKeywordDensity * 100).toFixed(1)}%`,
+    `title/H1 ${QUALITY_CONTRACT.siblingShingleSize}-gram Jaccard ≤${QUALITY_CONTRACT.maxTitleH1Jaccard}; JSON-LD matches HTML; gate fail → 404 all UAs`,
     `executable Bash+Dockerfile, unique error matrix, if/then tree, semantic hops`,
   ].join('\n');
 }

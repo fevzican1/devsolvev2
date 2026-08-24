@@ -21,9 +21,11 @@ import {
   MODIFIER_CONTEXTS,
   pageForIndex,
   renderProgrammaticPage,
+  buildIdentity,
 } from '../../../functions/_lib/programmaticPage.ts';
 import { QUALITY_CONTRACT } from '../ai-indexing-agent.mjs';
 import { ORIGIN, headingSet, samplePages, setJaccard, sharedMembers } from './shared.mjs';
+import { ngramJaccard } from '../../../src/lib/seo/uniqueTokens.ts';
 
 export const AGENT = {
   id: 'uniqueness-agent',
@@ -34,6 +36,7 @@ const N = QUALITY_CONTRACT.siblingShingleSize || 5;
 const CEILING = QUALITY_CONTRACT.maxSiblingBodyJaccard;
 const HEADING_CEILING = QUALITY_CONTRACT.maxSiblingHeadingJaccard ?? 0.05;
 const MAX_SHARED = QUALITY_CONTRACT.maxSharedSiblingHeadings ?? 0;
+const TITLE_CEILING = QUALITY_CONTRACT.maxTitleH1Jaccard ?? 0.10;
 
 function guideProse(html) {
   const main = html.match(/<main[\s\S]*?<\/main>/i)?.[0] ?? html;
@@ -83,6 +86,10 @@ export async function run(opts = {}) {
   let sumJ = 0;
   let maxH = 0;
   let sumH = 0;
+  let maxTitleJ = 0;
+  let maxH1J = 0;
+  let sumTitleJ = 0;
+  let sumH1J = 0;
   let maxShared = 0;
 
   for (const { page, html } of pages) {
@@ -96,6 +103,7 @@ export async function run(opts = {}) {
     const sets = [];
     const heads = [];
     const slugs = [];
+    const identities = [];
     for (const mod of mods) {
       const index = siblingIndex(page, mod);
       if (index < 0 || index >= CORPUS_SIZE) continue;
@@ -105,20 +113,33 @@ export async function run(opts = {}) {
       sets.push(shingles(guideProse(siblingHtml), N));
       heads.push(headingSet(siblingHtml));
       slugs.push(sibling.slug);
+      identities.push(buildIdentity(sibling));
     }
     for (let i = 0; i < sets.length; i += 1) {
       for (let j = i + 1; j < sets.length; j += 1) {
         const jac = jaccard(sets[i], sets[j]);
         const hJac = setJaccard(heads[i], heads[j]);
         const shared = sharedMembers(heads[i], heads[j]);
+        const titleJ = ngramJaccard(identities[i].title, identities[j].title, N);
+        const h1J = ngramJaccard(identities[i].h1, identities[j].h1, N);
         pairs += 1;
         sumJ += jac;
         maxJ = Math.max(maxJ, jac);
         sumH += hJac;
         maxH = Math.max(maxH, hJac);
         maxShared = Math.max(maxShared, shared.length);
+        sumTitleJ += titleJ;
+        sumH1J += h1J;
+        maxTitleJ = Math.max(maxTitleJ, titleJ);
+        maxH1J = Math.max(maxH1J, h1J);
         if (jac > CEILING) {
           failures.push({ slug: slugs[i], sibling: slugs[j], jaccard: Number(jac.toFixed(4)) });
+        }
+        if (titleJ > TITLE_CEILING) {
+          failures.push({ slug: slugs[i], sibling: slugs[j], titleJaccard: Number(titleJ.toFixed(4)) });
+        }
+        if (h1J > TITLE_CEILING) {
+          failures.push({ slug: slugs[i], sibling: slugs[j], h1Jaccard: Number(h1J.toFixed(4)) });
         }
         if (hJac > HEADING_CEILING || shared.length > MAX_SHARED) {
           failures.push({
@@ -166,10 +187,16 @@ export async function run(opts = {}) {
     avgHeadingJaccard: pairs ? Number((sumH / pairs).toFixed(4)) : 0,
     headingCeiling: HEADING_CEILING,
     maxSharedHeadings: maxShared,
+    maxTitleJaccard: Number(maxTitleJ.toFixed(4)),
+    maxH1Jaccard: Number(maxH1J.toFixed(4)),
+    avgTitleJaccard: pairs ? Number((sumTitleJ / pairs).toFixed(4)) : 0,
+    avgH1Jaccard: pairs ? Number((sumH1J / pairs).toFixed(4)) : 0,
+    titleH1Ceiling: TITLE_CEILING,
     failures: failures.slice(0, 20),
     notes: [
       'Gates sample adjacent ctx+1 and style+1. That 5-gram Jaccard is the zero-cost MinHash/LSH stand-in: a request cannot compare itself to 20M pages without a paid index.',
-      'Bodies are per-URL combo sentences keyed by slug. Neighbour Jaccard must stay ≤ 0.04. Sitemap advertises all 20M. A contract failure 404s for every UA.',
+      'Bodies are per-URL combo sentences keyed by slug. Neighbour Jaccard must stay ≤ 0.04. Title/H1 Jaccard must stay ≤ 0.10. Sitemap advertises all 20M. A contract failure 404s for every UA.',
+      'Google Search Essentials + Bing Quality & Authority apply to title, meta, H1/H2, JSON-LD and internal links — not body copy alone.',
       'Cross-job same-style×context pages are also compared: they previously shared method×setting H2s.',
     ],
   };

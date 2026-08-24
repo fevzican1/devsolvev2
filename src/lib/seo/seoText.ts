@@ -11,6 +11,8 @@
  * so the Cloudflare Function stays edge-cacheable at zero extra cost.
  */
 
+import { uniqueTokens } from './uniqueTokens';
+
 export const ROBOTS_INDEX_FOLLOW =
   'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1';
 
@@ -165,7 +167,7 @@ export function ensureSeoDescription(
   maxLength = 160,
   targetLength = 155,
 ): string {
-  const rawNormalized = normalizeDescriptionText(raw);
+  const rawNormalized = uniqueTokens(normalizeDescriptionText(raw));
   let text = rawNormalized;
 
   if (!text) {
@@ -210,13 +212,13 @@ export function ensureSeoDescription(
     text = ensureTerminalPunctuation(text);
   }
 
-  return text.length <= maxLength ? text : truncateAtWord(text, maxLength);
+  return uniqueTokens(text.length <= maxLength ? text : truncateAtWord(text, maxLength));
 }
 
 export function ensureSeoTitle(raw: string, minLength = 30): string {
-  const text = raw.replace(/\s+/g, ' ').trim();
+  const text = uniqueTokens(raw.replace(/\s+/g, ' ').trim());
   if (text.length >= minLength) return text;
-  return `${text} — DevSolve Technical Guide`;
+  return uniqueTokens(`${text} — DevSolve Technical Guide`);
 }
 
 /** Strip trailing em-dashes / hyphens so brand suffix never produces "— — DevSolve". */

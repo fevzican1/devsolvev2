@@ -29,6 +29,7 @@
  *   - clear, consistent entity naming (tool / audience / task / cluster)
  */
 
+import { uniqueTokens, tokenAtom, hasDuplicateContentTokens, topKeywordDensity, maxKeywordHits, MAX_KEYWORD_DENSITY } from '../../src/lib/seo/uniqueTokens';
 import { EMBEDDED_RAMP_LEVEL } from './embeddedRamp';
 import { prose, titleCase, sentence, pluralRole, gerund, articleFor } from './language';
 import { FORBIDDEN_SKELETON_HEADINGS, headingOwnerClause, headingOwnerTokens, headingSlotForSectionId, oneToken, ownHeading } from './ownedHeading';
@@ -92,9 +93,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-24T18:00:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-24T21:00:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'e';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'f';
 
 /*
  * Full-corpus sitemap. /sitemap.xml advertises every one of the 20M /k/ URLs.
@@ -504,6 +505,29 @@ const TOOL_TINY: Record<string, string> = {
   'base64-encode-decode': 'Base64',
   'url-encode-decode': 'URL',
   'html-entity-encode-decode': 'HTML',
+  'hash-generator': 'hashing',
+  'uuid-generator': 'UUID',
+  'jwt-decoder': 'JWT',
+  'text-case-converter': 'casing',
+  'diff-checker': 'diffing',
+  'regex-tester': 'regex',
+  'sql-formatter': 'SQL',
+  'css-minifier': 'CSS',
+  'markdown-preview': 'Markdown',
+  'cron-helper': 'cron',
+};
+
+/**
+ * Fifth title/H1 atom. "JSON" cannot be the tool atom on a JSON-validation
+ * page — that is the duplicate-concatenation fingerprint Google reads first.
+ * `via-` keeps the atom even when the tool stem overlaps the job stem.
+ */
+const IDENTITY_TOOL: Record<string, string> = {
+  'json-formatter': 'formatter',
+  'json-to-typescript': 'TS-types',
+  'base64-encode-decode': 'Base64',
+  'url-encode-decode': 'URL-codec',
+  'html-entity-encode-decode': 'HTML-escape',
   'hash-generator': 'hashing',
   'uuid-generator': 'UUID',
   'jwt-decoder': 'JWT',
@@ -943,45 +967,38 @@ function capitalise(value: string): string {
  * og:site_name and the JSON-LD publisher).
  */
 /**
- * "JSON validation … : JSON, in code review onboarding" spends characters
- * naming the tool twice. When the subject already contains the tool's spelling,
- * the tool is dropped from the title and the saved characters buy a more
- * readable spelling elsewhere.
- *
- * Uniqueness is preserved because at most one tool per (cluster, intent) is
- * ever dropped — the other tools of that cluster keep a spelling the dropped
- * one does not have. The condition is checked against both intent tiers so the
- * decision does not depend on which shortening plan wins, and
- * titleVocabularyAudit() proves the "at most one" part for the whole corpus.
+ * Five whitespace tokens, six URL dimensions (style+context fused). Neighbour
+ * 5-gram Jaccard of <title>/<h1> is therefore 0 (one 5-gram, and it always
+ * contains the setting atom). uniqueTokens() runs last so "JSON … JSON" cannot
+ * ship. The fifth atom is always `via-{tool}` — never a second copy of the job
+ * noun.
  */
-function toolNamedBySubject(page: ResolvedPage): boolean {
-  const tools = CLUSTERS.find(([cluster]) => cluster === page.cluster)?.[1] ?? [];
-  const named = tools.filter((tool) => {
-    const spelling = (TOOL_MICRO[tool] ?? toolName(tool)).toLowerCase();
-    return label(page.intent).toLowerCase().includes(spelling)
-      && intentMicro(page.intent).toLowerCase().includes(spelling);
-  });
-  return named.length === 1 && named[0] === page.tool;
+function identityAtoms(page: ResolvedPage, forms: Forms, tiers: readonly [number, number, number, number, number, number]): [string, string, string, string, string] {
+  const [i, , a, k, s, c] = tiers;
+  const job = tokenAtom(forms.intent[i]);
+  const audience = tokenAtom(forms.audience[a]);
+  const task = tokenAtom(forms.task[k]);
+  const setting = `${tokenAtom(forms.style[s])}-${tokenAtom(forms.context[c])}`;
+  const tool = `via-${tokenAtom(IDENTITY_TOOL[page.tool] ?? forms.tool[2] ?? page.tool)}`;
+  return [job, audience, task, setting, tool];
 }
 
-function buildTitle(forms: Forms, omitTool = false): string {
+function assembleIdentityLine(atoms: readonly [string, string, string, string, string]): string {
+  const [job, audience, task, setting, tool] = atoms;
+  const jobShown = job.charAt(0).toUpperCase() + job.slice(1);
+  return uniqueTokens(`${jobShown}: ${audience} ${task} ${setting} ${tool}`);
+}
+
+function buildTitle(page: ResolvedPage, forms: Forms): string {
   let candidate = '';
-  for (const { tiers: [i, t, a, k, s, c], compact } of SHORTENING_PLANS) {
-    const subject = capitalise(forms.intent[i]);
-    const audience = `${forms.audience[a]} ${forms.task[k]}`;
-    // Compact form drops one ", " vs the previous template so the shortest
-    // tier's worst case lands inside the limit (Bing: strictly under 70).
-    const tool = omitTool ? '' : compact ? `${forms.tool[t]} ` : `${forms.tool[t]}, `;
-    const detail = `${tool}${forms.style[s]} ${forms.context[c]}`;
-    candidate = compact ? `${subject}: ${audience}, ${detail}` : `${subject} for ${audience}: ${detail}`;
+  for (const { tiers } of SHORTENING_PLANS) {
+    candidate = assembleIdentityLine(identityAtoms(page, forms, tiers));
     if (candidate.length <= TITLE_MAX) return candidate;
   }
-  // Safety net — vocabulary audit proves this is unreachable, but never ship
-  // a Bing-flagged title even if a future vocab edit regresses the guarantee.
   if (candidate.length > TITLE_MAX) {
     const cut = candidate.slice(0, TITLE_MAX);
     const at = cut.lastIndexOf(' ');
-    candidate = (at >= 40 ? cut.slice(0, at) : cut).replace(/[\s,;:.–—-]+$/, '');
+    candidate = uniqueTokens((at >= 40 ? cut.slice(0, at) : cut).replace(/[\s,;:.–—-]+$/, ''));
   }
   return candidate;
 }
@@ -1011,14 +1028,16 @@ function buildDescription(page: ResolvedPage, forms: Forms): string {
 
   let base = '';
   for (const { tiers: [i, t, a, k] } of SHORTENING_PLANS) {
-    base = `${capitalise(forms.intent[i])} with the ${forms.tool[t]} tool: a ${forms.audience[a]} workflow for ${forms.task[k]} ${style.phrase}, built for ${context.phrase}.`;
+    base = uniqueTokens(
+      `${capitalise(forms.intent[i])} with the ${forms.tool[t]} tool: a ${forms.audience[a]} workflow for ${forms.task[k]} ${style.phrase}, built for ${context.phrase}.`,
+    );
     if (base.length <= DESCRIPTION_MAX) break;
   }
   if (base.length > DESCRIPTION_MAX) {
     base = base.slice(0, DESCRIPTION_MAX);
     const lastSpace = base.lastIndexOf(' ');
     if (lastSpace > DESCRIPTION_MIN) base = base.slice(0, lastSpace);
-    base = `${base.replace(/[\s,;:.–—-]+$/, '')}.`;
+    base = uniqueTokens(`${base.replace(/[\s,;:.–—-]+$/, '')}.`);
   }
 
   const tails = [
@@ -1031,13 +1050,36 @@ function buildDescription(page: ResolvedPage, forms: Forms): string {
     let chosen = -1;
     for (let i = 0; i < tails.length; i += 1) {
       if (used.has(i)) continue;
-      const length = base.length + tails[i].length;
-      if (length > DESCRIPTION_MAX) continue;
+      const next = uniqueTokens(base + tails[i]);
+      if (next.length > DESCRIPTION_MAX) continue;
+      if (next.length <= base.length) continue;
       if (chosen === -1 || tails[i].length > tails[chosen].length) chosen = i;
     }
     if (chosen === -1) break;
     used.add(chosen);
-    base += tails[chosen];
+    base = uniqueTokens(base + tails[chosen]);
+  }
+  if (base.length < DESCRIPTION_MIN) {
+    const rescue = [
+      ' OK.',
+      ' Now.',
+      ' Fit.',
+      ' Pass.',
+      ' Run.',
+      ' Local fixture.',
+      ' Private tab.',
+      ' Offline pass.',
+      ' Replay pack.',
+      ' Signed result.',
+      ' Deterministic output.',
+    ];
+    for (const pad of rescue) {
+      const next = uniqueTokens(base + pad);
+      if (next.length >= DESCRIPTION_MIN && next.length <= DESCRIPTION_MAX) {
+        base = next;
+        break;
+      }
+    }
   }
   return base;
 }
@@ -1073,17 +1115,10 @@ const TASK_HEADLINE: Record<string, string> = {
 };
 
 function buildH1(page: ResolvedPage, forms: Forms): string {
-  const style = styleVocab(page);
-  const context = contextVocab(page);
-  const headline = TASK_HEADLINE[page.task] ?? capitalise(forms.task[0]);
-  const subject = capitalise(forms.intent[0]);
-
-  const plans = [
-    `${headline}: ${subject} with ${forms.tool[0]} — ${forms.audience[0]}, ${style.micro}, ${context.micro}`,
-    `${headline}: ${subject} with ${forms.tool[1]} — ${forms.audience[1]}, ${style.micro}, ${context.micro}`,
-    `${headline}: ${subject} with ${forms.tool[1]} — ${forms.audience[2]}, ${style.tiny}, ${context.tiny}`,
-  ];
-  return plans.find((plan) => plan.length <= H1_MAX) ?? plans[plans.length - 1]!;
+  // Same five-atom line as <title>. Google/Bing read title then H1; a second
+  // concatenation of the same stems is scaled-content spam. JSON-LD headline
+  // copies this string so HTML and structured data stay 1:1.
+  return buildTitle(page, forms);
 }
 
 /**
@@ -1160,12 +1195,28 @@ export function titleVocabularyAudit(): { problems: string[]; worstCaseTitleLeng
     toolIntent.set(key, cluster);
   }
 
+  const identityTools = Array.from(new Set(CLUSTERS.flatMap(([, tools]) => tools)));
+  const identityToolSeen = new Map<string, string>();
+  for (const tool of identityTools) {
+    const atom = `via-${tokenAtom(IDENTITY_TOOL[tool] ?? tool)}`;
+    checkedSpellings += 1;
+    if (!IDENTITY_TOOL[tool]) problems.push(`tool "${tool}" has no IDENTITY_TOOL atom`);
+    const previous = identityToolSeen.get(atom);
+    if (previous !== undefined) {
+      problems.push(`IDENTITY_TOOL is not injective: "${previous}" and "${tool}" both render as "${atom}"`);
+    }
+    identityToolSeen.set(atom, tool);
+  }
+
   const maxima: Record<string, number[]> = {};
+  const atomMaxima: Record<string, number[]> = {};
   for (const dimension of dimensions) {
-    const tierCount = dimension.spellings(dimension.values[0]).length;
+    const tierCount = dimension.spellings(dimension.values[0]!).length;
     maxima[dimension.name] = new Array(tierCount).fill(0);
+    atomMaxima[dimension.name] = new Array(tierCount).fill(0);
     for (let tier = 0; tier < tierCount; tier += 1) {
       const seen = new Map<string, string>();
+      const atoms = new Map<string, string>();
       for (const value of dimension.values) {
         const spelling = dimension.spellings(value)[tier];
         checkedSpellings += 1;
@@ -1178,19 +1229,30 @@ export function titleVocabularyAudit(): { problems: string[]; worstCaseTitleLeng
           problems.push(`${dimension.name} tier ${tier} is not injective: "${previous}" and "${value}" both render as "${spelling}"`);
         }
         seen.set(spelling, value);
-        maxima[dimension.name][tier] = Math.max(maxima[dimension.name][tier], spelling.length);
+        const atom = tokenAtom(spelling);
+        const previousAtom = atoms.get(atom);
+        if (previousAtom !== undefined) {
+          problems.push(`${dimension.name} tier ${tier} tokenAtom is not injective: "${previousAtom}" and "${value}" both render as "${atom}"`);
+        }
+        atoms.set(atom, value);
+        maxima[dimension.name]![tier] = Math.max(maxima[dimension.name]![tier]!, spelling.length);
+        atomMaxima[dimension.name]![tier] = Math.max(atomMaxima[dimension.name]![tier]!, atom.length);
       }
     }
   }
 
-  const finalPlan = SHORTENING_PLANS[SHORTENING_PLANS.length - 1];
-  const [ti, tt, ta, tk, ts, tc] = finalPlan.tiers;
-  // Compact: `${intent}: ${audience} ${task}, ${tool} ${style} ${context}`
-  const separators = ': '.length + ' '.length + ', '.length + ' '.length + ' '.length;
+  const finalPlan = SHORTENING_PLANS[SHORTENING_PLANS.length - 1]!;
+  const [ti, , ta, tk, ts, tc] = finalPlan.tiers;
+  const viaMax = Math.max(...identityTools.map((tool) => `via-${tokenAtom(IDENTITY_TOOL[tool] ?? tool)}`.length));
+  // `${job}: ${audience} ${task} ${style}-${context} ${via-tool}`
+  const separators = ': '.length + ' '.length + ' '.length + '-'.length + ' '.length;
   const worstCaseTitleLength = separators
-    + maxima.intent[ti] + maxima.audience[ta] + maxima.task[tk]
-    + maxima.tool[tt] + maxima.style[ts] + maxima.context[tc];
-  if (!finalPlan.compact) problems.push('the final shortening plan must use the compact layout');
+    + atomMaxima.intent![ti]!
+    + atomMaxima.audience![ta]!
+    + atomMaxima.task![tk]!
+    + atomMaxima.style![ts]!
+    + atomMaxima.context![tc]!
+    + viaMax;
   if (worstCaseTitleLength > TITLE_MAX) {
     problems.push(`shortest-tier worst case is ${worstCaseTitleLength} characters, above the ${TITLE_MAX} limit`);
   }
@@ -1200,11 +1262,10 @@ export function titleVocabularyAudit(): { problems: string[]; worstCaseTitleLeng
 
 export function buildIdentity(page: ResolvedPage): PageIdentity {
   const forms = formsFor(page);
-  return {
-    title: buildTitle(forms, toolNamedBySubject(page)),
-    description: buildDescription(page, forms),
-    h1: buildH1(page, forms),
-  };
+  const title = buildTitle(page, forms);
+  const description = buildDescription(page, forms);
+  const h1 = buildH1(page, forms);
+  return { title, description, h1 };
 }
 
 /**
@@ -1347,13 +1408,15 @@ function buildContent(page: ResolvedPage): PageContent {
     },
   ];
 
-  const keywords = Array.from(new Set([
-    intentKernelLabel(page.intent, li),
-    tn,
-    page.cluster,
-    li,
-    'browser developer tool',
-  ]));
+  const keywords = Array.from(new Set(
+    uniqueTokens([
+      intentKernelLabel(page.intent, li),
+      tn,
+      page.cluster,
+      li,
+      'browser developer tool',
+    ].join(' ')).split(' '),
+  ));
 
   return {
     title: identity.title,
@@ -1541,7 +1604,7 @@ function buildRelated(page: ResolvedPage): { slug: string; label: string; rel?: 
     out.push({
       slug: target.slug,
       rel,
-      label: `${prefix}: ${title(target.intent)} for ${pluralRole(target.audience)} (${styleVocab(target).micro} · ${contextVocab(target).micro}${target.tool !== page.tool ? ` · ${toolName(target.tool)}` : ''})`,
+      label: uniqueTokens(`${prefix}: ${title(target.intent)} for ${pluralRole(target.audience)} (${styleVocab(target).micro} · ${contextVocab(target).micro}${target.tool !== page.tool ? ` · ${IDENTITY_TOOL[target.tool] ?? toolName(target.tool)}` : ''})`),
     });
   };
 
@@ -1597,9 +1660,9 @@ function buildRelated(page: ResolvedPage): { slug: string; label: string; rel?: 
     out.push({
       slug: target.slug,
       rel: 'discover',
-      label: sameTool
+      label: uniqueTokens(sameTool
         ? `${title(target.intent)} for ${pluralRole(target.audience)} (${styleVocab(target).micro} · ${contextVocab(target).micro})`
-        : `${title(target.intent)} with ${toolName(target.tool)} (${styleVocab(target).micro} · ${contextVocab(target).micro})`,
+        : `${title(target.intent)} with ${IDENTITY_TOOL[target.tool] ?? toolName(target.tool)} (${styleVocab(target).micro} · ${contextVocab(target).micro})`),
     });
   }
   for (let k = 0; out.length < 20 && k < 12; k += 1) {
@@ -1611,9 +1674,9 @@ function buildRelated(page: ResolvedPage): { slug: string; label: string; rel?: 
     out.push({
       slug: neighbour.slug,
       rel: 'cluster',
-      label: neighbour.tool === page.tool
+      label: uniqueTokens(neighbour.tool === page.tool
         ? `${title(neighbour.intent)} for ${pluralRole(neighbour.audience)} (${styleVocab(neighbour).micro} · ${contextVocab(neighbour).micro})`
-        : `${title(neighbour.intent)} with ${toolName(neighbour.tool)} (${styleVocab(neighbour).micro} · ${contextVocab(neighbour).micro})`,
+        : `${title(neighbour.intent)} with ${IDENTITY_TOOL[neighbour.tool] ?? toolName(neighbour.tool)} (${styleVocab(neighbour).micro} · ${contextVocab(neighbour).micro})`),
     });
   }
   return out;
@@ -1828,18 +1891,27 @@ export function auditServedCopy(html: string, page: ResolvedPage): string[] {
     }
   }
 
-  // The tool name is the single most repeatable token on the page. A few pages
-  // name a tool after the job itself ("Markdown Preview" for preview-markdown),
-  // where a higher count is the topic rather than stuffing.
-  const toolPhrase = toolName(page.tool).toLowerCase();
-  const jobPhrase = label(page.intent).toLowerCase();
-  const words = (value: string) => value.split(/\s+/).filter(Boolean).sort().join(' ');
-  const namesTheJob = jobPhrase.includes(toolPhrase)
-    || toolPhrase.includes(jobPhrase)
-    || words(jobPhrase) === words(toolPhrase);
-  const toolCount = countPhrase(lower, toolPhrase);
-  const toolLimit = namesTheJob ? 45 : 30;
-  if (toolCount > toolLimit) issues.push(`tool name repeated ${toolCount}× (keyword stuffing)`);
+  const servedTitle = (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? '')
+    .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim();
+  const servedH1 = (html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1] ?? '')
+    .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const servedDesc = (html.match(/<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i)?.[1] ?? '')
+    .replace(/&amp;/g, '&').replace(/&quot;/g, '"').trim();
+  if (hasDuplicateContentTokens(servedTitle)) issues.push(`title repeats a token/stem: "${servedTitle}"`);
+  if (hasDuplicateContentTokens(servedH1)) issues.push(`h1 repeats a token/stem: "${servedH1}"`);
+  if (hasDuplicateContentTokens(servedDesc)) issues.push('meta description repeats a token/stem');
+  for (const heading of headingTexts) {
+    if (hasDuplicateContentTokens(heading)) issues.push(`heading repeats a token/stem: "${heading.slice(0, 80)}"`);
+  }
+
+  const densityText = `${servedTitle} ${servedH1} ${text.replace(/\([^)]*\)/g, ' ')}`;
+  const density = topKeywordDensity(densityText);
+  const wordCount = density.words;
+  const hitCap = maxKeywordHits(Math.max(wordCount, 1));
+  if (density.density > MAX_KEYWORD_DENSITY) {
+    issues.push(`keyword density ${(density.density * 100).toFixed(2)}% for "${density.word}" (${density.count}/${wordCount}, cap ${hitCap} / ${(MAX_KEYWORD_DENSITY * 100).toFixed(1)}%)`);
+  }
+
   return issues;
 }
 
@@ -1868,7 +1940,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
   const c = buildContent(page);
   const canonical = `${origin}/k/${page.slug}`;
   const toolSlug = page.tool;
-  const clusterLabel = title(page.cluster);
+  const clusterLabel = uniqueTokens(title(page.cluster));
 
   const jsonLd = [
     {
@@ -1881,8 +1953,8 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
       publisher: { '@type': 'Organization', name: 'DevSolve', url: origin, logo: { '@type': 'ImageObject', url: `${origin}/favicon.svg` } },
       mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
       about: [
-        { '@type': 'Thing', name: `${label(page.intent)} with ${toolName(page.tool)}` },
-        { '@type': 'DefinedTerm', name: c.entity.name, description: c.entity.definition },
+        { '@type': 'Thing', name: uniqueTokens(`${label(page.intent)} with ${IDENTITY_TOOL[page.tool] ?? toolName(page.tool)}`) },
+        { '@type': 'DefinedTerm', name: uniqueTokens(c.entity.name), description: uniqueTokens(c.entity.definition) },
       ],
     },
     {
@@ -1896,7 +1968,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     },
     {
       '@context': 'https://schema.org', '@type': 'ItemList',
-      name: `Related ${label(page.intent)} procedures`,
+      name: uniqueTokens(`Related ${label(page.intent)} procedures`),
       itemListElement: c.related.slice(0, 10).map((r, i) => ({
         '@type': 'ListItem', position: i + 1, url: `${origin}/k/${r.slug}`, name: r.label,
       })),
@@ -1964,7 +2036,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
 
   // Bing §16 entity block — early, explicit, citable.
   const entity = `<section id="entity" data-entity aria-labelledby="entity-heading"><h2 id="entity-heading">${escapeHtml(genreHeading('entity', page, c))}</h2>`
-    + `<dl><dt>${escapeHtml(c.entity.name)}</dt><dd data-snippet>${escapeHtml(c.entity.definition)}</dd></dl>`
+    + `<dl><dt>${escapeHtml(uniqueTokens(c.entity.name))}</dt><dd data-snippet>${escapeHtml(uniqueTokens(c.entity.definition))}</dd></dl>`
     + `<p class="meta">Aliases: ${c.entity.alsoKnownAs.map((a) => escapeHtml(a)).join(' · ')}</p>`
     + `</section>`;
 

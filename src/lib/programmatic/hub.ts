@@ -1,3 +1,5 @@
+import { uniqueTokens, tokenAtom } from '@/lib/seo/uniqueTokens';
+
 export const PROGRAMMATIC_HUB_LABEL_SEGMENTS = 8;
 export const PROGRAMMATIC_HUB_ACRONYM_LENGTH = 3;
 export const PROGRAMMATIC_HUB_FALLBACK_LABEL = 'Unknown Programmatic Page';
@@ -10,16 +12,22 @@ export function formatProgrammaticHubLabel(slug: string): string {
     return PROGRAMMATIC_HUB_FALLBACK_LABEL;
   }
 
-  return slug
+  const words = slug
     .replace(/-\d+$/, '')
     .split('-')
     .slice(0, PROGRAMMATIC_HUB_LABEL_SEGMENTS)
+    .filter(Boolean)
     .map((segment) => (
       segment.length <= PROGRAMMATIC_HUB_ACRONYM_LENGTH
         ? segment.toUpperCase()
         : segment.charAt(0).toUpperCase() + segment.slice(1)
-    ))
-    .join(' ');
+    ));
+
+  return uniqueTokens(words.join(' '));
+}
+
+export function formatProgrammaticHubAtom(slug: string): string {
+  return tokenAtom(formatProgrammaticHubLabel(slug));
 }
 
 export function getProgrammaticHubSampleStep(total: number, count: number): number {
@@ -30,12 +38,12 @@ export function getProgrammaticHubSampleStep(total: number, count: number): numb
 
 export function buildProgrammaticHubTitle(requestedSlug?: string): string {
   return requestedSlug
-    ? `${PROGRAMMATIC_HUB_TITLE} instead of /k/${requestedSlug}`
+    ? uniqueTokens(`${PROGRAMMATIC_HUB_TITLE} instead of /k/${requestedSlug}`)
     : PROGRAMMATIC_HUB_TITLE;
 }
 
 export function buildProgrammaticHubDescription(requestedSlug?: string): string {
   return requestedSlug
-    ? `The requested path /k/${requestedSlug} did not match an exact generated slug, so this stable /k hub keeps the crawlable programmatic section available without redirects or errors.`
+    ? uniqueTokens(`The requested path /k/${requestedSlug} did not match an exact generated slug, so this stable /k hub keeps the crawlable programmatic section available without redirects or errors.`)
     : PROGRAMMATIC_HUB_DESCRIPTION;
 }

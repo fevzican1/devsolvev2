@@ -4,6 +4,7 @@
  */
 import { auditServedCopy } from '../../../functions/_lib/programmaticPage.ts';
 import { samplePages } from './shared.mjs';
+import { hasDuplicateContentTokens } from '../../../src/lib/seo/uniqueTokens.ts';
 
 export const AGENT = {
   id: 'language-agent',
@@ -17,6 +18,10 @@ export async function run(opts = {}) {
 
   for (const { page, html } of pages) {
     const issues = auditServedCopy(html, page);
+    const title = (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/\s+/g, ' ').trim();
+    const h1 = (html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (hasDuplicateContentTokens(title)) issues.push(`title repeats a token: ${title}`);
+    if (hasDuplicateContentTokens(h1)) issues.push(`h1 repeats a token: ${h1}`);
     if (issues.length) failures.push({ slug: page.slug, issues });
   }
 
@@ -26,7 +31,7 @@ export async function run(opts = {}) {
     scanned: pages.length,
     failures: failures.slice(0, 20),
     notes: [
-      'Forbids process vocabulary (sibling, crawl budget, Jaccard), lowercase acronyms, and template splices.',
+      'Forbids process vocabulary (sibling, crawl budget, Jaccard), lowercase acronyms, template splices, and uniqueTokens() failures on title/H1 ("Json validate json").',
     ],
   };
 }

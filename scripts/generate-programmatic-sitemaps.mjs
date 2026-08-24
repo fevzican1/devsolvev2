@@ -26,7 +26,7 @@ const outDir = join(process.cwd(), 'out');
 const urlsPerSitemap = 50000;
 const minIndexScore = 90;
 const minSitemapScore = 90;
-const minWordCount = 1200;
+const minWordCount = 1700;
 // Corpus cap. Controlled by the unified ramp controller (src/config/rampController.ts).
 // Default: Faz 0 = 500K URLs. To advance, set PROGRAMMATIC_RAMP_LEVEL=1..5 env var
 // after gate metrics (indexed ratio, crawled-not-indexed ratio) are met in GSC.

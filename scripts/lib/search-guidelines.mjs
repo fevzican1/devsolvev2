@@ -44,7 +44,9 @@ export const TITLE_MAX = 66;
 export const TITLE_MIN = 30;
 
 /** Below this a page reads as thin content and tends to sit in "Crawled - currently not indexed". */
-export const MIN_WORD_COUNT = 1000;
+export const MIN_WORD_COUNT = 1700;
+export const MAX_KEYWORD_DENSITY = 0.025;
+export const MAX_TITLE_H1_JACCARD = 0.10;
 
 export const PROFILES = {
   edge: {
@@ -215,14 +217,28 @@ export const DOCUMENT_RULES = [
   },
   {
     id: 'keyword-stuffing',
-    source: 'BING abuse: keyword stuffing and artificially engineered language',
+    source: 'GOOGLE Search Essentials spam: keyword stuffing / BING abuse: keyword stuffing and artificially engineered language',
     severity: 'critical',
-    requirement: 'No single term dominates the copy and no sentence is stamped out repeatedly.',
+    requirement: `Keyword density across title + H1 + body stays ≤ ${MAX_KEYWORD_DENSITY * 100}% for every non-stopword. Official Google/Bing policy, not a suggestion.`,
     evaluate: (s) => {
-      if (s.topWordRatio > 0.12) return `top term is ${(s.topWordRatio * 100).toFixed(1)}% of significant words`;
+      if (s.topWordRatio > MAX_KEYWORD_DENSITY) return `top term is ${(s.topWordRatio * 100).toFixed(1)}% of significant words (cap ${MAX_KEYWORD_DENSITY * 100}%)`;
       if (s.repeatedSentenceCount >= 4) return `same sentence repeated ${s.repeatedSentenceCount} times`;
       return null;
     },
+  },
+  {
+    id: 'unique-tokens',
+    source: 'GOOGLE Search Essentials spam: scaled content abuse / BING abuse: artificially engineered language',
+    severity: 'critical',
+    requirement: 'Title, H1, H2, meta description, breadcrumbs and JSON-LD name/description/itemListElement pass uniqueTokens() — the same word or synonym-matrix stem cannot stamp twice ("Json validate json" is refused).',
+    evaluate: (s) => (s.hasDuplicateIdentityTokens ? 'title/H1/heading/JSON-LD repeats a token or synonym stem' : null),
+  },
+  {
+    id: 'jsonld-html-match',
+    source: 'GOOGLE Structured Data Policy / BING §14',
+    severity: 'critical',
+    requirement: 'JSON-LD name, description and itemListElement match the visible HTML 1:1.',
+    evaluate: (s) => (s.jsonLdMatchesHtml ? null : 'JSON-LD does not match visible title/H1/description/related anchors'),
   },
   {
     id: 'entity-definition',
@@ -337,7 +353,14 @@ export const CORPUS_RULES = [
     source: 'BING abuse: automatically generated content at scale / duplicate content across multiple URLs',
     severity: 'critical',
     requirement:
-      'Style×context siblings must be different documents (distinct genres + job thesis + tool/intent facts), not the same essay with modifiers stuffed into every sentence. 5-gram Jaccard of <main> prose — including H2/H3 — stays ≤ 0.04 (true near-duplicates cluster ≥ 0.80). Gates sample adjacent neighbours (ctx+1 and style+1). Do not 404 the factory as a band; the sitemap advertises all 20M. A page that fails the edge quality contract 404s for every user-agent (no cloaking). Internal /k/ hops walk CORPUS_SIZE.',
+      'Style×context siblings must be different documents (distinct genres + job thesis + tool/intent facts), not the same essay with modifiers stuffed into every sentence. 5-gram Jaccard of <main> prose — including H2/H3 — stays ≤ 0.04 (true near-duplicates cluster ≥ 0.80). <title> and <h1> 5-gram Jaccard stays ≤ 0.10. Gates sample adjacent neighbours (ctx+1 and style+1). Do not 404 the factory as a band; the sitemap advertises all 20M. A page that fails the edge quality contract 404s for every user-agent (no cloaking). Internal /k/ hops walk CORPUS_SIZE. These ceilings are Google Search Essentials (scaled content / thin / duplicate) and Bing Quality & Authority hard constraints on Title, Meta, H1/H2, JSON-LD and internal links — not body-only advice.',
+  },
+  {
+    id: 'title-h1-jaccard',
+    source: 'GOOGLE Search Essentials spam: scaled content abuse / duplicate / BING §6 unique relevant titles',
+    severity: 'critical',
+    requirement:
+      'Neighbour <title> and <h1> 5-gram Jaccard stays ≤ 0.10. uniqueTokens() identity atoms keep that ceiling at 0 for style×context siblings while remaining unique across all 20M URLs.',
   },
   {
     id: 'unique-heading-skeleton',

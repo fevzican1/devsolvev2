@@ -17,6 +17,7 @@
  */
 
 import Link from 'next/link';
+import { uniqueTokens } from '@/lib/seo/uniqueTokens';
 import { staticProgrammaticSlugs } from '@/lib/programmatic/staticPaths';
 
 // Tokens that should render as upper-case acronyms rather than Title Case so
@@ -33,7 +34,7 @@ function prettifyToken(token: string): string {
 }
 
 function prettifyPhrase(phrase: string): string {
-  return phrase.split('-').filter(Boolean).map(prettifyToken).join(' ');
+  return uniqueTokens(phrase.split('-').filter(Boolean).map(prettifyToken).join(' '));
 }
 
 function pickFreshSlugs(seedSalt: string, count: number): Array<{ slug: string; label: string }> {
