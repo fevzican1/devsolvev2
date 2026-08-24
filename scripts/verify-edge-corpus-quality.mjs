@@ -484,11 +484,12 @@ for (let s = 0; s < SIBLING_STEMS && failures.length < MAX_FAIL; s += 1) {
   const baseMod = Math.floor(nextStem() * MODIFIER_COUNT);
   const style0 = Math.floor(baseMod / MODIFIER_CONTEXTS.length);
   const ctx0 = baseMod % MODIFIER_CONTEXTS.length;
-  // Force both style and context to change between siblings under test.
+  // Adjacent siblings (ctx+1 and style+1). Far-offset sampling hid the
+  // scaled-content hole Google actually compares: neighbours of the same job.
   const mods = [
     baseMod,
-    ((style0 + 3) % MODIFIER_STYLES.length) * MODIFIER_CONTEXTS.length + ((ctx0 + 7) % MODIFIER_CONTEXTS.length),
-    ((style0 + 6) % MODIFIER_STYLES.length) * MODIFIER_CONTEXTS.length + ((ctx0 + 13) % MODIFIER_CONTEXTS.length),
+    style0 * MODIFIER_CONTEXTS.length + ((ctx0 + 1) % MODIFIER_CONTEXTS.length),
+    ((style0 + 1) % MODIFIER_STYLES.length) * MODIFIER_CONTEXTS.length + ctx0,
   ];
   const shingles = [];
   const headings = [];

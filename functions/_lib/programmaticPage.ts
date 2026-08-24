@@ -33,10 +33,6 @@ import { EMBEDDED_RAMP_LEVEL } from './embeddedRamp';
 import { prose, titleCase, sentence, pluralRole, gerund, articleFor } from './language';
 import { FORBIDDEN_SKELETON_HEADINGS, headingOwnerClause, headingOwnerTokens, headingSlotForSectionId, oneToken, ownHeading } from './ownedHeading';
 import {
-  archetypeSections,
-  audienceSection,
-  contextSection,
-  decisionFor,
   intentKernel,
   toolKnowledge,
   type KnowledgeSection,
@@ -47,10 +43,10 @@ import {
   entityFraming,
   planDocument,
   practiceHeading,
-  practiceInSetting,
   uniqueSnippets,
   variedAcceptance,
   variedComparison,
+  variedDecision,
   variedFaq,
   variedGlossary,
   variedIntro,
@@ -58,8 +54,6 @@ import {
   variedSteps,
   variedTakeaways,
   snippetLead,
-  exampleNote,
-  exampleSettingNote,
   type DocumentPlan,
   type SnippetBlock,
 } from './pageVariation';
@@ -69,11 +63,20 @@ import {
   buildBranchTree,
   buildCompatMatrix,
   buildExecutablePack,
-  matrixLead,
   matrixSplit,
   type BranchFork,
   type CompatMatrix,
 } from './semanticValue';
+import {
+  comboAudienceList,
+  comboAudienceParagraphs,
+  comboContextParagraphs,
+  comboExampleNote,
+  comboJobParagraphs,
+  comboJobList,
+  comboMatrixLead,
+  comboPracticeParagraphs,
+} from './comboProcedure';
 
 /* -------------------------------------------------------------------------- */
 /*  Corpus geometry (immutable deployment invariant)                          */
@@ -89,9 +92,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-24T00:30:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-24T16:00:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'a';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'd';
 
 /*
  * Crawl-budget ramp (must stay in lockstep with /.ramp-level via
@@ -1299,8 +1302,6 @@ function buildContent(page: ResolvedPage): PageContent {
   const k = pageKernel(page);
   const tk = toolKnowledge(page.tool);
   const ik = intentKernel(page.intent);
-  const sv = styleVocab(page);
-  const cv = contextVocab(page);
   const identity = buildIdentity(page);
   const plan = planDocument(k);
   const tn = k.toolLabel;
@@ -1308,7 +1309,7 @@ function buildContent(page: ResolvedPage): PageContent {
 
   const intro = variedIntro(k, tk, ik);
   const entity = entityFraming(k, tk, ik);
-  const decision = decisionFor(k, tk, ik);
+  const decision = variedDecision(k, tk, ik);
   const acceptance = variedAcceptance(k, tk, ik, plan);
   const keyTakeaways = variedTakeaways(k, ik);
   const steps = variedSteps(k, tk, ik, plan);
@@ -1324,15 +1325,26 @@ function buildContent(page: ResolvedPage): PageContent {
   const artifact = contextArtifact(k);
 
   const job = taskGuide(k);
+  job.section.heading = 'Job';
+  job.section.paragraphs = comboJobParagraphs(k);
+  job.section.list = comboJobList(k);
   const sections: KnowledgeSection[] = [
     job.section,
-    ...archetypeSections(k, tk, ik),
-    contextSection(k, cv.bodyBlock, cv.demand),
-    audienceSection(k),
+    {
+      id: 'context',
+      heading: `${k.contextMicro} constraint`,
+      paragraphs: comboContextParagraphs(k),
+    },
+    {
+      id: 'audience',
+      heading: `${k.audienceTiny} desk`,
+      paragraphs: comboAudienceParagraphs(k),
+      list: comboAudienceList(k),
+    },
     {
       id: 'practice',
       heading: practiceHeading(k),
-      paragraphs: [sv.practice, sv.bodyBlock, practiceInSetting(k)],
+      paragraphs: comboPracticeParagraphs(k),
     },
   ];
 
@@ -1436,8 +1448,8 @@ function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
   const sampleObj: Record<string, string | number | boolean> = { [f1]: fixtureId, [f2]: recordId, ...extra };
   const sample = JSON.stringify(sampleObj);
 
-  let inputLabel = 'input fixture';
-  let outputLabel = `${toolName(tool)} output`;
+  let inputLabel = 'Input';
+  let outputLabel = 'Output';
   let input = sample;
   let output: string;
 
@@ -1470,7 +1482,7 @@ function buildWorkedExample(page: ResolvedPage): PageContent['workedExample'] {
   }
 
   const k = pageKernel(page);
-  const note = `${exampleNote(k, fixtureId)} ${exampleSettingNote(k)}`;
+  const note = comboExampleNote(k);
   return { inputLabel, input, outputLabel, output, note };
 }
 
@@ -1834,91 +1846,22 @@ export function auditServedCopy(html: string, page: ResolvedPage): string[] {
 
 function genreHeading(id: string, page: ResolvedPage, c: PageContent): string {
   const k = pageKernel(page);
-  const job = label(page.intent);
-  const tool = toolName(page.tool);
-  let raw: string;
-  switch (id) {
-    case 'entity':
-      switch (page.style) {
-        case 'as-part-of-ci-cd-pipeline': raw = `The invariant ${tool} is rehearsing`; break;
-        case 'during-code-review': raw = `What a reviewer must be able to regenerate`; break;
-        case 'without-installing-cli-tools': raw = `The only runtime this job is allowed`; break;
-        case 'with-safe-local-processing': raw = `What “on-device” means for ${job}`; break;
-        case 'while-keeping-data-private': raw = `What counts as an extra copy`; break;
-        case 'for-quick-prototyping': raw = `What this spike is allowed to decide`; break;
-        case 'with-step-by-step-instructions': raw = `The skill this lesson is teaching`; break;
-        case 'with-automated-validation': raw = `The statement a script has to fail`; break;
-        default: raw = `${tool} in this procedure`; break;
-      }
-      break;
-    case 'takeaways':
-      switch (page.style) {
-        case 'with-step-by-step-instructions': raw = `What a first-timer should be able to repeat`; break;
-        case 'as-part-of-ci-cd-pipeline': raw = `What a red or green job is actually saying`; break;
-        case 'during-code-review': raw = `Sign-off in one glance`; break;
-        default: raw = `What has to be true when you stop`; break;
-      }
-      break;
-    case 'acceptance':
-      raw = `Done-when checks a second person can run`;
-      break;
-    case 'steps':
-      switch (page.style) {
-        case 'as-part-of-ci-cd-pipeline': raw = `Porting ${job} into CI`; break;
-        case 'during-code-review': raw = `Review loop for ${job}`; break;
-        case 'without-installing-cli-tools': raw = `${sentence(job)} with no package manager`; break;
-        case 'with-step-by-step-instructions': raw = `Teachable sequence for ${job}`; break;
-        case 'for-quick-prototyping': raw = `Time-boxed path for ${job}`; break;
-        default: raw = `Procedure for ${job}`; break;
-      }
-      break;
-    case 'example':
-      raw = `A fixture from ${contextVocab(page).phrase}`;
-      break;
-    case 'snippets':
-      switch (page.style) {
-        case 'as-part-of-ci-cd-pipeline': raw = `Golden files the job must replay`; break;
-        case 'during-code-review': raw = `What belongs in the pull-request comment`; break;
-        case 'without-installing-cli-tools': raw = `Samples that stay in the tab`; break;
-        case 'with-automated-validation': raw = `Positive and negative bytes for the invariant`; break;
-        case 'with-safe-local-processing': raw = `On-device samples with no egress`; break;
-        default: raw = `Samples for this procedure`; break;
-      }
-      break;
-    case 'pitfalls':
-      switch (page.style) {
-        case 'as-part-of-ci-cd-pipeline': raw = `False reds and false greens`; break;
-        case 'during-code-review': raw = `Review comments that cannot be replayed`; break;
-        case 'while-keeping-data-private': raw = `Correct results that still leak`; break;
-        default: raw = `Mistakes this procedure still sees`; break;
-      }
-      break;
-    case 'comparison':
-      raw = `When a different method is the better guide`;
-      break;
-    case 'glossary':
-      raw = `Terms this page uses strictly`;
-      break;
-    case 'matrix':
-      raw = `Compat and fault table for ${job}`;
-      break;
-    case 'branches':
-      raw = `If-then forks for ${job}`;
-      break;
-    case 'faq':
-      switch (page.style) {
-        case 'as-part-of-ci-cd-pipeline': raw = `Pipeline questions this job still gets`; break;
-        case 'during-code-review': raw = `Review questions that keep coming back`; break;
-        case 'without-installing-cli-tools': raw = `No-install questions this still gets`; break;
-        case 'with-step-by-step-instructions': raw = `Questions learners still ask`; break;
-        case 'for-quick-prototyping': raw = `Spike questions that waste the time-box`; break;
-        default: raw = `Questions this procedure still gets`; break;
-      }
-      break;
-    default:
-      raw = c.decision.heading;
-      break;
-  }
+  const short: Record<string, string> = {
+    entity: 'Entity',
+    takeaways: 'Stop-bar',
+    acceptance: 'Done-when',
+    steps: 'Procedure',
+    example: 'Fixture',
+    snippets: 'Samples',
+    pitfalls: 'Mistakes',
+    comparison: 'Other-method',
+    glossary: 'Terms',
+    matrix: 'Fault-table',
+    branches: 'Forks',
+    faq: 'Questions',
+    decision: c.decision.heading,
+  };
+  const raw = short[id] ?? c.decision.heading;
   return ownHeading(k, id === 'decision' ? 'decision' : id, raw);
 }
 
@@ -2016,7 +1959,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
   // Bing §16 entity block — early, explicit, citable.
   const entity = `<section id="entity" data-entity aria-labelledby="entity-heading"><h2 id="entity-heading">${escapeHtml(genreHeading('entity', page, c))}</h2>`
     + `<dl><dt>${escapeHtml(c.entity.name)}</dt><dd data-snippet>${escapeHtml(c.entity.definition)}</dd></dl>`
-    + `<p class="meta">Also referred to as: ${c.entity.alsoKnownAs.map((a) => escapeHtml(a)).join(' · ')}</p>`
+    + `<p class="meta">Aliases: ${c.entity.alsoKnownAs.map((a) => escapeHtml(a)).join(' · ')}</p>`
     + `</section>`;
 
   const takeaways = `<section aria-labelledby="key-takeaways"><h2 id="key-takeaways">${escapeHtml(genreHeading('takeaways', page, c))}</h2><div class="tk" data-snippet>${renderList(c.keyTakeaways)}</div></section>`;
@@ -2028,10 +1971,10 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
   const toolCta = `<p class="cta"><a href="/tools/${escapeHtml(toolSlug)}"><strong>Open the ${escapeHtml(toolName(page.tool))} tool</strong></a>`
     + ` — runs in your browser, nothing is uploaded. Or read the walkthrough below.</p>`;
 
-  const decision = `<section id="decision" data-decision aria-labelledby="decision-heading"><h2 id="decision-heading">${escapeHtml(c.decision.heading)}</h2>`
+  const decision = `<section id="decision" data-decision aria-labelledby="decision-heading"><h2 id="decision-heading">${escapeHtml(genreHeading('decision', page, c))}</h2>`
     + `<p data-snippet>${escapeHtml(c.decision.verdict)}</p>`
-    + `<h3>${escapeHtml(ownHeading(pageKernel(page), 'decision-when', 'Use this guide when'))}</h3>${renderList(c.decision.when)}`
-    + `<h3>${escapeHtml(ownHeading(pageKernel(page), 'decision-not', 'Skip this guide when'))}</h3>${renderList(c.decision.notWhen)}`
+    + `<h3>${escapeHtml(ownHeading(pageKernel(page), 'decision-when', 'When'))}</h3>${renderList(c.decision.when)}`
+    + `<h3>${escapeHtml(ownHeading(pageKernel(page), 'decision-not', 'Skip'))}</h3>${renderList(c.decision.notWhen)}`
     + `</section>`;
 
   const acceptance = `<section aria-labelledby="acceptance"><h2 id="acceptance">${escapeHtml(genreHeading('acceptance', page, c))}</h2>${renderList(c.acceptance)}</section>`;
@@ -2049,12 +1992,12 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + `</section>`;
 
   const matrix = `<section id="matrix" data-compat-matrix aria-labelledby="matrix-h"><h2 id="matrix-h">${escapeHtml(genreHeading('matrix', page, c))}</h2>`
-    + `<p>${escapeHtml(matrixLead(pageKernel(page)))}</p>`
+    + `<p>${escapeHtml(comboMatrixLead(pageKernel(page)))}</p>`
     + `<table><thead><tr><th>Runtime</th><th>Pin</th></tr></thead><tbody>`
     + c.matrix.pins.map((row) => `<tr><td>${escapeHtml(row.runtime)}</td><td>${escapeHtml(row.pin)}</td></tr>`).join('')
     + `</tbody></table>`
     + `<p>${escapeHtml(matrixSplit(pageKernel(page)))}</p>`
-    + `<table><thead><tr><th>Error</th><th>When ${escapeHtml(styleVocab(page).micro)}</th><th>Fix in ${escapeHtml(contextVocab(page).micro)}</th></tr></thead><tbody>`
+    + `<table><thead><tr><th>Error</th><th>${escapeHtml(pageKernel(page).styleTiny)}</th><th>${escapeHtml(pageKernel(page).contextTiny)}</th></tr></thead><tbody>`
     + c.matrix.errors.map((row) => `<tr data-error-code="${escapeHtml(row.code)}"><td><code>${escapeHtml(row.code)}</code></td><td>${escapeHtml(row.fires)}</td><td>${escapeHtml(row.fix)}</td></tr>`).join('')
     + `</tbody></table></section>`;
 
@@ -2118,14 +2061,15 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
   // when those ids are not omitted. Split extraSections by section id so the
   // layout permutation can move them independently.
   const splitSections = new Map<string, string>();
+  const omit = c.plan.omit as Set<string>;
   for (const section of c.sections) {
-    if ((c.plan.omit as Set<string>).has(section.id)) continue;
-    const paras = section.paragraphs.filter(Boolean).map((p) => `<p>${escapeHtml(p)}</p>`).join('');
-    const list = section.list?.length ? renderList(section.list, Boolean(section.ordered)) : '';
-    const html = `<section id="${escapeHtml(section.id)}" aria-labelledby="${escapeHtml(section.id)}-h"><h2 id="${escapeHtml(section.id)}-h">${escapeHtml(section.heading)}</h2>${paras}${list}</section>`;
     const bucket = ['constraint', 'mechanics', 'abort', 'loop', 'done', 'teach', 'why', 'mistakes', 'boundary', 'verify', 'privacy', 'fails', 'spike', 'stop', 'pr', 'bar', 'out', 'contract', 'port', 'red', 'invariant', 'encode', 'pitfalls', 'overview'].includes(section.id)
       ? 'archetype'
       : section.id;
+    if (omit.has(section.id) || omit.has(bucket)) continue;
+    const paras = section.paragraphs.filter(Boolean).map((p) => `<p>${escapeHtml(p)}</p>`).join('');
+    const list = section.list?.length ? renderList(section.list, Boolean(section.ordered)) : '';
+    const html = `<section id="${escapeHtml(section.id)}" aria-labelledby="${escapeHtml(section.id)}-h"><h2 id="${escapeHtml(section.id)}-h">${escapeHtml(section.heading)}</h2>${paras}${list}</section>`;
     splitSections.set(bucket === 'archetype'
       ? `archetype:${section.id}`
       : section.id, html);
@@ -2148,7 +2092,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     const html = sectionHtml[id];
     if (html) orderedParts.push(html);
   }
-  if (!archetypeFlushed) {
+  if (!archetypeFlushed && !(c.plan.omit as Set<string>).has('archetype')) {
     for (const [key, html] of splitSections) {
       if (key.startsWith('archetype:')) orderedParts.push(html);
     }

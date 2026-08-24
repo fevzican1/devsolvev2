@@ -29,7 +29,7 @@ export function taskGuide(k: PageKernel): TaskGuide {
       heading: core.heading,
       // Method-native body + setting-native close. Emitting core.body/core.close
       // verbatim made every same-task sibling share an 80-word 5-gram run.
-      paragraphs: [styleJobOpen(k, core.thesis), methodNativeBody(k, core), settingNativeClose(k, core)],
+      paragraphs: [settingNativeClose(k, core)],
       list: jobEvidenceList(k),
     },
     steps: core.steps,
