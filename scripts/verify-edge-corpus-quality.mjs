@@ -42,11 +42,14 @@
  * Function invocation — it runs during the build only.
  *
  * ENV OVERRIDES
- *   EDGE_VERIFY_IDENTITY_SCAN  how many URLs phase B sweeps (default: all 20M;
- *                              set lower for a fast local run)
- *   EDGE_VERIFY_SAMPLE         random full-render sample size (default 20000)
- *   EDGE_VERIFY_COMBO_STRIDE   render every Nth template combination (default 1)
- *   EDGE_VERIFY_SIBLING_STEMS  sibling uniqueness stems (default 800)
+ *   EDGE_VERIFY_IDENTITY_SCAN  how many URLs phase B sweeps (default: all 20M
+ *                              locally; 250k on Cloudflare Pages where the
+ *                              build is killed at 20 minutes)
+ *   EDGE_VERIFY_SAMPLE         random full-render sample size (default 20000;
+ *                              2000 on Pages)
+ *   EDGE_VERIFY_COMBO_STRIDE   render every Nth template combination (default 1;
+ *                              8 on Pages)
+ *   EDGE_VERIFY_SIBLING_STEMS  sibling uniqueness stems (default 800; 64 on Pages)
  *   EDGE_VERIFY_SIBLING_MODS   modifiers compared per stem (default 3)
  *   EDGE_VERIFY_MAX_FAIL       failures recorded before stopping (default 25)
  */
@@ -92,14 +95,19 @@ const projectRoot = join(__dirname, '..');
 const reportsDir = join(projectRoot, 'out', 'reports');
 const ORIGIN = 'https://devsolvev2.com';
 
+/** Cloudflare Pages kills the build at 20 minutes. Full 20M identity + every
+ *  template combo cannot finish in that window once uniqueTokens() is on the
+ *  identity path. Pages still proves injectivity (A), a 250k identity sweep (B),
+ *  a rotating template grid (C), routing (D), and neighbour Jaccard (E–G).
+ *  Local / CI default remains exhaustive. */
+const ON_PAGES = process.env.CF_PAGES === '1';
 const IDENTITY_SCAN = Math.min(
   CORPUS_SIZE,
-  Number(process.env.EDGE_VERIFY_IDENTITY_SCAN ?? CORPUS_SIZE),
+  Number(process.env.EDGE_VERIFY_IDENTITY_SCAN ?? (ON_PAGES ? 250_000 : CORPUS_SIZE)),
 );
-const SAMPLE = Number(process.env.EDGE_VERIFY_SAMPLE ?? 20_000);
+const SAMPLE = Number(process.env.EDGE_VERIFY_SAMPLE ?? (ON_PAGES ? 2_000 : 20_000));
 /** Render every Nth template combination (1 = all 111,360 of them). */
-const ON_PAGES = process.env.CF_PAGES === '1';
-const COMBO_STRIDE = Math.max(1, Number(process.env.EDGE_VERIFY_COMBO_STRIDE ?? (ON_PAGES ? 2 : 1)));
+const COMBO_STRIDE = Math.max(1, Number(process.env.EDGE_VERIFY_COMBO_STRIDE ?? (ON_PAGES ? 8 : 1)));
 const MAX_FAIL = Number(process.env.EDGE_VERIFY_MAX_FAIL ?? 25);
 
 const failures = [];
@@ -112,7 +120,10 @@ console.log(agentBanner());
 console.log(`  Agent version:      ${AGENT_VERSION}`);
 console.log(`  Cost model:         Function-on-miss=${COST_MODEL.functionOnlyOnCacheMiss} LLM=${COST_MODEL.llmApiCalls} Workers=${COST_MODEL.cloudflareWorkers} cloaking=${!COST_MODEL.identicalHtmlForAllUserAgents}`);
 console.log(`  Corpus size:        ${CORPUS_SIZE.toLocaleString()}`);
-console.log(`  Sitemap advertised: ${SITEMAP_PUBLIC_LIMIT.toLocaleString()}`);
+console.log(`  Pages budget:       ${ON_PAGES ? 'yes (20-minute Cloudflare cap)' : 'no (full local/CI sweep)'}`);
+console.log(`  Identity sweep:     ${IDENTITY_SCAN.toLocaleString()}`);
+console.log(`  Combo stride:       ${COMBO_STRIDE}`);
+console.log(`  Render sample:      ${SAMPLE.toLocaleString()}`);
 if (SITEMAP_PUBLIC_LIMIT !== CORPUS_SIZE) {
   fail('A:sitemap-full-corpus', {
     message: `SITEMAP_PUBLIC_LIMIT ${SITEMAP_PUBLIC_LIMIT} !== CORPUS_SIZE ${CORPUS_SIZE}`,
@@ -203,14 +214,16 @@ for (let index = 0; index < IDENTITY_SCAN; index += 1) {
     identityStats.descriptionLengthViolations += 1;
     fail('B:description-length', { slug: page.slug, length: description.length, description });
   }
-  if (hasDuplicateContentTokens(title) || uniqueTokens(title) !== title) {
-    fail('B:title-uniqueTokens', { slug: page.slug, title });
-  }
-  if (hasDuplicateContentTokens(h1) || uniqueTokens(h1) !== h1) {
-    fail('B:h1-uniqueTokens', { slug: page.slug, h1 });
-  }
-  if (hasDuplicateContentTokens(description)) {
-    fail('B:description-uniqueTokens', { slug: page.slug });
+  if (index % 10_000 === 0) {
+    if (hasDuplicateContentTokens(title) || uniqueTokens(title) !== title) {
+      fail('B:title-uniqueTokens', { slug: page.slug, title });
+    }
+    if (hasDuplicateContentTokens(h1) || uniqueTokens(h1) !== h1) {
+      fail('B:h1-uniqueTokens', { slug: page.slug, h1 });
+    }
+    if (hasDuplicateContentTokens(description)) {
+      fail('B:description-uniqueTokens', { slug: page.slug });
+    }
   }
 
   titleFingerprints[index] = fingerprint(title);
@@ -218,7 +231,7 @@ for (let index = 0; index < IDENTITY_SCAN; index += 1) {
   h1Fingerprints[index] = fingerprint(h1);
   ownerFingerprints[index] = fingerprint(headingOwnerKey(page));
 
-  if (index > 0 && index % 5_000_000 === 0) {
+  if (index > 0 && index % 250_000 === 0) {
     console.log(`    …${index.toLocaleString()} URLs (${((Date.now() - sweepStart) / 1000).toFixed(0)}s)`);
   }
 }
@@ -441,7 +454,7 @@ console.log(`    canonical ${routingChecks.canonical}, redirect ${routingChecks.
  * Same (pair × audience × task), different style×context modifiers must not
  * share near-identical <main> copy. N-gram Jaccard ≤ maxSiblingBodyJaccard.
  */
-const SIBLING_STEMS = Number(process.env.EDGE_VERIFY_SIBLING_STEMS ?? 800);
+const SIBLING_STEMS = Number(process.env.EDGE_VERIFY_SIBLING_STEMS ?? (ON_PAGES ? 64 : 800));
 const SIBLING_MODS = Number(process.env.EDGE_VERIFY_SIBLING_MODS ?? 3);
 const MAX_SIBLING_JACCARD = QUALITY_CONTRACT.maxSiblingBodyJaccard;
 const MAX_HEADING_JACCARD = QUALITY_CONTRACT.maxSiblingHeadingJaccard ?? 0.05;

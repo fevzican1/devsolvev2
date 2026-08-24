@@ -271,14 +271,20 @@ export function hasDuplicateContentTokens(text: string): boolean {
 }
 
 /** Single no-space identity atom. Used so neighbour 5-gram Jaccard stays at 0. */
+const TOKEN_ATOM_CACHE = new Map<string, string>();
+
 export function tokenAtom(value: string): string {
+  const cached = TOKEN_ATOM_CACHE.get(value);
+  if (cached !== undefined) return cached;
   const unique = uniqueTokens(value);
   const atom = unique
     .replace(/\s+/g, '-')
     .replace(/[^A-Za-z0-9+/.-]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
-  return atom || uniqueTokens(value.replace(/\s+/g, '-'));
+  const resolved = atom || uniqueTokens(value.replace(/\s+/g, '-'));
+  TOKEN_ATOM_CACHE.set(value, resolved);
+  return resolved;
 }
 
 export function maxKeywordHits(wordCount: number): number {

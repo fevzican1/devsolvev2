@@ -138,16 +138,32 @@ try {
 // generator functions/[[path]].ts serves — so the gate and the served bytes
 // can never drift apart. Hard failure: a content-quality regression here is a
 // real mass-deindex risk (this is what Bing flagged as "content quality").
+const onPages = process.env.CF_PAGES === '1';
+const pagesVerifyEnv = {
+  ...process.env,
+  // Pages builders have ~8GB; keep the child under that so V8 does not
+  // reserve more than the cgroup and get SIGKILL (exit 137) at startup.
+  NODE_OPTIONS: [process.env.NODE_OPTIONS, '--max-old-space-size=3072'].filter(Boolean).join(' '),
+  ...(onPages
+    ? {
+        EDGE_VERIFY_IDENTITY_SCAN: process.env.EDGE_VERIFY_IDENTITY_SCAN || '250000',
+        EDGE_VERIFY_SAMPLE: process.env.EDGE_VERIFY_SAMPLE || '2000',
+        EDGE_VERIFY_COMBO_STRIDE: process.env.EDGE_VERIFY_COMBO_STRIDE || '8',
+        EDGE_VERIFY_SIBLING_STEMS: process.env.EDGE_VERIFY_SIBLING_STEMS || '64',
+        QUALITY_AUDIT_MOD_STRIDE: process.env.QUALITY_AUDIT_MOD_STRIDE || '9',
+        AI_AGENTS_FAST: '1',
+        AI_AGENTS_OFFLINE: process.env.AI_AGENTS_OFFLINE || '1',
+      }
+    : {}),
+};
+
 try {
-  console.log('Verifying edge-served corpus quality (all 20M /k/ pages)...');
+  console.log(onPages
+    ? 'Verifying edge-served corpus quality (Pages 20-minute budget: 250k identity, combo stride 8)...'
+    : 'Verifying edge-served corpus quality (all 20M /k/ pages)...');
   execSync(`node --import tsx ${join(__dirname, 'verify-edge-corpus-quality.mjs')}`, {
     stdio: 'inherit',
-    env: {
-      ...process.env,
-      // Pages builders have ~8GB; keep the child under that so V8 does not
-      // reserve more than the cgroup and get SIGKILL (exit 137) at startup.
-      NODE_OPTIONS: [process.env.NODE_OPTIONS, '--max-old-space-size=3072'].filter(Boolean).join(' '),
-    },
+    env: pagesVerifyEnv,
   });
 } catch (error) {
   const status = error && typeof error === 'object' && 'status' in error ? error.status : 'unknown';

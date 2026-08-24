@@ -24,6 +24,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const reportsDir = join(__dirname, '..', 'out', 'reports');
 
 const SAMPLE_AT = [0, 3, 7, 11, 15];
+const ON_PAGES = process.env.CF_PAGES === '1';
+// Full 348×180×5 grid is ~313k scores. Pages dies at 20 minutes; stride the
+// modifier so every style is still covered without blocking the deploy.
+const MOD_STRIDE = Math.max(1, Number(process.env.QUALITY_AUDIT_MOD_STRIDE ?? (ON_PAGES ? 9 : 1)));
+console.log(`[quality-corpus-audit] pairs=${TOOL_INTENT_PAIR_COUNT} modifiers=${MODIFIER_COUNT} stride=${MOD_STRIDE} pages=${ON_PAGES}`);
 
 const belowScore = [];
 const belowWord = [];
@@ -39,7 +44,7 @@ const crossToolKeys = new Set(
 );
 
 for (let pairIdx = 0; pairIdx < TOOL_INTENT_PAIR_COUNT; pairIdx += 1) {
-  for (let modIdx = 0; modIdx < MODIFIER_COUNT; modIdx += 1) {
+  for (let modIdx = 0; modIdx < MODIFIER_COUNT; modIdx += MOD_STRIDE) {
     for (const at of SAMPLE_AT) {
       const audIdx = at % 20;
       const taskIdx = (at * 3) % 16;
