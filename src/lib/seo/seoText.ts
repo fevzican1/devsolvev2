@@ -11,7 +11,7 @@
  * so the Cloudflare Function stays edge-cacheable at zero extra cost.
  */
 
-import { uniqueTokens } from './uniqueTokens';
+import { hasDuplicateContentTokens, POLICY_STOPWORDS, uniqueTokens } from './uniqueTokens';
 
 export const ROBOTS_INDEX_FOLLOW =
   'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1';
@@ -34,10 +34,7 @@ const SHORT_DESCRIPTION_FILLERS: readonly string[] = [
 ];
 
 const FALLBACK_DESCRIPTION =
-  'DevSolve offers free, privacy-first developer tools and in-depth technical guides for everyday engineering tasks. All processing runs locally in your browser today.';
-
-/** Headroom reserved when truncating so a short filler clause can still fit within maxLength. */
-const TRUNCATE_RESERVE_FOR_FILLER = 28;
+  'DevSolve offers free, privacy-first developer tools and technical guides. All processing runs locally in the browser, with no uploads.';
 
 function normalizeDescriptionText(raw: string): string {
   return (raw || '')
@@ -76,89 +73,163 @@ function ensureTerminalPunctuation(text: string): string {
   return `${cleaned}.`;
 }
 
-function stripTrailingEllipsis(text: string): string {
-  return text.replace(/…$/, '').trim();
-}
-
-/** Fixed, ordered pool of padding clauses — small enough (7 items) that every
- * subset (2^7 = 128) can be exhaustively evaluated below at negligible cost. */
 const ALL_FILLERS: readonly string[] = [...DESCRIPTION_FILLERS, ...SHORT_DESCRIPTION_FILLERS];
 
 /**
- * Picks the subset of `ALL_FILLERS` (concatenated in their original order,
- * which reads naturally as a sentence) that, appended to `padded`, best
- * satisfies [minLength, maxLength] — closest to `targetLength` among subsets
- * that reach `minLength`, otherwise the longest subset that still fits under
- * `maxLength`.
- *
- * A previous greedy "append the first/best single filler that fits" strategy
- * could get stuck: locking in one filler that lands just under `minLength`
- * often leaves no room for any remaining filler to close the last few
- * characters without overflowing `maxLength`, even though a *different*
- * combination of fillers would have landed inside the window. The caller
- * then discarded the whole description and substituted the generic
- * FALLBACK_DESCRIPTION — silently duplicating that fallback text across
- * every page whose custom description happened to hit this gap, which is
- * exactly the "duplicate meta description" problem Bing and Google
- * penalise. Exhaustively searching all 128 subsets (bin-packing over a
- * fixed 7-item pool) guarantees the best reachable combination is used
- * instead of whichever one a greedy walk happened to try first.
+ * Last-resort clauses whose stems almost never collide with tool blurbs
+ * (browser / local / encode / JSON / developer / processing). Used only when
+ * the original 7 fillers are gutted by uniqueTokens() and the description
+ * would otherwise ship under Bing's 150-character floor.
+ */
+const RESCUE_DESCRIPTION_FILLERS: readonly string[] = [
+  ' Bookmark the tab.',
+  ' Skip the CLI.',
+  ' Cite the fixture.',
+  ' Bookmark the tab before the next incident.',
+  ' A quiet tab is enough; skip the CLI install.',
+  ' Cite a known-good fixture, never a production secret.',
+];
+
+function looksCompleteDescription(text: string): boolean {
+  if (!/[.!?…]$/.test(text)) return false;
+  const words = text.replace(/[.!?…]+$/g, '').trim().split(/\s+/).filter(Boolean);
+  const last = words[words.length - 1] || '';
+  const core = last.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+  if (!core) return false;
+  // uniqueTokens() dropping "browser" from "Runs entirely in your browser."
+  // left "Runs entirely in your." — that must not ship.
+  return !POLICY_STOPWORDS.has(core);
+}
+
+/** uniqueTokens() can drop the last content word and leave "… real limits of". */
+function repairIncompleteTail(text: string): string {
+  let words = closedUnique(text).replace(/[.!?…]+$/g, '').trim().split(/\s+/).filter(Boolean);
+  while (words.length > 6) {
+    const last = (words[words.length - 1] || '').replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+    if (last && !POLICY_STOPWORDS.has(last)) break;
+    words.pop();
+  }
+  return closedUnique(words.join(' '));
+}
+
+function isWindowFit(text: string, minLength: number, maxLength: number): boolean {
+  return (
+    text.length >= minLength
+    && text.length <= maxLength
+    && looksCompleteDescription(text)
+    && !hasDuplicateContentTokens(text)
+  );
+}
+
+function closedUnique(text: string): string {
+  return ensureTerminalPunctuation(uniqueTokens(ensureTerminalPunctuation(text.replace(/\s+/g, ' ').trim())));
+}
+
+/**
+ * True when every content token in `addition` still appears after
+ * uniqueTokens(base + addition). Rejects "Runs entirely in your browser."
+ * collapsing to "Runs entirely in your." because "browser" was already
+ * in the blurb.
+ */
+function additionSurvives(base: string, addition: string): { combined: string } | null {
+  const uniqueBase = closedUnique(base);
+  const uniqueAddition = closedUnique(addition);
+  if (!uniqueBase || !uniqueAddition) return null;
+  const combined = closedUnique(`${uniqueBase} ${uniqueAddition}`);
+  if (!combined.startsWith(uniqueBase)) return null;
+  const suffix = combined.slice(uniqueBase.length).replace(/^[\s.]+/, '').trim();
+  if (closedUnique(suffix) !== uniqueAddition) return null;
+  return { combined };
+}
+
+function betterDescriptionCandidate(
+  best: string | null,
+  candidate: string,
+  minLength: number,
+  targetLength: number,
+): string {
+  if (best === null) return candidate;
+  const bestMeetsMin = best.length >= minLength;
+  const candidateMeetsMin = candidate.length >= minLength;
+  if (candidateMeetsMin && !bestMeetsMin) return candidate;
+  if (candidateMeetsMin === bestMeetsMin) {
+    const bestDelta = Math.abs(best.length - targetLength);
+    const candidateDelta = Math.abs(candidate.length - targetLength);
+    if (candidateDelta < bestDelta) return candidate;
+  }
+  return best;
+}
+
+function fitBaseToMax(text: string, maxLength: number): string {
+  const unique = closedUnique(text);
+  if (unique.length <= maxLength) return unique;
+  const sentences = fitSentences(unique, maxLength);
+  if (sentences) return closedUnique(sentences);
+  return closedUnique(truncateAtWord(unique, maxLength));
+}
+
+/**
+ * Add intact filler clauses until the description lands in [min, max].
+ * Linear in the filler pool — not 2^n — because this runs on every
+ * Next.js page and every quality-corpus-audit sample during `npm run build`.
+ */
+function searchFillers(
+  base: string,
+  fillers: readonly string[],
+  minLength: number,
+  maxLength: number,
+  targetLength: number,
+): string | null {
+  let best: string | null = null;
+
+  for (const filler of fillers) {
+    const survived = additionSurvives(base, filler);
+    if (!survived || !isWindowFit(survived.combined, minLength, maxLength)) continue;
+    best = betterDescriptionCandidate(best, survived.combined, minLength, targetLength);
+  }
+  if (best) return best;
+
+  let current = closedUnique(base);
+  for (const filler of fillers) {
+    const survived = additionSurvives(current, filler);
+    if (!survived || survived.combined.length > maxLength) continue;
+    current = survived.combined;
+    if (isWindowFit(current, minLength, maxLength)) return current;
+  }
+
+  const shorts = fillers.filter((filler) => filler.length <= 42);
+  for (let i = 0; i < shorts.length; i += 1) {
+    for (let j = i + 1; j < shorts.length; j += 1) {
+      const survived = additionSurvives(base, `${shorts[i]}${shorts[j]}`);
+      if (!survived || !isWindowFit(survived.combined, minLength, maxLength)) continue;
+      best = betterDescriptionCandidate(best, survived.combined, minLength, targetLength);
+    }
+  }
+
+  return best;
+}
+
+/**
+ * Pads a too-short uniqueTokens() description with clauses that still
+ * survive uniqueTokens() against the base. Scoring fillers before that
+ * filter shipped fragments such as "Runs entirely in your" and failed
+ * Cloudflare Pages postbuild (`verify-seo-descriptions`, exit 1).
  */
 function padDescription(text: string, minLength: number, maxLength: number, targetLength: number): string {
-  let padded = stripTrailingEllipsis(text).replace(/[,;:\s]+$/g, '').trim();
-  if (padded && !/[.!?]$/.test(padded)) padded = `${padded}.`;
-  if (padded.length >= minLength) return padded;
-
-  let best: string | null = null;
-  const overflowCandidates: string[] = [];
-  const fillerCount = ALL_FILLERS.length;
-  const combinationCount = 1 << fillerCount;
-
-  for (let mask = 0; mask < combinationCount; mask += 1) {
-    let combined = padded;
-    for (let i = 0; i < fillerCount; i += 1) {
-      if (mask & (1 << i)) combined += ALL_FILLERS[i];
-    }
-    const candidate = ensureTerminalPunctuation(combined.replace(/\s+/g, ' ').trim());
-
-    if (candidate.length > maxLength) {
-      // No exact-fit subset may exist (the 7 fixed filler lengths leave a
-      // handful of narrow [minLength, maxLength] gaps unreachable by whole
-      // clauses alone). Collect every overflowing combination so each can be
-      // tried (smallest overflow first) as a word-boundary trim below — that
-      // still beats discarding the whole description for the generic
-      // fallback. A single "smallest overflow" candidate isn't enough: its
-      // last word may be long enough that trimming it undershoots
-      // minLength, so multiple candidates must be attempted.
-      overflowCandidates.push(candidate);
-      continue;
-    }
-
-    if (best === null) {
-      best = candidate;
-      continue;
-    }
-
-    const bestMeetsMin = best.length >= minLength;
-    const candidateMeetsMin = candidate.length >= minLength;
-    if (candidateMeetsMin && !bestMeetsMin) {
-      best = candidate;
-    } else if (candidateMeetsMin === bestMeetsMin) {
-      const bestDelta = Math.abs(best.length - targetLength);
-      const candidateDelta = Math.abs(candidate.length - targetLength);
-      if (candidateDelta < bestDelta) best = candidate;
-    }
+  let uniqueBase = fitBaseToMax(text, maxLength);
+  if (!isWindowFit(uniqueBase, minLength, maxLength)) {
+    uniqueBase = fitBaseToMax(repairIncompleteTail(uniqueBase), maxLength);
   }
+  if (isWindowFit(uniqueBase, minLength, maxLength)) return uniqueBase;
 
-  if (best !== null && best.length >= minLength) return best;
+  const fromCore = searchFillers(uniqueBase, ALL_FILLERS, minLength, maxLength, targetLength);
+  if (fromCore) return fromCore;
 
-  overflowCandidates.sort((a, b) => a.length - b.length);
-  for (const candidate of overflowCandidates) {
-    const trimmed = truncateAtWord(candidate, maxLength);
-    if (trimmed.length >= minLength && trimmed.length <= maxLength) return trimmed;
-  }
+  const rescuePool = [...ALL_FILLERS, ...RESCUE_DESCRIPTION_FILLERS];
+  const fromRescue = searchFillers(uniqueBase, rescuePool, minLength, maxLength, targetLength);
+  if (fromRescue) return fromRescue;
 
-  return best ?? padded;
+  return uniqueBase;
 }
 
 export function ensureSeoDescription(
@@ -167,52 +238,28 @@ export function ensureSeoDescription(
   maxLength = 160,
   targetLength = 155,
 ): string {
-  const rawNormalized = uniqueTokens(normalizeDescriptionText(raw));
+  const rawNormalized = repairIncompleteTail(uniqueTokens(normalizeDescriptionText(raw)));
   let text = rawNormalized;
 
   if (!text) {
-    text = padDescription(FALLBACK_DESCRIPTION, minLength, maxLength, targetLength);
-    return ensureTerminalPunctuation(text.length <= maxLength ? text : truncateAtWord(text, maxLength));
+    return padDescription(FALLBACK_DESCRIPTION, minLength, maxLength, targetLength);
   }
 
   if (text.length > maxLength) {
     const sentenceFit = fitSentences(text, maxLength);
-    if (sentenceFit.length >= minLength) {
-      text = sentenceFit;
+    if (sentenceFit) {
+      text = repairIncompleteTail(sentenceFit);
     } else {
-      // Leave room for padDescription — truncating to maxLength-1 often yields 159
-      // chars, which cannot fit any filler within maxLength and wrongly triggers FALLBACK.
-      const truncateBudget = Math.max(80, maxLength - TRUNCATE_RESERVE_FOR_FILLER);
-      text = truncateAtWord(text, truncateBudget);
+      text = repairIncompleteTail(uniqueTokens(truncateAtWord(text, maxLength)));
     }
   }
 
+  if (isWindowFit(text, minLength, maxLength)) return text;
+
   text = padDescription(text, minLength, maxLength, targetLength);
-  text = ensureTerminalPunctuation(text);
+  if (isWindowFit(text, minLength, maxLength)) return text;
 
-  if (text.length < minLength) {
-    const truncateBudget = Math.max(80, maxLength - TRUNCATE_RESERVE_FOR_FILLER);
-    text = padDescription(truncateAtWord(rawNormalized, truncateBudget), minLength, maxLength, targetLength);
-    text = ensureTerminalPunctuation(text);
-  }
-
-  if (text.length < minLength) {
-    text = padDescription(FALLBACK_DESCRIPTION, minLength, maxLength, targetLength);
-    text = ensureTerminalPunctuation(text);
-  }
-
-  if (text.length > maxLength) {
-    const sentenceFit = fitSentences(text, maxLength);
-    text = sentenceFit.length >= minLength ? sentenceFit : truncateAtWord(text, maxLength);
-    text = ensureTerminalPunctuation(text);
-  }
-
-  if (text.length < minLength) {
-    text = padDescription(text, minLength, maxLength, targetLength);
-    text = ensureTerminalPunctuation(text);
-  }
-
-  return uniqueTokens(text.length <= maxLength ? text : truncateAtWord(text, maxLength));
+  return padDescription(FALLBACK_DESCRIPTION, minLength, maxLength, targetLength);
 }
 
 export function ensureSeoTitle(raw: string, minLength = 30): string {
