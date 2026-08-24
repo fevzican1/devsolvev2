@@ -1578,11 +1578,24 @@ function buildRelated(page: ResolvedPage): { slug: string; label: string; rel?: 
   };
 
   const scanTask = (dir: 1 | -1) => {
-    for (let t = 1; t < TASKS.length; t += 1) {
-      const cand = pageAtOnSurface(pairIndex, audienceIndex, (taskIndex + dir * t + TASKS.length * 8) % TASKS.length, page.modifier);
-      if (cand && cand.slug !== page.slug && cand.task !== page.task) return cand;
+    const tryTask = (pairIdx: number, requireSameTool: boolean) => {
+      for (let t = 1; t < TASKS.length; t += 1) {
+        const cand = pageAtOnSurface(pairIdx, audienceIndex, (taskIndex + dir * t + TASKS.length * 8) % TASKS.length, page.modifier);
+        if (!cand || cand.slug === page.slug || cand.task === page.task) continue;
+        if (requireSameTool && cand.tool !== page.tool) continue;
+        return cand;
+      }
+      return undefined;
+    };
+    const samePair = tryTask(pairIndex, true);
+    if (samePair) return samePair;
+    const span = surfacePairCount();
+    for (let p = 0; p < span; p += 1) {
+      if (PAIRS[p]?.[1] !== page.tool) continue;
+      const sameTool = tryTask(p, true);
+      if (sameTool) return sameTool;
     }
-    return undefined;
+    return tryTask(pairIndex, false);
   };
   push(scanTask(1), 'next-task', 'Next job');
   push(scanTask(-1), 'prev-task', 'Prior job');

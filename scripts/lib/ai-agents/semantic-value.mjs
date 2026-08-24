@@ -7,7 +7,7 @@
  */
 import { QUALITY_CONTRACT } from '../ai-indexing-agent.mjs';
 import { scorePage } from '../ai-quality-scoring.mjs';
-import { pageForIndex } from '../../../functions/_lib/programmaticPage.ts';
+import { isOnCrawlSurface, pageForIndex } from '../../../functions/_lib/programmaticPage.ts';
 import { extract, samplePages } from './shared.mjs';
 
 export const AGENT = {
@@ -78,7 +78,10 @@ export async function run(opts = {}) {
       const next = Number.isFinite(suffix) ? pageForIndex(suffix) : undefined;
       if (!next) failures.push({ slug: page.slug, reason: `next-task ${nextHref} is not a real /k/ page` });
       else if (next.task === page.task) failures.push({ slug: page.slug, reason: 'next-task hop stays on the same task' });
-      else if (next.tool !== page.tool) failures.push({ slug: page.slug, reason: 'next-task hop left the tool' });
+      else if (!isOnCrawlSurface(next.index)) failures.push({ slug: page.slug, reason: 'next-task hop left the sitemap ramp' });
+      else if (next.tool !== page.tool && isOnCrawlSurface(page.index)) {
+        failures.push({ slug: page.slug, reason: 'next-task hop left the tool on an advertised URL' });
+      }
     }
   }
 
@@ -91,6 +94,7 @@ export async function run(opts = {}) {
     notes: [
       'No hosted LLM. Information gain is proven on the served HTML contract.',
       'Fault codes carry a per-URL hex suffix so siblings cannot share a row.',
+      'next-task stays on the same tool inside the sitemap ramp; unadvertised URLs funnel onto that ramp instead of leaking 18M discoveries.',
     ],
   };
 }
