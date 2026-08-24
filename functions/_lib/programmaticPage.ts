@@ -30,6 +30,41 @@
  */
 
 import { uniqueTokens, tokenAtom, hasDuplicateContentTokens, topKeywordDensity, maxKeywordHits, MAX_KEYWORD_DENSITY } from '../../src/lib/seo/uniqueTokens';
+import {
+  AUDIENCES,
+  CLUSTERS,
+  CORPUS_SIZE,
+  MODIFIER_CONTEXTS,
+  MODIFIER_COUNT,
+  MODIFIER_STYLES,
+  PAIRS,
+  PER_PAIR,
+  RAW_CORPUS_SIZE,
+  TARGET_CORPUS_SIZE,
+  TASKS,
+  URLS_PER_SITEMAP,
+  indexForCombination,
+  pageForIndex,
+  resolvePageForSlug,
+  stableHash,
+  type ResolvedPage,
+} from '../../src/lib/programmatic/corpusGeometry';
+import {
+  AUDIENCE_MICRO,
+  AUDIENCE_TINY,
+  CONTEXT_IDENTITY,
+  IDENTITY_TOOL,
+  STYLE_IDENTITY,
+  TASK_MICRO,
+  TASK_PHRASE,
+  TASK_TINY,
+  TITLE_MAX as IDENTITY_TITLE_MAX,
+  TOOL_MICRO,
+  TOOL_TINY,
+  buildFiveAtomTitle,
+  identityFormsFor,
+  intentMicro,
+} from '../../src/lib/seo/factoryIdentity';
 import { EMBEDDED_RAMP_LEVEL } from './embeddedRamp';
 import { prose, titleCase, sentence, pluralRole, gerund, articleFor } from './language';
 import { FORBIDDEN_SKELETON_HEADINGS, headingOwnerClause, headingOwnerTokens, headingSlotForSectionId, oneToken, ownHeading } from './ownedHeading';
@@ -83,8 +118,25 @@ import {
 /*  Corpus geometry (immutable deployment invariant)                          */
 /* -------------------------------------------------------------------------- */
 
-export const URLS_PER_SITEMAP = 50_000;
-export const TARGET_CORPUS_SIZE = 20_000_000;
+export {
+  AUDIENCES,
+  CLUSTERS,
+  CORPUS_SIZE,
+  MODIFIER_CONTEXTS,
+  MODIFIER_COUNT,
+  MODIFIER_STYLES,
+  PAIRS,
+  PER_PAIR,
+  RAW_CORPUS_SIZE,
+  TARGET_CORPUS_SIZE,
+  TASKS,
+  URLS_PER_SITEMAP,
+  indexForCombination,
+  pageForIndex,
+  resolvePageForSlug,
+  stableHash,
+};
+export type { ResolvedPage };
 
 /*
  * Bump when the AI Indexing Agent changes the rendered HTML. It drives three
@@ -108,110 +160,8 @@ export const RAMP_SITEMAP_LIMITS = [500_000, 2_000_000, 5_000_000, 9_000_000, 14
 export const SITEMAP_PUBLIC_LIMIT = RAMP_SITEMAP_LIMITS[EMBEDDED_RAMP_LEVEL];
 export const SITEMAP_PUBLIC_CHUNKS = SITEMAP_PUBLIC_LIMIT / URLS_PER_SITEMAP;
 
-export const CLUSTERS = [
-  ['json', ['json-formatter', 'json-to-typescript'], ['validate-json', 'format-json', 'inspect-json-structure', 'convert-json-to-types', 'compare-json-objects', 'transform-json-keys', 'extract-json-values', 'merge-json-data', 'flatten-nested-json', 'detect-json-syntax-errors', 'generate-json-schema', 'minify-json-payload']],
-  ['encoding', ['base64-encode-decode', 'url-encode-decode', 'html-entity-encode-decode'], ['encode-data', 'decode-data', 'fix-encoding-bugs', 'convert-character-sets', 'handle-unicode-text', 'escape-special-characters', 'troubleshoot-encoding-mismatch', 'batch-encode-values', 'decode-nested-encodings', 'verify-encoding-roundtrip', 'convert-binary-to-text', 'normalize-encoded-output']],
-  ['security', ['hash-generator', 'uuid-generator', 'jwt-decoder'], ['generate-identifiers', 'verify-tokens', 'inspect-signatures', 'audit-token-expiry', 'hash-sensitive-data', 'generate-secure-keys', 'validate-jwt-claims', 'compare-security-hashes', 'detect-token-tampering', 'rotate-unique-identifiers', 'analyze-token-payload', 'verify-data-integrity']],
-  ['text', ['text-case-converter', 'diff-checker', 'regex-tester'], ['normalize-text', 'compare-versions', 'test-regex', 'find-and-replace-patterns', 'extract-text-segments', 'convert-text-case', 'analyze-text-differences', 'build-regex-patterns', 'validate-input-format', 'clean-up-whitespace', 'split-text-by-delimiter', 'match-complex-patterns']],
-  ['formatting', ['sql-formatter', 'css-minifier', 'markdown-preview'], ['format-sql', 'minify-assets', 'preview-markdown', 'indent-nested-code', 'optimize-css-output', 'validate-markdown-syntax', 'beautify-query-strings', 'restructure-code-blocks', 'standardize-sql-style', 'compress-stylesheet', 'render-documentation', 'align-code-formatting']],
-  ['api', ['json-formatter', 'jwt-decoder', 'url-encode-decode'], ['design-api-schema', 'validate-api-response', 'construct-query-string', 'authenticate-api-request', 'parse-webhook-payload', 'debug-api-error', 'format-api-documentation', 'test-api-endpoint', 'normalize-api-data', 'optimize-api-payload', 'version-api-response', 'secure-api-communication']],
-  ['data', ['json-to-typescript', 'base64-encode-decode', 'hash-generator'], ['transform-data-format', 'generate-data-models', 'hash-data-for-storage', 'encode-binary-data', 'create-data-fingerprint', 'validate-data-integrity', 'serialize-complex-objects', 'migrate-data-schema', 'anonymize-sensitive-fields', 'aggregate-data-records', 'generate-unique-identifiers', 'normalize-data-structure']],
-  ['debugging', ['diff-checker', 'regex-tester', 'json-formatter'], ['compare-config-files', 'trace-data-flow', 'isolate-parsing-error', 'identify-format-change', 'debug-regex-match', 'verify-output-format', 'analyze-log-patterns', 'pinpoint-encoding-issue', 'detect-schema-drift', 'validate-transform-output', 'reproduce-formatting-bug', 'check-data-consistency']],
-  ['automation', ['cron-helper', 'regex-tester', 'uuid-generator'], ['schedule-recurring-task', 'extract-log-data', 'generate-batch-ids', 'parse-automation-output', 'validate-cron-schedule', 'build-extraction-pattern', 'create-unique-job-ids', 'monitor-scheduled-tasks', 'automate-data-extraction', 'filter-event-streams', 'tag-automated-processes', 'configure-periodic-cleanup']],
-  ['web', ['html-entity-encode-decode', 'css-minifier', 'markdown-preview'], ['sanitize-html-input', 'optimize-css-bundle', 'preview-content-markup', 'encode-url-parameters', 'protect-against-xss', 'minify-stylesheet', 'render-dynamic-content', 'escape-template-variables', 'compress-web-assets', 'validate-markup-output', 'format-rich-text', 'secure-form-data']],
-] as const;
-
-export const AUDIENCES = ['backend-engineer', 'frontend-developer', 'fullstack-developer', 'api-consumer', 'integration-engineer', 'security-conscious-developer', 'ops-engineer', 'devops-engineer', 'technical-writer', 'data-engineer', 'mobile-developer', 'qa-engineer', 'site-reliability-engineer', 'database-administrator', 'cloud-architect', 'performance-engineer', 'platform-engineer', 'solution-architect', 'tech-lead', 'release-engineer'];
-export const TASKS = ['debug-production-issue', 'prepare-api-response', 'clean-up-payload', 'sanitize-user-input', 'prepare-query-parameters', 'inspect-encoded-payload', 'trace-request', 'validate-auth-token', 'review-config-change', 'migrate-legacy-system', 'prepare-deployment-artifact', 'document-api-endpoint', 'optimize-build-pipeline', 'resolve-merge-conflict', 'prepare-security-audit', 'generate-test-fixtures'];
-
-/*
- * The fifth corpus dimension. It used to be a bare counter that only changed a
- * slug's trailing ordinal and the shuffle seed, which meant the 180 URLs of
- * every (cluster × tool × intent × audience × task) combination were near
- * duplicates sharing a handful of titles and descriptions — exactly what Bing
- * flags as "make it unique" and what Google reports as "Duplicate without
- * user-selected canonical". It is now a real topical dimension: an execution
- * STYLE (how the work is done) crossed with a delivery CONTEXT (the situation
- * it is done in), mirroring src/data/programmatic.ts so the static export and
- * the edge corpus describe the same page. Both feed the title, description,
- * H1, and dedicated body sections, so every sibling URL is a distinct
- * sub-topic rather than a reshuffle.
- */
-export const MODIFIER_STYLES = ['without-installing-cli-tools', 'directly-in-your-browser', 'with-step-by-step-instructions', 'with-safe-local-processing', 'while-keeping-data-private', 'for-quick-prototyping', 'during-code-review', 'as-part-of-ci-cd-pipeline', 'with-automated-validation'];
-export const MODIFIER_CONTEXTS = ['for-time-sensitive-incidents', 'for-team-onboarding', 'for-audit-readiness', 'for-cross-region-teams', 'for-legacy-system-migrations', 'for-large-enterprise-workflows', 'for-api-contract-validation', 'for-weekly-ops-routines', 'for-compliance-reporting', 'for-incident-postmortems', 'for-capacity-planning', 'for-release-management', 'for-vendor-integration', 'for-data-governance', 'for-service-mesh-debugging', 'for-cost-optimization', 'for-performance-benchmarking', 'for-disaster-recovery', 'for-production-rollouts', 'for-observability-pipelines'];
-export const MODIFIER_COUNT = MODIFIER_STYLES.length * MODIFIER_CONTEXTS.length;
-
-export const PER_PAIR = AUDIENCES.length * TASKS.length * MODIFIER_COUNT;
-export const PAIRS = CLUSTERS.flatMap(([cluster, tools, intents]) =>
-  tools.flatMap((tool) => intents.map((intent) => [cluster, tool, intent] as const)));
-export const RAW_CORPUS_SIZE = PAIRS.length * PER_PAIR;
-export const CORPUS_SIZE = Math.min(TARGET_CORPUS_SIZE, RAW_CORPUS_SIZE);
-
-// The corpus is an immutable deployment invariant: serving a partial or
-// non-50K-aligned universe would publish sitemap entries the resolver cannot
-// represent, so fail loudly rather than serve inconsistent SEO routes.
-if (CORPUS_SIZE !== TARGET_CORPUS_SIZE || CORPUS_SIZE % URLS_PER_SITEMAP !== 0) {
-  throw new Error(`The embedded corpus must contain exactly ${TARGET_CORPUS_SIZE.toLocaleString('en-US')} URLs in complete sitemap chunks. Received ${CORPUS_SIZE.toLocaleString('en-US')} URLs with ${URLS_PER_SITEMAP} URLs per sitemap chunk.`);
-}
 if (SITEMAP_PUBLIC_LIMIT !== CORPUS_SIZE) {
   throw new Error(`Sitemap must advertise the full corpus (${CORPUS_SIZE.toLocaleString('en-US')} URLs). Received SITEMAP_PUBLIC_LIMIT=${SITEMAP_PUBLIC_LIMIT.toLocaleString('en-US')}.`);
-}
-
-export interface ResolvedPage {
-  cluster: string;
-  tool: string;
-  intent: string;
-  audience: string;
-  task: string;
-  /** Execution style — one of MODIFIER_STYLES. */
-  style: string;
-  /** Delivery context — one of MODIFIER_CONTEXTS. */
-  context: string;
-  modifier: number;
-  slug: string;
-  index: number;
-}
-
-export function pageForIndex(index: number): ResolvedPage | undefined {
-  if (!Number.isInteger(index) || index < 0 || index >= CORPUS_SIZE) return undefined;
-  const pair = PAIRS[Math.floor(index / PER_PAIR)];
-  if (!pair) return undefined;
-  const remainder = index % PER_PAIR;
-  const audience = AUDIENCES[Math.floor(remainder / (TASKS.length * MODIFIER_COUNT))];
-  const withinAudience = remainder % (TASKS.length * MODIFIER_COUNT);
-  const task = TASKS[Math.floor(withinAudience / MODIFIER_COUNT)];
-  if (!audience || !task) return undefined;
-  const modifier = withinAudience % MODIFIER_COUNT;
-  const style = MODIFIER_STYLES[Math.floor(modifier / MODIFIER_CONTEXTS.length)];
-  const context = MODIFIER_CONTEXTS[modifier % MODIFIER_CONTEXTS.length];
-  const [cluster, tool, intent] = pair;
-  const slug = `${cluster}-${intent}-${audience}-${task}-${tool}-${index}`;
-  return { cluster, tool, intent, audience, task, style, context, modifier, slug, index };
-}
-
-/** Index of the canonical page for a (pair, audience, task, modifier) tuple. */
-export function indexForCombination(pairIndex: number, audienceIndex: number, taskIndex: number, modifier: number): number {
-  return pairIndex * PER_PAIR
-    + audienceIndex * TASKS.length * MODIFIER_COUNT
-    + taskIndex * MODIFIER_COUNT
-    + modifier;
-}
-
-export function stableHash(input: string): number {
-  let hash = 2166136261;
-  for (let index = 0; index < input.length; index += 1) {
-    hash ^= input.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-/** Exact, canonical-only resolution: the slug must be the one this index owns. */
-export function resolvePageForSlug(slug: string): ResolvedPage | undefined {
-  const suffix = slug.match(/-(\d+)$/);
-  if (!suffix) return undefined;
-  const page = pageForIndex(Number(suffix[1]));
-  return page?.slug === slug ? page : undefined;
 }
 
 /*
@@ -457,174 +407,6 @@ const DEFAULT_TASK: TaskContext = { scenario: 'completing a development task', u
 /*  exhaustively at build time by scripts/verify-edge-corpus-quality.mjs.      */
 /* -------------------------------------------------------------------------- */
 
-const TOOL_MICRO: Record<string, string> = {
-  'json-formatter': 'JSON',
-  'json-to-typescript': 'JSON to TS',
-  'base64-encode-decode': 'Base64',
-  'url-encode-decode': 'URL codec',
-  'html-entity-encode-decode': 'HTML escape',
-  'hash-generator': 'hashing',
-  'uuid-generator': 'UUID',
-  'jwt-decoder': 'JWT',
-  'text-case-converter': 'text case',
-  'diff-checker': 'diffing',
-  'regex-tester': 'regex',
-  'sql-formatter': 'SQL',
-  'css-minifier': 'CSS',
-  'markdown-preview': 'Markdown',
-  'cron-helper': 'cron',
-};
-
-const AUDIENCE_MICRO: Record<string, string> = {
-  'backend-engineer': 'backend',
-  'frontend-developer': 'frontend',
-  'fullstack-developer': 'fullstack',
-  'api-consumer': 'API teams',
-  'integration-engineer': 'integrators',
-  'security-conscious-developer': 'security',
-  'ops-engineer': 'ops',
-  'devops-engineer': 'DevOps',
-  'technical-writer': 'docs teams',
-  'data-engineer': 'data teams',
-  'mobile-developer': 'mobile',
-  'qa-engineer': 'QA',
-  'site-reliability-engineer': 'SRE',
-  'database-administrator': 'DBA',
-  'cloud-architect': 'cloud',
-  'performance-engineer': 'perf',
-  'platform-engineer': 'platform',
-  'solution-architect': 'architects',
-  'tech-lead': 'tech leads',
-  'release-engineer': 'releng',
-};
-
-/** Shortest spelling — only reached when the fuller forms blow the 70-char budget. */
-const TOOL_TINY: Record<string, string> = {
-  'json-formatter': 'JSON',
-  'json-to-typescript': 'TS types',
-  'base64-encode-decode': 'Base64',
-  'url-encode-decode': 'URL',
-  'html-entity-encode-decode': 'HTML',
-  'hash-generator': 'hashing',
-  'uuid-generator': 'UUID',
-  'jwt-decoder': 'JWT',
-  'text-case-converter': 'casing',
-  'diff-checker': 'diffing',
-  'regex-tester': 'regex',
-  'sql-formatter': 'SQL',
-  'css-minifier': 'CSS',
-  'markdown-preview': 'Markdown',
-  'cron-helper': 'cron',
-};
-
-/**
- * Fifth title/H1 atom. Must not share a uniqueTokens() stem with the job
- * atom on any (tool, intent) pair — "JSON" on a JSON-validation page, or
- * "SQL" on an SQL-formatting page, is the duplicate-concatenation fingerprint
- * Google reads first and uniqueTokens() would drop the tool atom, collapsing
- * titles across tools. `via-` keeps a short, stem-disjoint stamp.
- */
-const IDENTITY_TOOL: Record<string, string> = {
-  'json-formatter': 'fmt',
-  'json-to-typescript': 'iface',
-  'base64-encode-decode': 'b64',
-  'url-encode-decode': 'codec',
-  'html-entity-encode-decode': 'ents',
-  'hash-generator': 'digest',
-  'uuid-generator': 'guid',
-  'jwt-decoder': 'jose',
-  'text-case-converter': 'caps',
-  'diff-checker': 'delta',
-  'regex-tester': 'rx',
-  'sql-formatter': 'dml',
-  'css-minifier': 'sheet',
-  'markdown-preview': 'md',
-  'cron-helper': 'sched',
-};
-
-const AUDIENCE_TINY: Record<string, string> = {
-  'backend-engineer': 'backend',
-  'frontend-developer': 'frontend',
-  'fullstack-developer': 'fullstack',
-  'api-consumer': 'API teams',
-  'integration-engineer': 'systems',
-  'security-conscious-developer': 'security',
-  'ops-engineer': 'ops',
-  'devops-engineer': 'DevOps',
-  'technical-writer': 'docs',
-  'data-engineer': 'data',
-  'mobile-developer': 'mobile',
-  'qa-engineer': 'QA',
-  'site-reliability-engineer': 'SRE',
-  'database-administrator': 'DBA',
-  'cloud-architect': 'cloud',
-  'performance-engineer': 'perf',
-  'platform-engineer': 'platform',
-  'solution-architect': 'architect',
-  'tech-lead': 'leads',
-  'release-engineer': 'releng',
-};
-
-/** Natural noun phrase for prose (descriptions, H1). */
-const TASK_PHRASE: Record<string, string> = {
-  'debug-production-issue': 'production debugging',
-  'prepare-api-response': 'API response prep',
-  'clean-up-payload': 'payload clean-up',
-  'sanitize-user-input': 'user input safety',
-  'prepare-query-parameters': 'query parameter prep',
-  'inspect-encoded-payload': 'encoded payload review',
-  'trace-request': 'request tracing',
-  'validate-auth-token': 'auth token checks',
-  'review-config-change': 'config change review',
-  'migrate-legacy-system': 'legacy migration',
-  'prepare-deployment-artifact': 'artifact packaging',
-  'document-api-endpoint': 'endpoint documentation',
-  'optimize-build-pipeline': 'build optimisation',
-  'resolve-merge-conflict': 'merge resolution',
-  'prepare-security-audit': 'control audit prep',
-  'generate-test-fixtures': 'test fixture design',
-};
-
-/** Title-budget form. */
-const TASK_MICRO: Record<string, string> = {
-  'debug-production-issue': 'prod debugging',
-  'prepare-api-response': 'API responses',
-  'clean-up-payload': 'payload prep',
-  'sanitize-user-input': 'input safety',
-  'prepare-query-parameters': 'query params',
-  'inspect-encoded-payload': 'encoded data',
-  'trace-request': 'tracing',
-  'validate-auth-token': 'auth tokens',
-  'review-config-change': 'config review',
-  'migrate-legacy-system': 'migrations',
-  'prepare-deployment-artifact': 'ship prep',
-  'document-api-endpoint': 'API docs',
-  'optimize-build-pipeline': 'build speed',
-  'resolve-merge-conflict': 'merge fixes',
-  'prepare-security-audit': 'audit prep',
-  'generate-test-fixtures': 'test data',
-};
-
-/** Last-resort title form — still one distinct spelling per task. */
-const TASK_TINY: Record<string, string> = {
-  'debug-production-issue': 'prod bugs',
-  'prepare-api-response': 'responses',
-  'clean-up-payload': 'payloads',
-  'sanitize-user-input': 'input',
-  'prepare-query-parameters': 'params',
-  'inspect-encoded-payload': 'encoding',
-  'trace-request': 'traces',
-  'validate-auth-token': 'tokens',
-  'review-config-change': 'config',
-  'migrate-legacy-system': 'legacy',
-  'prepare-deployment-artifact': 'artifacts',
-  'document-api-endpoint': 'spec',
-  'optimize-build-pipeline': 'builds',
-  'resolve-merge-conflict': 'merges',
-  'prepare-security-audit': 'audits',
-  'generate-test-fixtures': 'fixtures',
-};
-
 interface StyleVocab {
   /** Title-budget form. */
   micro: string;
@@ -743,146 +525,15 @@ const DEFAULT_STYLE: StyleVocab = { micro: 'in-browser', tiny: 'browser', phrase
 const DEFAULT_CONTEXT: ContextVocab = { micro: 'daily work', tiny: 'daily', phrase: 'everyday engineering work', situation: 'in everyday engineering work', demand: 'The procedure is written to be repeatable during ordinary day-to-day engineering work.', bodyBlock: 'Everyday engineering work needs a repeatable loop that fits between meetings without special ceremony.' };
 
 function styleVocab(page: ResolvedPage): StyleVocab {
-  return STYLE_VOCAB[page.style] ?? DEFAULT_STYLE;
+  const base = STYLE_VOCAB[page.style] ?? DEFAULT_STYLE;
+  const atom = STYLE_IDENTITY[page.style];
+  return atom ? { ...base, micro: atom.micro, tiny: atom.tiny } : base;
 }
 
 function contextVocab(page: ResolvedPage): ContextVocab {
-  return CONTEXT_VOCAB[page.context] ?? DEFAULT_CONTEXT;
-}
-
-/**
- * Compact spelling of an intent for the title budget: the leading verb is
- * dropped when the remainder is still a self-explanatory noun phrase, which is
- * what a reader scanning a result list actually needs.
- */
-const INTENT_MICRO_OVERRIDES: Record<string, string> = {
-  'find-and-replace-patterns': 'find and replace',
-  'detect-json-syntax-errors': 'syntax errors',
-  'convert-json-to-types': 'JSON to types',
-  'generate-unique-identifiers': 'unique IDs',
-  'rotate-unique-identifiers': 'ID rotation',
-  'generate-identifiers': 'ID generation',
-  'anonymize-sensitive-fields': 'field anonymising',
-  'format-api-documentation': 'API doc format',
-  'authenticate-api-request': 'request auth',
-  'secure-api-communication': 'secure transport',
-  'escape-template-variables': 'template escaping',
-  'escape-special-characters': 'char escaping',
-  'serialize-complex-objects': 'serialising',
-  'configure-periodic-cleanup': 'periodic cleanup',
-  'automate-data-extraction': 'data extraction',
-  'monitor-scheduled-tasks': 'job monitoring',
-  'validate-transform-output': 'transform output',
-  'reproduce-formatting-bug': 'formatting bugs',
-  'troubleshoot-encoding-mismatch': 'encoding mismatch',
-  'normalize-encoded-output': 'encoded output',
-  'compare-security-hashes': 'hash comparison',
-  'validate-markdown-syntax': 'Markdown syntax',
-  'restructure-code-blocks': 'code block layout',
-  'standardize-sql-style': 'SQL style',
-  'normalize-data-structure': 'data structure',
-  'check-data-consistency': 'data consistency',
-  'validate-data-integrity': 'data integrity',
-  'verify-data-integrity': 'integrity checks',
-  'inspect-json-structure': 'JSON structure',
-  'protect-against-xss': 'XSS protection',
-  'render-dynamic-content': 'dynamic content',
-  'preview-content-markup': 'markup preview',
-  'compress-web-assets': 'asset compression',
-  'optimize-css-output': 'CSS output',
-  'optimize-css-bundle': 'CSS bundles',
-  'beautify-query-strings': 'query formatting',
-  'align-code-formatting': 'code alignment',
-  'convert-character-sets': 'character sets',
-  'handle-unicode-text': 'Unicode text',
-  'decode-nested-encodings': 'nested encodings',
-  'verify-encoding-roundtrip': 'roundtrip check',
-  'analyze-text-differences': 'text differences',
-  'split-text-by-delimiter': 'text splitting',
-  'match-complex-patterns': 'complex patterns',
-  'extract-text-segments': 'text extraction',
-  'identify-format-change': 'format changes',
-  'pinpoint-encoding-issue': 'encoding issues',
-  'analyze-log-patterns': 'log patterns',
-  'build-extraction-pattern': 'extraction rules',
-  'filter-event-streams': 'event filtering',
-  'tag-automated-processes': 'process tagging',
-  'schedule-recurring-task': 'recurring jobs',
-  'validate-cron-schedule': 'cron schedules',
-  'create-unique-job-ids': 'unique job IDs',
-  'generate-batch-ids': 'batch IDs',
-  'parse-automation-output': 'automation output',
-  'extract-log-data': 'log extraction',
-  'aggregate-data-records': 'aggregation',
-  'migrate-data-schema': 'schema migration',
-  'create-data-fingerprint': 'data fingerprints',
-  'generate-data-models': 'data models',
-  'transform-data-format': 'format conversion',
-  'hash-data-for-storage': 'storage hashing',
-  'encode-binary-data': 'binary encoding',
-  'detect-schema-drift': 'schema drift',
-  'compare-config-files': 'config comparison',
-  'isolate-parsing-error': 'parsing errors',
-  'debug-regex-match': 'regex matches',
-  'verify-output-format': 'output format',
-  'trace-data-flow': 'data flow',
-  'design-api-schema': 'API schema design',
-  'validate-api-response': 'API responses',
-  'construct-query-string': 'query strings',
-  'parse-webhook-payload': 'webhook payloads',
-  'debug-api-error': 'API errors',
-  'test-api-endpoint': 'endpoint testing',
-  'normalize-api-data': 'API data shape',
-  'optimize-api-payload': 'payload size',
-  'version-api-response': 'API versioning',
-  'audit-token-expiry': 'token expiry',
-  'hash-sensitive-data': 'sensitive data',
-  'generate-secure-keys': 'secure keys',
-  'validate-jwt-claims': 'JWT claims',
-  'detect-token-tampering': 'token tampering',
-  'analyze-token-payload': 'token payloads',
-  'inspect-signatures': 'signatures',
-  'verify-tokens': 'token checks',
-  'clean-up-whitespace': 'whitespace',
-  'build-regex-patterns': 'regex patterns',
-  'validate-input-format': 'input format',
-  'convert-text-case': 'text case',
-  'compare-versions': 'version diffs',
-  'normalize-text': 'text normalising',
-  'test-regex': 'regex testing',
-  'flatten-nested-json': 'nested JSON',
-  'generate-json-schema': 'JSON schema',
-  'minify-json-payload': 'JSON minifying',
-  'merge-json-data': 'JSON merging',
-  'extract-json-values': 'JSON values',
-  'transform-json-keys': 'JSON keys',
-  'compare-json-objects': 'JSON comparison',
-  'validate-json': 'JSON validation',
-  'format-json': 'JSON formatting',
-  'encode-data': 'data encoding',
-  'decode-data': 'data decoding',
-  'fix-encoding-bugs': 'encoding bugs',
-  'batch-encode-values': 'batch encoding',
-  'convert-binary-to-text': 'binary to text',
-  'sanitize-html-input': 'HTML sanitising',
-  'minify-stylesheet': 'CSS minifying',
-  'validate-markup-output': 'markup output',
-  'format-rich-text': 'rich text',
-  'secure-form-data': 'form data safety',
-  'encode-url-parameters': 'URL parameters',
-  'render-documentation': 'doc rendering',
-  'compress-stylesheet': 'stylesheet size',
-  'indent-nested-code': 'indentation',
-  'format-sql': 'SQL formatting',
-  'minify-assets': 'asset minifying',
-  'preview-markdown': 'Markdown preview',
-};
-
-function intentMicro(intent: string): string {
-  const override = INTENT_MICRO_OVERRIDES[intent];
-  if (override) return override;
-  const words = intent.split('-');
-  return words.length >= 3 ? words.slice(1).join(' ') : words.join(' ');
+  const base = CONTEXT_VOCAB[page.context] ?? DEFAULT_CONTEXT;
+  const atom = CONTEXT_IDENTITY[page.context];
+  return atom ? { ...base, micro: atom.micro, tiny: atom.tiny } : base;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -897,7 +548,7 @@ function intentMicro(intent: string): string {
  * under ~66 also survive Google's SERP truncation, which is worth more in
  * clicks than the extra words would have been.
  */
-export const TITLE_MAX = 66;
+export const TITLE_MAX = IDENTITY_TITLE_MAX;
 export const DESCRIPTION_MIN = 150;
 export const DESCRIPTION_MAX = 160;
 
@@ -939,20 +590,7 @@ const SHORTENING_PLANS: ReadonlyArray<{ readonly tiers: readonly [number, number
 ];
 
 function formsFor(page: ResolvedPage): Forms {
-  const style = styleVocab(page);
-  const context = contextVocab(page);
-  return {
-    intent: [label(page.intent), intentMicro(page.intent)],
-    tool: [toolName(page.tool), TOOL_MICRO[page.tool] ?? toolName(page.tool), TOOL_TINY[page.tool] ?? toolName(page.tool)],
-    audience: [label(page.audience), AUDIENCE_MICRO[page.audience] ?? label(page.audience), AUDIENCE_TINY[page.audience] ?? label(page.audience)],
-    task: [
-      TASK_PHRASE[page.task] ?? label(page.task),
-      TASK_MICRO[page.task] ?? label(page.task),
-      TASK_TINY[page.task] ?? label(page.task),
-    ],
-    style: [style.micro, style.tiny],
-    context: [context.micro, context.tiny],
-  };
+  return identityFormsFor(page);
 }
 
 function capitalise(value: string): string {
@@ -968,41 +606,8 @@ function capitalise(value: string): string {
  * boilerplate that repeats 20 million times (the brand is still carried by
  * og:site_name and the JSON-LD publisher).
  */
-/**
- * Five whitespace tokens, six URL dimensions (style+context fused). Neighbour
- * 5-gram Jaccard of <title>/<h1> is therefore 0 (one 5-gram, and it always
- * contains the setting atom). uniqueTokens() runs last so "JSON … JSON" cannot
- * ship. The fifth atom is always `via-{tool}` — never a second copy of the job
- * noun.
- */
-function identityAtoms(page: ResolvedPage, forms: Forms, tiers: readonly [number, number, number, number, number, number]): [string, string, string, string, string] {
-  const [i, , a, k, s, c] = tiers;
-  const job = tokenAtom(forms.intent[i]);
-  const audience = tokenAtom(forms.audience[a]);
-  const task = tokenAtom(forms.task[k]);
-  const setting = `${tokenAtom(forms.style[s])}-${tokenAtom(forms.context[c])}`;
-  const tool = `via-${tokenAtom(IDENTITY_TOOL[page.tool] ?? forms.tool[2] ?? page.tool)}`;
-  return [job, audience, task, setting, tool];
-}
-
-function assembleIdentityLine(atoms: readonly [string, string, string, string, string]): string {
-  const [job, audience, task, setting, tool] = atoms;
-  const jobShown = job.charAt(0).toUpperCase() + job.slice(1);
-  return uniqueTokens(`${jobShown}: ${audience} ${task} ${setting} ${tool}`);
-}
-
-function buildTitle(page: ResolvedPage, forms: Forms): string {
-  let candidate = '';
-  for (const { tiers } of SHORTENING_PLANS) {
-    candidate = assembleIdentityLine(identityAtoms(page, forms, tiers));
-    if (candidate.length <= TITLE_MAX) return candidate;
-  }
-  if (candidate.length > TITLE_MAX) {
-    const cut = candidate.slice(0, TITLE_MAX);
-    const at = cut.lastIndexOf(' ');
-    candidate = uniqueTokens((at >= 40 ? cut.slice(0, at) : cut).replace(/[\s,;:.–—-]+$/, ''));
-  }
-  return candidate;
+function buildTitle(page: ResolvedPage, _forms?: Forms): string {
+  return buildFiveAtomTitle(page);
 }
 
 /**
@@ -1151,8 +756,8 @@ export function titleVocabularyAudit(): { problems: string[]; worstCaseTitleLeng
     { name: 'tool', values: Array.from(new Set(CLUSTERS.flatMap(([, tools]) => tools))), spellings: (v) => [toolName(v), TOOL_MICRO[v] ?? '', TOOL_TINY[v] ?? ''] },
     { name: 'audience', values: [...AUDIENCES], spellings: (v) => [label(v), AUDIENCE_MICRO[v] ?? '', AUDIENCE_TINY[v] ?? ''] },
     { name: 'task', values: [...TASKS], spellings: (v) => [TASK_PHRASE[v] ?? '', TASK_MICRO[v] ?? '', TASK_TINY[v] ?? ''] },
-    { name: 'style', values: [...MODIFIER_STYLES], spellings: (v) => [STYLE_VOCAB[v]?.micro ?? '', STYLE_VOCAB[v]?.tiny ?? ''] },
-    { name: 'context', values: [...MODIFIER_CONTEXTS], spellings: (v) => [CONTEXT_VOCAB[v]?.micro ?? '', CONTEXT_VOCAB[v]?.tiny ?? ''] },
+    { name: 'style', values: [...MODIFIER_STYLES], spellings: (v) => [STYLE_IDENTITY[v]?.micro ?? '', STYLE_IDENTITY[v]?.tiny ?? ''] },
+    { name: 'context', values: [...MODIFIER_CONTEXTS], spellings: (v) => [CONTEXT_IDENTITY[v]?.micro ?? '', CONTEXT_IDENTITY[v]?.tiny ?? ''] },
   ];
 
   for (const style of MODIFIER_STYLES) {

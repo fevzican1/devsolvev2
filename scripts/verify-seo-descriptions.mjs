@@ -1,4 +1,4 @@
-import { ensureSeoDescription } from '../src/lib/seo/seoText.ts';
+import { ensureSeoDescription, descriptionHasTruncatedTail } from '../src/lib/seo/seoText.ts';
 import { hasDuplicateContentTokens, uniqueTokens } from '../src/lib/seo/uniqueTokens.ts';
 import { siteConfig } from '../src/config/site.ts';
 
@@ -29,12 +29,14 @@ for (const [slug, raw] of samples) {
   const ok = out.length >= 150 && out.length <= 160 && /[.!?…]$/.test(out)
     && unique === out
     && !hasDuplicateContentTokens(out)
+    && !descriptionHasTruncatedTail(out)
     && (allowFallback || !isGenericFallback);
   const reasons = [];
   if (out.length < 150 || out.length > 160) reasons.push('length');
   if (!/[.!?…]$/.test(out)) reasons.push('punctuation');
   if (unique !== out) reasons.push('uniqueTokens-unstable');
   if (hasDuplicateContentTokens(out)) reasons.push('duplicate-stems');
+  if (descriptionHasTruncatedTail(out)) reasons.push('truncated-tail');
   if (!allowFallback && isGenericFallback) reasons.push('generic-fallback');
   console.log(`${ok ? 'OK' : 'FAIL'} ${slug}: len=${out.length}${reasons.length ? ` [${reasons.join(',')}]` : ''}${isGenericFallback ? ' (GENERIC FALLBACK)' : ''} ${out}`);
   if (!ok) failed = true;
@@ -44,6 +46,7 @@ const fallback = ensureSeoDescription('');
 const fallbackOk = fallback.length >= 150 && fallback.length <= 160
   && uniqueTokens(fallback) === fallback
   && !hasDuplicateContentTokens(fallback)
+  && !descriptionHasTruncatedTail(fallback)
   && /[.!?…]$/.test(fallback);
 console.log(`${fallbackOk ? 'OK' : 'FAIL'} empty-fallback: len=${fallback.length} ${fallback}`);
 if (!fallbackOk) failed = true;

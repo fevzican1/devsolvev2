@@ -28,6 +28,7 @@ import {
   MIN_INDEXABLE_WORDS,
 } from '../src/lib/seo/uniqueTokens.ts';
 import { formatProgrammaticHubLabel, looksLikeSlugDumpLabel } from '../src/lib/programmatic/hub.ts';
+import { fiveAtomTitleForSlug, isFiveAtomIdentityTitle } from '../src/lib/seo/factoryIdentity.ts';
 import { QUALITY_CONTRACT } from './lib/ai-indexing-agent.mjs';
 import { getOrRefreshHubLinks } from '../src/lib/indexing/hubDiscovery.ts';
 import { staticProgrammaticSlugs } from '../src/lib/programmatic/staticPaths.ts';
@@ -70,11 +71,24 @@ for (const link of homeHub.links) {
     console.error(`FAIL homepage Guides & Tools still dumped: "${link.title}" (${link.href})`);
     process.exit(1);
   }
+  if (link.href.startsWith('/k/') && !isFiveAtomIdentityTitle(link.title)) {
+    console.error(`FAIL homepage /k/ anchor is not a 5-atom identity title: "${link.title}" (${link.href})`);
+    process.exit(1);
+  }
 }
 for (const slug of staticProgrammaticSlugs.slice(0, 120)) {
   const label = formatProgrammaticHubLabel(slug);
+  const identity = fiveAtomTitleForSlug(slug);
   if (looksLikeSlugDumpLabel(label) || /JSON Validate Backend Engineer Prepare/i.test(label)) {
     console.error(`FAIL static hub label dumped: "${label}" for ${slug}`);
+    process.exit(1);
+  }
+  if (!isFiveAtomIdentityTitle(label)) {
+    console.error(`FAIL static hub label is not 5-atom: "${label}" for ${slug}`);
+    process.exit(1);
+  }
+  if (identity && label !== identity) {
+    console.error(`FAIL hub label drifted from factory identity: hub="${label}" identity="${identity}" for ${slug}`);
     process.exit(1);
   }
 }
@@ -134,7 +148,9 @@ for (let i = 0; i < SAMPLE; i += 1) {
   if (hasDuplicateContentTokens(id.description)) identityFails += 1;
   const hub = formatProgrammaticHubLabel(page.slug);
   if (looksLikeSlugDumpLabel(hub) || /JSON Validate Backend Engineer Prepare/i.test(hub)) hubFails += 1;
+  if (!isFiveAtomIdentityTitle(hub) || hub !== id.title) hubFails += 1;
   if (looksLikeSlugDumpLabel(id.title) || looksLikeSlugDumpLabel(id.h1)) identityFails += 1;
+  if (!isFiveAtomIdentityTitle(id.title) || id.title !== id.h1) identityFails += 1;
 
   const html = renderProgrammaticPage(page, ORIGIN);
   const gate = edgeQualityGate(html, page);
