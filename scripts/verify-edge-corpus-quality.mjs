@@ -56,6 +56,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   CORPUS_SIZE,
+  SITEMAP_PUBLIC_LIMIT,
   PAIRS,
   PER_PAIR,
   AUDIENCES,
@@ -75,6 +76,7 @@ import {
   titleVocabularyAudit,
   auditServedCopy,
 } from '../functions/_lib/programmaticPage.ts';
+import { edgeQualityGate } from '../functions/_lib/qualityGate.ts';
 import { scorePage, MIN_INDEXABLE_SCORE } from './lib/ai-quality-scoring.mjs';
 import { guidelineDigest } from './lib/search-guidelines.mjs';
 import { agentBanner, AGENT_VERSION, COST_MODEL, QUALITY_CONTRACT } from './lib/ai-indexing-agent.mjs';
@@ -104,6 +106,12 @@ console.log(agentBanner());
 console.log(`  Agent version:      ${AGENT_VERSION}`);
 console.log(`  Cost model:         Function-on-miss=${COST_MODEL.functionOnlyOnCacheMiss} LLM=${COST_MODEL.llmApiCalls} Workers=${COST_MODEL.cloudflareWorkers} cloaking=${!COST_MODEL.identicalHtmlForAllUserAgents}`);
 console.log(`  Corpus size:        ${CORPUS_SIZE.toLocaleString()}`);
+console.log(`  Sitemap advertised: ${SITEMAP_PUBLIC_LIMIT.toLocaleString()}`);
+if (SITEMAP_PUBLIC_LIMIT !== CORPUS_SIZE) {
+  fail('A:sitemap-full-corpus', {
+    message: `SITEMAP_PUBLIC_LIMIT ${SITEMAP_PUBLIC_LIMIT} !== CORPUS_SIZE ${CORPUS_SIZE}`,
+  });
+}
 console.log(`  Rulebook:           scripts/lib/search-guidelines.mjs (${guidelineDigest().length} cited rules)`);
 console.log(`  Indexable bar:      score >= ${MIN_INDEXABLE_SCORE} AND zero critical guideline violations`);
 
@@ -303,6 +311,10 @@ function checkDocument(index) {
   }
   if (copyIssues.length) {
     fail('C:copy-quality', { slug: page.slug, message: copyIssues.join('; ') });
+  }
+  const gate = edgeQualityGate(html, page);
+  if (!gate.ok) {
+    fail('C:edge-gate', { slug: page.slug, message: gate.issues.join('; ') });
   }
   if (/<h[4-6]\b/i.test(html)) {
     fail('C:outline', { slug: page.slug, message: 'H4+ heading in served HTML (shared chrome/ad outline)' });

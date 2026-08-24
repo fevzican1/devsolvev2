@@ -1,4 +1,19 @@
-# Ramp Auto-Advance — Kullanım Kılavuzu
+# Full-corpus sitemap lock
+
+`.ramp-level` is **5**. `/sitemap.xml` advertises all 20 million `/k/` URLs.
+This workflow no longer advances or contracts a staged 2M/5M band. It only
+verifies that the edge sitemap and `.ramp-level` still say 5.
+
+Neighbour uniqueness (ctx+1 / style+1 5-gram Jaccard ≤ 0.04) plus the edge
+quality gate are what keep Google/Bing from treating the factory as scaled
+junk — not a smaller advertised set.
+
+---
+
+# Ramp Auto-Advance — archive (disabled)
+
+The previous Monday GSC auto-advance/contract path is retired. The rest of
+this file is historical.
 
 ## Ne Yapar?
 
