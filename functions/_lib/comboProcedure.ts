@@ -79,11 +79,11 @@ function fnv(value: string): number {
 
 /**
  * Slot map on one URL — ranges must not overlap (repeated sentences = stuffing).
- * 0–1 intro, 2 entity, 10–17 steps, 20–26 decision, 30–33 takeaways,
+ * 0–1 intro, 2 entity, 10–19 steps, 20–26 decision, 30–33 takeaways,
  * 34–37 acceptance, 38–41 pitfalls, 42–49 practice, 50–57 job paras,
  * 59 snippet lead, 60–61 example, 62 matrix lead, 70–77 faq,
  * 80–85 artifact, 90–93 glossary, 94–99 comparison,
- * 100–103 extra practice, 104–107 extra job paras, 110–112 job list, 120–125 audience,
+ * 100–103 extra practice, 104–109 extra job paras, 110–112 job list, 120–125 audience,
  * 140–145 context,
  * 200+ semanticValue / snippet captions (pageVariation 220+).
  */
@@ -188,7 +188,7 @@ export function comboEntityDefinition(k: PageKernel): string {
 }
 
 export function comboSteps(k: PageKernel): string[] {
-  return comboLines(k, 10, 8);
+  return comboLines(k, 10, 10);
 }
 
 export function comboDecision(k: PageKernel): {
@@ -229,7 +229,7 @@ export function comboContextParagraphs(k: PageKernel): string[] {
 export function comboJobParagraphs(k: PageKernel): string[] {
   // Always-rendered (never omitted). Extra lanes keep every genre/setting
   // combo ≥ 1700 words after <pre> is stripped by the edge word counter.
-  return [...comboLines(k, 50, 8), ...comboLines(k, 104, 4)];
+  return [...comboLines(k, 50, 8), ...comboLines(k, 104, 6)];
 }
 
 export function comboJobList(k: PageKernel): string[] {

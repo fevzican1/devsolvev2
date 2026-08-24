@@ -93,9 +93,9 @@ export const TARGET_CORPUS_SIZE = 20_000_000;
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-24T23:00:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-24T23:30:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'h';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'i';
 
 /*
  * Full-corpus sitemap. /sitemap.xml advertises every one of the 20M /k/ URLs.
@@ -495,7 +495,7 @@ const AUDIENCE_MICRO: Record<string, string> = {
   'platform-engineer': 'platform',
   'solution-architect': 'architects',
   'tech-lead': 'tech leads',
-  'release-engineer': 'release',
+  'release-engineer': 'releng',
 };
 
 /** Shortest spelling — only reached when the fuller forms blow the 70-char budget. */
@@ -562,7 +562,7 @@ const AUDIENCE_TINY: Record<string, string> = {
   'platform-engineer': 'platform',
   'solution-architect': 'architect',
   'tech-lead': 'leads',
-  'release-engineer': 'release',
+  'release-engineer': 'releng',
 };
 
 /** Natural noun phrase for prose (descriptions, H1). */
@@ -577,11 +577,11 @@ const TASK_PHRASE: Record<string, string> = {
   'validate-auth-token': 'auth token checks',
   'review-config-change': 'config change review',
   'migrate-legacy-system': 'legacy migration',
-  'prepare-deployment-artifact': 'release packaging',
+  'prepare-deployment-artifact': 'artifact packaging',
   'document-api-endpoint': 'endpoint documentation',
   'optimize-build-pipeline': 'build optimisation',
   'resolve-merge-conflict': 'merge resolution',
-  'prepare-security-audit': 'security audit prep',
+  'prepare-security-audit': 'control audit prep',
   'generate-test-fixtures': 'test fixture design',
 };
 
@@ -597,7 +597,7 @@ const TASK_MICRO: Record<string, string> = {
   'validate-auth-token': 'auth tokens',
   'review-config-change': 'config review',
   'migrate-legacy-system': 'migrations',
-  'prepare-deployment-artifact': 'release prep',
+  'prepare-deployment-artifact': 'ship prep',
   'document-api-endpoint': 'API docs',
   'optimize-build-pipeline': 'build speed',
   'resolve-merge-conflict': 'merge fixes',
@@ -617,8 +617,8 @@ const TASK_TINY: Record<string, string> = {
   'validate-auth-token': 'tokens',
   'review-config-change': 'config',
   'migrate-legacy-system': 'legacy',
-  'prepare-deployment-artifact': 'releases',
-  'document-api-endpoint': 'docs',
+  'prepare-deployment-artifact': 'artifacts',
+  'document-api-endpoint': 'spec',
   'optimize-build-pipeline': 'builds',
   'resolve-merge-conflict': 'merges',
   'prepare-security-audit': 'audits',
@@ -728,7 +728,7 @@ const CONTEXT_VOCAB: Record<string, ContextVocab> = {
   'for-compliance-reporting': { micro: 'compliance', tiny: 'policy', phrase: 'compliance reporting', situation: 'for compliance reporting', demand: 'Compliance reporting needs a defensible paper trail — what was checked, when, with which inputs — not just a green result someone remembers seeing.', bodyBlock: 'Compliance reporting needs a defensible paper trail: what was checked, when, with which inputs, under which policy reference. A green screenshot without provenance is not enough for this context.' },
   'for-incident-postmortems': { micro: 'postmortems', tiny: 'retro', phrase: 'incident postmortems', situation: 'in an incident postmortem', demand: 'A postmortem re-runs the evidence after the fact, so the procedure must be reproducible from records alone, weeks after the original session ended.', bodyBlock: 'Postmortem context re-runs evidence weeks later from records alone. Anything that depended on a live terminal state or a forgotten browser tab fails. Freeze fixtures as if a stranger will replay them next quarter.' },
   'for-capacity-planning': { micro: 'capacity', tiny: 'capacity', phrase: 'capacity planning', situation: 'in capacity planning', demand: 'Capacity work cares about behaviour as volume grows, so a sample-sized result is only useful when you also note how it scales with payload size and concurrency.', bodyBlock: 'Capacity planning asks how behaviour changes as volume grows. Record sample size, concurrency notes, and where the browser path stops being representative. A single tiny fixture without scaling commentary is incomplete here.' },
-  'for-release-management': { micro: 'releases', tiny: 'releases', phrase: 'release management', situation: 'in release management', demand: 'Release management wants a go/no-go signal: the check has to be decisive, fast enough to run at the gate, and safe to repeat on a rollback.', bodyBlock: 'Release management wants a binary go/no-go that is fast at the gate and safe on rollback. Indeterminate “maybe fine” outcomes are process failures. A decisive check is worth more here than exploratory browsing.' },
+  'for-release-management': { micro: 'cutover', tiny: 'cutover', phrase: 'release management', situation: 'in release management', demand: 'Release management wants a go/no-go signal: the check has to be decisive, fast enough to run at the gate, and safe to repeat on a rollback.', bodyBlock: 'Release management wants a binary go/no-go that is fast at the gate and safe on rollback. Indeterminate “maybe fine” outcomes are process failures. A decisive check is worth more here than exploratory browsing.' },
   'for-vendor-integration': { micro: 'vendor work', tiny: 'vendors', phrase: 'vendor integrations', situation: 'in a vendor integration', demand: 'With a vendor you cannot change the other side, so the workflow has to isolate whether the defect is in their payload, your parsing, or the transport between them.', bodyBlock: 'Vendor integrations assume you cannot patch the other side. Isolate whether the defect is their payload, your parsing, or the transport. Blame-shifting without a boundary test fails this context.' },
   'for-data-governance': { micro: 'governance', tiny: 'lineage', phrase: 'data governance', situation: 'under data governance', demand: 'Governance asks where the data went as much as what the result was, which is why a local, no-upload procedure is easier to approve than a hosted equivalent.', bodyBlock: 'Data governance scores lineage as highly as correctness. Where did the bytes go? Who could see them? A correct answer that created an unapproved copy still fails. Prefer no-upload paths and explicit retention notes.' },
   'for-service-mesh-debugging': { micro: 'mesh debug', tiny: 'mesh', phrase: 'service mesh debugging', situation: 'in service mesh debugging', demand: 'In a mesh the payload passes through several hops, so the check has to be applied at each boundary to find the hop that changed it.', bodyBlock: 'Service mesh debugging is hop-oriented. Apply the same check at each boundary until the mutating hop is identified. Inspecting one point without comparing hops misses the point.' },
@@ -1265,6 +1265,24 @@ export function titleVocabularyAudit(): { problems: string[]; worstCaseTitleLeng
       via: viaMax,
       separators,
     })})`);
+  }
+
+  const doubledWord = /\b(\w+) \1\b/i;
+  for (const audience of AUDIENCES) {
+    const audienceSpellings = [label(audience), AUDIENCE_MICRO[audience] ?? '', AUDIENCE_TINY[audience] ?? ''];
+    for (const task of TASKS) {
+      const taskSpellings = [TASK_PHRASE[task] ?? '', TASK_MICRO[task] ?? '', TASK_TINY[task] ?? ''];
+      for (const audienceSpelling of audienceSpellings) {
+        if (!audienceSpelling) continue;
+        for (const taskSpelling of taskSpellings) {
+          if (!taskSpelling) continue;
+          const line = `${tokenAtom(audienceSpelling)} ${tokenAtom(taskSpelling)}`;
+          if (doubledWord.test(line)) {
+            problems.push(`audience "${audience}" + task "${task}" identity "${line}" repeats a word`);
+          }
+        }
+      }
+    }
   }
 
   return { problems, worstCaseTitleLength, checkedSpellings };
