@@ -1,10 +1,9 @@
 /**
  * Published search-crawler networks.
  *
- * WAF1 may skip Chrome renderers from these ASNs when the User-Agent is
- * not already a Googlebot/Bingbot token. Google and Bing often fetch /k/
- * and assets with a plain Chrome User-Agent. Those requests used to fall
- * through to WAF3. A spoofed Googlebot string is not enough to skip.
+ * WAF1 may skip Chrome renderers from these ASNs. Google and Bing often
+ * fetch /k/ and assets with a plain Chrome User-Agent (no "google"/"bing"
+ * token). Those requests used to fall through to WAF3.
  *
  * WAF2–WAF5 must never mention these ASNs or the words Google / Bing.
  * Putting 15169 or 8075 on a challenge list is how a renderer gets 403ed.

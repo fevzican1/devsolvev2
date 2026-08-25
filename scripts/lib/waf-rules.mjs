@@ -4,13 +4,12 @@
  * Keep these expressions short and obvious. The live dashboard should match
  * this file. First match wins.
  *
- * WAF1 is the only rule that names search or social crawlers. Real Google
- * and Bing skip only when a crawler User-Agent token AND a crawler ASN both
- * match. Do not skip on the bare substrings "google" / "bing" / "msn" — that
- * is the spoof leak. Do not add `cf.client.bot` here: Cloudflare often
- * verifies Google and lags on Bing, and that lag is what 403s a real Bing
- * crawl. Do not try to catch fake Googlebot/Bingbot in later rules. Applebot
- * is intentionally NOT skipped here — WAF5 already blocks it.
+ * WAF1 is the only rule that names search or social crawlers. It SKIPS them
+ * on User-Agent (and Google/Bing renderer ASNs). Do not add `cf.client.bot`
+ * here: Cloudflare often verifies Google and lags on Bing, and that lag is
+ * what 403s a real Bing crawl. Do not try to catch fake Googlebot/Bingbot
+ * in later rules. Applebot is intentionally NOT skipped here — WAF5 already
+ * blocks it.
  *
  * WAF2 and WAF3 expressions are frozen. Do not edit them. Operator rules
  * (sasd, AI Crawl Control) stay in slots 4 and 5.
@@ -20,35 +19,10 @@ import { BING_CRAWLER_ASNS, GOOGLE_WAF1_ASNS, wafAsnSet } from './crawler-asns.m
 
 export const MAX_EXPRESSION_LENGTH = 4096;
 
-/** Social unfurls. Not Google/Bing — those require crawler ASN. */
-export const WAF1_SOCIAL_UA_SKIP_TOKENS = [
+export const WAF1_UA_SKIP_TOKENS = [
+  'google', 'bing', 'msn', 'adidx', 'microsoftpreview',
   'twitter', 'facebook', 'facebot', 'linkedin', 'slack',
   'discord', 'whatsapp', 'telegram', 'reddit', 'pinterest',
-];
-
-/** Real Google crawlers. Not the substring "google". */
-export const WAF1_GOOGLE_UA_TOKENS = [
-  'googlebot',
-  'google-inspectiontool',
-  'adsbot-google',
-  'apis-google',
-  'mediapartners-google',
-  'storebot-google',
-  'googleproducer',
-  'google-read-aloud',
-  'feedfetcher-google',
-  'googleother',
-  'google-site-verification',
-  'duplexweb-google',
-];
-
-/** Real Bing crawlers. Not the substring "bing" / "msn". */
-export const WAF1_BING_UA_TOKENS = [
-  'bingbot',
-  'msnbot',
-  'adidxbot',
-  'bingpreview',
-  'microsoftpreview',
 ];
 
 export const WAF1_PUBLIC_PATHS = [
@@ -83,35 +57,9 @@ const FARM_STAMP_DENY = collapse(`
   and not (lower(http.user_agent) contains "mac os x 10_15_7" and lower(http.user_agent) contains "chrome/")
 `);
 
-function uaContainsAny(tokens) {
-  return tokens.map((token) => `lower(http.user_agent) contains "${token}"`).join(' or ');
-}
-
-const GOOGLE_UA_ANY = `(${uaContainsAny(WAF1_GOOGLE_UA_TOKENS)})`;
-const BING_UA_ANY = `(${uaContainsAny(WAF1_BING_UA_TOKENS)})`;
-const SEARCH_UA_DENY = `not (${uaContainsAny([...WAF1_GOOGLE_UA_TOKENS, ...WAF1_BING_UA_TOKENS])})`;
-
 /**
- * Named Google/Bing crawlers skip only from their own crawler ASNs.
- * GCP 396982 is not a Google crawler ASN. Chrome-extension never skips.
- * Bing also drops farm-stamped Chrome even when the UA says bingbot.
- */
-export const WAF1_SEARCH_CRAWLER_ASN = collapse(`(
-  ${EXTENSION_DENY}
-  and (
-    (${GOOGLE_UA_ANY} and ip.src.asnum in ${wafAsnSet(GOOGLE_WAF1_ASNS)})
-    or (
-      ${BING_UA_ANY}
-      and ip.src.asnum in ${wafAsnSet(BING_CRAWLER_ASNS)}
-      and ${FARM_STAMP_DENY}
-    )
-  )
-)`);
-
-/**
- * Plain Chrome renderers from Google/Bing ASNs (PageSpeed, headless fetch).
- * Search-crawler User-Agents are excluded so a spoofed Googlebot+Chrome
- * string on Azure 8075 cannot ride the Bing renderer skip.
+ * Chrome renderers from Google/Bing ASNs. No google/bing in those UAs, so
+ * they used to hit WAF3. This skip is ASN-only — not a spoofable UA token.
  *
  * - Google crawler ASNs (not GCP 396982): skip Chrome, including PageSpeed's
  *   Chrome/123.0.0.0. Farms do not sit on 15169.
@@ -122,7 +70,6 @@ export const WAF1_SEARCH_CRAWLER_ASN = collapse(`(
 export const WAF1_SEARCH_RENDERER_ASN = collapse(`(
   lower(http.user_agent) contains "chrome/"
   and ${EXTENSION_DENY}
-  and ${SEARCH_UA_DENY}
   and (
     ip.src.asnum in ${wafAsnSet(GOOGLE_WAF1_ASNS)}
     or (
@@ -133,14 +80,13 @@ export const WAF1_SEARCH_RENDERER_ASN = collapse(`(
 )`);
 
 /**
- * WAF1 — SKIP. Real Google/Bing crawlers (token + ASN), social unfurls,
- * Google/Bing Chrome renderers, and the public files above. No verified-bot
- * flag. No Applebot. No lighthouse / pagespeed tokens. No bare "google" /
- * "bing" substring skip.
+ * WAF1 — SKIP. Search + social User-Agents, Google/Bing renderer ASNs, and
+ * the public files above. No verified-bot flag. No Applebot. No lighthouse /
+ * pagespeed tokens — the farm can append those in one edit; Google PageSpeed
+ * comes from 15169 and skips via the ASN clause instead.
  */
 export const WAF1_SKIP = collapse(`(
-  ${WAF1_SOCIAL_UA_SKIP_TOKENS.map((token) => `lower(http.user_agent) contains "${token}"`).join('\n  or ')}
-  or ${WAF1_SEARCH_CRAWLER_ASN}
+  ${WAF1_UA_SKIP_TOKENS.map((token) => `lower(http.user_agent) contains "${token}"`).join('\n  or ')}
   or ${WAF1_SEARCH_RENDERER_ASN}
   or ${PUBLIC_ENDPOINTS}
 )`);
@@ -157,12 +103,8 @@ export function isExtensionRequest({ ua = '', origin = '', referer = '' } = {}) 
   return blob.includes('chrome-extension') || blob.includes('moz-extension');
 }
 
-function uaHasToken(lower, tokens) {
-  return tokens.some((token) => lower.includes(token));
-}
-
 /**
- * Offline model of WAF1. Real Google/Bing skip; spoofed crawler UAs do not.
+ * Offline model of WAF1. Used to prove the dashboard farm UAs cannot skip.
  */
 export function matchesWaf1Skip({
   ua = '',
@@ -172,30 +114,16 @@ export function matchesWaf1Skip({
   referer = '',
 } = {}) {
   const lower = String(ua || '').toLowerCase();
+  if (WAF1_UA_SKIP_TOKENS.some((token) => lower.includes(token))) {
+    return { skip: true, via: 'ua-token' };
+  }
   if (WAF1_PUBLIC_PATHS.includes(path)) {
     return { skip: true, via: 'public-path' };
-  }
-  if (uaHasToken(lower, WAF1_SOCIAL_UA_SKIP_TOKENS)) {
-    return { skip: true, via: 'social-ua' };
-  }
-
-  const hasGoogleToken = uaHasToken(lower, WAF1_GOOGLE_UA_TOKENS);
-  const hasBingToken = uaHasToken(lower, WAF1_BING_UA_TOKENS);
-  const extension = isExtensionRequest({ ua, origin, referer });
-
-  if (!extension && hasGoogleToken && GOOGLE_WAF1_ASNS.includes(asnum)) {
-    return { skip: true, via: 'google-crawler' };
-  }
-  if (!extension && hasBingToken && BING_CRAWLER_ASNS.includes(asnum) && !isFarmStampUa(ua)) {
-    return { skip: true, via: 'bing-crawler' };
-  }
-  if (hasGoogleToken || hasBingToken) {
-    return { skip: false, via: null };
   }
   if (!lower.includes('chrome/')) {
     return { skip: false, via: null };
   }
-  if (extension) {
+  if (isExtensionRequest({ ua, origin, referer })) {
     return { skip: false, via: null };
   }
   if (GOOGLE_WAF1_ASNS.includes(asnum)) {

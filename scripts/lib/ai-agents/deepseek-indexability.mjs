@@ -202,8 +202,8 @@ function systemInvariants() {
   if (/applebot/i.test(WAF1_SKIP)) {
     failures.push({ scope: 'system', reason: 'WAF1 still skips Applebot — that is the hole' });
   }
-  if (!WAF1_SKIP.includes('"googlebot"') || !WAF1_SKIP.includes('"bingbot"')) {
-    failures.push({ scope: 'system', reason: 'WAF1 must name googlebot and bingbot' });
+  if (!WAF1_SKIP.includes('"google"') || !WAF1_SKIP.includes('"bing"')) {
+    failures.push({ scope: 'system', reason: 'WAF1 must name google and bing' });
   }
   if (!WAF1_SKIP.includes('ip.src.asnum')) {
     failures.push({ scope: 'system', reason: 'WAF1 must skip Google/Bing renderer ASNs' });

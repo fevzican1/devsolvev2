@@ -2,10 +2,8 @@
 /**
  * Offline WAF policy check. No Cloudflare token required.
  *
- * 1. WAF1 skips real Google/Bing crawlers on crawler token + crawler ASN,
- *    plus social User-Agents and Google/Bing Chrome renderer ASNs.
- *    Bare "google"/"bing" substring skip is forbidden (spoof leak).
- *    Applebot is not skipped.
+ * 1. WAF1 skips search + social User-Agents and Google/Bing renderer ASNs.
+ *    Applebot is not skipped (that was the hole).
  * 2. WAF2 and WAF3 expressions are frozen and never name Google or Bing.
  * 3. Farm Chrome/144.0.0.0 and Catalina 10_15_7 stamps are blocked.
  * 4. Chrome /k/ without navigate+document is blocked (missing headers included).
@@ -43,17 +41,13 @@ function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
 }
 
-function uaContainsTokens(expr) {
-  return [...expr.matchAll(/contains "([^"]+)"/g)].map((m) => m[1]);
-}
-
 assertExpressionLengths();
 ok('every expression fits the 4096-char cap');
 
 if (/cf\.client\.bot/.test(WAF1_SKIP)) {
   fail('WAF1 requires cf.client.bot — that is the Bing outage (verification lag)');
 } else {
-  ok('WAF1 skips on crawler token+ASN / renderer ASN only (no verified-bot flag)');
+  ok('WAF1 skips on User-Agent / renderer ASN only (no verified-bot flag)');
 }
 
 if (/applebot/i.test(WAF1_SKIP)) {
@@ -62,19 +56,10 @@ if (/applebot/i.test(WAF1_SKIP)) {
   ok('WAF1 does not skip Applebot');
 }
 
-const skipTokens = uaContainsTokens(WAF1_SKIP);
-for (const bare of ['google', 'bing', 'msn', 'adidx']) {
-  if (skipTokens.includes(bare)) {
-    fail(`WAF1 still skips on bare "${bare}" — that is the spoof leak`);
-  }
+for (const marker of ['google', 'bing', 'msn', 'twitter', 'facebook', 'linkedin', 'reddit']) {
+  if (!WAF1_SKIP.includes(`"${marker}"`)) fail(`WAF1 missing User-Agent marker "${marker}"`);
 }
-for (const token of [
-  'googlebot', 'google-inspectiontool', 'adsbot-google', 'bingbot', 'msnbot',
-  'twitter', 'facebook', 'linkedin', 'reddit',
-]) {
-  if (!skipTokens.includes(token)) fail(`WAF1 missing User-Agent marker "${token}"`);
-}
-ok('WAF1 names real crawler tokens + social; no bare google/bing substring');
+ok('WAF1 names search + social crawlers');
 
 if (/lighthouse|pagespeed/i.test(WAF1_SKIP)) {
   fail('WAF1 must not skip lighthouse/pagespeed — the farm can append those tokens');
@@ -87,7 +72,7 @@ if (!WAF1_SKIP.includes('15169')) fail('WAF1 must include Google ASN 15169');
 if (!WAF1_SKIP.includes('8075')) fail('WAF1 must include Bing/Microsoft ASN 8075');
 if (WAF1_SKIP.includes('396982')) fail('WAF1 must not skip GCP customer ASN 396982 — farms rent those VMs');
 if (!WAF1_SKIP.includes('chrome-extension')) fail('WAF1 ASN skip must exclude chrome-extension Origin/Referer/UA');
-ok('WAF1 gates Google/Bing on crawler ASNs; GCP and extensions stay out');
+ok('WAF1 skips Chrome renderers from Google/Bing ASNs; GCP and extensions stay out');
 
 if (!WAF1_SKIP.includes('/opengraph-image.png')) fail('WAF1 must skip the PNG social card');
 else ok('WAF1 skips /opengraph-image.png');
@@ -148,7 +133,7 @@ for (const slot of ['WAF2', 'WAF3']) {
 if (!RATE_LIMIT_RULE.expression.includes('not cf.client.bot')) {
   fail('rate limit should still exempt verified bots as a second belt');
 } else {
-  ok('rate limit exempts verified bots; WAF1 skip covers real Google/Bing by ASN');
+  ok('rate limit exempts verified bots; WAF1 skip already covers unverified search UAs');
 }
 
 if (RULE_SPEC.length !== 3) fail(`expected 3 managed custom rules (WAF1–3), got ${RULE_SPEC.length}`);
@@ -186,60 +171,14 @@ for (const ua of dashboardFarmUas) {
 }
 ok('dashboard farm UAs cannot skip WAF1 (including Azure 8075, GCP 396982, extension Origin, lighthouse spoof)');
 
-const googlebot = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
-const googlebotChrome = 'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.7390.122 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
-const inspection = 'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.7390.122 Mobile Safari/537.36 (compatible; Google-InspectionTool/1.0)';
 const bingModern = 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm) Chrome/116.0.1938.76 Safari/537.36';
-
-if (matchesWaf1Skip({ ua: googlebot, asnum: 15169 }).via !== 'google-crawler') {
-  fail('real Googlebot on ASN 15169 must skip WAF1 via google-crawler');
-}
-if (matchesWaf1Skip({ ua: googlebotChrome, asnum: 15169 }).via !== 'google-crawler') {
-  fail('modern Googlebot+Chrome on ASN 15169 must skip WAF1 via google-crawler');
-}
-if (matchesWaf1Skip({ ua: inspection, asnum: 15169 }).via !== 'google-crawler') {
-  fail('Google-InspectionTool on ASN 15169 must skip WAF1 (GSC does not say googlebot)');
-}
-if (matchesWaf1Skip({ ua: bingModern, asnum: 8075 }).via !== 'bing-crawler') {
-  fail('modern Bingbot on ASN 8075 must skip WAF1 via bing-crawler');
-}
-ok('real Googlebot, InspectionTool, and Bingbot skip WAF1 on crawler token + ASN');
-
-const googleSpoofAsns = [0, 8075, 396982, 13335];
-const bingSpoofAsns = [0, 15169, 396982, 13335];
-
-for (const asnum of googleSpoofAsns) {
-  for (const [name, ua] of [
-    ['classic Googlebot', googlebot],
-    ['Chrome Googlebot', googlebotChrome],
-    ['Google-InspectionTool', inspection],
-  ]) {
-    const skip = matchesWaf1Skip({ ua, path: '/k/x', asnum });
-    if (skip.skip) fail(`spoofed ${name} skipped WAF1 via ${skip.via} asnum=${asnum}`);
-  }
-}
-for (const asnum of bingSpoofAsns) {
-  const skip = matchesWaf1Skip({ ua: bingModern, path: '/k/x', asnum });
-  if (skip.skip) fail(`spoofed modern Bingbot skipped WAF1 via ${skip.via} asnum=${asnum}`);
-}
-ok('spoofed Googlebot/Bingbot/InspectionTool UAs cannot skip WAF1');
-
-if (matchesWaf1Skip({ ua: bingModern, asnum: 15169 }).skip) {
-  fail('Bingbot User-Agent on Google ASN 15169 must not skip WAF1');
-}
-if (matchesWaf1Skip({ ua: googlebot, asnum: 8075 }).skip) {
-  fail('Googlebot User-Agent on Azure 8075 must not skip WAF1');
-}
-ok('crawler tokens cannot skip from the other engine\'s ASN');
-
-const pagespeedChrome = 'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36';
-if (matchesWaf1Skip({ ua: pagespeedChrome, asnum: 15169 }).via !== 'google-asn') {
-  fail('Google Chrome renderer on ASN 15169 must skip WAF1 (PageSpeed has no googlebot token)');
-}
-ok('Google Chrome renderers on ASN 15169 still skip WAF1');
-
+if (matchesWaf1Skip({ ua: bingModern }).via !== 'ua-token') fail('modern Bingbot must skip WAF1 on the bing token');
 if (bingModern.toLowerCase().includes('.0.0.0')) fail('modern Bingbot UA must not match the .0.0.0 farm stamp');
-ok('modern Bingbot does not use the .0.0.0 farm stamp');
+ok('modern Bingbot skips WAF1 on User-Agent and does not use the .0.0.0 farm stamp');
+
+const googlebot = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+if (matchesWaf1Skip({ ua: googlebot }).via !== 'ua-token') fail('Googlebot must skip WAF1 on the google token');
+ok('Googlebot skips WAF1 on User-Agent');
 
 if (failures.length) {
   console.error(`\nFAIL — ${failures.length} WAF policy issue(s)`);

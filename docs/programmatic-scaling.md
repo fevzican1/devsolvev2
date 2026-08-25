@@ -51,7 +51,7 @@ an origin.
 
 `npm run edge:waf` deploys five custom rules (Free-plan cap). Paste-ready copy: `docs/waf-cloudflare-rules.md`.
 
-- **WAF1** (`skip`) — real Googlebot/Bingbot/GSC tokens **and** Google/Bing crawler ASNs (not GCP 396982); social User-Agents; Chrome renderers from those ASNs when the UA is not already a crawler token; plus public files. No bare `"google"`/`"bing"` substring (that skipped every spoof). No `lighthouse`/`pagespeed` tokens. No `cf.client.bot`. No Applebot. Search crawlers are named only here. Chrome-extension requests never skip.
+- **WAF1** (`skip`) — Google, Bing, and social User-Agents; Chrome renderers from Google crawler ASNs (not GCP 396982) and unstamped Chrome from Bing/Microsoft ASNs; plus public files. No `lighthouse`/`pagespeed` tokens (spoofable). No `cf.client.bot`. No Applebot. Search crawlers are named only here. Chrome-extension requests never skip.
 - **WAF2** (`managed_challenge`, expression frozen) — named scrapers, `chrome-extension://` Origin/Referer/UA, stamped `Chrome/144.0.0.0` (`.0.0.0`), Chrome/100.0.4896, and Catalina `10_15_7` + Chrome.
 - **WAF3** (`managed_challenge`, expression frozen) — Chrome-looking clients hitting `/k/` without `sec-fetch-mode: navigate` **and** `sec-fetch-dest: document`. Missing headers count as fake.
 - **WAF4** — operator `sasd` (wp-admin / `.env`), preserved.
