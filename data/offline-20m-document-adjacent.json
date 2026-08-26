@@ -1,0 +1,31 @@
+{
+  "generated": "2026-08-26T11:03:56.464Z",
+  "agentVersion": "2026-08-26.3",
+  "contentVersion": "20260826l",
+  "corpusSize": 20000000,
+  "shards": 4,
+  "phase": "document",
+  "docMode": "adjacent",
+  "identity": null,
+  "document": {
+    "scanned": 333335,
+    "expected": 333336,
+    "gateFails": 0,
+    "rustFails": 0,
+    "densityFails": 0,
+    "thinFails": 0,
+    "jaccardFails": 0,
+    "headingFails": 0,
+    "crossJobFails": 0,
+    "maxJaccard": 0.015178178618565772,
+    "maxHeadingJaccard": 0,
+    "maxSharedHeadings": 0,
+    "minWords": 2327,
+    "maxDensity": 0.02127659574468085,
+    "failures": [],
+    "complete": false
+  },
+  "complete": false,
+  "quarantineCount": 0,
+  "indexableCount": null
+}
