@@ -259,6 +259,34 @@ function identityWorker() {
   console.log(`[identity shard ${SHARD}] done ${stats.scanned.toLocaleString()} in ${((Date.now() - t0) / 1000).toFixed(0)}s, fails ${stats.failures.length}`);
 }
 
+function freshDocumentStats(startStem, endStem) {
+  return {
+    shard: SHARD,
+    shards: SHARDS,
+    docMode: DOC_MODE,
+    contentVersion: CONTENT_VERSION,
+    startStem,
+    endStem,
+    nextStem: startStem,
+    scanned: 0,
+    gateFails: 0,
+    rustFails: 0,
+    densityFails: 0,
+    thinFails: 0,
+    jaccardFails: 0,
+    headingFails: 0,
+    crossJobFails: 0,
+    maxJaccard: 0,
+    maxHeadingJaccard: 0,
+    maxSharedHeadings: 0,
+    minWords: Infinity,
+    maxDensity: 0,
+    comboBank: comboBankViolations(),
+    quarantine: [],
+    failures: [],
+  };
+}
+
 function documentWorker() {
   const range = shardStemRange(SHARD, SHARDS, CORPUS_SIZE);
   let startStem = range.startStem;
@@ -268,32 +296,25 @@ function documentWorker() {
   }
   const progressFile = join(workDir, `document-${SHARD}.json`);
   mkdirSync(workDir, { recursive: true });
-  const stats = existsSync(progressFile)
+  let stats = existsSync(progressFile)
     ? JSON.parse(readFileSync(progressFile, 'utf8'))
-    : {
-      shard: SHARD,
-      startStem,
-      endStem,
-      nextStem: startStem,
-      scanned: 0,
-      gateFails: 0,
-      rustFails: 0,
-      densityFails: 0,
-      thinFails: 0,
-      jaccardFails: 0,
-      headingFails: 0,
-      crossJobFails: 0,
-      maxJaccard: 0,
-      maxHeadingJaccard: 0,
-      maxSharedHeadings: 0,
-      minWords: Infinity,
-      maxDensity: 0,
-      comboBank: comboBankViolations(),
-      quarantine: [],
-      failures: [],
-    };
+    : null;
+  const canResume = stats
+    && stats.docMode === DOC_MODE
+    && stats.shards === SHARDS
+    && stats.contentVersion === CONTENT_VERSION
+    && Number.isInteger(stats.nextStem);
+  if (!canResume) {
+    if (stats) {
+      console.log(`[document shard ${SHARD}] discarding leftover progress (mode=${stats.docMode} shards=${stats.shards} version=${stats.contentVersion})`);
+    }
+    stats = freshDocumentStats(startStem, endStem);
+  }
   startStem = stats.nextStem ?? startStem;
   stats.endStem = endStem;
+  stats.docMode = DOC_MODE;
+  stats.shards = SHARDS;
+  stats.contentVersion = CONTENT_VERSION;
   const t0 = Date.now();
   console.log(`[document shard ${SHARD}/${SHARDS}] stems ${startStem}..${endStem} mode=${DOC_MODE}`);
 
@@ -456,6 +477,7 @@ function runRole(role, extraEnv) {
 
 async function coordinator() {
   mkdirSync(workDir, { recursive: true });
+  mkdirSync(dataDir, { recursive: true });
   mkdirSync(join(projectRoot, 'out', 'reports'), { recursive: true });
   console.log('[offline-20m-audit] Stage 1 — full-corpus Google/Bing audit');
   console.log(`  corpus ${CORPUS_SIZE.toLocaleString()}  shards ${SHARDS}  phase ${PHASE}  docMode ${DOC_MODE}`);
@@ -590,10 +612,29 @@ async function coordinator() {
       && identity.duplicates.h1 === 0
       && identity.duplicates.owner === 0;
     report.identity = identity;
+    writeFileSync(join(dataDir, 'offline-20m-identity.json'), JSON.stringify({
+      generated: new Date().toISOString(),
+      agentVersion: AGENT_VERSION,
+      contentVersion: CONTENT_VERSION,
+      corpusSize: CORPUS_SIZE,
+      shards: SHARDS,
+      phase: 'identity',
+      identity,
+      complete: identity.complete,
+    }, null, 2));
     console.log(`[identity] scanned ${identity.scanned.toLocaleString()}  title ${identity.titleMin}-${identity.titleMax}  meta ${identity.descriptionMin}-${identity.descriptionMax}`);
     console.log(`[identity] h1≠title ${identity.h1Mismatch}  trailing ${identity.trailingConjunction}  uniqueTokens ${identity.uniqueTokenFails}`);
     console.log(`[identity] dups title/desc/h1/owner ${identity.duplicates.title}/${identity.duplicates.description}/${identity.duplicates.h1}/${identity.duplicates.owner}`);
     console.log(`[identity] neighbour title Jaccard max ${identity.maxTitleJaccard.toFixed(4)}  h1 ${identity.maxH1Jaccard.toFixed(4)}`);
+  } else if (PHASE === 'document') {
+    const identityPath = join(dataDir, 'offline-20m-identity.json');
+    if (existsSync(identityPath)) {
+      const previous = JSON.parse(readFileSync(identityPath, 'utf8'));
+      if (previous.contentVersion === CONTENT_VERSION && previous.identity?.complete) {
+        report.identity = previous.identity;
+        console.log(`[identity] reused complete report for ${CONTENT_VERSION} (${previous.identity.scanned.toLocaleString()} URLs)`);
+      }
+    }
   }
 
   if (PHASE === 'all' || PHASE === 'document') {
@@ -687,6 +728,51 @@ async function coordinator() {
     quarantineIds: [...quarantine],
   });
   writeFileSync(join(projectRoot, 'out', 'reports', 'offline-20m-audit.json'), JSON.stringify(report, null, 2));
+  if (report.document) {
+    writeFileSync(join(dataDir, `offline-20m-document-${DOC_MODE}.json`), JSON.stringify(report, null, 2));
+  }
+  writeFileSync(join(dataDir, 'offline-20m-audit-summary.json'), JSON.stringify({
+    generated: report.generated,
+    agentVersion: AGENT_VERSION,
+    contentVersion: CONTENT_VERSION,
+    corpusSize: CORPUS_SIZE,
+    identity: report.identity
+      ? {
+        scanned: report.identity.scanned,
+        titleRange: [report.identity.titleMin, report.identity.titleMax],
+        metaRange: [report.identity.descriptionMin, report.identity.descriptionMax],
+        h1EqualsTitle: report.identity.h1Mismatch === 0,
+        trailingConjunction: report.identity.trailingConjunction,
+        uniqueTokensFails: report.identity.uniqueTokenFails,
+        duplicates: report.identity.duplicates,
+        maxTitleJaccard: report.identity.maxTitleJaccard,
+        maxH1Jaccard: report.identity.maxH1Jaccard,
+        complete: identityComplete,
+      }
+      : null,
+    document: report.document
+      ? {
+        scanned: report.document.scanned,
+        mode: DOC_MODE,
+        minWords: report.document.minWords,
+        maxDensity: report.document.maxDensity,
+        maxJaccard: report.document.maxJaccard,
+        maxHeadingJaccard: report.document.maxHeadingJaccard,
+        maxSharedHeadings: report.document.maxSharedHeadings,
+        gateFails: report.document.gateFails,
+        rustFails: report.document.rustFails,
+        jaccardFails: report.document.jaccardFails,
+        headingFails: report.document.headingFails,
+        crossJobFails: report.document.crossJobFails,
+        completeForAllModifiers: documentComplete && DOC_MODE === 'all',
+      }
+      : null,
+    manifestComplete: decided,
+    quarantineCount: quarantine.size,
+    note: decided
+      ? 'Stage-1 identity + all-modifier document/Jaccard finished. Pages must not rescore 20M.'
+      : 'Full 180-modifier HTML walk of all 20M is not finished. Pages must not score 20M. Jaccard ceiling stays 0.04.',
+  }, null, 2));
   console.log(`[offline-20m-audit] complete=${decided} identity=${identityComplete} document=${documentComplete} quarantine=${quarantine.size}`);
   if (!identityComplete || (PHASE !== 'identity' && !documentComplete)) {
     console.error('INCOMPLETE — manifest will not 404 the factory as a band until both phases finish.');
