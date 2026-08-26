@@ -38,7 +38,10 @@ function headingStampSlot(slot: string): number {
 }
 
 function headingLock(k: PageKernel): string {
-  return oneToken(`${k.styleMicro} ${k.contextMicro}`);
+  // Job atom is required: style×context alone left combo-hash collisions
+  // sharing an exact H2 across adjacent intents (710 stems in the first
+  // full-stem adjacent walk).
+  return oneToken(`${k.styleMicro} ${k.contextMicro} ${k.jobTiny}`);
 }
 
 function headingStamp(k: PageKernel, slot: string): string {
