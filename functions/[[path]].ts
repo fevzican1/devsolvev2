@@ -35,6 +35,7 @@ import {
 } from './_lib/programmaticPage';
 import { edgeQualityGate } from './_lib/qualityGate';
 import { renderClusterHub } from './_lib/clusterHub';
+import { isManifestIndexable } from './_lib/indexableManifest';
 
 interface PagesContext {
   request: Request;
@@ -96,6 +97,9 @@ function resolveOrigin(requestUrl: string): string {
 }
 
 function pageResponse(page: ResolvedPage, origin: string): Response {
+  // Stage-2: offline audit already decided this ordinal is a 404 seed.
+  // Same 404 for every UA — never a crawler-only branch (cloaking).
+  if (!isManifestIndexable(page.index)) return notFound();
   const html = renderProgrammaticPage(page, origin);
   const gate = edgeQualityGate(html, page);
   if (!gate.ok) {
@@ -145,7 +149,9 @@ function sitemapResponse(part: number, origin: string): Response {
       let xml = '';
       for (let count = 0; cursor < end && count < STREAM_CHUNK_SIZE; cursor += 1, count += 1) {
         const page = pageForIndex(cursor);
-        if (page) xml += `<url><loc>${origin}/k/${page.slug}</loc><lastmod>${CONTENT_UPDATED_AT}</lastmod><changefreq>${changefreq}</changefreq></url>`;
+        if (page && isManifestIndexable(page.index)) {
+          xml += `<url><loc>${origin}/k/${page.slug}</loc><lastmod>${CONTENT_UPDATED_AT}</lastmod><changefreq>${changefreq}</changefreq></url>`;
+        }
       }
       if (xml) controller.enqueue(encoder.encode(xml));
       if (cursor >= end) {

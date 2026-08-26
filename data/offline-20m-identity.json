@@ -1,0 +1,38 @@
+{
+  "generated": "2026-08-26T10:12:08.371Z",
+  "agentVersion": "2026-08-26.3",
+  "contentVersion": "20260826k",
+  "corpusSize": 20000000,
+  "shards": 4,
+  "phase": "identity",
+  "docMode": "all",
+  "identity": {
+    "scanned": 20000000,
+    "titleMin": 45,
+    "titleMax": 66,
+    "descriptionMin": 150,
+    "descriptionMax": 160,
+    "titleLengthFails": 0,
+    "descriptionLengthFails": 0,
+    "h1Mismatch": 0,
+    "trailingConjunction": 0,
+    "uniqueTokenFails": 0,
+    "maxTitleJaccard": 0,
+    "maxH1Jaccard": 0,
+    "titleJaccardFails": 0,
+    "h1JaccardFails": 0,
+    "duplicates": {
+      "title": 0,
+      "description": 0,
+      "h1": 0,
+      "owner": 0
+    },
+    "duplicateExamples": [],
+    "failures": [],
+    "complete": true
+  },
+  "document": null,
+  "complete": false,
+  "quarantineCount": 0,
+  "indexableCount": null
+}

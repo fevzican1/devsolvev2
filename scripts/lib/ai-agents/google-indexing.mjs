@@ -8,8 +8,7 @@
  */
 import { TITLE_MAX, TITLE_MIN, DESCRIPTION_TARGET_MIN, DESCRIPTION_TARGET_MAX } from '../search-guidelines.mjs';
 import { scorePage, MIN_INDEXABLE_SCORE } from '../ai-quality-scoring.mjs';
-import { FORBIDDEN_SKELETON_HEADINGS } from '../../../functions/_lib/ownedHeading.ts';
-import { headingOwnerClauseFor } from '../../../functions/_lib/programmaticPage.ts';
+import { FORBIDDEN_SKELETON_HEADINGS, headingLooksOwned } from '../../../functions/_lib/ownedHeading.ts';
 import { extract, extractHeadings, samplePages, wordCount } from './shared.mjs';
 
 export const AGENT = {
@@ -87,9 +86,8 @@ const REASONS = [
       const headings = [...h2, ...h3].map((h) => h.toLowerCase());
       const skeleton = headings.filter((h) => FORBIDDEN_SKELETON_HEADINGS.includes(h));
       if (skeleton.length) return `shared heading skeleton still present: ${skeleton.join('; ')}`;
-      const clause = headingOwnerClauseFor(ctx.page).toLowerCase();
-      const missing = [...h2, ...h3].filter((h) => !h.toLowerCase().includes(clause));
-      if (missing.length) return `heading missing unique owner clause: ${missing[0]}`;
+      const missing = [...h2, ...h3].filter((h) => !headingLooksOwned(h));
+      if (missing.length) return `heading missing unique English stamp: ${missing[0]}`;
       if (!ctx.score.signals?.hasIndependentOpening) {
         return 'opening does not name this page’s audience and job';
       }
@@ -140,7 +138,7 @@ export async function run(opts = {}) {
     failures: failures.slice(0, 20),
     notes: [
       'Server 5xx / 404 / 401 are routing invariants, not HTML. Phase D of verify-edge-corpus-quality.mjs covers them.',
-      'Crawled - currently not indexed (content quality) is enforced here: score, independent opening, unique owner clause on every H2/H3, uniqueTokens on title/H1/JSON-LD, JSON-LD matches HTML, and no shared heading skeleton.',
+      'Crawled - currently not indexed (content quality) is enforced here: score, independent opening, unique English stamp on every H2/H3, uniqueTokens on title/H1/JSON-LD, JSON-LD matches HTML, and no shared heading skeleton.',
     ],
   };
 }

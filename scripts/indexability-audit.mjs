@@ -228,6 +228,25 @@ function auditEdgeCorpusFunction() {
   if (!libTxt.includes('from \'../../src/lib/programmatic/corpusGeometry\'')) {
     record('CRITICAL', 'functions', libFile, 'Edge renderer must import corpus geometry from src/lib/programmatic/corpusGeometry.');
   }
+  const rustFile = join(projectRoot, 'src', 'seo_rules.rs');
+  if (!existsSync(rustFile)) {
+    record('CRITICAL', 'functions', rustFile, 'Rust Google/Bing rule module src/seo_rules.rs is missing.');
+  } else {
+    const rustTxt = readFileSync(rustFile, 'utf8');
+    stats.filesScanned += 1;
+    for (const marker of ['MAX_BODY_JACCARD: f64 = 0.040', 'MIN_WORDS: usize = 1700', 'H1 does not match Title exactly', 'jaccard_5gram_early_exit']) {
+      if (!rustTxt.includes(marker)) {
+        record('CRITICAL', 'functions', rustFile, `seo_rules.rs is missing required invariant: ${marker}`);
+      }
+    }
+  }
+  const auditFile = join(projectRoot, 'scripts', 'offline-20m-audit.mjs');
+  if (!existsSync(auditFile)) {
+    record('CRITICAL', 'functions', auditFile, 'Stage-1 offline 20M audit worker is missing.');
+  }
+  if (!txt.includes('isManifestIndexable')) {
+    record('CRITICAL', 'functions', file, 'Edge corpus route must 404 quarantined seeds from the offline manifest.');
+  }
   for (const [file, txt] of [[libFile, libTxt], [geometryFile, geometryTxt]]) {
     if (/\b(?:fetch|KVNamespace|R2Bucket|D1Database)\b/.test(txt)) {
       record('CRITICAL', 'functions', file, 'Shared corpus module must not use external storage or network fetches.');

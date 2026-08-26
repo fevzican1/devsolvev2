@@ -353,7 +353,7 @@ export const CORPUS_RULES = [
     source: 'BING abuse: automatically generated content at scale / duplicate content across multiple URLs',
     severity: 'critical',
     requirement:
-      'Style×context siblings must be different documents (distinct genres + job thesis + tool/intent facts), not the same essay with modifiers stuffed into every sentence. 5-gram Jaccard of <main> prose — including H2/H3 — stays ≤ 0.04 (true near-duplicates cluster ≥ 0.80). <title> and <h1> 5-gram Jaccard stays ≤ 0.10. Gates sample adjacent neighbours (ctx+1 and style+1). Do not 404 the factory as a band; the sitemap advertises all 20M. A page that fails the edge quality contract 404s for every user-agent (no cloaking). Internal /k/ hops walk CORPUS_SIZE. These ceilings are Google Search Essentials (scaled content / thin / duplicate) and Bing Quality & Authority hard constraints on Title, Meta, H1/H2, JSON-LD and internal links — not body-only advice.',
+      'Style×context siblings must be different documents (distinct genres + job thesis + tool/intent facts), not the same essay with modifiers stuffed into every sentence. 5-gram Jaccard of <main> prose — including H2/H3 — stays ≤ 0.04 (true near-duplicates cluster ≥ 0.80). <title> and <h1> 5-gram Jaccard stays ≤ 0.10. Stage 1 (offline / VM) runs src/seo_rules.rs over every one of the 20M URLs against ctx+1 and style+1 with early-exit 5-gram hashing; failures become 404 seeds and passes are written to indexable_manifest.bin. Stage 2 (Cloudflare Pages) publishes only manifest-approved seeds and must not re-score 20M inside the 20-minute build. Do not 404 the factory as a band; the sitemap advertises every indexable URL of the 20M geometry. A page that fails the edge quality contract 404s for every user-agent (no cloaking). Internal /k/ hops walk CORPUS_SIZE. These ceilings are Google Search Essentials (scaled content / thin / duplicate) and Bing Quality & Authority hard constraints on Title, Meta, H1/H2, JSON-LD and internal links — not body-only advice.',
   },
   {
     id: 'title-h1-jaccard',
@@ -367,14 +367,14 @@ export const CORPUS_RULES = [
     source: 'GOOGLE "Crawled - currently not indexed" / scaled content / BING abuse: automatically generated content at scale',
     severity: 'critical',
     requirement:
-      'No two /k/ URLs may share an exact H2 or H3. Every heading carries the six URL-dimension slugs (style, context, intent, audience, task, tool). Style×context siblings and same-method different-job pages both show 0 shared headings.',
+      'No two /k/ URLs may share an exact H2 or H3. Every heading is a short professional label plus a per-URL English stamp from the combo sentence banks (not a six-slug dump). Style×context siblings and same-method different-job pages both show 0 shared headings.',
   },
   {
     id: 'unique-heading-owners',
     source: 'GOOGLE "Crawled - currently not indexed" / scaled content',
     severity: 'critical',
     requirement:
-      'The six-slug heading owner key is unique for every one of the 20M URLs (style × context × intent × audience × task × tool). Every rendered H2/H3 contains that key’s visible clause, so no two URLs can share an exact heading.',
+      'The six-slug heading owner key is unique for every one of the 20M URLs (style × context × intent × audience × task × tool). Visible H2/H3 text uses a unique English combo stamp so no two URLs can share an exact heading without packing slugs into the outline.',
   },
   {
     id: 'edited-prose',

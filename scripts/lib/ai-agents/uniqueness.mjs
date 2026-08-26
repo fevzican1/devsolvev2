@@ -194,7 +194,7 @@ export async function run(opts = {}) {
     titleH1Ceiling: TITLE_CEILING,
     failures: failures.slice(0, 20),
     notes: [
-      'Gates sample adjacent ctx+1 and style+1. That 5-gram Jaccard is the zero-cost MinHash/LSH stand-in: a request cannot compare itself to 20M pages without a paid index.',
+      'Stage 1 hashes every URL against ctx+1 and style+1 (src/seo_rules.rs, 5-gram early exit, Jaccard ≤ 0.04) and writes indexable_manifest.bin. That 5-gram Jaccard is the zero-cost MinHash/LSH stand-in: a request cannot compare itself to 20M pages without a paid index.',
       'Bodies are per-URL combo sentences keyed by slug. Neighbour Jaccard must stay ≤ 0.04. Title/H1 Jaccard must stay ≤ 0.10. Sitemap advertises all 20M. A contract failure 404s for every UA.',
       'Google Search Essentials + Bing Quality & Authority apply to title, meta, H1/H2, JSON-LD and internal links — not body copy alone.',
       'Cross-job same-style×context pages are also compared: they previously shared method×setting H2s.',

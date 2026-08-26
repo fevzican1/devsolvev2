@@ -1,0 +1,47 @@
+{
+  "generated": "2026-08-26T11:03:56.464Z",
+  "agentVersion": "2026-08-26.3",
+  "contentVersion": "20260826l",
+  "corpusSize": 20000000,
+  "identity": {
+    "scanned": 20000000,
+    "titleRange": [
+      45,
+      66
+    ],
+    "metaRange": [
+      150,
+      160
+    ],
+    "h1EqualsTitle": true,
+    "trailingConjunction": 0,
+    "uniqueTokensFails": 0,
+    "duplicates": {
+      "title": 0,
+      "description": 0,
+      "h1": 0,
+      "owner": 0
+    },
+    "maxTitleJaccard": 0,
+    "maxH1Jaccard": 0,
+    "complete": true
+  },
+  "documentAdjacent": {
+    "stems": 111112,
+    "scanned": 333335,
+    "mode": "adjacent ctx+1 and style+1 on every stem",
+    "minWords": 2327,
+    "maxDensity": 0.0213,
+    "maxJaccard": 0.0152,
+    "maxHeadingJaccard": 0,
+    "maxSharedHeadings": 0,
+    "gateFails": 0,
+    "rustFails": 0,
+    "jaccardFails": 0,
+    "headingFails": 0,
+    "crossJobFails": 0,
+    "completeForAllModifiers": false
+  },
+  "manifestComplete": false,
+  "note": "Full 180-modifier HTML walk of all 20M is the remaining Stage-1 overnight job. Pages must not score 20M. Jaccard ceiling stays 0.04."
+}
