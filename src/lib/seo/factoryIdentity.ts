@@ -230,7 +230,7 @@ export const AUDIENCE_TINY: Record<string, string> = {
 
 export const TASK_PHRASE: Record<string, string> = {
   'debug-production-issue': 'production debugging',
-  'prepare-api-response': 'API response prep',
+  'prepare-api-response': 'wire-body prep',
   'clean-up-payload': 'payload clean-up',
   'sanitize-user-input': 'user input safety',
   'prepare-query-parameters': 'query parameter prep',
@@ -249,7 +249,7 @@ export const TASK_PHRASE: Record<string, string> = {
 
 export const TASK_MICRO: Record<string, string> = {
   'debug-production-issue': 'prod debugging',
-  'prepare-api-response': 'API responses',
+  'prepare-api-response': 'wire bodies',
   'clean-up-payload': 'payload prep',
   'sanitize-user-input': 'input safety',
   'prepare-query-parameters': 'query params',
@@ -259,7 +259,7 @@ export const TASK_MICRO: Record<string, string> = {
   'review-config-change': 'config review',
   'migrate-legacy-system': 'migrations',
   'prepare-deployment-artifact': 'ship prep',
-  'document-api-endpoint': 'API docs',
+  'document-api-endpoint': 'spec write',
   'optimize-build-pipeline': 'build speed',
   'resolve-merge-conflict': 'merge fixes',
   'prepare-security-audit': 'audit prep',
@@ -268,7 +268,7 @@ export const TASK_MICRO: Record<string, string> = {
 
 export const TASK_TINY: Record<string, string> = {
   'debug-production-issue': 'prod bugs',
-  'prepare-api-response': 'responses',
+  'prepare-api-response': 'wire-out',
   'clean-up-payload': 'payloads',
   'sanitize-user-input': 'input',
   'prepare-query-parameters': 'params',
@@ -521,20 +521,30 @@ function assembleIdentityLine(atoms: readonly [string, string, string, string, s
   return uniqueTokens(`${jobShown}: ${audience} ${task} ${setting} ${tool}`);
 }
 
+function keepsFiveAtoms(line: string): boolean {
+  return line.trim().split(/\s+/).filter(Boolean).length === 5;
+}
+
 /**
  * Pipeline: 1. assemble atoms → 2. uniqueTokens() → 3. shortening-plan
  * rotation until TITLE_MAX → 4. word-boundary clamp only if still long.
- * Never pad or clamp before uniqueTokens().
+ * Never pad or clamp before uniqueTokens(). Reject a candidate that
+ * uniqueTokens() collapsed below five atoms (that is how prepare-api-response
+ * and document-api-endpoint shared a title on docs-teams).
  */
 export function buildFiveAtomTitle(
   page: Pick<ResolvedPage, 'tool' | 'intent' | 'audience' | 'task' | 'style' | 'context'>,
 ): string {
   const forms = identityFormsFor(page);
   let candidate = '';
+  let fallback = '';
   for (const { tiers } of SHORTENING_PLANS) {
     candidate = assembleIdentityLine(identityAtoms(page, forms, tiers));
+    if (!keepsFiveAtoms(candidate)) continue;
+    if (!fallback) fallback = candidate;
     if (candidate.length <= TITLE_MAX) return candidate;
   }
+  if (!keepsFiveAtoms(candidate)) candidate = fallback || candidate;
   if (candidate.length > TITLE_MAX) {
     const cut = candidate.slice(0, TITLE_MAX);
     const at = cut.lastIndexOf(' ');

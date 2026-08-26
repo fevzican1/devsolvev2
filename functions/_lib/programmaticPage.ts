@@ -146,9 +146,9 @@ export type { ResolvedPage };
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-26T16:00:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-26T18:30:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'i';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'j';
 
 /*
  * Full-corpus sitemap. /sitemap.xml advertises every one of the 20M /k/ URLs.

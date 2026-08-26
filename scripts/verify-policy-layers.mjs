@@ -117,6 +117,34 @@ const OPENING_REGRESSION = [
   'security-rotate-unique-identifiers-release-engineer-resolve-merge-conflict-jwt-decoder-5413911',
   'data-aggregate-data-records-devops-engineer-generate-test-fixtures-hash-generator-13674188',
 ];
+const TITLE_COLLISION_REGRESSION = [
+  'api-validate-api-response-technical-writer-prepare-api-response-json-formatter-9757743',
+  'api-validate-api-response-technical-writer-document-api-endpoint-json-formatter-9759543',
+];
+for (const slug of TITLE_COLLISION_REGRESSION) {
+  const page = resolvePageForSlug(slug);
+  if (!page) {
+    identityFails += 1;
+    examples.push({ slug, issues: ['title-collision slug did not resolve'] });
+    continue;
+  }
+  const id = buildIdentity(page);
+  if (id.title.trim().split(/\s+/).length !== 5 || id.title !== id.h1) {
+    identityFails += 1;
+    examples.push({ slug, issues: [`collapsed 5-atom title: "${id.title}"`] });
+  }
+}
+{
+  const collisionA = resolvePageForSlug(TITLE_COLLISION_REGRESSION[0]);
+  const collisionB = resolvePageForSlug(TITLE_COLLISION_REGRESSION[1]);
+  if (collisionA && collisionB && buildIdentity(collisionA).title === buildIdentity(collisionB).title) {
+    identityFails += 1;
+    examples.push({
+      slug: TITLE_COLLISION_REGRESSION[0],
+      issues: [`title still collides with ${TITLE_COLLISION_REGRESSION[1]}: "${buildIdentity(collisionA).title}"`],
+    });
+  }
+}
 for (const slug of OPENING_REGRESSION) {
   const page = resolvePageForSlug(slug);
   if (!page) {
