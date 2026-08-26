@@ -527,30 +527,33 @@ function keepsFiveAtoms(line: string): boolean {
 
 /**
  * Pipeline: 1. assemble atoms → 2. uniqueTokens() → 3. shortening-plan
- * rotation until TITLE_MAX → 4. word-boundary clamp only if still long.
- * Never pad or clamp before uniqueTokens(). Reject a candidate that
- * uniqueTokens() collapsed below five atoms (that is how prepare-api-response
- * and document-api-endpoint shared a title on docs-teams).
+ * rotation until TITLE_MAX. Prefer a candidate that still has five atoms
+ * (job, audience, task, setting, via-tool). If uniqueTokens() must drop the
+ * task to fit — encode-data vs encoded-payload-review — keep the shorter
+ * line that still carries setting+tool so modifiers stay unique. Never slice
+ * a five-atom line down to three; that made 112k modifiers share one title.
  */
 export function buildFiveAtomTitle(
   page: Pick<ResolvedPage, 'tool' | 'intent' | 'audience' | 'task' | 'style' | 'context'>,
 ): string {
   const forms = identityFormsFor(page);
-  let candidate = '';
-  let fallback = '';
+  let fitFive = '';
+  let fitAny = '';
+  let last = '';
   for (const { tiers } of SHORTENING_PLANS) {
-    candidate = assembleIdentityLine(identityAtoms(page, forms, tiers));
-    if (!keepsFiveAtoms(candidate)) continue;
-    if (!fallback) fallback = candidate;
-    if (candidate.length <= TITLE_MAX) return candidate;
+    last = assembleIdentityLine(identityAtoms(page, forms, tiers));
+    if (last.length > TITLE_MAX) continue;
+    if (!fitAny) fitAny = last;
+    if (!fitFive && keepsFiveAtoms(last)) fitFive = last;
   }
-  if (!keepsFiveAtoms(candidate)) candidate = fallback || candidate;
-  if (candidate.length > TITLE_MAX) {
-    const cut = candidate.slice(0, TITLE_MAX);
+  if (fitFive) return fitFive;
+  if (fitAny) return fitAny;
+  if (last.length > TITLE_MAX) {
+    const cut = last.slice(0, TITLE_MAX);
     const at = cut.lastIndexOf(' ');
-    candidate = uniqueTokens((at >= 40 ? cut.slice(0, at) : cut).replace(/[\s,;:.–—-]+$/, ''));
+    return uniqueTokens((at >= 40 ? cut.slice(0, at) : cut).replace(/[\s,;:.–—-]+$/, ''));
   }
-  return candidate;
+  return last;
 }
 
 export function fiveAtomTitleForSlug(slug: string): string | undefined {
