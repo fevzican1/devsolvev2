@@ -20,7 +20,7 @@
  */
 
 export const AGENT_ID = 'devsolve-ai-indexing-agent';
-export const AGENT_VERSION = '2026-08-24.9';
+export const AGENT_VERSION = '2026-08-26.3';
 
 /** Cost model — must stay true for every change to this system. */
 export const COST_MODEL = Object.freeze({
@@ -29,6 +29,8 @@ export const COST_MODEL = Object.freeze({
   functionOnlyOnCacheMiss: true,
   identicalHtmlForAllUserAgents: true, // anti-cloaking
   buildTimeOnlyScoring: true,
+  offlineFullCorpusAudit: true,
+  pagesBuildUsesIndexableManifest: true,
   sitemapAdvertisesFullCorpus: true,
   sitemapAdvertisesRampNotFullCorpus: false,
 });
@@ -123,9 +125,9 @@ export function agentBanner() {
     `desc ${QUALITY_CONTRACT.descriptionChars.min}–${QUALITY_CONTRACT.descriptionChars.max},`,
     `≥${QUALITY_CONTRACT.minWordCount} words, ≥${QUALITY_CONTRACT.minInternalLinks} links,`,
     `entity+early-answer+data-snippet, unique title/desc/H1,`,
-    `sibling body ${QUALITY_CONTRACT.siblingShingleSize || 4}-gram Jaccard ≤${QUALITY_CONTRACT.maxSiblingBodyJaccard} across 20M`,
+    `sibling body ${QUALITY_CONTRACT.siblingShingleSize || 4}-gram Jaccard ≤${QUALITY_CONTRACT.maxSiblingBodyJaccard} across all 20M (offline Stage-1, not Pages sampling)`,
     `sibling H2/H3 Jaccard ≤${QUALITY_CONTRACT.maxSiblingHeadingJaccard} and ${QUALITY_CONTRACT.maxSharedSiblingHeadings} shared exact headings`,
-    `unique heading-owner key on all 20M; every H2/H3 carries the six-slug owner clause`,
+    `unique heading-owner key on all 20M; every H2/H3 carries a unique English stamp (not a six-slug dump)`,
     `uniqueTokens() on title/H1/H2/meta/JSON-LD/anchors; keyword density ≤${(QUALITY_CONTRACT.maxKeywordDensity * 100).toFixed(1)}%`,
     `title/H1 ${QUALITY_CONTRACT.siblingShingleSize}-gram Jaccard ≤${QUALITY_CONTRACT.maxTitleH1Jaccard}; JSON-LD matches HTML; gate fail → 404 all UAs`,
     `executable Bash+Dockerfile, unique error matrix, if/then tree, semantic hops`,

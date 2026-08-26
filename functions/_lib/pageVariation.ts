@@ -1708,8 +1708,8 @@ function artifactRows(k: PageKernel): string[] {
 
 export function entityFraming(k: PageKernel, _tk: ToolKnowledge, _ik: IntentKernel): { name: string; definition: string; alsoKnownAs: string[] } {
   return {
-    name: `${k.styleTiny} · ${k.contextTiny} · ${k.jobTiny}`,
+    name: `${k.styleMicro} · ${k.contextMicro} · ${k.jobNoun}`,
     definition: comboEntityDefinition(k),
-    alsoKnownAs: [k.styleTiny, k.contextTiny, k.toolTiny],
+    alsoKnownAs: [k.styleMicro, k.contextMicro, k.toolLabel],
   };
 }

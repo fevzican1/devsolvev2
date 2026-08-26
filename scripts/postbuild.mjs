@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { mkdirSync, existsSync, rmSync } from 'fs';
+import { mkdirSync, existsSync, rmSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -132,13 +132,33 @@ try {
   hardFailures.push('quality-corpus-audit');
 }
 
+try {
+  console.log('Verifying Rust/TS Google-Bing seo_rules contract...');
+  execSync(`node --import tsx ${join(__dirname, 'verify-seo-rules.mjs')}`, { stdio: 'inherit' });
+} catch (error) {
+  console.log('seo_rules contract FAILED');
+  hardFailures.push('verify-seo-rules');
+}
+
 // Zero-cost proof that the EXACT HTML served at the edge for all 20M /k/ URLs
 // is indexable across Google + Bing (score >= 90 and zero guideline
 // violations). This scores functions/_lib/programmaticPage.ts — the same
 // generator functions/[[path]].ts serves — so the gate and the served bytes
 // can never drift apart. Hard failure: a content-quality regression here is a
 // real mass-deindex risk (this is what Bing flagged as "content quality").
+//
+// Stage 2 (Cloudflare Pages, 20-minute cap): when Stage 1 has already written
+// a complete indexable_manifest for this CONTENT_VERSION, skip the 20M
+// rescore and only check that the manifest still matches the live generator.
 const onPages = process.env.CF_PAGES === '1';
+function committedManifestComplete() {
+  try {
+    const seeds = readFileSync(join(projectRoot, 'functions', '_lib', 'quarantineSeeds.ts'), 'utf8');
+    return /export const MANIFEST_COMPLETE = true/.test(seeds);
+  } catch {
+    return false;
+  }
+}
 const pagesVerifyEnv = {
   ...process.env,
   // Pages builders have ~8GB; keep the child under that so V8 does not
@@ -157,18 +177,33 @@ const pagesVerifyEnv = {
     : {}),
 };
 
-try {
-  console.log(onPages
-    ? 'Verifying edge-served corpus quality (Pages 20-minute budget: 250k identity, combo stride 8)...'
-    : 'Verifying edge-served corpus quality (all 20M /k/ pages)...');
-  execSync(`node --import tsx ${join(__dirname, 'verify-edge-corpus-quality.mjs')}`, {
-    stdio: 'inherit',
-    env: pagesVerifyEnv,
-  });
-} catch (error) {
-  const status = error && typeof error === 'object' && 'status' in error ? error.status : 'unknown';
-  console.log(`Edge corpus quality verification FAILED (exit ${status}) — see out/reports/edge-corpus-quality.json`);
-  hardFailures.push('verify-edge-corpus-quality');
+if (committedManifestComplete()) {
+  try {
+    console.log(onPages
+      ? 'Indexable manifest is complete — Stage-2 Pages check only (no 20M scoring)...'
+      : 'Indexable manifest is complete — skipping 20M edge rescore, running consistency check...');
+    execSync(`node --import tsx ${join(__dirname, 'verify-manifest-consistency.mjs')}`, {
+      stdio: 'inherit',
+      env: pagesVerifyEnv,
+    });
+  } catch (error) {
+    console.log('Manifest consistency check FAILED');
+    hardFailures.push('verify-manifest-consistency');
+  }
+} else {
+  try {
+    console.log(onPages
+      ? 'Verifying edge-served corpus quality (Pages 20-minute budget: 250k identity, combo stride 8)...'
+      : 'Verifying edge-served corpus quality (all 20M /k/ pages)...');
+    execSync(`node --import tsx ${join(__dirname, 'verify-edge-corpus-quality.mjs')}`, {
+      stdio: 'inherit',
+      env: pagesVerifyEnv,
+    });
+  } catch (error) {
+    const status = error && typeof error === 'object' && 'status' in error ? error.status : 'unknown';
+    console.log(`Edge corpus quality verification FAILED (exit ${status}) — see out/reports/edge-corpus-quality.json`);
+    hardFailures.push('verify-edge-corpus-quality');
+  }
 }
 
 try {

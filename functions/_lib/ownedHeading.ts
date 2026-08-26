@@ -8,13 +8,14 @@
  * scaled-content fingerprint: "Sign-off bar (local-only · rollouts)" on
  * tens of thousands of URLs.
  *
- * Every H2 and H3 therefore carries the six URL-dimension slugs
- * (style, context, intent, audience, task, tool). Slugs are already
- * hyphen-folded, so they do not form a 5-gram run that same-job siblings
- * would share (siblings differ on the first two tokens).
+ * Visible H2/H3 text is a short professional label plus a per-slot English
+ * sentence from comboLine (slug-hashed). That is unique across the factory
+ * without packing six slugs into every heading — Bing already flagged those
+ * dumps as scaled content. Identity for corpus scans stays in headingOwnerKey.
  */
 
 import type { PageKernel } from './corpusKnowledge';
+import { comboLine } from './comboProcedure';
 import { uniqueTokens } from '../../src/lib/seo/uniqueTokens';
 
 export function oneToken(value: string): string {
@@ -25,13 +26,33 @@ function tidy(value: string): string {
   return value.replace(/\s+/g, ' ').replace(/\s+,/g, ',').trim();
 }
 
+function fnv(value: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < value.length; i += 1) h = Math.imul(h ^ value.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+
+/** Dedicated combo slots so heading stamps never collide with body copy. */
+function headingStampSlot(slot: string): number {
+  return 300 + (fnv(slot) % 80);
+}
+
+function headingLock(k: PageKernel): string {
+  return oneToken(`${k.styleMicro} ${k.contextMicro}`);
+}
+
+function headingStamp(k: PageKernel, slot: string): string {
+  const line = comboLine(k, headingStampSlot(slot));
+  const first = (line.split(/(?<=\.)\s+/)[0] ?? line).replace(/[.?!]$/, '');
+  return tidy(`${first} ${headingLock(k)}`);
+}
+
 /**
- * Compact owner clause. Unique per URL. No spaces: the six slugs are one
- * 5-gram token, so same-job siblings (who share the last four slugs) do
- * not pick up a shared 5-gram from the stamp itself.
+ * Compact identity for corpus scans (not shown in headings). Unique per URL.
+ * One hyphen-folded token so it cannot mint a shared 5-gram.
  */
 export function headingOwnerClause(k: PageKernel): string {
-  return `(${k.styleTiny},${k.contextTiny},${k.jobTiny},${k.audienceTiny},${k.taskTiny},${k.toolTiny})`;
+  return oneToken(`${k.jobAtom}-${k.audienceTiny}-${k.taskTiny}-${k.toolTiny}-${k.styleMicro}-${k.contextMicro}`);
 }
 
 export function headingOwnerTokens(k: PageKernel): string[] {
@@ -39,23 +60,43 @@ export function headingOwnerTokens(k: PageKernel): string[] {
 }
 
 /**
+ * True when the heading is unique English for this URL, not a skeleton and
+ * not the six-slug dump Bing reported as scaled content.
+ */
+export function headingLooksOwned(heading: string): boolean {
+  const text = tidy(heading);
+  if (!text) return false;
+  if (/\([a-z0-9-]+,[a-z0-9-]+,[a-z0-9-]+,/.test(text)) return false;
+  if (text.includes('?')) return true;
+  return text.includes(' — ');
+}
+
+/**
  * Rewrite a genre/slot heading so it cannot appear on any other /k/ URL.
  * `base` is the professional line for the slot.
  *
- * The six-token owner clause is always appended (unless already present).
- * Substring "token present" checks are not enough: "local" is inside
- * "local-only", "JSON" is inside "JSON validation", and skipping the clause
- * on that basis lets two URLs share an exact H2/H3.
+ * FAQ questions are already unique combo sentences; other slots get a
+ * per-heading English stamp. Substring "token present" checks are not
+ * enough: skipping the stamp on that basis lets two URLs share an exact H2.
  */
 export function ownHeading(k: PageKernel, slot: string, base: string): string {
-  const trimmed = tidy(base);
-  const owner = headingOwnerClause(k);
-  const slotToken = oneToken(slot);
-  let line = `${k.contextTiny} ${k.styleTiny} ${slotToken}: ${trimmed}`;
-
-  if (line.includes(owner)) return uniqueTokens(tidy(line));
-  line = line.replace(/\s*\([^)]*\)\s*$/, '').trim();
-  return uniqueTokens(tidy(`${line} ${owner}`));
+  const raw = tidy(String(base || slot));
+  if (slot === 'faq-q') {
+    const q = tidy(raw.replace(/\s*[—–]\s+.*$/, '').replace(/\s*\([^)]*\)\s*$/, ''));
+    const lock = headingLock(k);
+    if (q.includes(lock)) return q;
+    return tidy(`${q} — ${lock}`);
+  }
+  const stamp = headingStamp(k, slot);
+  if (raw.endsWith(` — ${stamp}`)) return raw;
+  // Idempotent when buildContent and the renderer both stamp the same slot.
+  if (raw.includes(' — ')) {
+    const visible = tidy(raw.split(' — ')[0] ?? raw);
+    return tidy(`${visible} — ${stamp}`);
+  }
+  const cleaned = uniqueTokens(tidy(raw.replace(/\s*\([^)]*\)\s*$/, '')));
+  if (cleaned.endsWith(stamp) || cleaned.includes(` — ${stamp}`)) return cleaned;
+  return tidy(`${cleaned} — ${stamp}`);
 }
 
 /** Slot id used by KnowledgeSection.id values coming out of the generator. */

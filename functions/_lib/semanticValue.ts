@@ -14,7 +14,7 @@
 
 import type { PageKernel } from './corpusKnowledge';
 import type { DocumentPlan, SnippetBlock } from './pageVariation';
-import { comboLine } from './comboProcedure';
+import { comboClause, comboLine } from './comboProcedure';
 
 export interface CompatPin {
   runtime: string;
@@ -326,7 +326,7 @@ function contextFix(k: PageKernel, fixture: string, code: string): string {
     case 'for-observability-pipelines':
       return `Shape-check ${fixture} before ingest; ${code} after a silent drop is a lying dashboard.`;
     default:
-      return `Replay ${fixture} once more and only then apply ${code}.`;
+      return `Rerun ${fixture} once more and only then apply ${code}.`;
   }
 }
 
@@ -341,7 +341,7 @@ export function buildCompatMatrix(k: PageKernel, plan: DocumentPlan): CompatMatr
     return {
       code,
       fires: `${comboLine(k, 200 + i)} Code ${code}.`,
-      fix: `${comboLine(k, 210 + i)} Replay ${fixture}.`,
+      fix: `${comboLine(k, 210 + i)} Rerun ${fixture}.`,
     };
   });
   const pins: CompatPin[] = [
@@ -369,19 +369,19 @@ export function buildBranchTree(k: PageKernel, plan: DocumentPlan): BranchFork[]
   const code = `${pick(faults, seed, 1).stem}-${hex(seed, 4)}`;
   return [
     {
-      ifText: comboLine(k, 230).replace(/\.$/, ''),
+      ifText: comboClause(k, 230),
       thenText: comboLine(k, 231),
     },
     {
-      ifText: comboLine(k, 232).replace(/\.$/, ''),
+      ifText: comboClause(k, 232),
       thenText: comboLine(k, 233),
     },
     {
-      ifText: comboLine(k, 234).replace(/\.$/, ''),
+      ifText: comboClause(k, 234),
       thenText: comboLine(k, 235),
     },
     {
-      ifText: comboLine(k, 236).replace(/\.$/, ''),
+      ifText: comboClause(k, 236),
       thenText: `${comboLine(k, 237)} ${code} on ${env.os}.`,
     },
   ];
@@ -418,7 +418,7 @@ export function buildExecutablePack(k: PageKernel, plan: DocumentPlan): SnippetB
   const fixture = fixtureId(plan);
   const env = osFor(k);
   const cmd = toolCommand(k.tool, fixture);
-  const owner = `${k.styleTiny},${k.contextTiny},${k.jobTiny},${k.audienceTiny},${k.taskTiny},${k.toolTiny}`;
+  const owner = fixture;
   const noBinary = k.style === 'without-installing-cli-tools' || k.style === 'with-safe-local-processing';
 
   const bash: SnippetBlock = {

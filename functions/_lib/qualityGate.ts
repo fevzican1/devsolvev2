@@ -8,10 +8,10 @@
  * deleted down to a smaller band.
  *
  * Neighbour uniqueness (body 5-gram Jaccard ≤ 0.04, title/H1 Jaccard ≤ 0.10)
- * is proven at build time; a request cannot MinHash itself against 20M other
- * pages without a paid index. The edge gate therefore enforces the
- * per-document contract those crawlers use to throw a URL into
- * "Crawled – currently not indexed" / scaled content abuse.
+ * is proven offline by src/seo_rules.rs over all 20M neighbours and recorded
+ * in indexable_manifest.bin. The edge cannot MinHash a request against 20M
+ * other pages; it enforces the per-document contract and 404s quarantined
+ * seeds. Same HTML for every user-agent (cloaking is forbidden).
  */
 import {
   TITLE_MAX,
@@ -20,11 +20,13 @@ import {
   auditServedCopy,
   type ResolvedPage,
 } from './programmaticPage';
+import { comboBankViolations } from './comboProcedure';
 import {
   hasDuplicateContentTokens,
   MIN_INDEXABLE_WORDS,
   uniqueTokens,
 } from '../../src/lib/seo/uniqueTokens';
+import { metaEndsWithTrailingConjunction } from '../../src/lib/seo/seoRules';
 
 const TITLE_MIN = 30;
 const MIN_WORDS = MIN_INDEXABLE_WORDS;
@@ -103,6 +105,9 @@ export function edgeQualityGate(html: string, page: ResolvedPage): QualityGateRe
   if (hasDuplicateContentTokens(description)) {
     issues.push('description fails uniqueTokens()');
   }
+  if (metaEndsWithTrailingConjunction(description)) {
+    issues.push('Meta ends with trailing conjunction');
+  }
 
   const canonical = html.match(/<link\s+rel=["']canonical["']\s+href=["']([^"']+)["']/i)?.[1] ?? '';
   if (!canonical.endsWith(`/k/${page.slug}`)) issues.push('canonical is not self');
@@ -112,6 +117,9 @@ export function edgeQualityGate(html: string, page: ResolvedPage): QualityGateRe
   const h1 = decodeAttr((html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1] ?? '').replace(/<[^>]+>/g, ' '));
   if (hasDuplicateContentTokens(h1) || uniqueTokens(h1) !== h1) {
     issues.push(`h1 fails uniqueTokens(): "${h1}"`);
+  }
+  if (h1 !== title) {
+    issues.push('H1 does not match Title exactly');
   }
 
   const h2 = (html.match(/<h2[\s>]/gi) || []).length;
@@ -172,6 +180,7 @@ export function edgeQualityGate(html: string, page: ResolvedPage): QualityGateRe
     issues.push('missing semantic hops');
   }
 
+  issues.push(...comboBankViolations());
   issues.push(...auditServedCopy(html, page));
 
   return { ok: issues.length === 0, issues };

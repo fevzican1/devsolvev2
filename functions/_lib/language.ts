@@ -164,6 +164,18 @@ export function withArticle(value: string): string {
   return `${articleFor(value)} ${value}`;
 }
 
+/** uniqueTokens() can drop a noun and leave a stranded "an". Re-agree the article. */
+export function repairIndefiniteArticles(text: string): string {
+  return text.replace(/\b(an?)\s+([A-Za-z][\w'-]*)/gi, (_full, article: string, word: string) => {
+    const expected = articleFor(word);
+    if (article.toLowerCase() === expected) return `${article} ${word}`;
+    const fixed = article[0] === article[0]!.toUpperCase()
+      ? expected.charAt(0).toUpperCase() + expected.slice(1)
+      : expected;
+    return `${fixed} ${word}`;
+  });
+}
+
 /**
  * Gerunds for the 66 verbs the corpus starts an intent with. English -ing rules
  * are not derivable from spelling alone ("audit" → auditing, "tag" → tagging),

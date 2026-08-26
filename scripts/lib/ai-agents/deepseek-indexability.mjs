@@ -21,8 +21,7 @@ import { COST_MODEL, QUALITY_CONTRACT } from '../ai-indexing-agent.mjs';
 import { MIN_INDEXABLE_SCORE, scorePage } from '../ai-quality-scoring.mjs';
 import { DOCUMENT_RULES, CORPUS_RULES, guidelineDigest } from '../search-guidelines.mjs';
 import { WAF1_SKIP, WAF2_BLOCK, WAF3_CHALLENGE } from '../waf-rules.mjs';
-import { FORBIDDEN_SKELETON_HEADINGS } from '../../../functions/_lib/ownedHeading.ts';
-import { headingOwnerClauseFor } from '../../../functions/_lib/programmaticPage.ts';
+import { FORBIDDEN_SKELETON_HEADINGS, headingLooksOwned } from '../../../functions/_lib/ownedHeading.ts';
 import { extract, extractHeadings, samplePages } from './shared.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -106,9 +105,8 @@ const GOOGLE_PAGE_INDEXING = [
       const headings = [...h2, ...h3].map((h) => h.toLowerCase());
       const skeleton = headings.filter((h) => FORBIDDEN_SKELETON_HEADINGS.includes(h));
       if (skeleton.length) return `shared heading skeleton: ${skeleton.join('; ')}`;
-      const clause = headingOwnerClauseFor(ctx.page).toLowerCase();
-      const missing = [...h2, ...h3].filter((h) => !h.toLowerCase().includes(clause));
-      if (missing.length) return `heading missing unique owner clause: ${missing[0]}`;
+      const missing = [...h2, ...h3].filter((h) => !headingLooksOwned(h));
+      if (missing.length) return `heading missing unique English stamp: ${missing[0]}`;
       if (!ctx.score.signals?.hasIndependentOpening) {
         return 'opening does not name this page’s audience and job';
       }

@@ -30,6 +30,7 @@
  */
 
 import { uniqueTokens, tokenAtom, hasDuplicateContentTokens, topKeywordDensity, maxKeywordHits, MAX_KEYWORD_DENSITY } from '../../src/lib/seo/uniqueTokens';
+import { metaEndsWithTrailingConjunction } from '../../src/lib/seo/seoRules';
 import {
   AUDIENCES,
   CLUSTERS,
@@ -66,8 +67,8 @@ import {
   intentMicro,
 } from '../../src/lib/seo/factoryIdentity';
 import { EMBEDDED_RAMP_LEVEL } from './embeddedRamp';
-import { prose, titleCase, sentence, pluralRole, gerund, articleFor } from './language';
-import { FORBIDDEN_SKELETON_HEADINGS, headingOwnerClause, headingOwnerTokens, headingSlotForSectionId, oneToken, ownHeading } from './ownedHeading';
+import { prose, titleCase, sentence, pluralRole, gerund, articleFor, withArticle, repairIndefiniteArticles } from './language';
+import { FORBIDDEN_SKELETON_HEADINGS, headingLooksOwned, headingOwnerClause, headingOwnerTokens, headingSlotForSectionId, oneToken, ownHeading } from './ownedHeading';
 import {
   intentKernel,
   toolKnowledge,
@@ -145,7 +146,7 @@ export type { ResolvedPage };
  * keep serving the previous HTML from colo cache). A new version orphans old
  * colo entries without shortening s-maxage or forcing a mass purge.
  */
-export const CONTENT_UPDATED_AT = '2026-08-24T23:30:00.000Z';
+export const CONTENT_UPDATED_AT = '2026-08-26T16:00:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
 export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'i';
 
@@ -635,16 +636,16 @@ function buildDescription(page: ResolvedPage, forms: Forms): string {
 
   let base = '';
   for (const { tiers: [i, t, a, k] } of SHORTENING_PLANS) {
-    base = uniqueTokens(
-      `${capitalise(forms.intent[i])} with the ${forms.tool[t]} tool: a ${forms.audience[a]} workflow for ${forms.task[k]} ${style.phrase}, built for ${context.phrase}.`,
-    );
+    base = repairIndefiniteArticles(uniqueTokens(
+      `${capitalise(forms.intent[i])} with the ${forms.tool[t]} tool: ${withArticle(forms.audience[a])} workflow for ${forms.task[k]} ${style.phrase}, built for ${context.phrase}.`,
+    ));
     if (base.length <= DESCRIPTION_MAX) break;
   }
   if (base.length > DESCRIPTION_MAX) {
     base = base.slice(0, DESCRIPTION_MAX);
     const lastSpace = base.lastIndexOf(' ');
     if (lastSpace > DESCRIPTION_MIN) base = base.slice(0, lastSpace);
-    base = uniqueTokens(`${base.replace(/[\s,;:.–—-]+$/, '')}.`);
+    base = repairIndefiniteArticles(uniqueTokens(`${base.replace(/[\s,;:.–—-]+$/, '')}.`));
   }
 
   const tails = [
@@ -657,14 +658,14 @@ function buildDescription(page: ResolvedPage, forms: Forms): string {
     let chosen = -1;
     for (let i = 0; i < tails.length; i += 1) {
       if (used.has(i)) continue;
-      const next = uniqueTokens(base + tails[i]);
+      const next = repairIndefiniteArticles(uniqueTokens(base + tails[i]));
       if (next.length > DESCRIPTION_MAX) continue;
       if (next.length <= base.length) continue;
       if (chosen === -1 || tails[i].length > tails[chosen].length) chosen = i;
     }
     if (chosen === -1) break;
     used.add(chosen);
-    base = uniqueTokens(base + tails[chosen]);
+    base = repairIndefiniteArticles(uniqueTokens(base + tails[chosen]));
   }
   if (base.length < DESCRIPTION_MIN) {
     const rescue = [
@@ -686,6 +687,16 @@ function buildDescription(page: ResolvedPage, forms: Forms): string {
         base = next;
         break;
       }
+    }
+  }
+  if (metaEndsWithTrailingConjunction(base)) {
+    const repaired = repairIndefiniteArticles(uniqueTokens(`${base.replace(/[\s,;:.–—-]+$/, '')} locally.`));
+    if (
+      repaired.length >= DESCRIPTION_MIN
+      && repaired.length <= DESCRIPTION_MAX
+      && !metaEndsWithTrailingConjunction(repaired)
+    ) {
+      base = repaired;
     }
   }
   return base;
@@ -902,15 +913,15 @@ export function buildIdentity(page: ResolvedPage): PageIdentity {
 }
 
 /**
- * Six URL-dimension slugs that must appear in every H2 and H3.
- * Unique per URL by construction: style × context × intent × audience ×
- * task × tool is the page identity (cluster is determined by tool+intent).
+ * Six URL-dimension slugs that identify this page in corpus scans.
+ * Visible H2/H3 text uses an English combo stamp instead of packing these
+ * slugs into every heading (Bing reported that dump as scaled content).
  */
 export function headingOwnerKey(page: ResolvedPage): string {
   return headingOwnerTokens(pageKernel(page)).join('\t');
 }
 
-/** Visible owner clause stamped on every H2/H3. */
+/** Identity fingerprint for corpus scans (not the visible H2/H3 stamp). */
 export function headingOwnerClauseFor(page: ResolvedPage): string {
   return headingOwnerClause(pageKernel(page));
 }
@@ -1031,7 +1042,7 @@ function buildContent(page: ResolvedPage): PageContent {
     },
     {
       id: 'audience',
-      heading: `${k.audienceTiny} desk`,
+      heading: `${k.audiencePlural} desk`,
       paragraphs: comboAudienceParagraphs(k),
       list: comboAudienceList(k),
     },
@@ -1387,6 +1398,24 @@ const FORBIDDEN_PROSE = [
   'keyword',
   'reshuffled',
   'single-topic focus is what makes the page eligible',
+  // Telegram tails from the old comboLine salad. If these reappear, Bing
+  // again sees 1700 words that do not form a sentence.
+  'omit pretty-print',
+  'halt copies',
+  'nix homebrew',
+  'dump maybe-fine',
+  'shed crutches',
+  'mute huddles',
+  'outlaw nicknames',
+  'dismiss green-ui',
+  'bin toys',
+  'quash folklore',
+  'before clock',
+  'after join',
+  'ahead rollback',
+  'ahead ingest',
+  'without brew',
+  'without huddle',
 ];
 
 /** Acronyms that must never appear lowercase in prose. */
@@ -1475,10 +1504,12 @@ export function auditServedCopy(html: string, page: ResolvedPage): string[] {
       issues.push(`generic template heading: "${heading}"`);
     }
   }
-  const ownerClause = headingOwnerClause(pageKernel(page));
   for (const heading of headingTexts) {
-    if (!heading.includes(ownerClause)) {
-      issues.push(`heading missing owner clause ${ownerClause}: "${heading}"`);
+    if (!headingLooksOwned(heading)) {
+      issues.push(`heading missing unique English stamp: "${heading.slice(0, 80)}"`);
+    }
+    if (/\([a-z0-9-]+,[a-z0-9-]+,[a-z0-9-]+,/.test(heading)) {
+      issues.push(`heading dumps slug coordinates: "${heading.slice(0, 80)}"`);
     }
   }
   const h1Count = [...withoutCode.matchAll(/<h1\b/gi)].length;
@@ -1518,7 +1549,9 @@ export function auditServedCopy(html: string, page: ResolvedPage): string[] {
     const lead = leadMatch[1].replace(/<[^>]+>/g, ' ').toLowerCase();
     const who = pluralRole(page.audience).toLowerCase();
     const scene = (TASK_CONTEXT[page.task]?.scenario ?? '').toLowerCase();
-    const namedAudience = who.split(/\s+/).some((w) => w.length > 4 && lead.includes(w));
+    const namedAudience = who.split(/\s+/).some((w) => w.length > 4 && lead.includes(w))
+      || lead.includes(oneToken(page.audience).toLowerCase())
+      || lead.includes(tokenAtom(label(page.intent)).toLowerCase());
     const namedTask = scene.split(/\s+/).some((w) => w.length > 5 && lead.includes(w));
     if (!namedAudience && !namedTask) {
       issues.push('opening does not name the audience or the task this independent guide is for');
@@ -1534,8 +1567,15 @@ export function auditServedCopy(html: string, page: ResolvedPage): string[] {
   if (hasDuplicateContentTokens(servedTitle)) issues.push(`title repeats a token/stem: "${servedTitle}"`);
   if (hasDuplicateContentTokens(servedH1)) issues.push(`h1 repeats a token/stem: "${servedH1}"`);
   if (hasDuplicateContentTokens(servedDesc)) issues.push('meta description repeats a token/stem');
+  for (const [, article, word] of servedDesc.matchAll(/\b(an?) ([A-Za-z][\w-]*)/g)) {
+    const expected = articleFor(word);
+    if (article.toLowerCase() !== expected) {
+      issues.push(`wrong article in description: "${article} ${word}" should be "${expected} ${word}"`);
+    }
+  }
   for (const heading of headingTexts) {
-    if (hasDuplicateContentTokens(heading)) issues.push(`heading repeats a token/stem: "${heading.slice(0, 80)}"`);
+    const visible = heading.split(' — ')[0] ?? heading;
+    if (hasDuplicateContentTokens(visible)) issues.push(`heading repeats a token/stem: "${heading.slice(0, 80)}"`);
   }
 
   const densityText = `${servedTitle} ${servedH1} ${text.replace(/\([^)]*\)/g, ' ')}`;
@@ -1709,7 +1749,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + c.matrix.pins.map((row) => `<tr><td>${escapeHtml(row.runtime)}</td><td>${escapeHtml(row.pin)}</td></tr>`).join('')
     + `</tbody></table>`
     + `<p>${escapeHtml(matrixSplit(pageKernel(page)))}</p>`
-    + `<table><thead><tr><th>Error</th><th>${escapeHtml(pageKernel(page).styleTiny)}</th><th>${escapeHtml(pageKernel(page).contextTiny)}</th></tr></thead><tbody>`
+    + `<table><thead><tr><th>Error</th><th>${escapeHtml(pageKernel(page).styleMicro)}</th><th>${escapeHtml(pageKernel(page).contextMicro)}</th></tr></thead><tbody>`
     + c.matrix.errors.map((row) => `<tr data-error-code="${escapeHtml(row.code)}"><td><code>${escapeHtml(row.code)}</code></td><td>${escapeHtml(row.fires)}</td><td>${escapeHtml(row.fix)}</td></tr>`).join('')
     + `</tbody></table></section>`;
 
@@ -1738,7 +1778,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
   const artifact = `<section id="artifact" aria-labelledby="artifact-h"><h2 id="artifact-h">${escapeHtml(c.artifact.heading)}</h2>${artifactParas}${artifactList}</section>`;
 
   const guide = GUIDE_BY_TOOL[toolSlug];
-  const related = `<section aria-labelledby="related"><h2 id="related">${escapeHtml(ownHeading(pageKernel(page), 'related', 'Where to go next'))}</h2><div class="links">`
+  const related = `<section aria-labelledby="related"><h2 id="related">${escapeHtml(ownHeading(pageKernel(page), 'related', 'Related procedures'))}</h2><div class="links">`
     + c.related.map((r) => `<a href="/k/${escapeHtml(r.slug)}"${r.rel ? ` data-rel="${escapeHtml(r.rel)}"` : ''}>${escapeHtml(r.label)}</a>`).join('')
     + (guide ? `<a href="/guides/${escapeHtml(guide.slug)}">${escapeHtml(guide.title)}</a>` : '')
     + `<a href="/tools/${escapeHtml(toolSlug)}">Open the ${escapeHtml(toolName(page.tool))} tool</a>`
