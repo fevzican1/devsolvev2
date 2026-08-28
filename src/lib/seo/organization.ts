@@ -88,12 +88,16 @@ export const BRAND_LAUNCHSTAG_URL = 'https://launchstag.com';
 /** tools.cafe directory listing (badge backlink). */
 export const BRAND_TOOLS_CAFE_URL = 'https://tools.cafe';
 
+/** Launchbison directory listing (badge backlink). */
+export const BRAND_LAUNCHBISON_URL = 'https://launchbison.com';
+
 /**
  * Operator re-enabled both directories ahead of launch. Badges, footer,
  * rel=me, and Organization sameAs include them again.
  */
 export const BRAND_LAUNCHSTAG_LIVE = true;
 export const BRAND_TOOLS_CAFE_LIVE = true;
+export const BRAND_LAUNCHBISON_LIVE = true;
 
 /** Directory listings that are live and reciprocal today. */
 export const BRAND_LIVE_DIRECTORY_PROFILES: readonly string[] = [
@@ -101,6 +105,7 @@ export const BRAND_LIVE_DIRECTORY_PROFILES: readonly string[] = [
   BRAND_PRODUCT_HUNT_URL,
   ...(BRAND_LAUNCHSTAG_LIVE ? [BRAND_LAUNCHSTAG_URL] : []),
   ...(BRAND_TOOLS_CAFE_LIVE ? [BRAND_TOOLS_CAFE_URL] : []),
+  ...(BRAND_LAUNCHBISON_LIVE ? [BRAND_LAUNCHBISON_URL] : []),
 ];
 
 /** Visual "Featured on …" badge embeds for live directory listings. */
@@ -129,6 +134,15 @@ export const BRAND_FEATURED_BADGES: readonly FeaturedBadge[] = [
       alt: 'Featured on tools.cafe',
       width: 256,
       height: 80,
+    }]
+    : []),
+  ...(BRAND_LAUNCHBISON_LIVE
+    ? [{
+      href: BRAND_LAUNCHBISON_URL,
+      src: 'https://launchbison.com/badge-light.png',
+      alt: 'Featured on Launchbison',
+      width: 198,
+      height: 62,
     }]
     : []),
 ];
@@ -165,6 +179,7 @@ export function brandProfileLabel(href: string): string {
   if (href.includes('producthunt.com')) return 'Product Hunt';
   if (href.includes('saashub.com')) return 'SaaSHub';
   if (href.includes('launchstag.com')) return 'Launchstag';
+  if (href.includes('launchbison.com')) return 'Launchbison';
   if (href.includes('tools.cafe')) return 'tools.cafe';
   if (href.includes('alternativeto.net')) return 'AlternativeTo';
   if (href.includes('/devsolvev2')) return 'GitHub Repository';
