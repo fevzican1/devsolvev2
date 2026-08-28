@@ -447,12 +447,14 @@ function documentWorker() {
 
     stats.nextStem = stem + 1;
     if ((stem - range.startStem) % 25 === 0) {
+      mkdirSync(workDir, { recursive: true });
       writeFileSync(progressFile, JSON.stringify(stats));
       const rate = stats.scanned / Math.max(0.001, (Date.now() - t0) / 1000);
       console.log(`    shard ${SHARD} stem ${stem}/${endStem} scanned ${stats.scanned.toLocaleString()} (${rate.toFixed(0)} pages/s)`);
     }
   }
 
+  mkdirSync(workDir, { recursive: true });
   writeFileSync(progressFile, JSON.stringify(stats, null, 2));
   console.log(`[document shard ${SHARD}] done scanned ${stats.scanned.toLocaleString()} quarantined ${stats.quarantine.length}`);
 }
