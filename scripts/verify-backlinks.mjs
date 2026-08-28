@@ -42,6 +42,7 @@ const PROFILES = [
   { url: 'https://alternativeto.net/software/devsolve/', label: 'AlternativeTo listing (pending)' },
   { url: 'https://launchstag.com', label: 'Launchstag directory (goes live on the 30th)' },
   { url: 'https://tools.cafe', label: 'tools.cafe directory (goes live on the 30th)' },
+  { url: 'https://launchbison.com', label: 'Launchbison directory' },
   { url: 'https://x.com/devsolveai', label: 'X profile' },
   { url: 'https://www.linkedin.com/in/fevzican-aytekin-0b5501105', label: 'LinkedIn profile' },
 ];
