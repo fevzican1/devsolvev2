@@ -10,7 +10,8 @@ Action: Skip (current ruleset + WAF, rate limit, security level, BIC, UA block, 
 
 Google/Bing Chrome renderers skip via crawler ASNs (not a spoofable UA token).
 GCP `396982` is out — farms rent those VMs. Azure `8075` still excludes
-`.0.0.0` farm stamps. `chrome-extension` never skips. No `lighthouse` /
+`.0.0.0` farm stamps. `chrome/103.0.5060` (extension farm on Azure) is out.
+`chrome-extension` never skips. No `lighthouse` /
 `pagespeed` tokens. **Applebot is not listed.**
 
 ```
