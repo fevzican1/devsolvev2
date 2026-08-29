@@ -20,10 +20,11 @@ import {
   laterRulesNameSearchCrawlers,
   matchesWaf1Skip,
   isFarmStampUa,
+  isSpoofDenyUa,
 } from './lib/waf-rules.mjs';
 
 /** Byte-for-byte freeze of the operator-approved WAF2/WAF3 expressions. */
-const WAF2_SHA256 = '97a23dbb0c8e14f7b29fe1cc23853103819607e23e11c872646bc92d4c127c07';
+const WAF2_SHA256 = 'b43efa4531464512afcc0de616baf75ab62ee27dd07bb2dcb5899083823d6664';
 const WAF3_SHA256 = '4533a759ca64043e3616a3fee12d4a9aa4232523406f49f5950e94d5e32bb4f8';
 
 const failures = [];
@@ -71,8 +72,14 @@ if (!WAF1_SKIP.includes('ip.src.asnum')) fail('WAF1 must skip Google/Bing render
 if (!WAF1_SKIP.includes('15169')) fail('WAF1 must include Google ASN 15169');
 if (!WAF1_SKIP.includes('8075')) fail('WAF1 must include Bing/Microsoft ASN 8075');
 if (WAF1_SKIP.includes('396982')) fail('WAF1 must not skip GCP customer ASN 396982 — farms rent those VMs');
+if (!WAF1_SKIP.includes('chrome/103.0.5060')) fail('WAF1 ASN skip must exclude Chrome/103.0.5060 extension farm stamp');
+else ok('WAF1 excludes Chrome/103.0.5060 farm stamp from Bing ASN skip');
+
+if (!WAF1_SKIP.includes('youbot')) fail('WAF1 must not skip YouBot even if it embeds google/bing tokens');
+else ok('WAF1 never skips YouBot via search User-Agent tokens');
+
 if (!WAF1_SKIP.includes('chrome-extension')) fail('WAF1 ASN skip must exclude chrome-extension Origin/Referer/UA');
-ok('WAF1 skips Chrome renderers from Google/Bing ASNs; GCP and extensions stay out');
+else ok('WAF1 skips Chrome renderers from Google/Bing ASNs; GCP and extensions stay out');
 
 if (!WAF1_SKIP.includes('/opengraph-image.png')) fail('WAF1 must skip the PNG social card');
 else ok('WAF1 skips /opengraph-image.png');
@@ -104,6 +111,9 @@ else ok('WAF2 blocks Mac OS X 10_15_7 + Chrome');
 
 if (!WAF2_BLOCK.includes('chrome/100.0.4896')) fail('WAF2 must block Chrome/100.0.4896.75');
 else ok('WAF2 blocks Chrome/100.0.4896.75');
+
+if (!WAF2_BLOCK.includes('youbot')) fail('WAF2 must block YouBot');
+else ok('WAF2 blocks YouBot');
 
 if (WAF2_BLOCK.includes('applebot')) fail('WAF2 must not mention applebot (WAF5 blocks it; do not retune WAF2)');
 else ok('WAF2 does not mention applebot');
@@ -179,6 +189,18 @@ ok('modern Bingbot skips WAF1 on User-Agent and does not use the .0.0.0 farm sta
 const googlebot = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
 if (matchesWaf1Skip({ ua: googlebot }).via !== 'ua-token') fail('Googlebot must skip WAF1 on the google token');
 ok('Googlebot skips WAF1 on User-Agent');
+
+const chrome103Farm = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36';
+if (!isFarmStampUa(chrome103Farm)) fail('Chrome/103.0.5060.134 must be treated as a farm stamp');
+if (matchesWaf1Skip({ ua: chrome103Farm, asnum: 8075 }).skip) {
+  fail('Chrome/103.0.5060.134 on Azure 8075 must not skip WAF1');
+}
+ok('Chrome/103.0.5060 extension farm cannot skip WAF1 on Bing ASN');
+
+const youbotSpoof = 'Mozilla/5.0 (compatible; YouBot/1.0; +http://www.bing.com/bingbot.htm)';
+if (matchesWaf1Skip({ ua: youbotSpoof }).skip) fail('YouBot must not skip WAF1 even with bingbot URL');
+if (!isSpoofDenyUa(youbotSpoof)) fail('YouBot must match WAF1 spoof-deny list');
+ok('YouBot cannot skip WAF1');
 
 if (failures.length) {
   console.error(`\nFAIL — ${failures.length} WAF policy issue(s)`);
