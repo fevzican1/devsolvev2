@@ -27,6 +27,7 @@ import {
   uniqueTokens,
 } from '../../src/lib/seo/uniqueTokens';
 import { metaEndsWithTrailingConjunction } from '../../src/lib/seo/seoRules';
+import { validateEeat } from '../../src/lib/seo/eeatRules';
 
 const TITLE_MIN = 30;
 const MIN_WORDS = MIN_INDEXABLE_WORDS;
@@ -182,6 +183,9 @@ export function edgeQualityGate(html: string, page: ResolvedPage): QualityGateRe
 
   issues.push(...comboBankViolations());
   issues.push(...auditServedCopy(html, page));
+  // E-E-A-T / trust contract — same validator the offline 20M audit runs, so
+  // served bytes can never drift from the manifest's audit basis.
+  issues.push(...validateEeat(html).issues);
 
   return { ok: issues.length === 0, issues };
 }
