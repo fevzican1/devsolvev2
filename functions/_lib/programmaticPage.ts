@@ -148,7 +148,7 @@ export type { ResolvedPage };
  */
 export const CONTENT_UPDATED_AT = '2026-08-26T18:30:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'm';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'n';
 
 /*
  * Full-corpus sitemap. /sitemap.xml advertises every one of the 20M /k/ URLs.
