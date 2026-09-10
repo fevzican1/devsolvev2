@@ -1,7 +1,7 @@
 {
-  "generated": "2026-08-26T11:03:56.464Z",
+  "generated": "2026-09-05T15:28:54.484Z",
   "agentVersion": "2026-08-26.3",
-  "contentVersion": "20260826l",
+  "contentVersion": "20260826n",
   "corpusSize": 20000000,
   "identity": {
     "scanned": 20000000,
@@ -26,13 +26,12 @@
     "maxH1Jaccard": 0,
     "complete": true
   },
-  "documentAdjacent": {
-    "stems": 111112,
-    "scanned": 333335,
-    "mode": "adjacent ctx+1 and style+1 on every stem",
-    "minWords": 2327,
-    "maxDensity": 0.0213,
-    "maxJaccard": 0.0152,
+  "document": {
+    "scanned": 20000000,
+    "mode": "all",
+    "minWords": 2109,
+    "maxDensity": 0.023752969121140142,
+    "maxJaccard": 0.018141097424412094,
     "maxHeadingJaccard": 0,
     "maxSharedHeadings": 0,
     "gateFails": 0,
@@ -40,8 +39,15 @@
     "jaccardFails": 0,
     "headingFails": 0,
     "crossJobFails": 0,
-    "completeForAllModifiers": false
+    "eeatFails": 0,
+    "infoDensityFails": 0,
+    "layoutFails": 0,
+    "stemFatigueFails": 0,
+    "maxLayoutSimilarity": 0,
+    "completeForAllModifiers": true
   },
-  "manifestComplete": false,
-  "note": "Full 180-modifier HTML walk of all 20M is the remaining Stage-1 overnight job. Pages must not score 20M. Jaccard ceiling stays 0.04."
+  "manifestComplete": true,
+  "quarantineCount": 0,
+  "validatorVersion": "eeat-density-layout-1",
+  "note": "Stage-1 identity + all-modifier document/Jaccard/E-E-A-T/density/layout finished. Pages must not rescore 20M."
 }

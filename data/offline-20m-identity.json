@@ -1,11 +1,10 @@
 {
-  "generated": "2026-08-26T10:12:08.371Z",
+  "generated": "2026-09-05T17:22:57.763Z",
   "agentVersion": "2026-08-26.3",
-  "contentVersion": "20260826k",
+  "contentVersion": "20260826n",
   "corpusSize": 20000000,
   "shards": 4,
   "phase": "identity",
-  "docMode": "all",
   "identity": {
     "scanned": 20000000,
     "titleMin": 45,
@@ -31,8 +30,5 @@
     "failures": [],
     "complete": true
   },
-  "document": null,
-  "complete": false,
-  "quarantineCount": 0,
-  "indexableCount": null
+  "complete": true
 }
