@@ -59,7 +59,7 @@ const PREPS = [
   'before audit', 'before flags', 'after decode', 'after naming',
   'while ticking', 'while offline', 'without paste', 'without PATH',
   'on kiosks', 'in evidence', 'during handoff', 'during drills',
-  'for joiners', 'for auditors', 'against baseline', 'against schema',
+  'for joiners', 'for auditors', 'against baseline', 'against spec',
   'until labelled', 'once decoded', 'over screenshots', 'if classified',
   'for replay', 'for reviewers', 'before timeout', 'after conflict',
 ] as const;

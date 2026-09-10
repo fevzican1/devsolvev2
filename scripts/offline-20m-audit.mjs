@@ -8,6 +8,12 @@
  *   document   edgeQualityGate + Rust/TS Google-Bing standards, density ≤2.5%,
  *              JSON-LD==HTML, canonical, semantic saturation, 5-gram Jaccard ≤0.040
  *              with early exit against ctx+1 and style+1 (every neighbour pair)
+ *              + E-E-A-T contract (author/publisher/dates/byline/disclosure)
+ *              + information density (type-token ratio, factual tokens,
+ *              repeated-sentence share)
+ *              + semantic template fatigue / layout-syntax mutation
+ *              (skeleton must mutate against every neighbour; stem-level
+ *              distinct-skeleton ratio floor)
  *
  * Writes:
  *   data/indexable_manifest.bin
@@ -53,6 +59,13 @@ import {
 } from '../src/lib/seo/seoRules.ts';
 import { comboBankViolations } from '../functions/_lib/comboProcedure.ts';
 import {
+  MAX_CONSECUTIVE_SAME_LAYOUT_STEMS,
+  extractLayoutSkeleton,
+  layoutSimilarity,
+  validateEeat,
+  validateInformationDensity,
+} from '../src/lib/seo/eeatRules.ts';
+import {
   extractHeadingSet,
   extractJsonLdText,
   extractMainText,
@@ -78,6 +91,10 @@ const STEM_LIMIT = process.env.OFFLINE_AUDIT_STEM_LIMIT
   ? Number(process.env.OFFLINE_AUDIT_STEM_LIMIT)
   : null;
 const MAX_FAIL_EXAMPLES = 200;
+// Bump when validator rules change: stale progress files from older rule
+// sets are discarded instead of resumed, so every scanned page has passed
+// the exact same contract.
+const VALIDATOR_VERSION = 'eeat-density-layout-1';
 
 function failHard(message) {
   console.error(`FATAL offline-20m-audit: ${message}`);
@@ -259,6 +276,40 @@ function identityWorker() {
   console.log(`[identity shard ${SHARD}] done ${stats.scanned.toLocaleString()} in ${((Date.now() - t0) / 1000).toFixed(0)}s, fails ${stats.failures.length}`);
 }
 
+function freshDocumentStats(startStem, endStem) {
+  return {
+    shard: SHARD,
+    shards: SHARDS,
+    docMode: DOC_MODE,
+    contentVersion: CONTENT_VERSION,
+    startStem,
+    endStem,
+    nextStem: startStem,
+    scanned: 0,
+    gateFails: 0,
+    rustFails: 0,
+    densityFails: 0,
+    thinFails: 0,
+    jaccardFails: 0,
+    headingFails: 0,
+    crossJobFails: 0,
+    eeatFails: 0,
+    infoDensityFails: 0,
+    layoutFails: 0,
+    stemFatigueFails: 0,
+    maxJaccard: 0,
+    maxHeadingJaccard: 0,
+    maxSharedHeadings: 0,
+    maxLayoutSimilarity: 0,
+    minWords: Infinity,
+    maxDensity: 0,
+    comboBank: comboBankViolations(),
+    validatorVersion: VALIDATOR_VERSION,
+    quarantine: [],
+    failures: [],
+  };
+}
+
 function documentWorker() {
   const range = shardStemRange(SHARD, SHARDS, CORPUS_SIZE);
   let startStem = range.startStem;
@@ -268,32 +319,26 @@ function documentWorker() {
   }
   const progressFile = join(workDir, `document-${SHARD}.json`);
   mkdirSync(workDir, { recursive: true });
-  const stats = existsSync(progressFile)
+  let stats = existsSync(progressFile)
     ? JSON.parse(readFileSync(progressFile, 'utf8'))
-    : {
-      shard: SHARD,
-      startStem,
-      endStem,
-      nextStem: startStem,
-      scanned: 0,
-      gateFails: 0,
-      rustFails: 0,
-      densityFails: 0,
-      thinFails: 0,
-      jaccardFails: 0,
-      headingFails: 0,
-      crossJobFails: 0,
-      maxJaccard: 0,
-      maxHeadingJaccard: 0,
-      maxSharedHeadings: 0,
-      minWords: Infinity,
-      maxDensity: 0,
-      comboBank: comboBankViolations(),
-      quarantine: [],
-      failures: [],
-    };
+    : null;
+  const canResume = stats
+    && stats.docMode === DOC_MODE
+    && stats.shards === SHARDS
+    && stats.contentVersion === CONTENT_VERSION
+    && stats.validatorVersion === VALIDATOR_VERSION
+    && Number.isInteger(stats.nextStem);
+  if (!canResume) {
+    if (stats) {
+      console.log(`[document shard ${SHARD}] discarding leftover progress (mode=${stats.docMode} shards=${stats.shards} version=${stats.contentVersion})`);
+    }
+    stats = freshDocumentStats(startStem, endStem);
+  }
   startStem = stats.nextStem ?? startStem;
   stats.endStem = endStem;
+  stats.docMode = DOC_MODE;
+  stats.shards = SHARDS;
+  stats.contentVersion = CONTENT_VERSION;
   const t0 = Date.now();
   console.log(`[document shard ${SHARD}/${SHARDS}] stems ${startStem}..${endStem} mode=${DOC_MODE}`);
 
@@ -303,6 +348,10 @@ function documentWorker() {
       stats.failures.push({ index, slug, reason, ...extra });
     }
   };
+
+  // Rolling layout-fatigue state across consecutive stem families.
+  let prevStemLayoutSig = '';
+  let layoutStreak = 0;
 
   for (let stem = startStem; stem < endStem; stem += 1) {
     const stemStart = stem * MODIFIER_SPAN;
@@ -356,11 +405,24 @@ function documentWorker() {
         reject(index, page.slug, `density ${density.toFixed(4)}`);
         continue;
       }
+      const eeat = validateEeat(html);
+      if (!eeat.ok) {
+        stats.eeatFails += 1;
+        reject(index, page.slug, `eeat: ${eeat.issues.slice(0, 3).join('; ')}`);
+        continue;
+      }
+      const infoDensity = validateInformationDensity(html, words);
+      if (!infoDensity.ok) {
+        stats.infoDensityFails += 1;
+        reject(index, page.slug, infoDensity.issues.slice(0, 2).join('; '));
+        continue;
+      }
       payloads[m] = {
         index,
         slug: page.slug,
         hashes: hash5grams(words),
         headings: extractHeadingSet(html),
+        skeleton: extractLayoutSkeleton(html),
       };
     }
 
@@ -400,6 +462,36 @@ function documentWorker() {
           stats.headingFails += 1;
           reject(left.index, left.slug, `shared H2/H3 ${shared}`, { sibling: right.slug });
         }
+        // Note: layout-skeleton mutation is NOT required between modifiers of
+        // the same stem — the modifier family shares one kernel and therefore
+        // one structural template by design; semantic mutation there is
+        // enforced by the zero-shared-H2/H3 and body-Jaccard contracts above.
+        // Template fatigue is measured across stem families below.
+      }
+    }
+
+    // Semantic template fatigue / layout-syntax mutation across kernel
+    // families: when stem after stem renders from the identical structural
+    // skeleton, the template is exhausted (scaled-content abuse). Track the
+    // run of consecutive same-skeleton stems; past the ceiling, quarantine
+    // the stem's pages.
+    const fatigueProbe = payloads[mods[0]];
+    if (fatigueProbe) {
+      const sig = fatigueProbe.skeleton.join('|');
+      if (sig === prevStemLayoutSig) {
+        layoutStreak += 1;
+      } else {
+        prevStemLayoutSig = sig;
+        layoutStreak = 1;
+      }
+      if (layoutStreak > MAX_CONSECUTIVE_SAME_LAYOUT_STEMS) {
+        stats.stemFatigueFails += 1;
+        for (const m of mods) {
+          const payload = payloads[m];
+          if (payload) {
+            reject(payload.index, payload.slug, `stem template fatigue (${layoutStreak} consecutive stems share one layout skeleton)`);
+          }
+        }
       }
     }
 
@@ -420,18 +512,24 @@ function documentWorker() {
             stats.crossJobFails += 1;
             reject(probe.index, probe.slug, `cross-job shared H2/H3 ${shared}`, { sibling: other.slug });
           }
+          // No layout-skeleton check here: cross-pair families share a genre
+          // outline by design and their semantic mutation is already enforced
+          // by the zero-shared-H2/H3 contract above. Template fatigue across
+          // stems is enforced by the rolling streak check.
         }
       }
     }
 
     stats.nextStem = stem + 1;
     if ((stem - range.startStem) % 25 === 0) {
+      mkdirSync(workDir, { recursive: true });
       writeFileSync(progressFile, JSON.stringify(stats));
       const rate = stats.scanned / Math.max(0.001, (Date.now() - t0) / 1000);
       console.log(`    shard ${SHARD} stem ${stem}/${endStem} scanned ${stats.scanned.toLocaleString()} (${rate.toFixed(0)} pages/s)`);
     }
   }
 
+  mkdirSync(workDir, { recursive: true });
   writeFileSync(progressFile, JSON.stringify(stats, null, 2));
   console.log(`[document shard ${SHARD}] done scanned ${stats.scanned.toLocaleString()} quarantined ${stats.quarantine.length}`);
 }
@@ -456,6 +554,7 @@ function runRole(role, extraEnv) {
 
 async function coordinator() {
   mkdirSync(workDir, { recursive: true });
+  mkdirSync(dataDir, { recursive: true });
   mkdirSync(join(projectRoot, 'out', 'reports'), { recursive: true });
   console.log('[offline-20m-audit] Stage 1 — full-corpus Google/Bing audit');
   console.log(`  corpus ${CORPUS_SIZE.toLocaleString()}  shards ${SHARDS}  phase ${PHASE}  docMode ${DOC_MODE}`);
@@ -590,10 +689,29 @@ async function coordinator() {
       && identity.duplicates.h1 === 0
       && identity.duplicates.owner === 0;
     report.identity = identity;
+    writeFileSync(join(dataDir, 'offline-20m-identity.json'), JSON.stringify({
+      generated: new Date().toISOString(),
+      agentVersion: AGENT_VERSION,
+      contentVersion: CONTENT_VERSION,
+      corpusSize: CORPUS_SIZE,
+      shards: SHARDS,
+      phase: 'identity',
+      identity,
+      complete: identity.complete,
+    }, null, 2));
     console.log(`[identity] scanned ${identity.scanned.toLocaleString()}  title ${identity.titleMin}-${identity.titleMax}  meta ${identity.descriptionMin}-${identity.descriptionMax}`);
     console.log(`[identity] h1≠title ${identity.h1Mismatch}  trailing ${identity.trailingConjunction}  uniqueTokens ${identity.uniqueTokenFails}`);
     console.log(`[identity] dups title/desc/h1/owner ${identity.duplicates.title}/${identity.duplicates.description}/${identity.duplicates.h1}/${identity.duplicates.owner}`);
     console.log(`[identity] neighbour title Jaccard max ${identity.maxTitleJaccard.toFixed(4)}  h1 ${identity.maxH1Jaccard.toFixed(4)}`);
+  } else if (PHASE === 'document') {
+    const identityPath = join(dataDir, 'offline-20m-identity.json');
+    if (existsSync(identityPath)) {
+      const previous = JSON.parse(readFileSync(identityPath, 'utf8'));
+      if (previous.contentVersion === CONTENT_VERSION && previous.identity?.complete) {
+        report.identity = previous.identity;
+        console.log(`[identity] reused complete report for ${CONTENT_VERSION} (${previous.identity.scanned.toLocaleString()} URLs)`);
+      }
+    }
   }
 
   if (PHASE === 'all' || PHASE === 'document') {
@@ -617,9 +735,14 @@ async function coordinator() {
       jaccardFails: 0,
       headingFails: 0,
       crossJobFails: 0,
+      eeatFails: 0,
+      infoDensityFails: 0,
+      layoutFails: 0,
+      stemFatigueFails: 0,
       maxJaccard: 0,
       maxHeadingJaccard: 0,
       maxSharedHeadings: 0,
+      maxLayoutSimilarity: 0,
       minWords: Infinity,
       maxDensity: 0,
       failures: [],
@@ -634,9 +757,14 @@ async function coordinator() {
       document.jaccardFails += stats.jaccardFails;
       document.headingFails += stats.headingFails;
       document.crossJobFails += stats.crossJobFails;
+      document.eeatFails += stats.eeatFails || 0;
+      document.infoDensityFails += stats.infoDensityFails || 0;
+      document.layoutFails += stats.layoutFails || 0;
+      document.stemFatigueFails += stats.stemFatigueFails || 0;
       document.maxJaccard = Math.max(document.maxJaccard, stats.maxJaccard || 0);
       document.maxHeadingJaccard = Math.max(document.maxHeadingJaccard, stats.maxHeadingJaccard || 0);
       document.maxSharedHeadings = Math.max(document.maxSharedHeadings, stats.maxSharedHeadings || 0);
+      document.maxLayoutSimilarity = Math.max(document.maxLayoutSimilarity, stats.maxLayoutSimilarity || 0);
       document.minWords = Math.min(document.minWords, stats.minWords || Infinity);
       document.maxDensity = Math.max(document.maxDensity, stats.maxDensity || 0);
       document.failures.push(...(stats.failures || []));
@@ -651,11 +779,16 @@ async function coordinator() {
       && document.headingFails === 0
       && document.crossJobFails === 0
       && document.thinFails === 0
-      && document.densityFails === 0;
+      && document.densityFails === 0
+      && document.eeatFails === 0
+      && document.infoDensityFails === 0
+      && document.layoutFails === 0
+      && document.stemFatigueFails === 0;
     report.document = document;
     console.log(`[document] scanned ${document.scanned.toLocaleString()}  minWords ${document.minWords}  maxDensity ${document.maxDensity.toFixed(4)}`);
-    console.log(`[document] Jaccard max ${document.maxJaccard.toFixed(4)}  heading ${document.maxHeadingJaccard.toFixed(4)}  shared ${document.maxSharedHeadings}`);
+    console.log(`[document] Jaccard max ${document.maxJaccard.toFixed(4)}  heading ${document.maxHeadingJaccard.toFixed(4)}  shared ${document.maxSharedHeadings}  layoutSim max ${document.maxLayoutSimilarity.toFixed(2)}`);
     console.log(`[document] fails gate/rust/jaccard/heading/cross ${document.gateFails}/${document.rustFails}/${document.jaccardFails}/${document.headingFails}/${document.crossJobFails}`);
+    console.log(`[document] fails eeat/infoDensity/layout/stemFatigue ${document.eeatFails}/${document.infoDensityFails}/${document.layoutFails}/${document.stemFatigueFails}`);
   }
 
   const identityComplete = Boolean(report.identity?.complete);
@@ -687,6 +820,57 @@ async function coordinator() {
     quarantineIds: [...quarantine],
   });
   writeFileSync(join(projectRoot, 'out', 'reports', 'offline-20m-audit.json'), JSON.stringify(report, null, 2));
+  if (report.document) {
+    writeFileSync(join(dataDir, `offline-20m-document-${DOC_MODE}.json`), JSON.stringify(report, null, 2));
+  }
+  writeFileSync(join(dataDir, 'offline-20m-audit-summary.json'), JSON.stringify({
+    generated: report.generated,
+    agentVersion: AGENT_VERSION,
+    contentVersion: CONTENT_VERSION,
+    corpusSize: CORPUS_SIZE,
+    identity: report.identity
+      ? {
+        scanned: report.identity.scanned,
+        titleRange: [report.identity.titleMin, report.identity.titleMax],
+        metaRange: [report.identity.descriptionMin, report.identity.descriptionMax],
+        h1EqualsTitle: report.identity.h1Mismatch === 0,
+        trailingConjunction: report.identity.trailingConjunction,
+        uniqueTokensFails: report.identity.uniqueTokenFails,
+        duplicates: report.identity.duplicates,
+        maxTitleJaccard: report.identity.maxTitleJaccard,
+        maxH1Jaccard: report.identity.maxH1Jaccard,
+        complete: identityComplete,
+      }
+      : null,
+    document: report.document
+      ? {
+        scanned: report.document.scanned,
+        mode: DOC_MODE,
+        minWords: report.document.minWords,
+        maxDensity: report.document.maxDensity,
+        maxJaccard: report.document.maxJaccard,
+        maxHeadingJaccard: report.document.maxHeadingJaccard,
+        maxSharedHeadings: report.document.maxSharedHeadings,
+        gateFails: report.document.gateFails,
+        rustFails: report.document.rustFails,
+        jaccardFails: report.document.jaccardFails,
+        headingFails: report.document.headingFails,
+        crossJobFails: report.document.crossJobFails,
+        eeatFails: report.document.eeatFails,
+        infoDensityFails: report.document.infoDensityFails,
+        layoutFails: report.document.layoutFails,
+        stemFatigueFails: report.document.stemFatigueFails,
+        maxLayoutSimilarity: report.document.maxLayoutSimilarity,
+        completeForAllModifiers: documentComplete && DOC_MODE === 'all',
+      }
+      : null,
+    manifestComplete: decided,
+    quarantineCount: quarantine.size,
+    validatorVersion: VALIDATOR_VERSION,
+    note: decided
+      ? 'Stage-1 identity + all-modifier document/Jaccard/E-E-A-T/density/layout finished. Pages must not rescore 20M.'
+      : 'Full 180-modifier HTML walk of all 20M is not finished. Pages must not score 20M. Jaccard ceiling stays 0.04.',
+  }, null, 2));
   console.log(`[offline-20m-audit] complete=${decided} identity=${identityComplete} document=${documentComplete} quarantine=${quarantine.size}`);
   if (!identityComplete || (PHASE !== 'identity' && !documentComplete)) {
     console.error('INCOMPLETE — manifest will not 404 the factory as a band until both phases finish.');

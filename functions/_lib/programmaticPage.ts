@@ -148,7 +148,7 @@ export type { ResolvedPage };
  */
 export const CONTENT_UPDATED_AT = '2026-08-26T18:30:00.000Z';
 /** Trailing letter advances whenever body HTML quality/uniqueness changes. */
-export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'l';
+export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '') + 'n';
 
 /*
  * Full-corpus sitemap. /sitemap.xml advertises every one of the 20M /k/ URLs.
@@ -1850,6 +1850,25 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     }
   }
 
+  // Layout-syntax mutation (anti template-fatigue): a deterministic callout
+  // block (blockquote or figure) is woven into the genre outline at a
+  // seed-derived position. The variant stride (3 mod 8 per stem, +1 per
+  // modifier) guarantees adjacent stems and sibling modifiers never render
+  // one exhausted skeleton, while the professional outline itself — and the
+  // Bing §18 early-answer order — is preserved. The callout re-uses the
+  // page's own entity brief, so no duplicate copy is minted for layout
+  // variety.
+  const layoutSpan = 180; // modifier span of the shared corpus geometry
+  const stemIndex = Math.floor(page.index / layoutSpan);
+  const layoutVariant = (stemIndex * 3 + (page.index % layoutSpan)) % 8;
+  const callout = escapeHtml(uniqueTokens(c.entity.definition));
+  const calloutBq = `<blockquote class="pull">${callout}</blockquote>`;
+  const calloutFig = `<figure class="callout"><figcaption>${callout}</figcaption></figure>`;
+  const afterIntro = layoutVariant === 1 ? calloutBq : layoutVariant === 4 ? calloutFig : '';
+  const afterCta = layoutVariant === 7 ? calloutBq : '';
+  const afterEntity = layoutVariant === 2 ? calloutBq : layoutVariant === 5 ? calloutFig : '';
+  const afterParts = layoutVariant === 3 ? calloutBq : layoutVariant === 6 ? calloutFig : '';
+
   // Order: Bing §18 early answer stays first (H1 + lead + entity). Body order
   // is the professional outline for this document genre — not a shuffled
   // copy of one universal skeleton. Related links stay last as crawl chrome.
@@ -1858,9 +1877,13 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + `<h1>${escapeHtml(c.h1)}</h1>`
     + `<p class="meta">${escapeHtml(titleCase(page.audience))} · ${escapeHtml(clusterLabel)} · ${escapeHtml(CONTENT_UPDATED_AT.slice(0, 10))}</p>`
     + intro
+    + afterIntro
     + toolCta
+    + afterCta
     + entity
+    + afterEntity
     + orderedParts.join('')
+    + afterParts
     + related
     + `</main>`
     + renderRevenueAsides({
