@@ -7,7 +7,14 @@
   X-XSS-Protection: 0
   Content-Signal: search=yes, ai-train=no
   X-Robots-Tag: index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1
-  Cache-Control: public, max-age=300
+  # Browser 5min, edge 24h: even if the Cache Rule is left on
+  # "Honor origin", the edge still caches for a long time.
+  # If your rule is "Override origin 1 year" this value is
+  # overridden, no problem. Without s-maxage the edge only
+  # applies max-age=300 and it looks like "not caching".
+  Cache-Control: public, max-age=300, s-maxage=86400
+  CDN-Cache-Control: max-age=86400
+  Cloudflare-CDN-Cache-Control: max-age=86400
 
 /_next/static/*
   Cache-Control: public, max-age=31536000, immutable
