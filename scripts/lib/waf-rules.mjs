@@ -25,6 +25,15 @@ export const WAF1_UA_SKIP_TOKENS = [
   'discord', 'whatsapp', 'telegram', 'reddit', 'pinterest',
 ];
 
+/** Never skip on these UA markers — even if the farm also embeds google/bing. */
+export const WAF1_UA_SPOOF_DENY = ['youbot'];
+
+/** Stamped Chrome builds the extension farm reuses (Azure 8075 used to skip WAF1). */
+export const WAF1_FARM_CHROME_STAMPS = [
+  'chrome/100.0.4896',
+  'chrome/103.0.5060',
+];
+
 export const WAF1_PUBLIC_PATHS = [
   '/robots.txt',
   '/sitemap.xml',
@@ -53,9 +62,17 @@ const EXTENSION_DENY = collapse(`
 
 const FARM_STAMP_DENY = collapse(`
   not lower(http.user_agent) contains ".0.0.0"
-  and not lower(http.user_agent) contains "chrome/100.0.4896"
+  and ${WAF1_FARM_CHROME_STAMPS.map((stamp) => `not lower(http.user_agent) contains "${stamp}"`).join('\n  and ')}
   and not (lower(http.user_agent) contains "mac os x 10_15_7" and lower(http.user_agent) contains "chrome/")
 `);
+
+const UA_SPOOF_DENY = collapse(
+  WAF1_UA_SPOOF_DENY.map((token) => `not lower(http.user_agent) contains "${token}"`).join(' and '),
+);
+
+function waf1UaSkipClause(token) {
+  return `(lower(http.user_agent) contains "${token}" and ${UA_SPOOF_DENY})`;
+}
 
 /**
  * Chrome renderers from Google/Bing ASNs. No google/bing in those UAs, so
@@ -86,15 +103,20 @@ export const WAF1_SEARCH_RENDERER_ASN = collapse(`(
  * comes from 15169 and skips via the ASN clause instead.
  */
 export const WAF1_SKIP = collapse(`(
-  ${WAF1_UA_SKIP_TOKENS.map((token) => `lower(http.user_agent) contains "${token}"`).join('\n  or ')}
+  ${WAF1_UA_SKIP_TOKENS.map(waf1UaSkipClause).join('\n  or ')}
   or ${WAF1_SEARCH_RENDERER_ASN}
   or ${PUBLIC_ENDPOINTS}
 )`);
 
+export function isSpoofDenyUa(ua) {
+  const lower = String(ua || '').toLowerCase();
+  return WAF1_UA_SPOOF_DENY.some((token) => lower.includes(token));
+}
+
 export function isFarmStampUa(ua) {
   const lower = String(ua || '').toLowerCase();
   return lower.includes('.0.0.0')
-    || lower.includes('chrome/100.0.4896')
+    || WAF1_FARM_CHROME_STAMPS.some((stamp) => lower.includes(stamp))
     || (lower.includes('mac os x 10_15_7') && lower.includes('chrome/'));
 }
 
@@ -114,6 +136,9 @@ export function matchesWaf1Skip({
   referer = '',
 } = {}) {
   const lower = String(ua || '').toLowerCase();
+  if (isSpoofDenyUa(ua)) {
+    return { skip: false, via: null };
+  }
   if (WAF1_UA_SKIP_TOKENS.some((token) => lower.includes(token))) {
     return { skip: true, via: 'ua-token' };
   }
@@ -160,6 +185,7 @@ export const WAF2_BLOCK = collapse(`(
   or lower(http.user_agent) contains "wget"
   or lower(http.user_agent) contains "python"
   or lower(http.user_agent) contains "scrapy"
+  or lower(http.user_agent) contains "youbot"
   or lower(http.user_agent) contains "chrome-extension"
   or lower(http.user_agent) contains "moz-extension"
   or http.request.headers["origin"][0] contains "chrome-extension"
