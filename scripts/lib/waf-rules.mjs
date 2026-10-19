@@ -39,17 +39,12 @@ export function collapse(expr) {
   return expr.replace(/\s+/g, ' ').trim();
 }
 
-/** Public files any client must be able to fetch (IndexNow, ads, social cards). */
-export const PUBLIC_ENDPOINTS = `(http.request.uri.path in {${WAF1_PUBLIC_PATHS.map((p) => `"${p}"`).join(' ')}})`;
-
-const EXTENSION_DENY = collapse(`
-  not lower(http.user_agent) contains "chrome-extension"
-  and not lower(http.user_agent) contains "moz-extension"
-  and not http.request.headers["origin"][0] contains "chrome-extension"
-  and not http.request.headers["referer"][0] contains "chrome-extension"
-  and not http.request.headers["origin"][0] contains "moz-extension"
-  and not http.request.headers["referer"][0] contains "moz-extension"
-`);
+/** Public files. Scrapers/farm stamps must NOT skip here — that is the Semrush Skip leak. */
+export const WAF1_PUBLIC_SKIP_DENY_TOKENS = [
+  'semrush', 'ahrefs', 'gpt', 'oai-', 'claude', 'anthropic', 'perplexity',
+  'bytespider', 'ccbot', 'dataforseo', 'headless', 'puppeteer', 'selenium',
+  'curl', 'wget', 'python', 'scrapy',
+];
 
 const FARM_STAMP_DENY = collapse(`
   not lower(http.user_agent) contains ".0.0.0"
@@ -57,19 +52,24 @@ const FARM_STAMP_DENY = collapse(`
   and not (lower(http.user_agent) contains "mac os x 10_15_7" and lower(http.user_agent) contains "chrome/")
 `);
 
+const PUBLIC_SCRAPER_DENY = WAF1_PUBLIC_SKIP_DENY_TOKENS
+  .map((token) => `not lower(http.user_agent) contains "${token}"`)
+  .join('\n  and ');
+
+export const PUBLIC_ENDPOINTS = collapse(`(
+  http.request.uri.path in {${WAF1_PUBLIC_PATHS.map((p) => `"${p}"`).join(' ')}}
+  and ${FARM_STAMP_DENY}
+  and ${PUBLIC_SCRAPER_DENY}
+)`);
+
 /**
  * Chrome renderers from Google/Bing ASNs. No google/bing in those UAs, so
- * they used to hit WAF3. This skip is ASN-only — not a spoofable UA token.
- *
- * - Google crawler ASNs (not GCP 396982): skip Chrome, including PageSpeed's
- *   Chrome/123.0.0.0. Farms do not sit on 15169.
- * - Bing/Microsoft ASNs (includes Azure 8075): skip only unstamped Chrome, so
- *   Chrome/145.0.0.0 on Azure still falls through to WAF2.
- * - chrome-extension / moz-extension never skip here. That is the farm.
+ * they used to hit WAF3. ASN-only — not a spoofable UA token. No
+ * chrome-extension text in WAF1 (WAF2 already owns that). Farm stamps on
+ * Azure/Bing ASNs fall through to WAF2.
  */
 export const WAF1_SEARCH_RENDERER_ASN = collapse(`(
   lower(http.user_agent) contains "chrome/"
-  and ${EXTENSION_DENY}
   and (
     ip.src.asnum in ${wafAsnSet(GOOGLE_WAF1_ASNS)}
     or (
@@ -81,9 +81,8 @@ export const WAF1_SEARCH_RENDERER_ASN = collapse(`(
 
 /**
  * WAF1 — SKIP. Search + social User-Agents, Google/Bing renderer ASNs, and
- * the public files above. No verified-bot flag. No Applebot. No lighthouse /
- * pagespeed tokens — the farm can append those in one edit; Google PageSpeed
- * comes from 15169 and skips via the ASN clause instead.
+ * public files that are not scrapers/farm. No chrome-extension. No Applebot.
+ * No lighthouse/pagespeed tokens.
  */
 export const WAF1_SKIP = collapse(`(
   ${WAF1_UA_SKIP_TOKENS.map((token) => `lower(http.user_agent) contains "${token}"`).join('\n  or ')}
@@ -98,32 +97,29 @@ export function isFarmStampUa(ua) {
     || (lower.includes('mac os x 10_15_7') && lower.includes('chrome/'));
 }
 
-export function isExtensionRequest({ ua = '', origin = '', referer = '' } = {}) {
-  const blob = `${ua}\n${origin}\n${referer}`.toLowerCase();
-  return blob.includes('chrome-extension') || blob.includes('moz-extension');
+export function isPublicSkipDeniedUa(ua) {
+  const lower = String(ua || '').toLowerCase();
+  if (isFarmStampUa(ua)) return true;
+  return WAF1_PUBLIC_SKIP_DENY_TOKENS.some((token) => lower.includes(token));
 }
 
 /**
  * Offline model of WAF1. Used to prove the dashboard farm UAs cannot skip.
+ * WAF1 does not mention chrome-extension; WAF2 owns that.
  */
 export function matchesWaf1Skip({
   ua = '',
   path = '/k/x',
   asnum = 0,
-  origin = '',
-  referer = '',
 } = {}) {
   const lower = String(ua || '').toLowerCase();
   if (WAF1_UA_SKIP_TOKENS.some((token) => lower.includes(token))) {
     return { skip: true, via: 'ua-token' };
   }
-  if (WAF1_PUBLIC_PATHS.includes(path)) {
+  if (WAF1_PUBLIC_PATHS.includes(path) && !isPublicSkipDeniedUa(ua)) {
     return { skip: true, via: 'public-path' };
   }
   if (!lower.includes('chrome/')) {
-    return { skip: false, via: null };
-  }
-  if (isExtensionRequest({ ua, origin, referer })) {
     return { skip: false, via: null };
   }
   if (GOOGLE_WAF1_ASNS.includes(asnum)) {
