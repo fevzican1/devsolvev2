@@ -29,6 +29,8 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { getIndexNowConfig } from './lib/streaming-mode-config.mjs';
+
 // IndexNow keys are not secrets — the protocol requires the key to be
 // publicly readable at https://<domain>/<key>.txt to prove domain ownership
 // (see scripts/indexnow-ping.mjs). Rather than hardcoding the literal key
@@ -51,7 +53,11 @@ const HOST = DOMAIN.replace(/^https?:\/\//, '');
 const INDEXNOW_ENDPOINT = process.env.INDEXNOW_ENDPOINT || 'https://api.indexnow.org/indexnow';
 const DRY_RUN = process.env.INDEXNOW_DRY_RUN === '1' || process.env.INDEXNOW_DRY_RUN === 'true';
 const DISABLED = process.env.INDEXNOW_DISABLED === '1' || process.env.INDEXNOW_DISABLED === 'true';
-const MAX_URLS_PER_RUN = 100;
+// Event-Driven Streaming Mode: batch boyutu ramp seviyesine bağlıdır.
+// Bu script sadece bu build'de değişen URL'leri gönderir (delta-only),
+// dolayısıyla payload zaten küçüktür; bu limit sadece bir üst güvenlik bantıdır.
+const INDEXNOW_CFG = getIndexNowConfig();
+const MAX_URLS_PER_RUN = INDEXNOW_CFG.batchSize;
 
 const outDir = join(process.cwd(), 'out');
 const newUrlsPath = join(outDir, 'reports', 'ai-quality-new-urls.txt');

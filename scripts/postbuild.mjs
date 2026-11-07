@@ -3,12 +3,18 @@ import { mkdirSync, existsSync, rmSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+import { logStreamingMode } from './lib/streaming-mode-config.mjs';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
 const outDir = join(projectRoot, 'out');
 const reportsDir = join(outDir, 'reports');
 
 console.log('Starting postbuild tasks...');
+
+// Event-Driven Streaming Mode — batch moddan tamamen ayrılmış,
+// delta-only (sadece yeni/değişen URL'ler) indeksleme akışı.
+logStreamingMode();
 
 // Deterministic, network-free guards whose failure means real content/indexing
 // regressions (not flaky external calls) shipped to production. Every check
@@ -88,11 +94,13 @@ try {
   console.log('Feed generation completed with warnings');
 }
 
-// Immediately notify Bing/IndexNow about the small diff of new-or-changed,
-// AI-quality-approved URLs for this build. Zero Cloudflare Worker cost,
-// best-effort (never blocks the deploy).
+// EVENT-DRIVEN STREAMING — Adım 1/2: Anında delta gönderimi.
+// Sadece bu build'de değişen, AI Quality Gate'ı geçen URL'leri IndexNow'a
+// anında bildirir. Batch moddaki "tüm corpusu yeniden gönder" davranışından
+// tamamen ayrılmıştır; payload boyutu sadece değişen içerikle sınırlıdır.
+// Zero Cloudflare Worker cost, best-effort (never blocks the deploy).
 try {
-  console.log('Submitting new/changed AI-quality-approved URLs to IndexNow...');
+  console.log(`📡 [Streaming/Event-Driven] Anında IndexNow delta gönderimi (sadece yeni/değişen URL'ler)...`);
   execSync(`node ${join(__dirname, 'ai-quality-indexnow-submit.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
   console.log('AI-quality IndexNow submission completed with warnings');
@@ -244,7 +252,7 @@ try {
 // a failure here never breaks the deploy (set INDEXNOW_DISABLED=1 to skip, or
 // INDEXNOW_DRY_RUN=1 to scan without sending).
 try {
-  console.log('Pinging IndexNow (Bing / DuckDuckGo) — incremental rolling slice...');
+  console.log('📡 [Streaming/Rolling-Slice] IndexNow — paced incremental rolling slice...');
   execSync(`node ${join(__dirname, 'indexnow-ping.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
   console.log('IndexNow ping completed with warnings — see logs above');

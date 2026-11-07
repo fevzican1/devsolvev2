@@ -73,6 +73,8 @@ import { createReadStream, existsSync, readdirSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { join } from 'node:path';
 
+import { getIndexNowConfig, logStreamingMode } from './lib/streaming-mode-config.mjs';
+
 /* ========================================================================== */
 /*  CONFIGURATION                                                              */
 /* ========================================================================== */
@@ -81,12 +83,13 @@ const DOMAIN = (process.env.SITE_URL || 'https://devsolvev2.com').replace(/\/+$/
 const HOST = DOMAIN.replace(/^https?:\/\//, '');
 const INDEXNOW_ENDPOINT = process.env.INDEXNOW_ENDPOINT || 'https://api.indexnow.org/indexnow';
 
-// Streaming-compliant defaults (Bing WMT flags "bulk submission mode"): small
-// batches, a tiny per-run trickle, slower pacing. The full 18M corpus is
-// discovered via the SITEMAP; IndexNow only streams a small high-value set.
-const MAX_PER_RUN = 100;
-const BATCH_SIZE = 100;
-const DELAY_MS = clampInt(process.env.INDEXNOW_DELAY_MS, 2000, 0, 60_000);
+// Event-Driven Streaming Mode konfigürasyonu — ramp seviyesine bağlıdır.
+// src/config/rampController.ts ile scripts/lib/streaming-mode-config.mjs
+// üzerinden tek kaynaktan okunur. Hardcoded sabit yoktur.
+const INDEXNOW_CFG = getIndexNowConfig();
+const MAX_PER_RUN = INDEXNOW_CFG.sliceSize;      // tek çalıştırmada en fazla URL
+const BATCH_SIZE = INDEXNOW_CFG.batchSize;       // tek HTTP çağrısına batch
+const DELAY_MS = clampInt(process.env.INDEXNOW_DELAY_MS, INDEXNOW_CFG.batchDelayMs, 0, 60_000);
 const MAX_RETRIES = 4;
 const DRY_RUN = process.env.INDEXNOW_DRY_RUN === '1' || process.env.INDEXNOW_DRY_RUN === 'true';
 const DISABLED = process.env.INDEXNOW_DISABLED === '1' || process.env.INDEXNOW_DISABLED === 'true';
@@ -279,6 +282,7 @@ async function run() {
   console.log('🚀 IndexNow notification started (incremental / non-bulk mode).');
   console.log(`   host=${HOST}  key=${API_KEY.slice(0, 6)}…  endpoint=${INDEXNOW_ENDPOINT}`);
   console.log(`   batch=${BATCH_SIZE}  maxPerRun=${MAX_PER_RUN || 'ALL'}  delay=${DELAY_MS}ms`);
+  logStreamingMode();
 
   if (DISABLED) {
     console.log('⏭️  INDEXNOW_DISABLED set — skipping (no-op).');
