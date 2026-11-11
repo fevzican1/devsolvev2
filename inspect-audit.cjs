@@ -1,0 +1,13 @@
+const fs = require('fs');
+const d = JSON.parse(fs.readFileSync('/home/ubuntu/devsolvev2/out/reports/offline-20m-audit.json', 'utf8'));
+console.log('complete:', d.complete);
+console.log('quarantineCount:', d.quarantineCount);
+console.log('document.complete:', d.document && d.document.complete);
+const fails = (d.document && d.document.failures) || [];
+console.log('failures.length:', fails.length);
+for (const f of fails.slice(0, 10)) console.log(JSON.stringify(f));
+console.log('gateFails:', d.document && d.document.gateFails);
+console.log('eeatFails:', d.document && d.document.eeatFails);
+console.log('infoDensityFails:', d.document && d.document.infoDensityFails);
+console.log('layoutFails:', d.document && d.document.layoutFails);
+console.log('stemFatigueFails:', d.document && d.document.stemFatigueFails);

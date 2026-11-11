@@ -1,0 +1,16 @@
+{
+  "name": "devsolvev2-agent-pages-manage-crawl-budget-dd8b",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "postbuild": "node scripts/postbuild.mjs",
+    "sitemap:core": "next-sitemap --config next-sitemap.config.mjs",
+    "sitemap:programmatic": "node scripts/generate-programmatic-sitemaps.mjs",
+    "ai-quality:sitemap": "node scripts/generate-ai-quality-sitemaps.mjs",
+    "ai-quality:indexnow": "node scripts/ai-quality-indexnow-submit.mjs",
+    "ramp:verify": "node --import tsx scripts/verify-ramp-sitemap-sync.mjs",
+    "discovery:ping": "node scripts/free-discovery-ping.mjs",
+    "feed": "node scripts/generate-feed.mjs"
+  }
+}

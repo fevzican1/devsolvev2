@@ -1,0 +1,1 @@
+export const EMBEDDED_RAMP_LEVEL = 5 as 0 | 1 | 2 | 3 | 4 | 5;

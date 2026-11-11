@@ -1,0 +1,14 @@
+Indexability Audit — 2026-05-23T17:11:45.614Z
+Critical: 1  Warning: 1  Info: 2
+
+[CRITICAL] (robots.txt) public\robots.txt
+   public/robots.txt is missing — every crawler will use defaults and your site may be crawled inconsistently.
+
+[INFO] (_headers) public\_headers
+   public/_headers missing — sitemap caching headers cannot be guaranteed.
+
+[INFO] (sitemap) out
+   out/ directory not present — run `npm run build` to generate sitemaps before submission.
+
+[WARNING] (functions) functions\k\[[slug]].ts
+   functions/k/[[slug]].ts missing — fallthrough requests for non-prerendered /k/* will 404.

@@ -1,0 +1,42 @@
+{
+  "generatedAt": "2026-05-23T17:11:45.614Z",
+  "summary": {
+    "filesScanned": 0,
+    "pagesScanned": 0,
+    "indexablePages": 0,
+    "noindexPages": 0,
+    "robotsDisallowRules": 0,
+    "redirectRules": 0,
+    "sitemapEntries": 0,
+    "critical": 1,
+    "warning": 1,
+    "info": 2,
+    "healthy": false
+  },
+  "findings": [
+    {
+      "level": "CRITICAL",
+      "area": "robots.txt",
+      "file": "public\\robots.txt",
+      "message": "public/robots.txt is missing — every crawler will use defaults and your site may be crawled inconsistently."
+    },
+    {
+      "level": "INFO",
+      "area": "_headers",
+      "file": "public\\_headers",
+      "message": "public/_headers missing — sitemap caching headers cannot be guaranteed."
+    },
+    {
+      "level": "INFO",
+      "area": "sitemap",
+      "file": "out",
+      "message": "out/ directory not present — run `npm run build` to generate sitemaps before submission."
+    },
+    {
+      "level": "WARNING",
+      "area": "functions",
+      "file": "functions\\k\\[[slug]].ts",
+      "message": "functions/k/[[slug]].ts missing — fallthrough requests for non-prerendered /k/* will 404."
+    }
+  ]
+}
