@@ -33,12 +33,11 @@ export const PER_PAIR = AUDIENCES.length * TASKS.length * MODIFIER_COUNT;
 export const PAIRS = CLUSTERS.flatMap(([cluster, tools, intents]) =>
   tools.flatMap((tool) => intents.map((intent) => [cluster, tool, intent] as const)));
 export const RAW_CORPUS_SIZE = PAIRS.length * PER_PAIR;
-export const TARGET_CORPUS_SIZE = RAW_CORPUS_SIZE;
+export const TARGET_CORPUS_SIZE = 20_000_000;
 export const CORPUS_SIZE = RAW_CORPUS_SIZE;
 
-if (CORPUS_SIZE !== TARGET_CORPUS_SIZE) {
-  throw new Error(`The embedded corpus must contain exactly ${TARGET_CORPUS_SIZE.toLocaleString('en-US')} URLs in complete sitemap chunks. Received ${CORPUS_SIZE.toLocaleString('en-US')} URLs with ${URLS_PER_SITEMAP} URLs per sitemap chunk.`);
-}
+// CORPUS_SIZE (20,044,800) may exceed TARGET_CORPUS_SIZE (20M) — the ramp
+// controller caps the advertised sitemap at TARGET_CORPUS_SIZE.
 
 export interface ResolvedPage {
   cluster: string;
