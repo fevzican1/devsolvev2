@@ -1,7 +1,7 @@
 [submodule "devsolvev2"]
 	path = devsolvev2
-	url = https://github.com/fevzican1/devsolvev2.git
+	url = git@github.com:fevzican1/devsolvev2.git
 
 [submodule "devsolvev2-agent-pages-manage-crawl-budget-dd8b"]
 	path = devsolvev2-agent-pages-manage-crawl-budget-dd8b
-	url = https://github.com/fevzican1/devsolvev2-agent-pages-manage-crawl-budget-dd8b.git
+	url = git@github.com:fevzican1/devsolvev2-agent-pages-manage-crawl-budget-dd8b.git
