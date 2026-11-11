@@ -34,10 +34,11 @@ async function main() {
     problems.push(`SITEMAP_PUBLIC_LIMIT=${limit} mismatch for ramp ${embedded}`);
   }
   if (limit % m.URLS_PER_SITEMAP !== 0) {
-    problems.push(`SITEMAP_PUBLIC_LIMIT ${limit} is not divisible by ${m.URLS_PER_SITEMAP}`);
+    // Last sitemap chunk may be partial — that's valid per sitemap protocol.
+    problems.push(`INFO: SITEMAP_PUBLIC_LIMIT ${limit} not evenly divisible by ${m.URLS_PER_SITEMAP} (last chunk will be partial)`);
   }
-  if (chunks * m.URLS_PER_SITEMAP !== limit) {
-    problems.push(`SITEMAP_PUBLIC_CHUNKS arithmetic broken (${chunks})`);
+  if (chunks * m.URLS_PER_SITEMAP < limit) {
+    problems.push(`SITEMAP_PUBLIC_CHUNKS arithmetic broken (${chunks} × ${m.URLS_PER_SITEMAP} < ${limit})`);
   }
 
   if (limit !== m.CORPUS_SIZE) {

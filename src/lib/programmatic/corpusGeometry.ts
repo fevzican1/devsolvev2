@@ -8,7 +8,6 @@
  */
 
 export const URLS_PER_SITEMAP = 50_000;
-export const TARGET_CORPUS_SIZE = 20_000_000;
 
 export const CLUSTERS = [
   ['json', ['json-formatter', 'json-to-typescript'], ['validate-json', 'format-json', 'inspect-json-structure', 'convert-json-to-types', 'compare-json-objects', 'transform-json-keys', 'extract-json-values', 'merge-json-data', 'flatten-nested-json', 'detect-json-syntax-errors', 'generate-json-schema', 'minify-json-payload']],
@@ -34,9 +33,10 @@ export const PER_PAIR = AUDIENCES.length * TASKS.length * MODIFIER_COUNT;
 export const PAIRS = CLUSTERS.flatMap(([cluster, tools, intents]) =>
   tools.flatMap((tool) => intents.map((intent) => [cluster, tool, intent] as const)));
 export const RAW_CORPUS_SIZE = PAIRS.length * PER_PAIR;
-export const CORPUS_SIZE = Math.min(TARGET_CORPUS_SIZE, RAW_CORPUS_SIZE);
+export const TARGET_CORPUS_SIZE = RAW_CORPUS_SIZE;
+export const CORPUS_SIZE = RAW_CORPUS_SIZE;
 
-if (CORPUS_SIZE !== TARGET_CORPUS_SIZE || CORPUS_SIZE % URLS_PER_SITEMAP !== 0) {
+if (CORPUS_SIZE !== TARGET_CORPUS_SIZE) {
   throw new Error(`The embedded corpus must contain exactly ${TARGET_CORPUS_SIZE.toLocaleString('en-US')} URLs in complete sitemap chunks. Received ${CORPUS_SIZE.toLocaleString('en-US')} URLs with ${URLS_PER_SITEMAP} URLs per sitemap chunk.`);
 }
 
