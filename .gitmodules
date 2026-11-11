@@ -1,6 +1,3 @@
-[url "https://github.com/fevzican1/devsolvev2"]
-	name = devsolvev2
+[submodule "devsolvev2"]
 	path = devsolvev2
-[url "https://github.com/fevzican1/devsolvev2-agent-pages-manage-crawl-budget-dd8b"]
-	name = devsolvev2-agent-pages-manage-crawl-budget-dd8b
-	path = devsolvev2-agent-pages-manage-crawl-budget-dd8b
+	url = https://github.com/fevzican1/devsolvev2.git
