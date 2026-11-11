@@ -157,9 +157,9 @@ export const CONTENT_VERSION = CONTENT_UPDATED_AT.slice(0, 10).replace(/-/g, '')
  * so scripts that still read .ramp-level stay in lockstep.
  */
 export { EMBEDDED_RAMP_LEVEL };
-export const RAMP_SITEMAP_LIMITS = [500_000, 2_000_000, 5_000_000, 9_000_000, 14_000_000, 20_000_000] as const;
+export const RAMP_SITEMAP_LIMITS = [500_000, 2_000_000, 5_000_000, CORPUS_SIZE, CORPUS_SIZE, CORPUS_SIZE];
 export const SITEMAP_PUBLIC_LIMIT = RAMP_SITEMAP_LIMITS[EMBEDDED_RAMP_LEVEL];
-export const SITEMAP_PUBLIC_CHUNKS = SITEMAP_PUBLIC_LIMIT / URLS_PER_SITEMAP;
+export const SITEMAP_PUBLIC_CHUNKS = Math.ceil(SITEMAP_PUBLIC_LIMIT / URLS_PER_SITEMAP);
 
 if (SITEMAP_PUBLIC_LIMIT !== CORPUS_SIZE) {
   throw new Error(`Sitemap must advertise the full corpus (${CORPUS_SIZE.toLocaleString('en-US')} URLs). Received SITEMAP_PUBLIC_LIMIT=${SITEMAP_PUBLIC_LIMIT.toLocaleString('en-US')}.`);
