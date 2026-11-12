@@ -2,6 +2,8 @@
  * Owned heading utilities for programmatic sitemap and page generation.
  */
 
+export const EMBEDDED_RAMP_LEVEL = 5 as const;
+
 export const FORBIDDEN_SKELETON_HEADINGS: readonly string[] = [
   'introduction',
   'conclusion',

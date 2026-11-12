@@ -12,5 +12,9 @@
     "ramp:verify": "node --import tsx scripts/verify-ramp-sitemap-sync.mjs",
     "discovery:ping": "node scripts/free-discovery-ping.mjs",
     "feed": "node scripts/generate-feed.mjs"
+  },
+  "devDependencies": {
+    "next": "^16.4.6",
+    "react": "^19.3.1"
   }
 }
