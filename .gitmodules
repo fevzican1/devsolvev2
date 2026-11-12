@@ -1,1 +1,3 @@
-
+[submodule "devsolvev2"]
+	path = devsolvev2
+	url = https://github.com/fevzican1/devsolvev2.git
