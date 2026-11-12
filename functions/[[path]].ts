@@ -167,7 +167,7 @@ function sitemapResponse(part: number, origin: string): Response {
 function notFound(): Response {
   // A clean, cacheable 404 (Bing guideline #9) — cached so a crawler that keeps
   // retrying a removed URL does not keep re-invoking the Function.
-  return new Response('Not Found', { status: 404, headers: contentHeaders('text/plain; charset=utf-8', 'public, max-age=300, s-maxage=86400') });
+  return new Response('Not Found', { status: 404, headers: contentHeaders('text/plain; charset=utf-8', 'public, max-age=300, s-maxage=86400, stale-while-revalidate=604800') });
 }
 
 function buildResponse(pathname: string, origin: string): Response | undefined {
@@ -194,7 +194,12 @@ function buildResponse(pathname: string, origin: string): Response | undefined {
     // or describes nothing at all (404). Serving an arbitrary page for an
     // unknown slug would publish duplicate content under a canonical tag that
     // points somewhere else.
-    const resolution = resolveSlugRequest(match[1]);
+    // 🛑 ERKEN KONTROL: Botların uydurma/uzun slug'larını ağır işlemlere sokmadan anında kes
+    const slug = match[1];
+    if (slug.length > 120 || !/^[a-z0-9](?:[a-z0-9-]{0,118}[a-z0-9])?$/.test(slug)) {
+      return notFound(); // Ağır arama yapmadan direkt 404 döner, sayaç şişmez
+    }
+    const resolution = resolveSlugRequest(slug);
     if (resolution.kind === 'canonical') return pageResponse(resolution.page, origin);
     if (resolution.kind === 'redirect') return permanentRedirect(`${origin}/k/${resolution.slug}`);
     return notFound();
