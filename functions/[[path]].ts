@@ -170,6 +170,12 @@ function notFound(): Response {
   return new Response('Not Found', { status: 404, headers: contentHeaders('text/plain; charset=utf-8', 'public, max-age=300, s-maxage=86400, stale-while-revalidate=604800') });
 }
 
+function gone(): Response {
+  // 410 Gone — permanently removed. Google drops these from the index faster
+  // than a 404 and never retries them, saving crawl budget on dead URLs.
+  return new Response('Gone', { status: 410, headers: contentHeaders('text/plain; charset=utf-8', 'public, max-age=300, s-maxage=86400, stale-while-revalidate=604800') });
+}
+
 function buildResponse(pathname: string, origin: string): Response | undefined {
   if (pathname === '/sitemap.xml') return sitemapIndexResponse(origin);
   const sitemapMatch = pathname.match(/^\/sitemaps\/sitemap-(\d+)\.xml$/);
@@ -197,7 +203,7 @@ function buildResponse(pathname: string, origin: string): Response | undefined {
     // 🛑 ERKEN KONTROL: Botların uydurma/uzun slug'larını ağır işlemlere sokmadan anında kes
     const slug = match[1];
     if (slug.length > 120 || !/^[a-z0-9](?:[a-z0-9-]{0,118}[a-z0-9])?$/.test(slug)) {
-      return notFound(); // Ağır arama yapmadan direkt 404 döner, sayaç şişmez
+      return gone(); // 410 — bu biçimde asla geçerli bir /k/ sayfası olamaz, kalıcı sil
     }
     const resolution = resolveSlugRequest(slug);
     if (resolution.kind === 'canonical') return pageResponse(resolution.page, origin);

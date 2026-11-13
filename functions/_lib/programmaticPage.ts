@@ -1613,6 +1613,9 @@ function genreHeading(id: string, page: ResolvedPage, c: PageContent): string {
 export function renderProgrammaticPage(page: ResolvedPage, origin: string): string {
   const c = buildContent(page);
   const canonical = `${origin}/k/${page.slug}`;
+  // Thin-content guard: if the rendered body is below the indexable word floor,
+  // serve noindex so Google never spends crawl budget on low-value pages.
+  const isThin = (c.sections?.reduce((acc, s) => acc + (s.paragraphs?.join(' ').length || 0), 0) || 0) < 900;
   const toolSlug = page.tool;
   const clusterLabel = uniqueTokens(title(page.cluster));
 
@@ -1677,8 +1680,7 @@ export function renderProgrammaticPage(page: ResolvedPage, origin: string): stri
     + `<meta name="description" content="${escapeHtml(c.description)}">`
     + `<meta name="keywords" content="${escapeHtml(c.keywords.join(', '))}">`
     + `<link rel="canonical" href="${escapeHtml(canonical)}">`
-    + `<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large,max-video-preview:-1">`
-    + `<meta name="bingbot" content="index,follow">`
+    + `<meta name="robots" content="${isThin ? 'noindex,follow' : 'index,follow,max-snippet:-1,max-image-preview:large,max-video-preview:-1'}">`
     + `<meta name="author" content="DevSolve Editorial Team">`
     + `<meta property="og:type" content="article">`
     + `<meta property="og:site_name" content="DevSolve">`

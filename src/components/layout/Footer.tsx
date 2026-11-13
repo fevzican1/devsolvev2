@@ -133,6 +133,14 @@ export function Footer() {
                   View all guides
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/guides/page/1"
+                  className="text-sm text-primary hover:underline"
+                >
+                  Site Arşivi (HTML Sitemap)
+                </Link>
+              </li>
             </ul>
           </div>
 

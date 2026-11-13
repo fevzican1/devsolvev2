@@ -62,6 +62,21 @@ export const onRequest = async (context: PagesContext): Promise<Response> => {
   const url = new URL(request.url);
   const pathname = url.pathname.toLowerCase();
 
+  // 0. Doğrudan devsolvev2.pages.dev adresine gelen tüm bot ve kaçak
+  //    istekleri anında kes — production tek tekil hostname: devsolvev2.com
+  if (url.hostname === "devsolvev2.pages.dev" || url.hostname.endsWith(".devsolvev2.pages.dev")) {
+    return new Response("Forbidden", {
+      status: 403,
+      headers: { "Content-Type": "text/plain" },
+    });
+  }
+
+  // 0.5. Bing botları kod seviyesinde tamamen engellenir (site politikası: sadece Google).
+  const ua = request.headers.get("user-agent") || "";
+  if (/bingbot|msnbot|adidxbot/i.test(ua)) {
+    return new Response("Forbidden — Bing crawling disabled by site policy", { status: 403 });
+  }
+
   // 0. GET dışındaki tüm metotları origin'e açık geç (değişiklik yapma).
   if (request.method !== "GET") {
     return fetch(request);

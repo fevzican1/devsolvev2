@@ -1,5 +1,24 @@
 {
   "version": 1,
-  "include": ["/k/*", "/g/*", "/sitemap.xml", "/sitemaps/*"],
-  "exclude": []
+  "include": [
+    "/k/*",
+    "/g/*",
+    "/sitemap.xml",
+    "/sitemaps/*",
+    "/guides/page/*"
+  ],
+  "exclude": [
+    "/_next/*",
+    "/assets/*",
+    "/favicon.*",
+    "/*.{png,jpg,jpeg,gif,svg,ico,webp,avif}",
+    "/*.{woff,woff2,ttf,otf,eot}",
+    "/*.css",
+    "/*.js",
+    "/*.json",
+    "/manifest.webmanifest",
+    "/robots.txt",
+    "/sitemap.xml",
+    "/sitemaps/*"
+  ]
 }

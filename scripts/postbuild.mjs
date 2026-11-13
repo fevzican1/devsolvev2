@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+﻿import { execSync } from 'child_process';
 import { mkdirSync, existsSync, rmSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -25,7 +25,6 @@ logStreamingMode();
 // slug-parity drift (mass de-index risk), a sub-90 quality regression, a
 // broken meta description, or a real indexability leak could reach
 // production silently while the build reported success. Network-dependent
-// steps (IndexNow, outbound-link audit) are intentionally excluded — they
 // have their own best-effort semantics and must never block a deploy on a
 // transient network failure.
 const hardFailures = [];
@@ -95,15 +94,11 @@ try {
 }
 
 // EVENT-DRIVEN STREAMING — Adım 1/2: Anında delta gönderimi.
-// Sadece bu build'de değişen, AI Quality Gate'ı geçen URL'leri IndexNow'a
 // anında bildirir. Batch moddaki "tüm corpusu yeniden gönder" davranışından
 // tamamen ayrılmıştır; payload boyutu sadece değişen içerikle sınırlıdır.
 // Zero Cloudflare Worker cost, best-effort (never blocks the deploy).
 try {
-  console.log(`📡 [Streaming/Event-Driven] Anında IndexNow delta gönderimi (sadece yeni/değişen URL'ler)...`);
-  execSync(`node ${join(__dirname, 'ai-quality-indexnow-submit.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
-  console.log('AI-quality IndexNow submission completed with warnings');
 }
 
 try {
@@ -243,19 +238,11 @@ try {
   hardFailures.push('indexability-audit');
 }
 
-// IndexNow ping runs LAST — only after the canonical spot-check and slug-parity
 // guards above have validated the sitemaps. It notifies Bing / DuckDuckGo (and
-// every IndexNow engine) INCREMENTALLY: small, paced batches and a rolling daily
 // slice rather than a bulk dump, per Bing's "avoid bulk submission mode"
 // guidance (prevents origin crawl spikes + indexing delays). It talks directly
-// to api.indexnow.org, so it incurs ZERO Cloudflare Worker cost. Best-effort:
-// a failure here never breaks the deploy (set INDEXNOW_DISABLED=1 to skip, or
-// INDEXNOW_DRY_RUN=1 to scan without sending).
 try {
-  console.log('📡 [Streaming/Rolling-Slice] IndexNow — paced incremental rolling slice...');
-  execSync(`node ${join(__dirname, 'indexnow-ping.mjs')}`, { stdio: 'inherit' });
 } catch (error) {
-  console.log('IndexNow ping completed with warnings — see logs above');
 }
 
 // Free discovery pings (WebSub hubs + Google sitemap ping). Zero CF cost,

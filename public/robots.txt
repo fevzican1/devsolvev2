@@ -141,42 +141,25 @@ User-agent: MegaIndex
 Disallow: /
 
 # ---------------------------------------------------------------------------
-# Bing & DuckDuckGo crawlers — explicitly allowed (IndexNow partners)
+# Bing & DuckDuckGo — fully blocked (site policy: Google-only crawl budget)
 # ---------------------------------------------------------------------------
-# Policy update: we now actively court Bing and DuckDuckGo (DuckDuckGo is
-# powered by Bing's index) to accelerate indexing of the programmatic corpus.
-# IndexNow notifications (see the key file referenced below) tell Bing exactly
-# which URLs to crawl; these Allow rules let its crawlers actually fetch them.
-# DuckDuckGo additionally runs DuckDuckBot for its own crawls.
 User-agent: Bingbot
-Allow: /
-Disallow: /cmd-center
-Disallow: /api/
-Disallow: /cdn-cgi/
+Disallow: /
 
 User-agent: bingbot
-Allow: /
-Disallow: /cmd-center
-Disallow: /api/
-Disallow: /cdn-cgi/
+Disallow: /
 
 User-agent: msnbot
-Allow: /
-Disallow: /cmd-center
-Disallow: /api/
-Disallow: /cdn-cgi/
+Disallow: /
 
 User-agent: adidxbot
-Allow: /
+Disallow: /
 
 User-agent: DuckDuckBot
-Allow: /
-Disallow: /cmd-center
-Disallow: /api/
-Disallow: /cdn-cgi/
+Disallow: /
 
 User-agent: DuckDuckGo-Favicons-Bot
-Allow: /
+Disallow: /
 
 # ---------------------------------------------------------------------------
 # Social / link-preview (unfurl) crawlers — explicitly allowed
@@ -245,10 +228,7 @@ Disallow: /*?*filter=
 Disallow: /*?*ref=
 Disallow: /*?*utm_
 
-# IndexNow ownership key (Bing / DuckDuckGo). The key file is served at the
-# site root and its body equals the key itself:
-#   https://devsolvev2.com/ee5098cac2284d92b6ee1c9fca52a120.txt
-# scripts/indexnow-ping.mjs submits the URL corpus to api.indexnow.org.
+# Sitemap index — every entry resolves to a canonical, storage-free programmatic URL.
 
 # Deterministic edge sitemap index — every entry resolves to a canonical,
 # storage-free programmatic URL.

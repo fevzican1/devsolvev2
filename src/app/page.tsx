@@ -13,17 +13,15 @@ import { TrustSignals } from '@/components/layout/TrustSignals';
 import { StaticRevenueModules } from '@/components/monetization/StaticRevenue';
 import { isSovrnJourneyEnabled, platformExternalUrls } from '@/config/monetization';
 import { CORPUS_CLUSTER_KEYS, clusterHubHref } from '@/lib/programmatic/corpusClusters';
+import { sortClustersByPriority } from '@/lib/seo/priorityClusters';
 
 export const metadata: Metadata = buildMetadata({
-  // Explicit title + description — buildMetadata always emits an absolute
-  // <title> (never relies on layout merge alone; Bing flagged missing title).
   title: 'Free Privacy-First Developer Tools & Guides',
   description:
     'Free browser-based developer tools for JSON formatting, JWT decoding, regex testing, Base64 encoding, and more. All processing happens locally — your data never leaves your browser.',
   path: '/',
   keywords: ['developer tools', 'json formatter', 'jwt decoder', 'regex tester', 'base64', 'online tools', 'privacy-first', 'free tools'],
 });
-
 
 const features = [
   {
@@ -142,19 +140,27 @@ export default function HomePage() {
 
       <section className="py-16 bg-muted/50">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-3xl font-bold mb-2">Technical Guides & Tutorials</h2>
-              <p className="text-muted-foreground">
-                In-depth guides with best practices and real-world examples
-              </p>
+          <div className="flex flex-col mb-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold mb-2">Technical Guides & Tutorials</h2>
+                <p className="text-muted-foreground">
+                  In-depth guides with best practices and real-world examples
+                </p>
+              </div>
+              <Button asChild variant="outline">
+                <Link href="/guides">
+                  View All
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
             </div>
-            <Button asChild variant="outline">
-              <Link href="/guides">
-                View All
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+            <Link
+              href="/guides/page/1"
+              className="text-sm text-muted-foreground hover:text-primary hover:underline mt-2 inline-block"
+            >
+              → Tüm İçerik Arşivi (HTML Sitemap)
+            </Link>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
@@ -237,7 +243,7 @@ export default function HomePage() {
             Directories into the full 20 million /k/ guides. Home → cluster index → a guide is two clicks.
           </p>
           <ul className="mt-6 grid gap-3 md:grid-cols-2">
-            {CORPUS_CLUSTER_KEYS.map((cluster) => (
+            {sortClustersByPriority(CORPUS_CLUSTER_KEYS).map((cluster) => (
               <li key={cluster}>
                 <Link
                   href={clusterHubHref(cluster)}
